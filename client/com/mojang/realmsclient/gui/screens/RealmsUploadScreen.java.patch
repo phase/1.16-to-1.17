@@ -1,0 +1,97 @@
+--- com/mojang/realmsclient/gui/screens/RealmsUploadScreen.java
++++ com/mojang/realmsclient/gui/screens/RealmsUploadScreen.java
+@@ -5,10 +5,11 @@
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.BufferBuilder;
+ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.Tesselator;
++import com.mojang.blaze3d.vertex.VertexFormat;
+ import com.mojang.realmsclient.Unit;
+ import com.mojang.realmsclient.client.FileUpload;
+ import com.mojang.realmsclient.client.RealmsClient;
+ import com.mojang.realmsclient.client.UploadStatus;
+ import com.mojang.realmsclient.dto.UploadInfo;
+@@ -168,11 +169,11 @@
+       RenderSystem.disableTexture();
+       double var4 = (double)(this.width / 2 - 100);
+       double var6 = 0.5D;
+       Tesselator var8 = Tesselator.getInstance();
+       BufferBuilder var9 = var8.getBuilder();
+-      var9.begin(7, DefaultVertexFormat.POSITION_COLOR);
++      var9.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+       var9.vertex(var4 - 0.5D, 95.5D, 0.0D).color(217, 210, 210, 255).endVertex();
+       var9.vertex(var4 + 200.0D * var2 + 0.5D, 95.5D, 0.0D).color(217, 210, 210, 255).endVertex();
+       var9.vertex(var4 + 200.0D * var2 + 0.5D, 79.5D, 0.0D).color(217, 210, 210, 255).endVertex();
+       var9.vertex(var4 - 0.5D, 79.5D, 0.0D).color(217, 210, 210, 255).endVertex();
+       var9.vertex(var4, 95.0D, 0.0D).color(128, 128, 128, 255).endVertex();
+@@ -267,16 +268,16 @@
+                this.status = new TranslatableComponent("mco.upload.close.failure");
+                return;
+             }
+ 
+             UploadTokenCache.put(var3, var5.getToken());
+-            if (var5.isWorldClosed()) {
+-               if (this.cancelled) {
+-                  this.uploadCancelled();
+-                  return;
+-               }
++            if (!var5.isWorldClosed()) {
++               this.status = new TranslatableComponent("mco.upload.close.failure");
++               return;
++            }
+ 
++            if (!this.cancelled) {
+                File var25 = new File(this.minecraft.gameDirectory.getAbsolutePath(), "saves");
+                var1 = this.tarGzipArchive(new File(var25, this.selectedLevel.getLevelId()));
+                if (this.cancelled) {
+                   this.uploadCancelled();
+                   return;
+@@ -284,17 +285,17 @@
+ 
+                if (!this.verify(var1)) {
+                   long var26 = var1.length();
+                   Unit var9 = Unit.getLargest(var26);
+                   Unit var10 = Unit.getLargest(5368709120L);
+-                  if (!Unit.humanReadable(var26, var9).equals(Unit.humanReadable(5368709120L, var10)) || var9 == Unit.B) {
+-                     this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var9), Unit.humanReadable(5368709120L, var10)}));
++                  if (Unit.humanReadable(var26, var9).equals(Unit.humanReadable(5368709120L, var10)) && var9 != Unit.B) {
++                     Unit var11 = Unit.values()[var9.ordinal() - 1];
++                     this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var11), Unit.humanReadable(5368709120L, var11)}));
+                      return;
+                   }
+ 
+-                  Unit var11 = Unit.values()[var9.ordinal() - 1];
+-                  this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var11), Unit.humanReadable(5368709120L, var11)}));
++                  this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var9), Unit.humanReadable(5368709120L, var10)}));
+                   return;
+                }
+ 
+                this.status = new TranslatableComponent("mco.upload.uploading", new Object[]{this.selectedLevel.getLevelName()});
+                FileUpload var7 = new FileUpload(var1, this.worldId, this.slotId, var5, this.minecraft.getUser(), SharedConstants.getCurrentVersion().getName(), this.uploadStatus);
+@@ -327,11 +328,11 @@
+                }
+ 
+                return;
+             }
+ 
+-            this.status = new TranslatableComponent("mco.upload.close.failure");
++            this.uploadCancelled();
+          } catch (IOException var21) {
+             this.setErrorMessage(new TranslatableComponent("mco.upload.failed", new Object[]{var21.getMessage()}));
+             return;
+          } catch (RealmsServiceException var22) {
+             this.setErrorMessage(new TranslatableComponent("mco.upload.failed", new Object[]{var22.toString()}));
+@@ -345,11 +346,11 @@
+                UPLOAD_LOCK.unlock();
+                this.showDots = false;
+                this.backButton.visible = true;
+                this.cancelButton.visible = false;
+                if (var1 != null) {
+-                  LOGGER.debug("Deleting file " + var1.getAbsolutePath());
++                  LOGGER.debug("Deleting file {}", var1.getAbsolutePath());
+                   var1.delete();
+                }
+ 
+             }
+ 

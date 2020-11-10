@@ -1,0 +1,82 @@
+--- net/minecraft/world/entity/animal/Wolf.java
++++ net/minecraft/world/entity/animal/Wolf.java
+@@ -16,11 +16,11 @@
+ import net.minecraft.util.Mth;
+ import net.minecraft.util.TimeUtil;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.damagesource.DamageSource;
+-import net.minecraft.world.entity.AgableMob;
++import net.minecraft.world.entity.AgeableMob;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityDimensions;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.Mob;
+@@ -128,11 +128,11 @@
+       super.readAdditionalSaveData(var1);
+       if (var1.contains("CollarColor", 99)) {
+          this.setCollarColor(DyeColor.byId(var1.getInt("CollarColor")));
+       }
+ 
+-      this.readPersistentAngerSaveData((ServerLevel)this.level, var1);
++      this.readPersistentAngerSaveData(this.level, var1);
+    }
+ 
+    protected SoundEvent getAmbientSound() {
+       if (this.isAngry()) {
+          return SoundEvents.WOLF_GROWL;
+@@ -275,16 +275,16 @@
+ 
+    public InteractionResult mobInteract(Player var1, InteractionHand var2) {
+       ItemStack var3 = var1.getItemInHand(var2);
+       Item var4 = var3.getItem();
+       if (this.level.isClientSide) {
+-         boolean var7 = this.isOwnedBy(var1) || this.isTame() || var4 == Items.BONE && !this.isTame() && !this.isAngry();
++         boolean var7 = this.isOwnedBy(var1) || this.isTame() || var3.is(Items.BONE) && !this.isTame() && !this.isAngry();
+          return var7 ? InteractionResult.CONSUME : InteractionResult.PASS;
+       } else {
+          if (this.isTame()) {
+             if (this.isFood(var3) && this.getHealth() < this.getMaxHealth()) {
+-               if (!var1.abilities.instabuild) {
++               if (!var1.getAbilities().instabuild) {
+                   var3.shrink(1);
+                }
+ 
+                this.heal((float)var4.getFoodProperties().getNutrition());
+                return InteractionResult.SUCCESS;
+@@ -304,18 +304,18 @@
+             }
+ 
+             DyeColor var5 = ((DyeItem)var4).getDyeColor();
+             if (var5 != this.getCollarColor()) {
+                this.setCollarColor(var5);
+-               if (!var1.abilities.instabuild) {
++               if (!var1.getAbilities().instabuild) {
+                   var3.shrink(1);
+                }
+ 
+                return InteractionResult.SUCCESS;
+             }
+-         } else if (var4 == Items.BONE && !this.isAngry()) {
+-            if (!var1.abilities.instabuild) {
++         } else if (var3.is(Items.BONE) && !this.isAngry()) {
++            if (!var1.getAbilities().instabuild) {
+                var3.shrink(1);
+             }
+ 
+             if (this.random.nextInt(3) == 0) {
+                this.tame(var1);
+@@ -370,11 +370,11 @@
+ 
+    public void setCollarColor(DyeColor var1) {
+       this.entityData.set(DATA_COLLAR_COLOR, var1.getId());
+    }
+ 
+-   public Wolf getBreedOffspring(ServerLevel var1, AgableMob var2) {
++   public Wolf getBreedOffspring(ServerLevel var1, AgeableMob var2) {
+       Wolf var3 = (Wolf)EntityType.WOLF.create(var1);
+       UUID var4 = this.getOwnerUUID();
+       if (var4 != null) {
+          var3.setOwnerUUID(var4);
+          var3.setTame(true);

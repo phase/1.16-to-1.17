@@ -1,0 +1,143 @@
+--- net/minecraft/world/entity/item/ItemEntity.java
++++ net/minecraft/world/entity/item/ItemEntity.java
+@@ -14,10 +14,11 @@
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.sounds.SoundEvents;
++import net.minecraft.sounds.SoundSource;
+ import net.minecraft.stats.Stats;
+ import net.minecraft.tags.FluidTags;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.Entity;
+@@ -65,11 +66,11 @@
+       this.getEntityData().define(DATA_ITEM, ItemStack.EMPTY);
+    }
+ 
+    public void tick() {
+       if (this.getItem().isEmpty()) {
+-         this.remove();
++         this.discard();
+       } else {
+          super.tick();
+          if (this.pickupDelay > 0 && this.pickupDelay != 32767) {
+             --this.pickupDelay;
+          }
+@@ -135,11 +136,11 @@
+                this.hasImpulse = true;
+             }
+          }
+ 
+          if (!this.level.isClientSide && this.age >= 6000) {
+-            this.remove();
++            this.discard();
+          }
+ 
+       }
+    }
+ 
+@@ -162,11 +163,11 @@
+ 
+          while(var2.hasNext()) {
+             ItemEntity var3 = (ItemEntity)var2.next();
+             if (var3.isMergable()) {
+                this.tryToMerge(var3);
+-               if (this.removed) {
++               if (this.isRemoved()) {
+                   break;
+                }
+             }
+          }
+ 
+@@ -190,11 +191,11 @@
+ 
+       }
+    }
+ 
+    public static boolean areMergable(ItemStack var0, ItemStack var1) {
+-      if (var1.getItem() != var0.getItem()) {
++      if (!var1.is(var0.getItem())) {
+          return false;
+       } else if (var1.getCount() + var0.getCount() > var1.getMaxStackSize()) {
+          return false;
+       } else if (var1.hasTag() ^ var0.hasTag()) {
+          return false;
+@@ -219,11 +220,11 @@
+    private static void merge(ItemEntity var0, ItemStack var1, ItemEntity var2, ItemStack var3) {
+       merge(var0, var1, var3);
+       var0.pickupDelay = Math.max(var0.pickupDelay, var2.pickupDelay);
+       var0.age = Math.min(var0.age, var2.age);
+       if (var3.isEmpty()) {
+-         var2.remove();
++         var2.discard();
+       }
+ 
+    }
+ 
+    public boolean fireImmune() {
+@@ -231,19 +232,19 @@
+    }
+ 
+    public boolean hurt(DamageSource var1, float var2) {
+       if (this.isInvulnerableTo(var1)) {
+          return false;
+-      } else if (!this.getItem().isEmpty() && this.getItem().getItem() == Items.NETHER_STAR && var1.isExplosion()) {
++      } else if (!this.getItem().isEmpty() && this.getItem().is(Items.NETHER_STAR) && var1.isExplosion()) {
+          return false;
+       } else if (!this.getItem().getItem().canBeHurtBy(var1)) {
+          return false;
+       } else {
+          this.markHurt();
+          this.health = (int)((float)this.health - var2);
+          if (this.health <= 0) {
+-            this.remove();
++            this.discard();
+          }
+ 
+          return false;
+       }
+    }
+@@ -282,24 +283,24 @@
+       }
+ 
+       CompoundTag var2 = var1.getCompound("Item");
+       this.setItem(ItemStack.of(var2));
+       if (this.getItem().isEmpty()) {
+-         this.remove();
++         this.discard();
+       }
+ 
+    }
+ 
+    public void playerTouch(Player var1) {
+       if (!this.level.isClientSide) {
+          ItemStack var2 = this.getItem();
+          Item var3 = var2.getItem();
+          int var4 = var2.getCount();
+-         if (this.pickupDelay == 0 && (this.owner == null || this.owner.equals(var1.getUUID())) && var1.inventory.add(var2)) {
++         if (this.pickupDelay == 0 && (this.owner == null || this.owner.equals(var1.getUUID())) && var1.getInventory().add(var2)) {
+             var1.take(this, var4);
+             if (var2.isEmpty()) {
+-               this.remove();
++               this.discard();
+                var2.setCount(var4);
+             }
+ 
+             var1.awardStat(Stats.ITEM_PICKED_UP.get(var3), var4);
+             var1.onItemPickup(this);
+@@ -392,9 +393,13 @@
+ 
+    public Packet<?> getAddEntityPacket() {
+       return new ClientboundAddEntityPacket(this);
+    }
+ 
++   public SoundSource getSoundSource() {
++      return SoundSource.AMBIENT;
++   }
++
+    static {
+       DATA_ITEM = SynchedEntityData.defineId(ItemEntity.class, EntityDataSerializers.ITEM_STACK);
+    }
+ }

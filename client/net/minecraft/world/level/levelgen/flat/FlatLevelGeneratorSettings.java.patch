@@ -1,0 +1,106 @@
+--- net/minecraft/world/level/levelgen/flat/FlatLevelGeneratorSettings.java
++++ net/minecraft/world/level/levelgen/flat/FlatLevelGeneratorSettings.java
+@@ -15,10 +15,11 @@
+ import net.minecraft.Util;
+ import net.minecraft.core.Registry;
+ import net.minecraft.data.worldgen.Features;
+ import net.minecraft.data.worldgen.StructureFeatures;
+ import net.minecraft.resources.RegistryLookupCodec;
++import net.minecraft.world.level.LevelHeightAccessor;
+ import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.biome.BiomeGenerationSettings;
+ import net.minecraft.world.level.biome.Biomes;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+@@ -30,11 +31,11 @@
+ import net.minecraft.world.level.levelgen.feature.StructureFeature;
+ import net.minecraft.world.level.levelgen.feature.configurations.LayerConfiguration;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-public class FlatLevelGeneratorSettings {
++public class FlatLevelGeneratorSettings implements LevelHeightAccessor {
+    private static final Logger LOGGER = LogManager.getLogger();
+    public static final Codec<FlatLevelGeneratorSettings> CODEC = RecordCodecBuilder.create((var0) -> {
+       return var0.group(RegistryLookupCodec.create(Registry.BIOME_REGISTRY).forGetter((var0x) -> {
+          return var0x.biomes;
+       }), StructureSettings.CODEC.fieldOf("structures").forGetter(FlatLevelGeneratorSettings::structureSettings), FlatLayerInfo.CODEC.listOf().fieldOf("layers").forGetter(FlatLevelGeneratorSettings::getLayersInfo), Codec.BOOL.fieldOf("lakes").orElse(false).forGetter((var0x) -> {
+@@ -95,18 +96,16 @@
+ 
+    }
+ 
+    public FlatLevelGeneratorSettings(StructureSettings var1, Registry<Biome> var2) {
+       this.layersInfo = Lists.newArrayList();
+-      this.layers = new BlockState[256];
+-      this.decoration = false;
+-      this.addLakes = false;
+       this.biomes = var2;
+       this.structureSettings = var1;
+       this.biome = () -> {
+          return (Biome)var2.getOrThrow(Biomes.PLAINS);
+       };
++      this.layers = new BlockState[this.getHeight()];
+    }
+ 
+    public FlatLevelGeneratorSettings withStructureSettings(StructureSettings var1) {
+       return this.withLayers(this.layersInfo, var1);
+    }
+@@ -179,11 +178,12 @@
+ 
+       for(var6 = 0; var6 < var12.length; ++var6) {
+          BlockState var13 = var12[var6];
+          if (var13 != null && !Heightmap.Types.MOTION_BLOCKING.isOpaque().test(var13)) {
+             this.layers[var6] = null;
+-            var3.addFeature(GenerationStep.Decoration.TOP_LAYER_MODIFICATION, Feature.FILL_LAYER.configured(new LayerConfiguration(var6, var13)));
++            int var14 = this.getMinBuildHeight() + var6;
++            var3.addFeature(GenerationStep.Decoration.TOP_LAYER_MODIFICATION, Feature.FILL_LAYER.configured(new LayerConfiguration(var14, var13)));
+          }
+       }
+ 
+       return (new Biome.BiomeBuilder()).precipitation(var1.getPrecipitation()).biomeCategory(var1.getBiomeCategory()).depth(var1.getDepth()).scale(var1.getScale()).temperature(var1.getBaseTemperature()).downfall(var1.getDownfall()).specialEffects(var1.getSpecialEffects()).generationSettings(var3.build()).mobSpawnSettings(var1.getMobSettings()).build();
+    }
+@@ -208,11 +208,11 @@
+       return this.layers;
+    }
+ 
+    public void updateLayers() {
+       Arrays.fill(this.layers, 0, this.layers.length, (Object)null);
+-      int var1 = 0;
++      int var1 = this.getMinBuildHeight();
+ 
+       FlatLayerInfo var3;
+       for(Iterator var2 = this.layersInfo.iterator(); var2.hasNext(); var1 += var3.getHeight()) {
+          var3 = (FlatLayerInfo)var2.next();
+          var3.setStart(var1);
+@@ -226,11 +226,11 @@
+ 
+          for(int var7 = var6.getStart(); var7 < var6.getStart() + var6.getHeight(); ++var7) {
+             BlockState var4 = var6.getBlockState();
+             if (!var4.is(Blocks.AIR)) {
+                this.voidGen = false;
+-               this.layers[var7] = var4;
++               this.layers[this.getLayerIndex(var7)] = var4;
+             }
+          }
+       }
+ 
+    }
+@@ -245,6 +245,18 @@
+       var2.getLayersInfo().add(new FlatLayerInfo(2, Blocks.DIRT));
+       var2.getLayersInfo().add(new FlatLayerInfo(1, Blocks.GRASS_BLOCK));
+       var2.updateLayers();
+       return var2;
+    }
++
++   public int getLayerIndex(int var1) {
++      return var1 - this.getMinBuildHeight();
++   }
++
++   public int getSectionsCount() {
++      return 16;
++   }
++
++   public int getMinSection() {
++      return 0;
++   }
+ }

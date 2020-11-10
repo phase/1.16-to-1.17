@@ -1,0 +1,77 @@
+--- net/minecraft/world/entity/animal/Pig.java
++++ net/minecraft/world/entity/animal/Pig.java
+@@ -14,11 +14,11 @@
+ import net.minecraft.sounds.SoundSource;
+ import net.minecraft.world.Difficulty;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.damagesource.DamageSource;
+-import net.minecraft.world.entity.AgableMob;
++import net.minecraft.world.entity.AgeableMob;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.ItemBasedSteering;
+ import net.minecraft.world.entity.ItemSteerable;
+@@ -75,20 +75,20 @@
+       return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 10.0D).add(Attributes.MOVEMENT_SPEED, 0.25D);
+    }
+ 
+    @Nullable
+    public Entity getControllingPassenger() {
+-      return this.getPassengers().isEmpty() ? null : (Entity)this.getPassengers().get(0);
++      return this.getFirstPassenger();
+    }
+ 
+    public boolean canBeControlledByRider() {
+       Entity var1 = this.getControllingPassenger();
+       if (!(var1 instanceof Player)) {
+          return false;
+       } else {
+          Player var2 = (Player)var1;
+-         return var2.getMainHandItem().getItem() == Items.CARROT_ON_A_STICK || var2.getOffhandItem().getItem() == Items.CARROT_ON_A_STICK;
++         return var2.getMainHandItem().is(Items.CARROT_ON_A_STICK) || var2.getOffhandItem().is(Items.CARROT_ON_A_STICK);
+       }
+    }
+ 
+    public void onSyncedDataUpdated(EntityDataAccessor<?> var1) {
+       if (DATA_BOOST_TIME.equals(var1) && this.level.isClientSide) {
+@@ -140,11 +140,11 @@
+          return InteractionResult.sidedSuccess(this.level.isClientSide);
+       } else {
+          InteractionResult var4 = super.mobInteract(var1, var2);
+          if (!var4.consumesAction()) {
+             ItemStack var5 = var1.getItemInHand(var2);
+-            return var5.getItem() == Items.SADDLE ? var5.interactLivingEntity(var1, this, var2) : InteractionResult.PASS;
++            return var5.is(Items.SADDLE) ? var5.interactLivingEntity(var1, this, var2) : InteractionResult.PASS;
+          } else {
+             return var4;
+          }
+       }
+    }
+@@ -219,11 +219,11 @@
+             var3.setCustomNameVisible(this.isCustomNameVisible());
+          }
+ 
+          var3.setPersistenceRequired();
+          var1.addFreshEntity(var3);
+-         this.remove();
++         this.discard();
+       } else {
+          super.thunderHit(var1, var2);
+       }
+ 
+    }
+@@ -242,11 +242,11 @@
+ 
+    public boolean boost() {
+       return this.steering.boost(this.getRandom());
+    }
+ 
+-   public Pig getBreedOffspring(ServerLevel var1, AgableMob var2) {
++   public Pig getBreedOffspring(ServerLevel var1, AgeableMob var2) {
+       return (Pig)EntityType.PIG.create(var1);
+    }
+ 
+    public boolean isFood(ItemStack var1) {
+       return FOOD_ITEMS.test(var1);

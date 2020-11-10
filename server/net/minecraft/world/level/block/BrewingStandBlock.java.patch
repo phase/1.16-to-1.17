@@ -1,0 +1,46 @@
+--- net/minecraft/world/level/block/BrewingStandBlock.java
++++ net/minecraft/world/level/block/BrewingStandBlock.java
+@@ -1,7 +1,8 @@
+ package net.minecraft.world.level.block;
+ 
++import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.stats.Stats;
+ import net.minecraft.world.Container;
+ import net.minecraft.world.Containers;
+ import net.minecraft.world.InteractionHand;
+@@ -11,10 +12,12 @@
+ import net.minecraft.world.inventory.AbstractContainerMenu;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.entity.BlockEntity;
++import net.minecraft.world.level.block.entity.BlockEntityTicker;
++import net.minecraft.world.level.block.entity.BlockEntityType;
+ import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.StateDefinition;
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+@@ -36,14 +39,19 @@
+ 
+    public RenderShape getRenderShape(BlockState var1) {
+       return RenderShape.MODEL;
+    }
+ 
+-   public BlockEntity newBlockEntity(BlockGetter var1) {
+-      return new BrewingStandBlockEntity();
++   public BlockEntity newBlockEntity(BlockPos var1, BlockState var2) {
++      return new BrewingStandBlockEntity(var1, var2);
+    }
+ 
++   @Nullable
++   public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level var1, BlockState var2, BlockEntityType<T> var3) {
++      return var1.isClientSide ? null : createTickerHelper(var3, BlockEntityType.BREWING_STAND, BrewingStandBlockEntity::serverTick);
++   }
++
+    public VoxelShape getShape(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
+       return SHAPE;
+    }
+ 
+    public InteractionResult use(BlockState var1, Level var2, BlockPos var3, Player var4, InteractionHand var5, BlockHitResult var6) {

@@ -1,0 +1,43 @@
+--- net/minecraft/world/entity/projectile/ThrownTrident.java
++++ net/minecraft/world/entity/projectile/ThrownTrident.java
+@@ -60,11 +60,11 @@
+          if (var2 > 0 && !this.isAcceptibleReturnOwner()) {
+             if (!this.level.isClientSide && this.pickup == AbstractArrow.Pickup.ALLOWED) {
+                this.spawnAtLocation(this.getPickupItem(), 0.1F);
+             }
+ 
+-            this.remove();
++            this.discard();
+          } else if (var2 > 0) {
+             this.setNoPhysics(true);
+             Vec3 var3 = new Vec3(var1.getX() - this.getX(), var1.getEyeY() - this.getY(), var1.getZ() - this.getZ());
+             this.setPosRaw(this.getX(), this.getY() + var3.y * 0.015D * (double)var2, this.getZ());
+             if (this.level.isClientSide) {
+@@ -130,11 +130,11 @@
+          }
+       }
+ 
+       this.setDeltaMovement(this.getDeltaMovement().multiply(-0.01D, -0.1D, -0.01D));
+       float var11 = 1.0F;
+-      if (this.level instanceof ServerLevel && this.level.isThundering() && EnchantmentHelper.hasChanneling(this.tridentItem)) {
++      if (this.level instanceof ServerLevel && this.level.isThundering() && this.isChanneling()) {
+          BlockPos var8 = var2.blockPosition();
+          if (this.level.canSeeSky(var8)) {
+             LightningBolt var9 = (LightningBolt)EntityType.LIGHTNING_BOLT.create(this.level);
+             var9.moveTo(Vec3.atBottomCenterOf(var8));
+             var9.setCause(var10 instanceof ServerPlayer ? (ServerPlayer)var10 : null);
+@@ -145,10 +145,14 @@
+       }
+ 
+       this.playSound(var6, var11, 1.0F);
+    }
+ 
++   public boolean isChanneling() {
++      return EnchantmentHelper.hasChanneling(this.tridentItem);
++   }
++
+    protected SoundEvent getDefaultHitGroundSoundEvent() {
+       return SoundEvents.TRIDENT_HIT_GROUND;
+    }
+ 
+    public void playerTouch(Player var1) {

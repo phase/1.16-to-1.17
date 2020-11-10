@@ -1,0 +1,152 @@
+--- net/minecraft/world/entity/animal/horse/AbstractHorse.java
++++ net/minecraft/world/entity/animal/horse/AbstractHorse.java
+@@ -26,11 +26,11 @@
+ import net.minecraft.world.DifficultyInstance;
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.SimpleContainer;
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.effect.MobEffects;
+-import net.minecraft.world.entity.AgableMob;
++import net.minecraft.world.entity.AgeableMob;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityDimensions;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.HumanoidArm;
+@@ -53,11 +53,10 @@
+ import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+ import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+ import net.minecraft.world.entity.animal.Animal;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.entity.vehicle.DismountHelper;
+-import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.item.crafting.Ingredient;
+ import net.minecraft.world.item.enchantment.EnchantmentHelper;
+ import net.minecraft.world.level.Level;
+@@ -388,11 +387,11 @@
+ 
+    }
+ 
+    public InteractionResult fedFood(Player var1, ItemStack var2) {
+       boolean var3 = this.handleEating(var1, var2);
+-      if (!var1.abilities.instabuild) {
++      if (!var1.getAbilities().instabuild) {
+          var2.shrink(1);
+       }
+ 
+       if (this.level.isClientSide) {
+          return InteractionResult.CONSUME;
+@@ -404,35 +403,34 @@
+    protected boolean handleEating(Player var1, ItemStack var2) {
+       boolean var3 = false;
+       float var4 = 0.0F;
+       short var5 = 0;
+       byte var6 = 0;
+-      Item var7 = var2.getItem();
+-      if (var7 == Items.WHEAT) {
++      if (var2.is(Items.WHEAT)) {
+          var4 = 2.0F;
+          var5 = 20;
+          var6 = 3;
+-      } else if (var7 == Items.SUGAR) {
++      } else if (var2.is(Items.SUGAR)) {
+          var4 = 1.0F;
+          var5 = 30;
+          var6 = 3;
+-      } else if (var7 == Blocks.HAY_BLOCK.asItem()) {
++      } else if (var2.is(Blocks.HAY_BLOCK.asItem())) {
+          var4 = 20.0F;
+          var5 = 180;
+-      } else if (var7 == Items.APPLE) {
++      } else if (var2.is(Items.APPLE)) {
+          var4 = 3.0F;
+          var5 = 60;
+          var6 = 3;
+-      } else if (var7 == Items.GOLDEN_CARROT) {
++      } else if (var2.is(Items.GOLDEN_CARROT)) {
+          var4 = 4.0F;
+          var5 = 60;
+          var6 = 5;
+          if (!this.level.isClientSide && this.isTamed() && this.getAge() == 0 && !this.isInLove()) {
+             var3 = true;
+             this.setInLove(var1);
+          }
+-      } else if (var7 == Items.GOLDEN_APPLE || var7 == Items.ENCHANTED_GOLDEN_APPLE) {
++      } else if (var2.is(Items.GOLDEN_APPLE) || var2.is(Items.ENCHANTED_GOLDEN_APPLE)) {
+          var4 = 10.0F;
+          var5 = 240;
+          var6 = 10;
+          if (!this.level.isClientSide && this.isTamed() && this.getAge() == 0 && !this.isInLove()) {
+             var3 = true;
+@@ -764,11 +762,11 @@
+          this.setOwnerUUID(var2);
+       }
+ 
+       if (var1.contains("SaddleItem", 10)) {
+          ItemStack var4 = ItemStack.of(var1.getCompound("SaddleItem"));
+-         if (var4.getItem() == Items.SADDLE) {
++         if (var4.is(Items.SADDLE)) {
+             this.inventory.setItem(0, var4);
+          }
+       }
+ 
+       this.updateContainerEquipment();
+@@ -781,15 +779,15 @@
+    protected boolean canParent() {
+       return !this.isVehicle() && !this.isPassenger() && this.isTamed() && !this.isBaby() && this.getHealth() >= this.getMaxHealth() && this.isInLove();
+    }
+ 
+    @Nullable
+-   public AgableMob getBreedOffspring(ServerLevel var1, AgableMob var2) {
++   public AgeableMob getBreedOffspring(ServerLevel var1, AgeableMob var2) {
+       return null;
+    }
+ 
+-   protected void setOffspringAttributes(AgableMob var1, AbstractHorse var2) {
++   protected void setOffspringAttributes(AgeableMob var1, AbstractHorse var2) {
+       double var3 = this.getAttributeBaseValue(Attributes.MAX_HEALTH) + var1.getAttributeBaseValue(Attributes.MAX_HEALTH) + (double)this.generateRandomMaxHealth();
+       var2.getAttribute(Attributes.MAX_HEALTH).setBaseValue(var3 / 3.0D);
+       double var5 = this.getAttributeBaseValue(Attributes.JUMP_STRENGTH) + var1.getAttributeBaseValue(Attributes.JUMP_STRENGTH) + this.generateRandomJumpStrength();
+       var2.getAttribute(Attributes.JUMP_STRENGTH).setBaseValue(var5 / 3.0D);
+       double var7 = this.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) + var1.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) + this.generateRandomSpeed();
+@@ -866,11 +864,11 @@
+    }
+ 
+    public boolean setSlot(int var1, ItemStack var2) {
+       int var3 = var1 - 400;
+       if (var3 >= 0 && var3 < 2 && var3 < this.inventory.getContainerSize()) {
+-         if (var3 == 0 && var2.getItem() != Items.SADDLE) {
++         if (var3 == 0 && !var2.is(Items.SADDLE)) {
+             return false;
+          } else if (var3 != 1 || this.canWearArmor() && this.isArmor(var2)) {
+             this.inventory.setItem(var3, var2);
+             this.updateContainerEquipment();
+             return true;
+@@ -888,11 +886,11 @@
+       }
+    }
+ 
+    @Nullable
+    public Entity getControllingPassenger() {
+-      return this.getPassengers().isEmpty() ? null : (Entity)this.getPassengers().get(0);
++      return this.getFirstPassenger();
+    }
+ 
+    @Nullable
+    private Vec3 getDismountLocationInDirection(Vec3 var1, LivingEntity var2) {
+       double var3 = this.getX() + var1.x;
+@@ -947,11 +945,11 @@
+    }
+ 
+    @Nullable
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor var1, DifficultyInstance var2, MobSpawnType var3, @Nullable SpawnGroupData var4, @Nullable CompoundTag var5) {
+       if (var4 == null) {
+-         var4 = new AgableMob.AgableMobGroupData(0.2F);
++         var4 = new AgeableMob.AgeableMobGroupData(0.2F);
+       }
+ 
+       this.randomizeAttributes();
+       return super.finalizeSpawn(var1, var2, var3, (SpawnGroupData)var4, var5);
+    }

@@ -1,0 +1,154 @@
+--- net/minecraft/world/entity/player/Inventory.java
++++ net/minecraft/world/entity/player/Inventory.java
+@@ -21,11 +21,10 @@
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.item.ArmorItem;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+-import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.state.BlockState;
+ 
+ public class Inventory implements Container, Nameable {
+    public final NonNullList<ItemStack> items;
+    public final NonNullList<ItemStack> armor;
+@@ -52,17 +51,13 @@
+    public static int getSelectionSize() {
+       return 9;
+    }
+ 
+    private boolean hasRemainingSpaceForItem(ItemStack var1, ItemStack var2) {
+-      return !var1.isEmpty() && this.isSameItem(var1, var2) && var1.isStackable() && var1.getCount() < var1.getMaxStackSize() && var1.getCount() < this.getMaxStackSize();
++      return !var1.isEmpty() && ItemStack.isSameItemSameTags(var1, var2) && var1.isStackable() && var1.getCount() < var1.getMaxStackSize() && var1.getCount() < this.getMaxStackSize();
+    }
+ 
+-   private boolean isSameItem(ItemStack var1, ItemStack var2) {
+-      return var1.getItem() == var2.getItem() && ItemStack.tagMatches(var1, var2);
+-   }
+-
+    public int getFreeSlot() {
+       for(int var1 = 0; var1 < this.items.size(); ++var1) {
+          if (((ItemStack)this.items.get(var1)).isEmpty()) {
+             return var1;
+          }
+@@ -104,22 +99,22 @@
+       return var0 >= 0 && var0 < 9;
+    }
+ 
+    public int findSlotMatchingItem(ItemStack var1) {
+       for(int var2 = 0; var2 < this.items.size(); ++var2) {
+-         if (!((ItemStack)this.items.get(var2)).isEmpty() && this.isSameItem(var1, (ItemStack)this.items.get(var2))) {
++         if (!((ItemStack)this.items.get(var2)).isEmpty() && ItemStack.isSameItemSameTags(var1, (ItemStack)this.items.get(var2))) {
+             return var2;
+          }
+       }
+ 
+       return -1;
+    }
+ 
+    public int findSlotMatchingUnusedItem(ItemStack var1) {
+       for(int var2 = 0; var2 < this.items.size(); ++var2) {
+          ItemStack var3 = (ItemStack)this.items.get(var2);
+-         if (!((ItemStack)this.items.get(var2)).isEmpty() && this.isSameItem(var1, (ItemStack)this.items.get(var2)) && !((ItemStack)this.items.get(var2)).isDamaged() && !var3.isEnchanted() && !var3.hasCustomHoverName()) {
++         if (!((ItemStack)this.items.get(var2)).isEmpty() && ItemStack.isSameItemSameTags(var1, (ItemStack)this.items.get(var2)) && !((ItemStack)this.items.get(var2)).isDamaged() && !var3.isEnchanted() && !var3.hasCustomHoverName()) {
+             return var2;
+          }
+       }
+ 
+       return -1;
+@@ -265,11 +260,11 @@
+                if (var1 >= 0) {
+                   this.items.set(var1, var2.copy());
+                   ((ItemStack)this.items.get(var1)).setPopTime(5);
+                   var2.setCount(0);
+                   return true;
+-               } else if (this.player.abilities.instabuild) {
++               } else if (this.player.getAbilities().instabuild) {
+                   var2.setCount(0);
+                   return true;
+                } else {
+                   return false;
+                }
+@@ -282,11 +277,11 @@
+                   } else {
+                      var2.setCount(this.addResource(var1, var2));
+                   }
+                } while(!var2.isEmpty() && var2.getCount() < var3);
+ 
+-               if (var2.getCount() == var3 && this.player.abilities.instabuild) {
++               if (var2.getCount() == var3 && this.player.getAbilities().instabuild) {
+                   var2.setCount(0);
+                   return true;
+                } else {
+                   return var2.getCount() < var3;
+                }
+@@ -302,29 +297,30 @@
+             throw new ReportedException(var4);
+          }
+       }
+    }
+ 
+-   public void placeItemBackInInventory(Level var1, ItemStack var2) {
+-      if (!var1.isClientSide) {
+-         while(!var2.isEmpty()) {
+-            int var3 = this.getSlotWithRemainingSpace(var2);
+-            if (var3 == -1) {
+-               var3 = this.getFreeSlot();
++   public void placeItemBackInInventory(ItemStack var1) {
++      while(true) {
++         if (!var1.isEmpty()) {
++            int var2 = this.getSlotWithRemainingSpace(var1);
++            if (var2 == -1) {
++               var2 = this.getFreeSlot();
+             }
+ 
+-            if (var3 == -1) {
+-               this.player.drop(var2, false);
+-               break;
++            if (var2 != -1) {
++               int var3 = var1.getMaxStackSize() - this.getItem(var2).getCount();
++               if (this.add(var2, var1.split(var3)) && this.player instanceof ServerPlayer) {
++                  ((ServerPlayer)this.player).connection.send(new ClientboundContainerSetSlotPacket(-2, var2, this.getItem(var2)));
++               }
++               continue;
+             }
+ 
+-            int var4 = var2.getMaxStackSize() - this.getItem(var3).getCount();
+-            if (this.add(var3, var2.split(var4))) {
+-               ((ServerPlayer)this.player).connection.send(new ClientboundContainerSetSlotPacket(-2, var3, this.getItem(var3)));
+-            }
++            this.player.drop(var1, false);
+          }
+ 
++         return;
+       }
+    }
+ 
+    public ItemStack removeItem(int var1, int var2) {
+       NonNullList var3 = null;
+@@ -571,11 +567,11 @@
+    public ItemStack getCarried() {
+       return this.carried;
+    }
+ 
+    public boolean stillValid(Player var1) {
+-      if (this.player.removed) {
++      if (this.player.isRemoved()) {
+          return false;
+       } else {
+          return var1.distanceToSqr(this.player) <= 64.0D;
+       }
+    }
+@@ -605,11 +601,11 @@
+          List var3 = (List)var2.next();
+          Iterator var4 = var3.iterator();
+ 
+          while(var4.hasNext()) {
+             ItemStack var5 = (ItemStack)var4.next();
+-            if (!var5.isEmpty() && var1.contains(var5.getItem())) {
++            if (!var5.isEmpty() && var5.is(var1)) {
+                return true;
+             }
+          }
+       }
+ 

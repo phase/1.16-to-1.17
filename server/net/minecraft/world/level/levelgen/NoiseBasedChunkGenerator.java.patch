@@ -1,0 +1,73 @@
+--- net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
++++ net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
+@@ -377,12 +377,12 @@
+       int var5 = var1.getPos().getMinBlockZ();
+       NoiseGeneratorSettings var6 = (NoiseGeneratorSettings)this.settings.get();
+       int var7 = var6.getBedrockFloorPosition();
+       int var8 = this.height - 1 - var6.getBedrockRoofPosition();
+       boolean var9 = true;
+-      boolean var10 = var8 + 4 >= 0 && var8 < this.height;
+-      boolean var11 = var7 + 4 >= 0 && var7 < this.height;
++      boolean var10 = var8 + 5 - 1 >= 0 && var8 < this.height;
++      boolean var11 = var7 + 5 - 1 >= 0 && var7 < this.height;
+       if (var10 || var11) {
+          Iterator var12 = BlockPos.betweenClosed(var4, 0, var5, var4 + 15, 0, var5 + 15).iterator();
+ 
+          while(true) {
+             BlockPos var13;
+@@ -415,12 +415,12 @@
+       ObjectArrayList var4 = new ObjectArrayList(10);
+       ObjectArrayList var5 = new ObjectArrayList(32);
+       ChunkPos var6 = var3.getPos();
+       int var7 = var6.x;
+       int var8 = var6.z;
+-      int var9 = var7 << 4;
+-      int var10 = var8 << 4;
++      int var9 = SectionPos.sectionToBlockCoord(var7);
++      int var10 = SectionPos.sectionToBlockCoord(var8);
+       Iterator var11 = StructureFeature.NOISE_AFFECTING_FEATURES.iterator();
+ 
+       while(var11.hasNext()) {
+          StructureFeature var12 = (StructureFeature)var11.next();
+          var2.startsForFeature(SectionPos.of(var6, 0), var12).forEach((var5x) -> {
+@@ -482,11 +482,11 @@
+          for(var19 = 0; var19 < this.chunkCountZ + 1; ++var19) {
+             this.fillNoiseColumn(var75[1][var19], var7 * this.chunkCountX + var18 + 1, var8 * this.chunkCountZ + var19);
+          }
+ 
+          for(var19 = 0; var19 < this.chunkCountZ; ++var19) {
+-            LevelChunkSection var20 = var77.getOrCreateSection(15);
++            LevelChunkSection var20 = var77.getOrCreateSection(var77.getSectionsCount() - 1);
+             var20.acquire();
+ 
+             for(int var21 = this.chunkCountY - 1; var21 >= 0; --var21) {
+                double var22 = var75[0][var19][var21];
+                double var24 = var75[0][var19 + 1][var21];
+@@ -498,12 +498,12 @@
+                double var36 = var75[1][var19 + 1][var21 + 1];
+ 
+                for(int var38 = this.chunkHeight - 1; var38 >= 0; --var38) {
+                   int var39 = var21 * this.chunkHeight + var38;
+                   int var40 = var39 & 15;
+-                  int var41 = var39 >> 4;
+-                  if (var20.bottomBlockY() >> 4 != var41) {
++                  int var41 = var77.getSectionIndex(var39);
++                  if (var77.getSectionIndex(var20.bottomBlockY()) != var41) {
+                      var20.release();
+                      var20 = var77.getOrCreateSection(var41);
+                      var20.acquire();
+                   }
+ 
+@@ -639,11 +639,11 @@
+       if (!((NoiseGeneratorSettings)this.settings.get()).disableMobGeneration()) {
+          int var2 = var1.getCenterX();
+          int var3 = var1.getCenterZ();
+          Biome var4 = var1.getBiome((new ChunkPos(var2, var3)).getWorldPosition());
+          WorldgenRandom var5 = new WorldgenRandom();
+-         var5.setDecorationSeed(var1.getSeed(), var2 << 4, var3 << 4);
++         var5.setDecorationSeed(var1.getSeed(), SectionPos.sectionToBlockCoord(var2), SectionPos.sectionToBlockCoord(var3));
+          NaturalSpawner.spawnMobsForChunkGeneration(var1, var4, var2, var3, var5);
+       }
+    }
+ 
+    static {

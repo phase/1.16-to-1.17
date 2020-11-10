@@ -1,0 +1,259 @@
+--- net/minecraft/server/level/ServerPlayer.java
++++ net/minecraft/server/level/ServerPlayer.java
+@@ -86,10 +86,11 @@
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.damagesource.EntityDamageSource;
+ import net.minecraft.world.effect.MobEffectInstance;
+ import net.minecraft.world.effect.MobEffects;
+ import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntitySelector;
+ import net.minecraft.world.entity.HumanoidArm;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.NeutralMob;
+ import net.minecraft.world.entity.animal.horse.AbstractHorse;
+@@ -101,11 +102,10 @@
+ import net.minecraft.world.inventory.AbstractContainerMenu;
+ import net.minecraft.world.inventory.ContainerListener;
+ import net.minecraft.world.inventory.HorseInventoryMenu;
+ import net.minecraft.world.inventory.ResultSlot;
+ import net.minecraft.world.item.ComplexItem;
+-import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemCooldowns;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.item.ServerItemCooldowns;
+ import net.minecraft.world.item.WrittenBookItem;
+@@ -287,11 +287,11 @@
+          var1.put("enteredNetherPosition", var2);
+       }
+ 
+       Entity var6 = this.getRootVehicle();
+       Entity var3 = this.getVehicle();
+-      if (var3 != null && var6 != this && var6.hasOnePlayerPassenger()) {
++      if (var3 != null && var6 != this && var6.hasExactlyOnePlayerPassenger()) {
+          CompoundTag var4 = new CompoundTag();
+          CompoundTag var5 = new CompoundTag();
+          var6.save(var5);
+          var4.putUUID("Attach", var3.getUUID());
+          var4.put("Entity", var5);
+@@ -412,12 +412,12 @@
+       try {
+          if (!this.isSpectator() || this.level.hasChunkAt(this.blockPosition())) {
+             super.tick();
+          }
+ 
+-         for(int var1 = 0; var1 < this.inventory.getContainerSize(); ++var1) {
+-            ItemStack var5 = this.inventory.getItem(var1);
++         for(int var1 = 0; var1 < this.getInventory().getContainerSize(); ++var1) {
++            ItemStack var5 = this.getInventory().getItem(var1);
+             if (var5.getItem().isComplex()) {
+                Packet var6 = ((ComplexItem)var5.getItem()).getUpdatePacket(var5, this.level, this);
+                if (var6 != null) {
+                   this.connection.send(var6);
+                }
+@@ -540,11 +540,11 @@
+       this.getCombatTracker().recheckStatus();
+    }
+ 
+    private void tellNeutralMobsThatIDied() {
+       AABB var1 = (new AABB(this.blockPosition())).inflate(32.0D, 10.0D, 32.0D);
+-      this.level.getLoadedEntitiesOfClass(Mob.class, var1).stream().filter((var0) -> {
++      this.level.getEntitiesOfClass(Mob.class, var1, EntitySelector.NO_SPECTATORS).stream().filter((var0) -> {
+          return var0 instanceof NeutralMob;
+       }).forEach((var1x) -> {
+          ((NeutralMob)var1x).playerDied(this);
+       });
+    }
+@@ -632,11 +632,11 @@
+       this.isChangingDimension = true;
+       ServerLevel var2 = this.getLevel();
+       ResourceKey var3 = var2.dimension();
+       if (var3 == Level.END && var1.dimension() == Level.OVERWORLD) {
+          this.unRide();
+-         this.getLevel().removePlayerImmediately(this);
++         this.getLevel().removePlayerImmediately(this, Entity.RemovalReason.CHANGED_DIMENSION);
+          if (!this.wonGame) {
+             this.wonGame = true;
+             this.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.WIN_GAME, this.seenCredits ? 0.0F : 1.0F));
+             this.seenCredits = true;
+          }
+@@ -646,12 +646,12 @@
+          LevelData var4 = var1.getLevelData();
+          this.connection.send(new ClientboundRespawnPacket(var1.dimensionType(), var1.dimension(), BiomeManager.obfuscateSeed(var1.getSeed()), this.gameMode.getGameModeForPlayer(), this.gameMode.getPreviousGameModeForPlayer(), var1.isDebug(), var1.isFlat(), true));
+          this.connection.send(new ClientboundChangeDifficultyPacket(var4.getDifficulty(), var4.isDifficultyLocked()));
+          PlayerList var5 = this.server.getPlayerList();
+          var5.sendPlayerPermissionLevel(this);
+-         var2.removePlayerImmediately(this);
+-         this.removed = false;
++         var2.removePlayerImmediately(this, Entity.RemovalReason.CHANGED_DIMENSION);
++         this.unsetRemoved();
+          PortalInfo var6 = this.findDimensionEntryPoint(var1);
+          if (var6 != null) {
+             var2.getProfiler().push("moving");
+             if (var3 == Level.OVERWORLD && var1.dimension() == Level.NETHER) {
+                this.enteredNetherPosition = this.position();
+@@ -666,11 +666,11 @@
+             this.setRot(var6.yRot, var6.xRot);
+             this.moveTo(var6.pos.x, var6.pos.y, var6.pos.z);
+             var2.getProfiler().pop();
+             this.triggerDimensionChangeTriggers(var2);
+             this.gameMode.setLevel(var1);
+-            this.connection.send(new ClientboundPlayerAbilitiesPacket(this.abilities));
++            this.connection.send(new ClientboundPlayerAbilitiesPacket(this.getAbilities()));
+             var5.sendLevelInfo(this, var1);
+             var5.sendAllPlayerInfo(this);
+             Iterator var7 = this.getActiveEffects().iterator();
+ 
+             while(var7.hasNext()) {
+@@ -847,11 +847,11 @@
+       }
+ 
+    }
+ 
+    public boolean isInvulnerableTo(DamageSource var1) {
+-      return super.isInvulnerableTo(var1) || this.isChangingDimension() || this.abilities.invulnerable && var1 == DamageSource.WITHER;
++      return super.isInvulnerableTo(var1) || this.isChangingDimension() || this.getAbilities().invulnerable && var1 == DamageSource.WITHER;
+    }
+ 
+    protected void checkFallDamage(double var1, boolean var3, BlockState var4, BlockPos var5) {
+    }
+ 
+@@ -885,11 +885,11 @@
+          if (this.containerMenu != this.inventoryMenu) {
+             this.closeContainer();
+          }
+ 
+          this.nextContainerCounter();
+-         AbstractContainerMenu var2 = var1.createMenu(this.containerCounter, this.inventory, this);
++         AbstractContainerMenu var2 = var1.createMenu(this.containerCounter, this.getInventory(), this);
+          if (var2 == null) {
+             if (this.isSpectator()) {
+                this.displayClientMessage((new TranslatableComponent("container.spectatorCantOpen")).withStyle(ChatFormatting.RED), true);
+             }
+ 
+@@ -912,17 +912,16 @@
+          this.closeContainer();
+       }
+ 
+       this.nextContainerCounter();
+       this.connection.send(new ClientboundHorseScreenOpenPacket(this.containerCounter, var2.getContainerSize(), var1.getId()));
+-      this.containerMenu = new HorseInventoryMenu(this.containerCounter, this.inventory, var2, var1);
++      this.containerMenu = new HorseInventoryMenu(this.containerCounter, this.getInventory(), var2, var1);
+       this.containerMenu.addSlotListener(this);
+    }
+ 
+    public void openItemGui(ItemStack var1, InteractionHand var2) {
+-      Item var3 = var1.getItem();
+-      if (var3 == Items.WRITTEN_BOOK) {
++      if (var1.is(Items.WRITTEN_BOOK)) {
+          if (WrittenBookItem.resolveBookComponents(var1, this.createCommandSourceStack(), this)) {
+             this.containerMenu.broadcastChanges();
+          }
+ 
+          this.connection.send(new ClientboundOpenBookPacket(var2));
+@@ -936,11 +935,11 @@
+    }
+ 
+    public void slotChanged(AbstractContainerMenu var1, int var2, ItemStack var3) {
+       if (!(var1.getSlot(var2) instanceof ResultSlot)) {
+          if (var1 == this.inventoryMenu) {
+-            CriteriaTriggers.INVENTORY_CHANGED.trigger(this, this.inventory, var3);
++            CriteriaTriggers.INVENTORY_CHANGED.trigger(this, this.getInventory(), var3);
+          }
+ 
+          if (!this.ignoreSlotUpdateHack) {
+             this.connection.send(new ClientboundContainerSetSlotPacket(var1.containerId, var2, var3));
+          }
+@@ -951,11 +950,11 @@
+       this.refreshContainer(var1, var1.getItems());
+    }
+ 
+    public void refreshContainer(AbstractContainerMenu var1, NonNullList<ItemStack> var2) {
+       this.connection.send(new ClientboundContainerSetContentPacket(var1.containerId, var2));
+-      this.connection.send(new ClientboundContainerSetSlotPacket(-1, -1, this.inventory.getCarried()));
++      this.connection.send(new ClientboundContainerSetSlotPacket(-1, -1, this.getInventory().getCarried()));
+    }
+ 
+    public void setContainerData(AbstractContainerMenu var1, int var2, int var3) {
+       this.connection.send(new ClientboundContainerSetDataPacket(var1.containerId, var2, var3));
+    }
+@@ -965,11 +964,11 @@
+       this.doCloseContainer();
+    }
+ 
+    public void broadcastCarriedItem() {
+       if (!this.ignoreSlotUpdateHack) {
+-         this.connection.send(new ClientboundContainerSetSlotPacket(-1, -1, this.inventory.getCarried()));
++         this.connection.send(new ClientboundContainerSetSlotPacket(-1, -1, this.getInventory().getCarried()));
+       }
+    }
+ 
+    public void doCloseContainer() {
+       this.containerMenu.removed(this);
+@@ -1070,20 +1069,20 @@
+       this.connection.send(new ClientboundPlayerLookAtPacket(var1, var2, var3));
+    }
+ 
+    public void restoreFrom(ServerPlayer var1, boolean var2) {
+       if (var2) {
+-         this.inventory.replaceWith(var1.inventory);
++         this.getInventory().replaceWith(var1.getInventory());
+          this.setHealth(var1.getHealth());
+          this.foodData = var1.foodData;
+          this.experienceLevel = var1.experienceLevel;
+          this.totalExperience = var1.totalExperience;
+          this.experienceProgress = var1.experienceProgress;
+          this.setScore(var1.getScore());
+          this.portalEntrancePos = var1.portalEntrancePos;
+       } else if (this.level.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY) || var1.isSpectator()) {
+-         this.inventory.replaceWith(var1.inventory);
++         this.getInventory().replaceWith(var1.getInventory());
+          this.experienceLevel = var1.experienceLevel;
+          this.totalExperience = var1.totalExperience;
+          this.experienceProgress = var1.experienceProgress;
+          this.setScore(var1.getScore());
+       }
+@@ -1146,11 +1145,11 @@
+       this.getLevel().getChunkSource().broadcastAndSend(this, new ClientboundAnimatePacket(var1, 5));
+    }
+ 
+    public void onUpdateAbilities() {
+       if (this.connection != null) {
+-         this.connection.send(new ClientboundPlayerAbilitiesPacket(this.abilities));
++         this.connection.send(new ClientboundPlayerAbilitiesPacket(this.getAbilities()));
+          this.updateInvisibilityStatus();
+       }
+    }
+ 
+    public ServerLevel getLevel() {
+@@ -1211,12 +1210,12 @@
+ 
+    public ChatVisiblity getChatVisibility() {
+       return this.chatVisibility;
+    }
+ 
+-   public void sendTexturePack(String var1, String var2) {
+-      this.connection.send(new ClientboundResourcePackPacket(var1, var2));
++   public void sendTexturePack(String var1, String var2, boolean var3) {
++      this.connection.send(new ClientboundResourcePackPacket(var1, var2, var3));
+    }
+ 
+    protected int getPermissionLevel() {
+       return this.server.getProfilePermissions(this.getGameProfile());
+    }
+@@ -1321,12 +1320,12 @@
+          ServerLevel var10 = this.getLevel();
+          LevelData var11 = var1.getLevelData();
+          this.connection.send(new ClientboundRespawnPacket(var1.dimensionType(), var1.dimension(), BiomeManager.obfuscateSeed(var1.getSeed()), this.gameMode.getGameModeForPlayer(), this.gameMode.getPreviousGameModeForPlayer(), var1.isDebug(), var1.isFlat(), true));
+          this.connection.send(new ClientboundChangeDifficultyPacket(var11.getDifficulty(), var11.isDifficultyLocked()));
+          this.server.getPlayerList().sendPlayerPermissionLevel(this);
+-         var10.removePlayerImmediately(this);
+-         this.removed = false;
++         var10.removePlayerImmediately(this, Entity.RemovalReason.CHANGED_DIMENSION);
++         this.unsetRemoved();
+          this.moveTo(var2, var4, var6, var8, var9);
+          this.setLevel(var1);
+          var1.addDuringCommandTeleport(this);
+          this.triggerDimensionChangeTriggers(var10);
+          this.connection.teleport(var2, var4, var6, var8, var9);

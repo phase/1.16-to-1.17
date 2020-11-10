@@ -1,0 +1,94 @@
+--- net/minecraft/world/level/block/RedStoneWireBlock.java
++++ net/minecraft/world/level/block/RedStoneWireBlock.java
+@@ -8,10 +8,11 @@
+ import java.util.HashSet;
+ import java.util.Iterator;
+ import java.util.Map;
+ import java.util.Random;
+ import javax.annotation.Nullable;
++import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.core.particles.DustParticleOptions;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.InteractionHand;
+@@ -43,11 +44,11 @@
+    public static final IntegerProperty POWER;
+    public static final Map<Direction, EnumProperty<RedstoneSide>> PROPERTY_BY_DIRECTION;
+    private static final VoxelShape SHAPE_DOT;
+    private static final Map<Direction, VoxelShape> SHAPES_FLOOR;
+    private static final Map<Direction, VoxelShape> SHAPES_UP;
+-   private final Map<BlockState, VoxelShape> SHAPES_CACHE = Maps.newHashMap();
++   private static final Map<BlockState, VoxelShape> SHAPES_CACHE;
+    private static final Vector3f[] COLORS;
+    private final BlockState crossState;
+    private boolean shouldSignal = true;
+ 
+    public RedStoneWireBlock(BlockBehaviour.Properties var1) {
+@@ -57,11 +58,11 @@
+       UnmodifiableIterator var2 = this.getStateDefinition().getPossibleStates().iterator();
+ 
+       while(var2.hasNext()) {
+          BlockState var3 = (BlockState)var2.next();
+          if ((Integer)var3.getValue(POWER) == 0) {
+-            this.SHAPES_CACHE.put(var3, this.calculateShape(var3));
++            SHAPES_CACHE.put(var3, this.calculateShape(var3));
+          }
+       }
+ 
+    }
+ 
+@@ -81,11 +82,11 @@
+ 
+       return var2;
+    }
+ 
+    public VoxelShape getShape(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
+-      return (VoxelShape)this.SHAPES_CACHE.get(var1.setValue(POWER, 0));
++      return (VoxelShape)SHAPES_CACHE.get(var1.setValue(POWER, 0));
+    }
+ 
+    public BlockState getStateForPlacement(BlockPlaceContext var1) {
+       return this.getConnectionState(var1.getLevel(), this.crossState, var1.getClickedPos());
+    }
+@@ -461,11 +462,11 @@
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
+       var1.add(NORTH, EAST, SOUTH, WEST, POWER);
+    }
+ 
+    public InteractionResult use(BlockState var1, Level var2, BlockPos var3, Player var4, InteractionHand var5, BlockHitResult var6) {
+-      if (!var4.abilities.mayBuild) {
++      if (!var4.getAbilities().mayBuild) {
+          return InteractionResult.PASS;
+       } else {
+          if (isCross(var1) || isDot(var1)) {
+             BlockState var7 = isCross(var1) ? this.defaultBlockState() : this.crossState;
+             var7 = (BlockState)var7.setValue(POWER, var1.getValue(POWER));
+@@ -502,17 +503,18 @@
+       POWER = BlockStateProperties.POWER;
+       PROPERTY_BY_DIRECTION = Maps.newEnumMap(ImmutableMap.of(Direction.NORTH, NORTH, Direction.EAST, EAST, Direction.SOUTH, SOUTH, Direction.WEST, WEST));
+       SHAPE_DOT = Block.box(3.0D, 0.0D, 3.0D, 13.0D, 1.0D, 13.0D);
+       SHAPES_FLOOR = Maps.newEnumMap(ImmutableMap.of(Direction.NORTH, Block.box(3.0D, 0.0D, 0.0D, 13.0D, 1.0D, 13.0D), Direction.SOUTH, Block.box(3.0D, 0.0D, 3.0D, 13.0D, 1.0D, 16.0D), Direction.EAST, Block.box(3.0D, 0.0D, 3.0D, 16.0D, 1.0D, 13.0D), Direction.WEST, Block.box(0.0D, 0.0D, 3.0D, 13.0D, 1.0D, 13.0D)));
+       SHAPES_UP = Maps.newEnumMap(ImmutableMap.of(Direction.NORTH, Shapes.or((VoxelShape)SHAPES_FLOOR.get(Direction.NORTH), Block.box(3.0D, 0.0D, 0.0D, 13.0D, 16.0D, 1.0D)), Direction.SOUTH, Shapes.or((VoxelShape)SHAPES_FLOOR.get(Direction.SOUTH), Block.box(3.0D, 0.0D, 15.0D, 13.0D, 16.0D, 16.0D)), Direction.EAST, Shapes.or((VoxelShape)SHAPES_FLOOR.get(Direction.EAST), Block.box(15.0D, 0.0D, 3.0D, 16.0D, 16.0D, 13.0D)), Direction.WEST, Shapes.or((VoxelShape)SHAPES_FLOOR.get(Direction.WEST), Block.box(0.0D, 0.0D, 3.0D, 1.0D, 16.0D, 13.0D))));
+-      COLORS = new Vector3f[16];
++      SHAPES_CACHE = Maps.newHashMap();
++      COLORS = (Vector3f[])Util.make(new Vector3f[16], (var0) -> {
++         for(int var1 = 0; var1 <= 15; ++var1) {
++            float var2 = (float)var1 / 15.0F;
++            float var3 = var2 * 0.6F + (var2 > 0.0F ? 0.4F : 0.3F);
++            float var4 = Mth.clamp(var2 * var2 * 0.7F - 0.5F, 0.0F, 1.0F);
++            float var5 = Mth.clamp(var2 * var2 * 0.6F - 0.7F, 0.0F, 1.0F);
++            var0[var1] = new Vector3f(var3, var4, var5);
++         }
+ 
+-      for(int var0 = 0; var0 <= 15; ++var0) {
+-         float var1 = (float)var0 / 15.0F;
+-         float var2 = var1 * 0.6F + (var1 > 0.0F ? 0.4F : 0.3F);
+-         float var3 = Mth.clamp(var1 * var1 * 0.7F - 0.5F, 0.0F, 1.0F);
+-         float var4 = Mth.clamp(var1 * var1 * 0.6F - 0.7F, 0.0F, 1.0F);
+-         COLORS[var0] = new Vector3f(var2, var3, var4);
+-      }
+-
++      });
+    }
+ }

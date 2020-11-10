@@ -1,0 +1,100 @@
+--- net/minecraft/world/level/EntityGetter.java
++++ net/minecraft/world/level/EntityGetter.java
+@@ -11,22 +11,23 @@
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntitySelector;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+ import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.level.entity.EntityTypeTest;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.shapes.BooleanOp;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+ public interface EntityGetter {
+-   List<Entity> getEntities(@Nullable Entity var1, AABB var2, @Nullable Predicate<? super Entity> var3);
++   List<Entity> getEntities(@Nullable Entity var1, AABB var2, Predicate<? super Entity> var3);
+ 
+-   <T extends Entity> List<T> getEntitiesOfClass(Class<? extends T> var1, AABB var2, @Nullable Predicate<? super T> var3);
++   <T extends Entity> List<T> getEntities(EntityTypeTest<Entity, T> var1, AABB var2, Predicate<? super T> var3);
+ 
+-   default <T extends Entity> List<T> getLoadedEntitiesOfClass(Class<? extends T> var1, AABB var2, @Nullable Predicate<? super T> var3) {
+-      return this.getEntitiesOfClass(var1, var2, var3);
++   default <T extends Entity> List<T> getEntitiesOfClass(Class<T> var1, AABB var2, Predicate<? super T> var3) {
++      return this.getEntities(EntityTypeTest.forClass(var1), var2, var3);
+    }
+ 
+    List<? extends Player> players();
+ 
+    default List<Entity> getEntities(@Nullable Entity var1, AABB var2) {
+@@ -47,27 +48,23 @@
+                      if (!var3.hasNext()) {
+                         return true;
+                      }
+ 
+                      var4 = (Entity)var3.next();
+-                  } while(var4.removed);
++                  } while(var4.isRemoved());
+                } while(!var4.blocksBuilding);
+             } while(var1 != null && var4.isPassengerOfSameVehicle(var1));
+          } while(!Shapes.joinIsNotEmpty(var2, Shapes.create(var4.getBoundingBox()), BooleanOp.AND));
+ 
+          return false;
+       }
+    }
+ 
+-   default <T extends Entity> List<T> getEntitiesOfClass(Class<? extends T> var1, AABB var2) {
++   default <T extends Entity> List<T> getEntitiesOfClass(Class<T> var1, AABB var2) {
+       return this.getEntitiesOfClass(var1, var2, EntitySelector.NO_SPECTATORS);
+    }
+ 
+-   default <T extends Entity> List<T> getLoadedEntitiesOfClass(Class<? extends T> var1, AABB var2) {
+-      return this.getLoadedEntitiesOfClass(var1, var2, EntitySelector.NO_SPECTATORS);
+-   }
+-
+    default Stream<VoxelShape> getEntityCollisions(@Nullable Entity var1, AABB var2, Predicate<Entity> var3) {
+       if (var2.getSize() < 1.0E-7D) {
+          return Stream.empty();
+       } else {
+          AABB var4 = var2.inflate(1.0E-7D);
+@@ -170,19 +167,16 @@
+       return (Player)this.getNearestEntity(this.players(), var1, (LivingEntity)null, var2, var4, var6);
+    }
+ 
+    @Nullable
+    default <T extends LivingEntity> T getNearestEntity(Class<? extends T> var1, TargetingConditions var2, @Nullable LivingEntity var3, double var4, double var6, double var8, AABB var10) {
+-      return this.getNearestEntity(this.getEntitiesOfClass(var1, var10, (Predicate)null), var2, var3, var4, var6, var8);
++      return this.getNearestEntity(this.getEntitiesOfClass(var1, var10, (var0) -> {
++         return true;
++      }), var2, var3, var4, var6, var8);
+    }
+ 
+    @Nullable
+-   default <T extends LivingEntity> T getNearestLoadedEntity(Class<? extends T> var1, TargetingConditions var2, @Nullable LivingEntity var3, double var4, double var6, double var8, AABB var10) {
+-      return this.getNearestEntity(this.getLoadedEntitiesOfClass(var1, var10, (Predicate)null), var2, var3, var4, var6, var8);
+-   }
+-
+-   @Nullable
+    default <T extends LivingEntity> T getNearestEntity(List<? extends T> var1, TargetingConditions var2, @Nullable LivingEntity var3, double var4, double var6, double var8) {
+       double var10 = -1.0D;
+       LivingEntity var12 = null;
+       Iterator var13 = var1.iterator();
+ 
+@@ -218,12 +212,14 @@
+       }
+ 
+       return var4;
+    }
+ 
+-   default <T extends LivingEntity> List<T> getNearbyEntities(Class<? extends T> var1, TargetingConditions var2, LivingEntity var3, AABB var4) {
+-      List var5 = this.getEntitiesOfClass(var1, var4, (Predicate)null);
++   default <T extends LivingEntity> List<T> getNearbyEntities(Class<T> var1, TargetingConditions var2, LivingEntity var3, AABB var4) {
++      List var5 = this.getEntitiesOfClass(var1, var4, (var0) -> {
++         return true;
++      });
+       ArrayList var6 = Lists.newArrayList();
+       Iterator var7 = var5.iterator();
+ 
+       while(var7.hasNext()) {
+          LivingEntity var8 = (LivingEntity)var7.next();

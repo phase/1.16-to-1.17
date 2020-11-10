@@ -1,0 +1,97 @@
+--- net/minecraft/world/level/block/DetectorRailBlock.java
++++ net/minecraft/world/level/block/DetectorRailBlock.java
+@@ -2,11 +2,10 @@
+ 
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Random;
+ import java.util.function.Predicate;
+-import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.Container;
+ import net.minecraft.world.entity.Entity;
+@@ -30,11 +29,11 @@
+    public static final EnumProperty<RailShape> SHAPE;
+    public static final BooleanProperty POWERED;
+ 
+    public DetectorRailBlock(BlockBehaviour.Properties var1) {
+       super(true, var1);
+-      this.registerDefaultState((BlockState)((BlockState)((BlockState)this.stateDefinition.any()).setValue(POWERED, false)).setValue(SHAPE, RailShape.NORTH_SOUTH));
++      this.registerDefaultState((BlockState)((BlockState)((BlockState)((BlockState)this.stateDefinition.any()).setValue(POWERED, false)).setValue(SHAPE, RailShape.NORTH_SOUTH)).setValue(WATERLOGGED, false));
+    }
+ 
+    public boolean isSignalSource(BlockState var1) {
+       return true;
+    }
+@@ -67,11 +66,13 @@
+ 
+    private void checkPressed(Level var1, BlockPos var2, BlockState var3) {
+       if (this.canSurvive(var3, var1, var2)) {
+          boolean var4 = (Boolean)var3.getValue(POWERED);
+          boolean var5 = false;
+-         List var6 = this.getInteractingMinecartOfType(var1, var2, AbstractMinecart.class, (Predicate)null);
++         List var6 = this.getInteractingMinecartOfType(var1, var2, AbstractMinecart.class, (var0) -> {
++            return true;
++         });
+          if (!var6.isEmpty()) {
+             var5 = true;
+          }
+ 
+          BlockState var7;
+@@ -114,11 +115,12 @@
+ 
+    }
+ 
+    public void onPlace(BlockState var1, Level var2, BlockPos var3, BlockState var4, boolean var5) {
+       if (!var4.is(var1.getBlock())) {
+-         this.checkPressed(var2, var3, this.updateState(var1, var2, var3, var5));
++         BlockState var6 = this.updateState(var1, var2, var3, var5);
++         this.checkPressed(var2, var3, var6);
+       }
+    }
+ 
+    public Property<RailShape> getShapeProperty() {
+       return SHAPE;
+@@ -128,11 +130,13 @@
+       return true;
+    }
+ 
+    public int getAnalogOutputSignal(BlockState var1, Level var2, BlockPos var3) {
+       if ((Boolean)var1.getValue(POWERED)) {
+-         List var4 = this.getInteractingMinecartOfType(var2, var3, MinecartCommandBlock.class, (Predicate)null);
++         List var4 = this.getInteractingMinecartOfType(var2, var3, MinecartCommandBlock.class, (var0) -> {
++            return true;
++         });
+          if (!var4.isEmpty()) {
+             return ((MinecartCommandBlock)var4.get(0)).getCommandBlock().getSuccessCount();
+          }
+ 
+          List var5 = this.getInteractingMinecartOfType(var2, var3, AbstractMinecart.class, EntitySelector.CONTAINER_ENTITY_SELECTOR);
+@@ -142,11 +146,11 @@
+       }
+ 
+       return 0;
+    }
+ 
+-   protected <T extends AbstractMinecart> List<T> getInteractingMinecartOfType(Level var1, BlockPos var2, Class<T> var3, @Nullable Predicate<Entity> var4) {
++   private <T extends AbstractMinecart> List<T> getInteractingMinecartOfType(Level var1, BlockPos var2, Class<T> var3, Predicate<Entity> var4) {
+       return var1.getEntitiesOfClass(var3, this.getSearchBB(var2), var4);
+    }
+ 
+    private AABB getSearchBB(BlockPos var1) {
+       double var2 = 0.2D;
+@@ -268,11 +272,11 @@
+ 
+       return super.mirror(var1, var2);
+    }
+ 
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
+-      var1.add(SHAPE, POWERED);
++      var1.add(SHAPE, POWERED, WATERLOGGED);
+    }
+ 
+    static {
+       SHAPE = BlockStateProperties.RAIL_SHAPE_STRAIGHT;
+       POWERED = BlockStateProperties.POWERED;

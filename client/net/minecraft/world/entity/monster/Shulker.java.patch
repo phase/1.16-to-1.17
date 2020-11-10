@@ -1,0 +1,137 @@
+--- net/minecraft/world/entity/monster/Shulker.java
++++ net/minecraft/world/entity/monster/Shulker.java
+@@ -43,10 +43,11 @@
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.piston.PistonBaseBlock;
+ import net.minecraft.world.level.block.piston.PistonHeadBlock;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.entity.EntityTypeTest;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class Shulker extends AbstractGolem implements Enemy {
+    private static final UUID COVERED_ARMOR_MODIFIER_UUID = UUID.fromString("7E0292F2-9434-48D5-A29F-9583AF7DF27F");
+@@ -68,11 +69,11 @@
+    protected void registerGoals() {
+       this.goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 8.0F));
+       this.goalSelector.addGoal(4, new Shulker.ShulkerAttackGoal());
+       this.goalSelector.addGoal(7, new Shulker.ShulkerPeekGoal());
+       this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+-      this.targetSelector.addGoal(1, (new HurtByTargetGoal(this, new Class[0])).setAlertOthers());
++      this.targetSelector.addGoal(1, (new HurtByTargetGoal(this, new Class[]{this.getClass()})).setAlertOthers());
+       this.targetSelector.addGoal(2, new Shulker.ShulkerNearestAttackGoal(this));
+       this.targetSelector.addGoal(3, new Shulker.ShulkerDefenseAttackGoal(this));
+    }
+ 
+    protected boolean isMovementNoisy() {
+@@ -286,13 +287,14 @@
+       if (!this.isNoAi() && this.isAlive()) {
+          BlockPos var1 = this.blockPosition();
+ 
+          for(int var2 = 0; var2 < 5; ++var2) {
+             BlockPos var3 = var1.offset(8 - this.random.nextInt(17), 8 - this.random.nextInt(17), 8 - this.random.nextInt(17));
+-            if (var3.getY() > 0 && this.level.isEmptyBlock(var3) && this.level.getWorldBorder().isWithinBounds(var3) && this.level.noCollision(this, new AABB(var3))) {
++            if (var3.getY() > this.level.getMinBuildHeight() && this.level.isEmptyBlock(var3) && this.level.getWorldBorder().isWithinBounds(var3) && this.level.noCollision(this, new AABB(var3))) {
+                Direction var4 = this.findAttachableFace(var3);
+                if (var4 != null) {
++                  this.unRide();
+                   this.entityData.set(DATA_ATTACH_FACE_ID, var4);
+                   this.playSound(SoundEvents.SHULKER_TELEPORT, 1.0F, 1.0F);
+                   this.entityData.set(DATA_ATTACH_POS_ID, Optional.of(var3));
+                   this.entityData.set(DATA_PEEK_ID, (byte)0);
+                   this.setTarget((LivingEntity)null);
+@@ -301,11 +303,11 @@
+             }
+          }
+ 
+          return false;
+       } else {
+-         return true;
++         return false;
+       }
+    }
+ 
+    public void aiStep() {
+       super.aiStep();
+@@ -337,32 +339,57 @@
+    public void lerpTo(double var1, double var3, double var5, float var7, float var8, int var9, boolean var10) {
+       this.lerpSteps = 0;
+    }
+ 
+    public boolean hurt(DamageSource var1, float var2) {
++      Entity var3;
+       if (this.isClosed()) {
+-         Entity var3 = var1.getDirectEntity();
++         var3 = var1.getDirectEntity();
+          if (var3 instanceof AbstractArrow) {
+             return false;
+          }
+       }
+ 
+-      if (super.hurt(var1, var2)) {
++      if (!super.hurt(var1, var2)) {
++         return false;
++      } else {
+          if ((double)this.getHealth() < (double)this.getMaxHealth() * 0.5D && this.random.nextInt(4) == 0) {
+             this.teleportSomewhere();
++         } else if (var1.isProjectile()) {
++            var3 = var1.getDirectEntity();
++            if (var3 != null && var3.getType() == EntityType.SHULKER_BULLET) {
++               this.hitByShulkerBullet();
++            }
+          }
+ 
+          return true;
+-      } else {
+-         return false;
+       }
+    }
+ 
+    private boolean isClosed() {
+       return this.getRawPeekAmount() == 0;
+    }
+ 
++   private void hitByShulkerBullet() {
++      Vec3 var1 = this.position();
++      AABB var2 = this.getBoundingBox();
++      if (!this.isClosed() && this.teleportSomewhere()) {
++         int var3 = this.level.getEntities((EntityTypeTest)EntityType.SHULKER, var2.inflate(8.0D), Entity::isAlive).size();
++         float var4 = (float)(var3 - 1) / 5.0F;
++         if (this.level.random.nextFloat() >= var4) {
++            Shulker var5 = (Shulker)EntityType.SHULKER.create(this.level);
++            DyeColor var6 = this.getColor();
++            if (var6 != null) {
++               var5.setColor(var6);
++            }
++
++            var5.moveTo(var1);
++            this.level.addFreshEntity(var5);
++         }
++      }
++   }
++
+    public boolean canBeCollidedWith() {
+       return this.isAlive();
+    }
+ 
+    public Direction getAttachFace() {
+@@ -429,13 +456,17 @@
+ 
+    public boolean hasValidInterpolationPositions() {
+       return this.oldAttachPosition != null && this.getAttachPosition() != null;
+    }
+ 
++   public void setColor(DyeColor var1) {
++      this.entityData.set(DATA_COLOR_ID, (byte)var1.getId());
++   }
++
+    @Nullable
+    public DyeColor getColor() {
+-      Byte var1 = (Byte)this.entityData.get(DATA_COLOR_ID);
++      byte var1 = (Byte)this.entityData.get(DATA_COLOR_ID);
+       return var1 != 16 && var1 <= 15 ? DyeColor.byId(var1) : null;
+    }
+ 
+    static {
+       COVERED_ARMOR_MODIFIER = new AttributeModifier(COVERED_ARMOR_MODIFIER_UUID, "Covered armor bonus", 20.0D, AttributeModifier.Operation.ADDITION);

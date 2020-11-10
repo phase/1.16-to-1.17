@@ -1,0 +1,55 @@
+--- net/minecraft/world/level/chunk/storage/RegionFile.java
++++ net/minecraft/world/level/chunk/storage/RegionFile.java
+@@ -139,10 +139,14 @@
+             }
+          }
+       }
+    }
+ 
++   private static int getTimestamp() {
++      return (int)(Util.getEpochMillis() / 1000L);
++   }
++
+    private static boolean isExternalStreamChunk(byte var0) {
+       return (var0 & 128) != 0;
+    }
+ 
+    private static byte getExternalChunkVersion(byte var0) {
+@@ -245,10 +249,22 @@
+ 
+    public void flush() throws IOException {
+       this.file.force(true);
+    }
+ 
++   public void clear(ChunkPos var1) throws IOException {
++      int var2 = getOffsetIndex(var1);
++      int var3 = this.offsets.get(var2);
++      if (var3 != 0) {
++         this.offsets.put(var2, 0);
++         this.timestamps.put(var2, getTimestamp());
++         this.writeHeader();
++         Files.deleteIfExists(this.getExternalChunkPath(var1));
++         this.usedSectors.free(getSectorNumber(var3), getNumSectors(var3));
++      }
++   }
++
+    protected synchronized void write(ChunkPos var1, ByteBuffer var2) throws IOException {
+       int var3 = getOffsetIndex(var1);
+       int var4 = this.offsets.get(var3);
+       int var5 = getSectorNumber(var4);
+       int var6 = getNumSectors(var4);
+@@ -270,13 +286,12 @@
+             Files.deleteIfExists(this.getExternalChunkPath(var1));
+          };
+          this.file.write(var2, (long)(var9 * 4096));
+       }
+ 
+-      int var13 = (int)(Util.getEpochMillis() / 1000L);
+       this.offsets.put(var3, this.packSectorOffset(var9, var8));
+-      this.timestamps.put(var3, var13);
++      this.timestamps.put(var3, getTimestamp());
+       this.writeHeader();
+       var10.run();
+       if (var5 != 0) {
+          this.usedSectors.free(var5, var6);
+       }

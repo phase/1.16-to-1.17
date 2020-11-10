@@ -1,0 +1,81 @@
+--- net/minecraft/commands/Commands.java
++++ net/minecraft/commands/Commands.java
+@@ -203,14 +203,12 @@
+          var3.skip();
+       }
+ 
+       var1.getServer().getProfiler().push(var2);
+ 
+-      byte var19;
++      byte var18;
+       try {
+-         TextComponent var10000;
+-         byte var18;
+          try {
+             int var4 = this.dispatcher.execute(var3, var1);
+             return var4;
+          } catch (CommandRuntimeException var13) {
+             var1.sendFailure(var13.getComponent());
+@@ -234,42 +232,41 @@
+                }
+ 
+                var20.append((Component)(new TranslatableComponent("command.context.here")).withStyle(new ChatFormatting[]{ChatFormatting.RED, ChatFormatting.ITALIC}));
+                var1.sendFailure(var20);
+             }
+-
+-            var18 = 0;
+-            return var18;
+          } catch (Exception var15) {
+-            var10000 = new TextComponent;
+-         }
++            TextComponent var10000 = new TextComponent;
++            var10000.<init>(var15.getMessage() == null ? var15.getClass().getName() : var15.getMessage());
++            TextComponent var5 = var10000;
++            if (LOGGER.isDebugEnabled()) {
++               LOGGER.error("Command exception: {}", var2, var15);
++               StackTraceElement[] var6 = var15.getStackTrace();
+ 
+-         var10000.<init>(var15.getMessage() == null ? var15.getClass().getName() : var15.getMessage());
+-         TextComponent var5 = var10000;
+-         if (LOGGER.isDebugEnabled()) {
+-            LOGGER.error("Command exception: {}", var2, var15);
+-            StackTraceElement[] var6 = var15.getStackTrace();
++               for(int var7 = 0; var7 < Math.min(var6.length, 3); ++var7) {
++                  var5.append("\n\n").append(var6[var7].getMethodName()).append("\n ").append(var6[var7].getFileName()).append(":").append(String.valueOf(var6[var7].getLineNumber()));
++               }
++            }
+ 
+-            for(int var7 = 0; var7 < Math.min(var6.length, 3); ++var7) {
+-               var5.append("\n\n").append(var6[var7].getMethodName()).append("\n ").append(var6[var7].getFileName()).append(":").append(String.valueOf(var6[var7].getLineNumber()));
++            var1.sendFailure((new TranslatableComponent("command.failed")).withStyle((var1x) -> {
++               return var1x.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, var5));
++            }));
++            if (SharedConstants.IS_RUNNING_IN_IDE) {
++               var1.sendFailure(new TextComponent(Util.describeError(var15)));
++               LOGGER.error("'{}' threw an exception", var2, var15);
+             }
+-         }
+ 
+-         var1.sendFailure((new TranslatableComponent("command.failed")).withStyle((var1x) -> {
+-            return var1x.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, var5));
+-         }));
+-         if (SharedConstants.IS_RUNNING_IN_IDE) {
+-            var1.sendFailure(new TextComponent(Util.describeError(var15)));
+-            LOGGER.error("'" + var2 + "' threw an exception", var15);
++            byte var19 = 0;
++            return var19;
+          }
+ 
+-         var19 = 0;
++         var18 = 0;
+       } finally {
+          var1.getServer().getProfiler().pop();
+       }
+ 
+-      return var19;
++      return var18;
+    }
+ 
+    public void sendCommands(ServerPlayer var1) {
+       HashMap var2 = Maps.newHashMap();
+       RootCommandNode var3 = new RootCommandNode();

@@ -1,0 +1,93 @@
+--- net/minecraft/gametest/framework/TestCommand.java
++++ net/minecraft/gametest/framework/TestCommand.java
+@@ -28,11 +28,11 @@
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Vec3i;
+ import net.minecraft.data.structures.NbtToSnbt;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.NbtIo;
+-import net.minecraft.nbt.TagParser;
++import net.minecraft.nbt.NbtUtils;
+ import net.minecraft.network.chat.ClickEvent;
+ import net.minecraft.network.chat.HoverEvent;
+ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.network.chat.Style;
+ import net.minecraft.network.chat.TextComponent;
+@@ -111,11 +111,11 @@
+ 
+          for(int var8 = 0; var8 < var2; ++var8) {
+             for(int var9 = 0; var9 < var4; ++var9) {
+                BlockPos var10 = new BlockPos(var7.getX() + var8, var7.getY() + 1, var7.getZ() + var9);
+                Block var11 = Blocks.POLISHED_ANDESITE;
+-               BlockInput var12 = new BlockInput(var11.defaultBlockState(), Collections.EMPTY_SET, (CompoundTag)null);
++               BlockInput var12 = new BlockInput(var11.defaultBlockState(), Collections.emptySet(), (CompoundTag)null);
+                var12.place(var5, var10, 2);
+             }
+          }
+ 
+          StructureUtils.addCommandBlockAndButtonToStartTest(var7, new BlockPos(1, 0, -1), Rotation.NONE, var5);
+@@ -192,11 +192,11 @@
+       }
+ 
+       runTestPreparation(var5, var0);
+       AABB var7 = StructureUtils.getStructureBounds(var3);
+       BlockPos var8 = new BlockPos(var7.minX, var7.minY, var7.minZ);
+-      GameTestRunner.runTest(var6, var8, GameTestTicker.singleton);
++      GameTestRunner.runTest(var6, var8, GameTestTicker.SINGLETON);
+    }
+ 
+    private static void showTestSummaryIfAllDone(ServerLevel var0, MultipleTestTracker var1) {
+       if (var1.isDone()) {
+          say(var0, "GameTest done! " + var1.getTotalCount() + " tests were run", ChatFormatting.WHITE);
+@@ -215,11 +215,11 @@
+ 
+    private static int clearAllTests(CommandSourceStack var0, int var1) {
+       ServerLevel var2 = var0.getLevel();
+       GameTestRunner.clearMarkers(var2);
+       BlockPos var3 = new BlockPos(var0.getPosition().x, (double)var0.getLevel().getHeightmapPos(Heightmap.Types.WORLD_SURFACE, new BlockPos(var0.getPosition())).getY(), var0.getPosition().z);
+-      GameTestRunner.clearAllTests(var2, var3, GameTestTicker.singleton, Mth.clamp(var1, 0, 1024));
++      GameTestRunner.clearAllTests(var2, var3, GameTestTicker.SINGLETON, Mth.clamp(var1, 0, 1024));
+       return 1;
+    }
+ 
+    private static int runTest(CommandSourceStack var0, TestFunction var1, int var2) {
+       ServerLevel var3 = var0.getLevel();
+@@ -228,11 +228,11 @@
+       BlockPos var6 = new BlockPos(var4.getX(), var5, var4.getZ() + 3);
+       GameTestRunner.clearMarkers(var3);
+       runTestPreparation(var1, var3);
+       Rotation var7 = StructureUtils.getRotationForRotationSteps(var2);
+       GameTestInfo var8 = new GameTestInfo(var1, var7, var3);
+-      GameTestRunner.runTest(var8, var6, GameTestTicker.singleton);
++      GameTestRunner.runTest(var8, var6, GameTestTicker.SINGLETON);
+       return 1;
+    }
+ 
+    private static void runTestPreparation(TestFunction var0, ServerLevel var1) {
+       Consumer var2 = GameTestRegistry.getBeforeBatchFunction(var0.getBatchName());
+@@ -282,11 +282,11 @@
+    private static void runTests(CommandSourceStack var0, Collection<TestFunction> var1, int var2, int var3) {
+       BlockPos var4 = new BlockPos(var0.getPosition());
+       BlockPos var5 = new BlockPos(var4.getX(), var0.getLevel().getHeightmapPos(Heightmap.Types.WORLD_SURFACE, var4).getY(), var4.getZ() + 3);
+       ServerLevel var6 = var0.getLevel();
+       Rotation var7 = StructureUtils.getRotationForRotationSteps(var2);
+-      Collection var8 = GameTestRunner.runTests(var1, var5, var7, var6, GameTestTicker.singleton, var3);
++      Collection var8 = GameTestRunner.runTests(var1, var5, var7, var6, GameTestTicker.SINGLETON, var3);
+       MultipleTestTracker var9 = new MultipleTestTracker(var8);
+       var9.addListener(new TestCommand.TestSummaryDisplayer(var6, var9));
+       var9.addFailureListener((var0x) -> {
+          GameTestRegistry.rememberFailedTest(var0x.getTestFunction());
+       });
+@@ -343,11 +343,11 @@
+          Files.createDirectories(var4.getParent());
+          OutputStream var7 = Files.newOutputStream(var4);
+          Throwable var8 = null;
+ 
+          try {
+-            NbtIo.writeCompressed(TagParser.parseTag(var6), var7);
++            NbtIo.writeCompressed(NbtUtils.snbtToStructure(var6), var7);
+          } catch (Throwable var18) {
+             var8 = var18;
+             throw var18;
+          } finally {
+             if (var7 != null) {
