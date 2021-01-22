@@ -1,9 +1,90 @@
 --- net/minecraft/world/damagesource/DamageSource.java
 +++ net/minecraft/world/damagesource/DamageSource.java
-@@ -213,11 +213,11 @@
+@@ -22,30 +22,35 @@
+    public static final DamageSource IN_WALL = (new DamageSource("inWall")).bypassArmor();
+    public static final DamageSource CRAMMING = (new DamageSource("cramming")).bypassArmor();
+    public static final DamageSource DROWN = (new DamageSource("drown")).bypassArmor();
+    public static final DamageSource STARVE = (new DamageSource("starve")).bypassArmor().bypassMagic();
+    public static final DamageSource CACTUS = new DamageSource("cactus");
+-   public static final DamageSource FALL = (new DamageSource("fall")).bypassArmor();
++   public static final DamageSource FALL = (new DamageSource("fall")).bypassArmor().setIsFall();
+    public static final DamageSource FLY_INTO_WALL = (new DamageSource("flyIntoWall")).bypassArmor();
+    public static final DamageSource OUT_OF_WORLD = (new DamageSource("outOfWorld")).bypassArmor().bypassInvul();
+    public static final DamageSource GENERIC = (new DamageSource("generic")).bypassArmor();
+    public static final DamageSource MAGIC = (new DamageSource("magic")).bypassArmor().setMagic();
+    public static final DamageSource WITHER = (new DamageSource("wither")).bypassArmor();
+-   public static final DamageSource ANVIL = new DamageSource("anvil");
+-   public static final DamageSource FALLING_BLOCK = new DamageSource("fallingBlock");
++   public static final DamageSource ANVIL = (new DamageSource("anvil")).damageHelmet();
++   public static final DamageSource FALLING_BLOCK = (new DamageSource("fallingBlock")).damageHelmet();
+    public static final DamageSource DRAGON_BREATH = (new DamageSource("dragonBreath")).bypassArmor();
+    public static final DamageSource DRY_OUT = new DamageSource("dryout");
+    public static final DamageSource SWEET_BERRY_BUSH = new DamageSource("sweetBerryBush");
++   public static final DamageSource FREEZE = (new DamageSource("freeze")).bypassArmor();
++   public static final DamageSource FALLING_STALACTITE = (new DamageSource("fallingStalactite")).damageHelmet();
++   public static final DamageSource STALAGMITE = (new DamageSource("stalagmite")).bypassArmor().setIsFall();
++   private boolean damageHelmet;
+    private boolean bypassArmor;
+    private boolean bypassInvul;
+    private boolean bypassMagic;
+    private float exhaustion = 0.1F;
+    private boolean isFireSource;
+    private boolean isProjectile;
+    private boolean scalesWithDifficulty;
+    private boolean isMagic;
+    private boolean isExplosion;
++   private boolean isFall;
+    public final String msgId;
+ 
+    public static DamageSource sting(LivingEntity var0) {
+       return new EntityDamageSource("sting", var0);
+    }
+@@ -130,10 +135,14 @@
+ 
+    public boolean isBypassArmor() {
+       return this.bypassArmor;
+    }
+ 
++   public boolean isDamageHelmet() {
++      return this.damageHelmet;
++   }
++
+    public float getFoodExhaustion() {
+       return this.exhaustion;
+    }
+ 
+    public boolean isBypassInvul() {
+@@ -162,10 +171,15 @@
+       this.bypassArmor = true;
+       this.exhaustion = 0.0F;
        return this;
     }
  
++   protected DamageSource damageHelmet() {
++      this.damageHelmet = true;
++      return this;
++   }
++
+    protected DamageSource bypassInvul() {
+       this.bypassInvul = true;
+       return this;
+    }
+ 
+@@ -211,13 +225,22 @@
+    public DamageSource setMagic() {
+       this.isMagic = true;
+       return this;
+    }
+ 
++   public boolean isFall() {
++      return this.isFall;
++   }
++
++   public DamageSource setIsFall() {
++      this.isFall = true;
++      return this;
++   }
++
     public boolean isCreativePlayer() {
        Entity var1 = this.getEntity();
 -      return var1 instanceof Player && ((Player)var1).abilities.instabuild;

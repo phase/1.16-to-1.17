@@ -1,0 +1,69 @@
+--- net/minecraft/network/FriendlyByteBuf.java
++++ net/minecraft/network/FriendlyByteBuf.java
+@@ -17,10 +17,11 @@
+ import java.nio.channels.FileChannel;
+ import java.nio.channels.GatheringByteChannel;
+ import java.nio.channels.ScatteringByteChannel;
+ import java.nio.charset.Charset;
+ import java.nio.charset.StandardCharsets;
++import java.util.BitSet;
+ import java.util.Date;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+@@ -135,10 +136,35 @@
+       }
+ 
+       return this;
+    }
+ 
++   public long[] readLongArray() {
++      return this.readLongArray((long[])null);
++   }
++
++   public long[] readLongArray(@Nullable long[] var1) {
++      return this.readLongArray(var1, this.readableBytes() / 8);
++   }
++
++   public long[] readLongArray(@Nullable long[] var1, int var2) {
++      int var3 = this.readVarInt();
++      if (var1 == null || var1.length != var3) {
++         if (var3 > var2) {
++            throw new DecoderException("LongArray with size " + var3 + " is bigger than allowed " + var2);
++         }
++
++         var1 = new long[var3];
++      }
++
++      for(int var4 = 0; var4 < var1.length; ++var4) {
++         var1[var4] = this.readLong();
++      }
++
++      return var1;
++   }
++
+    public BlockPos readBlockPos() {
+       return BlockPos.of(this.readLong());
+    }
+ 
+    public FriendlyByteBuf writeBlockPos(BlockPos var1) {
+@@ -365,10 +391,18 @@
+       this.writeFloat((float)(var3.y - (double)var2.getY()));
+       this.writeFloat((float)(var3.z - (double)var2.getZ()));
+       this.writeBoolean(var1.isInside());
+    }
+ 
++   public BitSet readBitSet() {
++      return BitSet.valueOf(this.readLongArray());
++   }
++
++   public void writeBitSet(BitSet var1) {
++      this.writeLongArray(var1.toLongArray());
++   }
++
+    public int capacity() {
+       return this.source.capacity();
+    }
+ 
+    public ByteBuf capacity(int var1) {

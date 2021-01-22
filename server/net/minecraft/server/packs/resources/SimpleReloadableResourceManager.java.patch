@@ -1,0 +1,60 @@
+--- net/minecraft/server/packs/resources/SimpleReloadableResourceManager.java
++++ net/minecraft/server/packs/resources/SimpleReloadableResourceManager.java
+@@ -26,11 +26,10 @@
+ 
+ public class SimpleReloadableResourceManager implements ReloadableResourceManager {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private final Map<String, FallbackResourceManager> namespacedPacks = Maps.newHashMap();
+    private final List<PreparableReloadListener> listeners = Lists.newArrayList();
+-   private final List<PreparableReloadListener> recentlyRegistered = Lists.newArrayList();
+    private final Set<String> namespaces = Sets.newLinkedHashSet();
+    private final List<PackResources> packs = Lists.newArrayList();
+    private final PackType type;
+ 
+    public SimpleReloadableResourceManager(PackType var1) {
+@@ -96,30 +95,17 @@
+       this.clear();
+    }
+ 
+    public void registerReloadListener(PreparableReloadListener var1) {
+       this.listeners.add(var1);
+-      this.recentlyRegistered.add(var1);
+    }
+ 
+-   protected ReloadInstance createReload(Executor var1, Executor var2, List<PreparableReloadListener> var3, CompletableFuture<Unit> var4) {
+-      Object var5;
+-      if (LOGGER.isDebugEnabled()) {
+-         var5 = new ProfiledReloadInstance(this, Lists.newArrayList((Iterable)var3), var1, var2, var4);
+-      } else {
+-         var5 = SimpleReloadInstance.of(this, Lists.newArrayList((Iterable)var3), var1, var2, var4);
+-      }
+-
+-      this.recentlyRegistered.clear();
+-      return (ReloadInstance)var5;
+-   }
+-
+-   public ReloadInstance createFullReload(Executor var1, Executor var2, CompletableFuture<Unit> var3, List<PackResources> var4) {
+-      this.clear();
++   public ReloadInstance createReload(Executor var1, Executor var2, CompletableFuture<Unit> var3, List<PackResources> var4) {
+       LOGGER.info("Reloading ResourceManager: {}", () -> {
+          return (String)var4.stream().map(PackResources::getName).collect(Collectors.joining(", "));
+       });
++      this.clear();
+       Iterator var5 = var4.iterator();
+ 
+       while(var5.hasNext()) {
+          PackResources var6 = (PackResources)var5.next();
+ 
+@@ -129,11 +115,11 @@
+             LOGGER.error((String)"Failed to add resource pack {}", (Object)var6.getName(), (Object)var8);
+             return new SimpleReloadableResourceManager.FailingReloadInstance(new SimpleReloadableResourceManager.ResourcePackLoadingFailure(var6, var8));
+          }
+       }
+ 
+-      return this.createReload(var1, var2, this.listeners, var3);
++      return (ReloadInstance)(LOGGER.isDebugEnabled() ? new ProfiledReloadInstance(this, Lists.newArrayList((Iterable)this.listeners), var1, var2, var3) : SimpleReloadInstance.of(this, Lists.newArrayList((Iterable)this.listeners), var1, var2, var3));
+    }
+ 
+    static class FailingReloadInstance implements ReloadInstance {
+       private final SimpleReloadableResourceManager.ResourcePackLoadingFailure exception;
+       private final CompletableFuture<Unit> failedFuture;

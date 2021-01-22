@@ -1,6 +1,18 @@
 --- net/minecraft/world/level/block/entity/StructureBlockEntity.java
 +++ net/minecraft/world/level/block/entity/StructureBlockEntity.java
-@@ -47,12 +47,12 @@
+@@ -18,11 +18,10 @@
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.util.Mth;
+ import net.minecraft.util.StringUtil;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.player.Player;
+-import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.Mirror;
+ import net.minecraft.world.level.block.Rotation;
+ import net.minecraft.world.level.block.StructureBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+@@ -47,19 +46,19 @@
     private boolean showAir;
     private boolean showBoundingBox;
     private float integrity;
@@ -13,9 +25,17 @@
        this.structureSize = BlockPos.ZERO;
        this.mirror = Mirror.NONE;
        this.rotation = Rotation.NONE;
-       this.mode = StructureMode.DATA;
+-      this.mode = StructureMode.DATA;
        this.ignoreEntities = true;
-@@ -81,53 +81,53 @@
+       this.showBoundingBox = true;
+       this.integrity = 1.0F;
++      this.mode = (StructureMode)var2.getValue(StructureBlock.MODE);
+    }
+ 
+    public CompoundTag save(CompoundTag var1) {
+       super.save(var1);
+       var1.putString("name", this.getStructureName());
+@@ -81,53 +80,53 @@
        var1.putFloat("integrity", this.integrity);
        var1.putLong("seed", this.seed);
        return var1;
@@ -95,7 +115,7 @@
  
     private void updateBlockState() {
        if (this.level != null) {
-@@ -243,11 +243,11 @@
+@@ -243,11 +242,11 @@
           return false;
        } else {
           BlockPos var1 = this.getBlockPos();
@@ -108,3 +128,23 @@
           if (var6.size() < 1) {
              return false;
           } else {
+@@ -401,17 +400,17 @@
+       }
+ 
+       if (var2 && !var6) {
+          return false;
+       } else {
+-         StructurePlaceSettings var9 = (new StructurePlaceSettings()).setMirror(this.mirror).setRotation(this.rotation).setIgnoreEntities(this.ignoreEntities).setChunkPos((ChunkPos)null);
++         StructurePlaceSettings var9 = (new StructurePlaceSettings()).setMirror(this.mirror).setRotation(this.rotation).setIgnoreEntities(this.ignoreEntities);
+          if (this.integrity < 1.0F) {
+             var9.clearProcessors().addProcessor(new BlockRotProcessor(Mth.clamp(this.integrity, 0.0F, 1.0F))).setRandom(createRandom(this.seed));
+          }
+ 
+          BlockPos var8 = var4.offset(this.structurePos);
+-         var3.placeInWorldChunk(var1, var8, var9, createRandom(this.seed));
++         var3.placeInWorld(var1, var8, var8, var9, createRandom(this.seed), 2);
+          return true;
+       }
+    }
+ 
+    public void unloadStructure() {

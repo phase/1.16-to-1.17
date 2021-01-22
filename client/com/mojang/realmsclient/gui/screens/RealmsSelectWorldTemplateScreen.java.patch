@@ -1,0 +1,92 @@
+--- com/mojang/realmsclient/gui/screens/RealmsSelectWorldTemplateScreen.java
++++ com/mojang/realmsclient/gui/screens/RealmsSelectWorldTemplateScreen.java
+@@ -14,10 +14,11 @@
+ import java.util.Arrays;
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Objects;
++import java.util.function.Consumer;
+ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.Util;
+@@ -42,11 +43,11 @@
+    private static final ResourceLocation LINK_ICON = new ResourceLocation("realms", "textures/gui/realms/link_icons.png");
+    private static final ResourceLocation TRAILER_ICON = new ResourceLocation("realms", "textures/gui/realms/trailer_icons.png");
+    private static final ResourceLocation SLOT_FRAME_LOCATION = new ResourceLocation("realms", "textures/gui/realms/slot_frame.png");
+    private static final Component PUBLISHER_LINK_TOOLTIP = new TranslatableComponent("mco.template.info.tooltip");
+    private static final Component TRAILER_LINK_TOOLTIP = new TranslatableComponent("mco.template.trailer.tooltip");
+-   private final RealmsScreenWithCallback lastScreen;
++   private final Consumer<WorldTemplate> callback;
+    private RealmsSelectWorldTemplateScreen.WorldTemplateObjectSelectionList worldTemplateObjectSelectionList;
+    private int selectedTemplate;
+    private Component title;
+    private Button selectButton;
+    private Button trailerButton;
+@@ -62,17 +63,17 @@
+    private boolean displayWarning;
+    private boolean hoverWarning;
+    @Nullable
+    private List<TextRenderingUtils.Line> noTemplatesMessage;
+ 
+-   public RealmsSelectWorldTemplateScreen(RealmsScreenWithCallback var1, RealmsServer.WorldType var2) {
++   public RealmsSelectWorldTemplateScreen(Consumer<WorldTemplate> var1, RealmsServer.WorldType var2) {
+       this(var1, var2, (WorldTemplatePaginatedList)null);
+    }
+ 
+-   public RealmsSelectWorldTemplateScreen(RealmsScreenWithCallback var1, RealmsServer.WorldType var2, @Nullable WorldTemplatePaginatedList var3) {
++   public RealmsSelectWorldTemplateScreen(Consumer<WorldTemplate> var1, RealmsServer.WorldType var2, @Nullable WorldTemplatePaginatedList var3) {
+       this.selectedTemplate = -1;
+-      this.lastScreen = var1;
++      this.callback = var1;
+       this.worldType = var2;
+       if (var3 == null) {
+          this.worldTemplateObjectSelectionList = new RealmsSelectWorldTemplateScreen.WorldTemplateObjectSelectionList();
+          this.fetchTemplatesAsync(new WorldTemplatePaginatedList(10));
+       } else {
+@@ -110,11 +111,11 @@
+       this.selectButton = (Button)this.addButton(new Button(this.width / 2 - 100, this.height - 32, 100, 20, new TranslatableComponent("mco.template.button.select"), (var1x) -> {
+          this.selectTemplate();
+       }));
+       Component var1 = this.worldType == RealmsServer.WorldType.MINIGAME ? CommonComponents.GUI_CANCEL : CommonComponents.GUI_BACK;
+       Button var2 = new Button(this.width / 2 + 6, this.height - 32, 100, 20, var1, (var1x) -> {
+-         this.backButtonClicked();
++         this.onClose();
+       });
+       this.addButton(var2);
+       this.publisherButton = (Button)this.addButton(new Button(this.width / 2 + 112, this.height - 32, 100, 20, new TranslatableComponent("mco.template.button.publisher"), (var1x) -> {
+          this.onPublish();
+       }));
+@@ -160,27 +161,17 @@
+          this.clicks = 0;
+       }
+ 
+    }
+ 
+-   public boolean keyPressed(int var1, int var2, int var3) {
+-      if (var1 == 256) {
+-         this.backButtonClicked();
+-         return true;
+-      } else {
+-         return super.keyPressed(var1, var2, var3);
+-      }
++   public void onClose() {
++      this.callback.accept((Object)null);
+    }
+ 
+-   private void backButtonClicked() {
+-      this.lastScreen.callback((WorldTemplate)null);
+-      this.minecraft.setScreen(this.lastScreen);
+-   }
+-
+    private void selectTemplate() {
+       if (this.hasValidTemplate()) {
+-         this.lastScreen.callback(this.getSelectedTemplate());
++         this.callback.accept(this.getSelectedTemplate());
+       }
+ 
+    }
+ 
+    private boolean hasValidTemplate() {

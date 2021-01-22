@@ -1,0 +1,67 @@
+--- net/minecraft/client/resources/metadata/animation/AnimationMetadataSection.java
++++ net/minecraft/client/resources/metadata/animation/AnimationMetadataSection.java
+@@ -1,14 +1,11 @@
+ package net.minecraft.client.resources.metadata.animation;
+ 
+ import com.google.common.collect.Lists;
+-import com.google.common.collect.Sets;
+ import com.mojang.datafixers.util.Pair;
+-import java.util.HashSet;
+ import java.util.Iterator;
+ import java.util.List;
+-import java.util.Set;
+ 
+ public class AnimationMetadataSection {
+    public static final AnimationMetadataSectionSerializer SERIALIZER = new AnimationMetadataSectionSerializer();
+    public static final AnimationMetadataSection EMPTY = new AnimationMetadataSection(Lists.newArrayList(), -1, -1, 1, false) {
+       public Pair<Integer, Integer> getFrameSize(int var1, int var2) {
+@@ -61,42 +58,28 @@
+ 
+    public int getFrameWidth(int var1) {
+       return this.frameWidth == -1 ? var1 : this.frameWidth;
+    }
+ 
+-   public int getFrameCount() {
+-      return this.frames.size();
+-   }
+-
+    public int getDefaultFrameTime() {
+       return this.defaultFrameTime;
+    }
+ 
+    public boolean isInterpolatedFrames() {
+       return this.interpolatedFrames;
+    }
+ 
+-   private AnimationFrame getFrame(int var1) {
+-      return (AnimationFrame)this.frames.get(var1);
+-   }
+-
+-   public int getFrameTime(int var1) {
+-      AnimationFrame var2 = this.getFrame(var1);
+-      return var2.isTimeUnknown() ? this.defaultFrameTime : var2.getTime();
+-   }
+-
+-   public int getFrameIndex(int var1) {
+-      return ((AnimationFrame)this.frames.get(var1)).getIndex();
+-   }
+-
+-   public Set<Integer> getUniqueFrameIndices() {
+-      HashSet var1 = Sets.newHashSet();
++   public void forEachFrame(AnimationMetadataSection.FrameOutput var1) {
+       Iterator var2 = this.frames.iterator();
+ 
+       while(var2.hasNext()) {
+          AnimationFrame var3 = (AnimationFrame)var2.next();
+-         var1.add(var3.getIndex());
++         var1.accept(var3.getIndex(), var3.getTime(this.defaultFrameTime));
+       }
+ 
+-      return var1;
+    }
++
++   @FunctionalInterface
++   public interface FrameOutput {
++      void accept(int var1, int var2);
++   }
+ }

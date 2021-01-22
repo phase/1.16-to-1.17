@@ -1,5 +1,18 @@
 --- com/mojang/realmsclient/RealmsMainScreen.java
 +++ com/mojang/realmsclient/RealmsMainScreen.java
+@@ -94,11 +94,11 @@
+    private static final Component LEAVE_SERVER_TOOLTIP = new TranslatableComponent("mco.selectServer.leave");
+    private static final Component CONFIGURE_SERVER_TOOLTIP = new TranslatableComponent("mco.selectServer.configure");
+    private static final Component SERVER_INFO_TOOLTIP = new TranslatableComponent("mco.selectServer.info");
+    private static final Component NEWS_TOOLTIP = new TranslatableComponent("mco.news");
+    private static List<ResourceLocation> teaserImages = ImmutableList.of();
+-   private static final RealmsDataFetcher REALMS_DATA_FETCHER = new RealmsDataFetcher();
++   private static final RealmsDataFetcher REALMS_DATA_FETCHER = new RealmsDataFetcher(Minecraft.getInstance(), RealmsClient.create());
+    private static boolean overrideConfigure;
+    private static int lastScrollYPosition = -1;
+    private static volatile boolean hasParentalConsent;
+    private static volatile boolean checkedParentalConsent;
+    private static volatile boolean checkedClientCompatability;
 @@ -568,11 +568,11 @@
                       RealmsClient.switchToStage();
                       RealmsMainScreen.LOGGER.info("Switched to stage");
@@ -39,7 +52,45 @@
  
           NarrationHelper.now(POPUP_TEXT.getString());
        }
-@@ -1395,11 +1395,11 @@
+@@ -1171,11 +1171,11 @@
+       }
+    }
+ 
+    class NewsButton extends Button {
+       public NewsButton() {
+-         super(RealmsMainScreen.this.width - 62, 6, 20, 20, TextComponent.EMPTY, (var1x) -> {
++         super(RealmsMainScreen.this.width - 62, 6, 20, 20, new TranslatableComponent("mco.news"), (var1x) -> {
+             if (RealmsMainScreen.this.newsLink != null) {
+                Util.getPlatform().openUri(RealmsMainScreen.this.newsLink);
+                if (RealmsMainScreen.this.hasUnreadNews) {
+                   RealmsPersistence.RealmsPersistenceData var2 = RealmsPersistence.readFile();
+                   var2.hasUnreadNews = false;
+@@ -1183,11 +1183,10 @@
+                   RealmsPersistence.writeFile(var2);
+                }
+ 
+             }
+          });
+-         this.setMessage(new TranslatableComponent("mco.news"));
+       }
+ 
+       public void renderButton(PoseStack var1, int var2, int var3, float var4) {
+          RealmsMainScreen.this.renderNews(var1, var2, var3, RealmsMainScreen.this.hasUnreadNews, this.x, this.y, this.isHovered(), this.active);
+       }
+@@ -1199,11 +1198,11 @@
+             RealmsMainScreen.this.pendingButtonPress(var1x);
+          });
+       }
+ 
+       public void tick() {
+-         this.setMessage(new TranslatableComponent(RealmsMainScreen.this.numberOfPendingInvites == 0 ? "mco.invites.nopending" : "mco.invites.pending"));
++         this.setMessage(RealmsMainScreen.this.numberOfPendingInvites == 0 ? RealmsMainScreen.NO_PENDING_INVITES_TEXT : RealmsMainScreen.PENDING_INVITES_TEXT);
+       }
+ 
+       public void renderButton(PoseStack var1, int var2, int var3, float var4) {
+          RealmsMainScreen.this.drawInvitationPendingIcon(var1, var2, var3, this.x, this.y, this.isHovered(), this.active);
+       }
+@@ -1395,11 +1394,11 @@
  
        public boolean keyPressed(int var1, int var2, int var3) {
           if (var1 != 257 && var1 != 32 && var1 != 335) {

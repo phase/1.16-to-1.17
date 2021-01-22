@@ -1,6 +1,6 @@
 --- net/minecraft/world/item/ItemStack.java
 +++ net/minecraft/world/item/ItemStack.java
-@@ -23,32 +23,34 @@
+@@ -23,32 +23,36 @@
  import net.minecraft.commands.arguments.blocks.BlockPredicateArgument;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Registry;
@@ -28,15 +28,17 @@
  import net.minecraft.world.entity.ai.attributes.Attribute;
  import net.minecraft.world.entity.ai.attributes.AttributeModifier;
  import net.minecraft.world.entity.decoration.ItemFrame;
++import net.minecraft.world.entity.item.ItemEntity;
 +import net.minecraft.world.entity.player.Inventory;
  import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.inventory.ClickAction;
++import net.minecraft.world.inventory.Slot;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.item.enchantment.DigDurabilityEnchantment;
  import net.minecraft.world.item.enchantment.Enchantment;
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.enchantment.Enchantments;
-@@ -136,11 +138,11 @@
+@@ -136,11 +140,11 @@
     }
  
     public boolean isEmpty() {
@@ -49,7 +51,7 @@
           return true;
        }
     }
-@@ -155,15 +157,23 @@
+@@ -155,15 +159,23 @@
  
     public Item getItem() {
        return this.emptyCacheFlag ? Items.AIR : this.item;
@@ -74,7 +76,7 @@
           Item var5 = this.getItem();
           InteractionResult var6 = var5.useOn(var1);
           if (var2 != null && var6.consumesAction()) {
-@@ -260,11 +270,11 @@
+@@ -260,11 +272,11 @@
           return var4 >= this.getMaxDamage();
        }
     }
@@ -87,18 +89,18 @@
                 var3.accept(var2);
                 Item var4 = this.getItem();
                 this.shrink(1);
-@@ -277,10 +287,18 @@
+@@ -277,10 +289,18 @@
  
           }
        }
     }
  
-+   public boolean overrideStackedOnOther(ItemStack var1, ClickAction var2, Inventory var3) {
++   public boolean overrideStackedOnOther(Slot var1, ClickAction var2, Inventory var3) {
 +      return this.getItem().overrideStackedOnOther(this, var1, var2, var3);
 +   }
 +
-+   public boolean overrideOtherStackedOnMe(ItemStack var1, ClickAction var2, Inventory var3) {
-+      return this.getItem().overrideOtherStackedOnMe(this, var1, var2, var3);
++   public boolean overrideOtherStackedOnMe(ItemStack var1, Slot var2, ClickAction var3, Inventory var4) {
++      return this.getItem().overrideOtherStackedOnMe(this, var1, var2, var3, var4);
 +   }
 +
     public void hurtEnemy(LivingEntity var1, Player var2) {
@@ -106,7 +108,7 @@
        if (var3.hurtEnemy(this, var1, var2)) {
           var2.awardStat(Stats.ITEM_USED.get(var3));
        }
-@@ -340,11 +358,11 @@
+@@ -340,11 +360,11 @@
     }
  
     private boolean matches(ItemStack var1) {
@@ -119,7 +121,7 @@
           return false;
        } else {
           return this.tag == null || this.tag.equals(var1.tag);
-@@ -366,21 +384,25 @@
+@@ -366,21 +386,25 @@
           return !var0.isEmpty() && !var1.isEmpty() ? var0.sameItemStackIgnoreDurability(var1) : false;
        }
     }
@@ -147,7 +149,7 @@
     }
  
     public String toString() {
-@@ -562,11 +584,11 @@
+@@ -562,11 +586,11 @@
        } else {
           return false;
        }
@@ -160,7 +162,22 @@
  
     public boolean isFramed() {
        return this.entityRepresentation instanceof ItemFrame;
-@@ -756,10 +778,15 @@
+@@ -744,10 +768,14 @@
+ 
+    public void onUseTick(Level var1, LivingEntity var2, int var3) {
+       this.getItem().onUseTick(var1, var2, this, var3);
+    }
+ 
++   public void onDestroyed(ItemEntity var1) {
++      this.getItem().onDestroyed(var1);
++   }
++
+    public boolean isEdible() {
+       return this.getItem().isEdible();
+    }
+ 
+    public SoundEvent getDrinkingSound() {
+@@ -756,10 +784,15 @@
  
     public SoundEvent getEatingSound() {
        return this.getItem().getEatingSound();
@@ -176,7 +193,7 @@
     }
  
     public static enum TooltipPart {
-@@ -769,11 +796,11 @@
+@@ -769,11 +802,11 @@
        CAN_DESTROY,
        CAN_PLACE,
        ADDITIONAL,

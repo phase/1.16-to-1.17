@@ -12,7 +12,32 @@
  import net.minecraft.util.TimeUtil;
  import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.damagesource.IndirectEntityDamageSource;
-@@ -178,16 +177,16 @@
+@@ -62,11 +61,10 @@
+    private static final UUID SPEED_MODIFIER_ATTACKING_UUID = UUID.fromString("020E0DFB-87AE-4653-9556-831010E291A0");
+    private static final AttributeModifier SPEED_MODIFIER_ATTACKING;
+    private static final EntityDataAccessor<Optional<BlockState>> DATA_CARRY_STATE;
+    private static final EntityDataAccessor<Boolean> DATA_CREEPY;
+    private static final EntityDataAccessor<Boolean> DATA_STARED_AT;
+-   private static final Predicate<LivingEntity> ENDERMITE_SELECTOR;
+    private int lastStareSound = Integer.MIN_VALUE;
+    private int targetChangeTime;
+    private static final IntRange PERSISTENT_ANGER_TIME;
+    private int remainingPersistentAngerTime;
+    private UUID persistentAngerTarget;
+@@ -86,11 +84,11 @@
+       this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+       this.goalSelector.addGoal(10, new EnderMan.EndermanLeaveBlockGoal(this));
+       this.goalSelector.addGoal(11, new EnderMan.EndermanTakeBlockGoal(this));
+       this.targetSelector.addGoal(1, new EnderMan.EndermanLookForPlayerGoal(this, this::isAngryAt));
+       this.targetSelector.addGoal(2, new HurtByTargetGoal(this, new Class[0]));
+-      this.targetSelector.addGoal(3, new NearestAttackableTargetGoal(this, Endermite.class, 10, true, false, ENDERMITE_SELECTOR));
++      this.targetSelector.addGoal(3, new NearestAttackableTargetGoal(this, Endermite.class, true, false));
+       this.targetSelector.addGoal(4, new ResetUniversalAngerTargetGoal(this, false));
+    }
+ 
+    public static AttributeSupplier.Builder createAttributes() {
+       return Monster.createMonsterAttributes().add(Attributes.MAX_HEALTH, 40.0D).add(Attributes.MOVEMENT_SPEED, 0.30000001192092896D).add(Attributes.ATTACK_DAMAGE, 7.0D).add(Attributes.FOLLOW_RANGE, 64.0D);
+@@ -178,16 +176,16 @@
              var2 = null;
           }
        }
@@ -32,7 +57,7 @@
           Vec3 var3 = var1.getViewVector(1.0F).normalize();
           Vec3 var4 = new Vec3(this.getX() - var1.getX(), this.getEyeY() - var1.getEyeY(), this.getZ() - var1.getZ());
           double var5 = var4.length();
-@@ -254,11 +253,11 @@
+@@ -254,11 +252,11 @@
     }
  
     private boolean teleport(double var1, double var3, double var5) {
@@ -45,7 +70,21 @@
  
        BlockState var8 = this.level.getBlockState(var7);
        boolean var9 = var8.getMaterial().blocksMotion();
-@@ -377,16 +376,15 @@
+@@ -346,13 +344,10 @@
+    static {
+       SPEED_MODIFIER_ATTACKING = new AttributeModifier(SPEED_MODIFIER_ATTACKING_UUID, "Attacking speed boost", 0.15000000596046448D, AttributeModifier.Operation.ADDITION);
+       DATA_CARRY_STATE = SynchedEntityData.defineId(EnderMan.class, EntityDataSerializers.BLOCK_STATE);
+       DATA_CREEPY = SynchedEntityData.defineId(EnderMan.class, EntityDataSerializers.BOOLEAN);
+       DATA_STARED_AT = SynchedEntityData.defineId(EnderMan.class, EntityDataSerializers.BOOLEAN);
+-      ENDERMITE_SELECTOR = (var0) -> {
+-         return var0 instanceof Endermite && ((Endermite)var0).isPlayerSpawned();
+-      };
+       PERSISTENT_ANGER_TIME = TimeUtil.rangeOfSeconds(20, 39);
+    }
+ 
+    static class EndermanTakeBlockGoal extends Goal {
+       private final EnderMan enderman;
+@@ -377,16 +372,15 @@
           int var3 = Mth.floor(this.enderman.getX() - 2.0D + var1.nextDouble() * 4.0D);
           int var4 = Mth.floor(this.enderman.getY() + var1.nextDouble() * 3.0D);
           int var5 = Mth.floor(this.enderman.getZ() - 2.0D + var1.nextDouble() * 4.0D);

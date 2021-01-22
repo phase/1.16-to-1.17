@@ -1,6 +1,25 @@
 --- net/minecraft/client/KeyboardHandler.java
 +++ net/minecraft/client/KeyboardHandler.java
-@@ -18,10 +18,11 @@
+@@ -1,16 +1,18 @@
+ package net.minecraft.client;
+ 
++import com.google.common.base.MoreObjects;
+ import com.mojang.blaze3d.Blaze3D;
+ import com.mojang.blaze3d.platform.ClipboardManager;
+ import com.mojang.blaze3d.platform.InputConstants;
+ import java.util.Locale;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.CrashReport;
+ import net.minecraft.ReportedException;
+ import net.minecraft.Util;
++import net.minecraft.client.gui.chat.NarratorChatListener;
+ import net.minecraft.client.gui.components.ChatComponent;
+ import net.minecraft.client.gui.components.EditBox;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.gui.screens.SimpleOptionsSubScreen;
+ import net.minecraft.client.gui.screens.controls.ControlsScreen;
+@@ -18,16 +20,18 @@
  import net.minecraft.client.multiplayer.ClientPacketListener;
  import net.minecraft.commands.arguments.blocks.BlockStateParser;
  import net.minecraft.core.BlockPos;
@@ -12,7 +31,27 @@
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.util.Mth;
-@@ -225,11 +226,11 @@
+ import net.minecraft.world.entity.Entity;
++import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.EntityHitResult;
+ import net.minecraft.world.phys.HitResult;
+@@ -110,11 +114,11 @@
+             if (!this.minecraft.player.hasPermissions(2)) {
+                this.debugFeedbackTranslated("debug.creative_spectator.error");
+             } else if (!this.minecraft.player.isSpectator()) {
+                this.minecraft.player.chat("/gamemode spectator");
+             } else {
+-               this.minecraft.player.chat("/gamemode " + this.minecraft.gameMode.getPreviousPlayerMode().getName());
++               this.minecraft.player.chat("/gamemode " + ((GameType)MoreObjects.firstNonNull(this.minecraft.gameMode.getPreviousPlayerMode(), GameType.CREATIVE)).getName());
+             }
+ 
+             return true;
+          case 80:
+             this.minecraft.options.pauseOnLostFocus = !this.minecraft.options.pauseOnLostFocus;
+@@ -225,11 +229,11 @@
        String var4;
        if (var3 != null) {
           var3.remove("UUID");
@@ -25,3 +64,79 @@
           var4 = String.format(Locale.ROOT, "/summon %s %.2f %.2f %.2f", var1.toString(), var2.x, var2.y, var2.z);
        }
  
+@@ -269,31 +273,34 @@
+                });
+                return;
+             }
+          }
+ 
+-         boolean var8 = var7 == null || !(var7.getFocused() instanceof EditBox) || !((EditBox)var7.getFocused()).canConsumeInput();
+-         if (var5 != 0 && var3 == 66 && Screen.hasControlDown() && var8) {
+-            Option.NARRATOR.toggle(this.minecraft.options, 1);
+-            if (var7 instanceof SimpleOptionsSubScreen) {
+-               ((SimpleOptionsSubScreen)var7).updateNarratorButton();
++         if (NarratorChatListener.INSTANCE.isActive()) {
++            boolean var8 = var7 == null || !(var7.getFocused() instanceof EditBox) || !((EditBox)var7.getFocused()).canConsumeInput();
++            if (var5 != 0 && var3 == 66 && Screen.hasControlDown() && var8) {
++               this.minecraft.options.narratorStatus = NarratorStatus.byId(this.minecraft.options.narratorStatus.getId() + 1);
++               NarratorChatListener.INSTANCE.updateNarratorStatus(this.minecraft.options.narratorStatus);
++               if (var7 instanceof SimpleOptionsSubScreen) {
++                  ((SimpleOptionsSubScreen)var7).updateNarratorButton();
++               }
+             }
+          }
+ 
+          if (var7 != null) {
+-            boolean[] var9 = new boolean[]{false};
++            boolean[] var11 = new boolean[]{false};
+             Screen.wrapScreenError(() -> {
+                if (var5 != 1 && (var5 != 2 || !this.sendRepeatsToGui)) {
+                   if (var5 == 0) {
+-                     var9[0] = var7.keyReleased(var3, var4, var6);
++                     var11[0] = var7.keyReleased(var3, var4, var6);
+                   }
+                } else {
+-                  var9[0] = var7.keyPressed(var3, var4, var6);
++                  var11[0] = var7.keyPressed(var3, var4, var6);
+                }
+ 
+             }, "keyPressed event handler", var7.getClass().getCanonicalName());
+-            if (var9[0]) {
++            if (var11[0]) {
+                return;
+             }
+          }
+ 
+          if (this.minecraft.screen == null || this.minecraft.screen.passEvents) {
+@@ -312,25 +319,25 @@
+             } else {
+                if (var3 == 293 && this.minecraft.gameRenderer != null) {
+                   this.minecraft.gameRenderer.togglePostEffect();
+                }
+ 
+-               boolean var10 = false;
++               boolean var9 = false;
+                if (this.minecraft.screen == null) {
+                   if (var3 == 256) {
+-                     boolean var11 = InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), 292);
+-                     this.minecraft.pauseGame(var11);
++                     boolean var10 = InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), 292);
++                     this.minecraft.pauseGame(var10);
+                   }
+ 
+-                  var10 = InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), 292) && this.handleDebugKeys(var3);
+-                  this.handledDebugKey |= var10;
++                  var9 = InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), 292) && this.handleDebugKeys(var3);
++                  this.handledDebugKey |= var9;
+                   if (var3 == 290) {
+                      this.minecraft.options.hideGui = !this.minecraft.options.hideGui;
+                   }
+                }
+ 
+-               if (var10) {
++               if (var9) {
+                   KeyMapping.set(var12, false);
+                } else {
+                   KeyMapping.set(var12, true);
+                   KeyMapping.click(var12);
+                }

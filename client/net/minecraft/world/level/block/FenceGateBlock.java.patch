@@ -12,7 +12,19 @@
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.context.BlockPlaceContext;
  import net.minecraft.world.level.BlockGetter;
-@@ -98,11 +97,11 @@
+@@ -14,10 +13,11 @@
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.StateDefinition;
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+ import net.minecraft.world.level.block.state.properties.BooleanProperty;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.pathfinder.PathComputationType;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+@@ -98,11 +98,11 @@
        boolean var7 = var6 == Direction.Axis.Z && (this.isWall(var2.getBlockState(var3.west())) || this.isWall(var2.getBlockState(var3.east()))) || var6 == Direction.Axis.X && (this.isWall(var2.getBlockState(var3.north())) || this.isWall(var2.getBlockState(var3.south())));
        return (BlockState)((BlockState)((BlockState)((BlockState)this.defaultBlockState().setValue(FACING, var5)).setValue(OPEN, var4)).setValue(POWERED, var4)).setValue(IN_WALL, var7);
     }
@@ -25,3 +37,29 @@
     public InteractionResult use(BlockState var1, Level var2, BlockPos var3, Player var4, InteractionHand var5, BlockHitResult var6) {
        if ((Boolean)var1.getValue(OPEN)) {
           var1 = (BlockState)var1.setValue(OPEN, false);
+@@ -115,21 +115,24 @@
+ 
+          var1 = (BlockState)var1.setValue(OPEN, true);
+          var2.setBlock(var3, var1, 10);
+       }
+ 
+-      var2.levelEvent(var4, (Boolean)var1.getValue(OPEN) ? 1008 : 1014, var3, 0);
++      boolean var8 = (Boolean)var1.getValue(OPEN);
++      var2.levelEvent(var4, var8 ? 1008 : 1014, var3, 0);
++      var2.gameEvent(var4, var8 ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, var3);
+       return InteractionResult.sidedSuccess(var2.isClientSide);
+    }
+ 
+    public void neighborChanged(BlockState var1, Level var2, BlockPos var3, Block var4, BlockPos var5, boolean var6) {
+       if (!var2.isClientSide) {
+          boolean var7 = var2.hasNeighborSignal(var3);
+          if ((Boolean)var1.getValue(POWERED) != var7) {
+             var2.setBlock(var3, (BlockState)((BlockState)var1.setValue(POWERED, var7)).setValue(OPEN, var7), 2);
+             if ((Boolean)var1.getValue(OPEN) != var7) {
+                var2.levelEvent((Player)null, var7 ? 1008 : 1014, var3, 0);
++               var2.gameEvent(var7 ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, var3);
+             }
+          }
+ 
+       }
+    }

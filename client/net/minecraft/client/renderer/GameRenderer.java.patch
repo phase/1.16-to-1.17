@@ -12,6 +12,34 @@
  import java.io.IOException;
  import java.util.Locale;
  import java.util.Random;
+@@ -44,11 +45,11 @@
+ import net.minecraft.world.entity.projectile.ProjectileUtil;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.pattern.BlockInWorld;
+-import net.minecraft.world.level.material.FluidState;
++import net.minecraft.world.level.material.FogType;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.EntityHitResult;
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+@@ -305,12 +306,12 @@
+          if (var1.getEntity() instanceof LivingEntity && ((LivingEntity)var1.getEntity()).isDeadOrDying()) {
+             float var6 = Math.min((float)((LivingEntity)var1.getEntity()).deathTime + var2, 20.0F);
+             var4 /= (double)((1.0F - 500.0F / (var6 + 500.0F)) * 2.0F + 1.0F);
+          }
+ 
+-         FluidState var7 = var1.getFluidInCamera();
+-         if (!var7.isEmpty()) {
++         FogType var7 = var1.getFluidInCamera();
++         if (var7 == FogType.LAVA || var7 == FogType.WATER) {
+             var4 = var4 * 60.0D / 70.0D;
+          }
+ 
+          return var4;
+       }
 @@ -352,11 +353,11 @@
        }
     }
@@ -25,7 +53,7 @@
           var4.normal().setIdentity();
           var1.pushPose();
           this.bobHurt(var1, var3);
-@@ -389,20 +390,20 @@
+@@ -389,22 +390,26 @@
        RenderSystem.loadIdentity();
        RenderSystem.multMatrix(var1);
        RenderSystem.matrixMode(5888);
@@ -46,14 +74,20 @@
  
 -      var4.last().pose().multiply(Matrix4f.perspective(this.getFov(var1, var2, var3), (float)this.minecraft.getWindow().getWidth() / (float)this.minecraft.getWindow().getHeight(), 0.05F, this.renderDistance * 4.0F));
 -      return var4.last().pose();
-+      var3.last().pose().multiply(Matrix4f.perspective(var1, (float)this.minecraft.getWindow().getWidth() / (float)this.minecraft.getWindow().getHeight(), 0.05F, this.renderDistance * 4.0F));
++      var3.last().pose().multiply(Matrix4f.perspective(var1, (float)this.minecraft.getWindow().getWidth() / (float)this.minecraft.getWindow().getHeight(), 0.05F, this.getDepthFar()));
 +      return var3.last().pose();
     }
  
++   public float getDepthFar() {
++      return this.renderDistance * 4.0F;
++   }
++
     public static float getNightVisionScale(LivingEntity var0, float var1) {
        int var2 = var0.getEffect(MobEffects.NIGHT_VISION).getDuration();
        return var2 > 200 ? 1.0F : 0.7F + Mth.sin(((float)var2 - var1) * 3.1415927F * 0.2F) * 0.3F;
-@@ -564,11 +565,11 @@
+    }
+ 
+@@ -564,11 +569,11 @@
        if (!this.renderBlockOutline) {
           return false;
        } else {
@@ -66,7 +100,7 @@
              if (var4 != null && var4.getType() == HitResult.Type.BLOCK) {
                 BlockPos var5 = ((BlockHitResult)var4).getBlockPos();
                 BlockState var6 = this.minecraft.level.getBlockState(var5);
-@@ -596,34 +597,36 @@
+@@ -596,34 +601,36 @@
        boolean var5 = this.shouldRenderBlockOutline();
        this.minecraft.getProfiler().popPush("camera");
        Camera var6 = this.mainCamera;
@@ -117,7 +151,20 @@
           RenderSystem.clear(256, Minecraft.ON_OSX);
           this.renderItemInHand(var4, var6, var1);
        }
-@@ -699,11 +702,11 @@
+@@ -670,11 +677,11 @@
+          var12.scale(var13, -var13, var13);
+          var12.mulPose(Vector3f.YP.rotationDegrees(900.0F * Mth.abs(Mth.sin(var9))));
+          var12.mulPose(Vector3f.XP.rotationDegrees(6.0F * Mth.cos(var5 * 8.0F)));
+          var12.mulPose(Vector3f.ZP.rotationDegrees(6.0F * Mth.cos(var5 * 8.0F)));
+          MultiBufferSource.BufferSource var14 = this.renderBuffers.bufferSource();
+-         this.minecraft.getItemRenderer().renderStatic(this.itemActivationItem, ItemTransforms.TransformType.FIXED, 15728880, OverlayTexture.NO_OVERLAY, var12, var14);
++         this.minecraft.getItemRenderer().renderStatic(this.itemActivationItem, ItemTransforms.TransformType.FIXED, 15728880, OverlayTexture.NO_OVERLAY, var12, var14, 0);
+          var12.popPose();
+          var14.endBatch();
+          RenderSystem.popAttributes();
+          RenderSystem.popMatrix();
+          RenderSystem.enableCull();
+@@ -699,11 +706,11 @@
        RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
        RenderSystem.color4f(var6, var7, var8, 1.0F);
        this.minecraft.getTextureManager().bind(NAUSEA_LOCATION);

@@ -1,6 +1,6 @@
 --- net/minecraft/nbt/CompoundTag.java
 +++ net/minecraft/nbt/CompoundTag.java
-@@ -1,18 +1,14 @@
+@@ -1,41 +1,29 @@
  package net.minecraft.nbt;
  
 -import com.google.common.base.Strings;
@@ -19,8 +19,10 @@
  import java.util.Iterator;
  import java.util.List;
  import java.util.Map;
-@@ -22,19 +18,13 @@
- import java.util.regex.Pattern;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.UUID;
+-import java.util.regex.Pattern;
  import javax.annotation.Nullable;
  import net.minecraft.CrashReport;
  import net.minecraft.CrashReportCategory;
@@ -34,12 +36,13 @@
  public class CompoundTag implements Tag {
     public static final Codec<CompoundTag> CODEC;
 -   private static final Logger LOGGER;
-    private static final Pattern SIMPLE_VALUE;
+-   private static final Pattern SIMPLE_VALUE;
     public static final TagType<CompoundTag> TYPE;
     private final Map<String, Tag> tags;
  
     protected CompoundTag(Map<String, Tag> var1) {
-@@ -317,27 +307,11 @@
+       this.tags = var1;
+@@ -317,27 +305,11 @@
     public void remove(String var1) {
        this.tags.remove(var1);
     }
@@ -68,7 +71,7 @@
     public boolean isEmpty() {
        return this.tags.isEmpty();
     }
-@@ -417,59 +391,14 @@
+@@ -417,59 +389,14 @@
        }
  
        return this;
@@ -130,15 +133,16 @@
     }
  
     static {
-@@ -477,11 +406,10 @@
+@@ -477,12 +404,10 @@
           Tag var1 = (Tag)var0.convert(NbtOps.INSTANCE).getValue();
           return var1 instanceof CompoundTag ? DataResult.success((CompoundTag)var1) : DataResult.error("Not a compound tag: " + var1);
        }, (var0) -> {
           return new Dynamic(NbtOps.INSTANCE, var0);
        });
 -      LOGGER = LogManager.getLogger();
-       SIMPLE_VALUE = Pattern.compile("[A-Za-z0-9._+-]+");
+-      SIMPLE_VALUE = Pattern.compile("[A-Za-z0-9._+-]+");
        TYPE = new TagType<CompoundTag>() {
           public CompoundTag load(DataInput var1, int var2, NbtAccounter var3) throws IOException {
              var3.accountBits(384L);
              if (var2 > 512) {
+                throw new RuntimeException("Tried to read NBT tag with too high complexity, depth > 512");

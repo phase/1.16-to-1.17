@@ -76,33 +76,119 @@
                 if (var2 == ItemTransforms.TransformType.GUI) {
                    var13.pose().multiply(0.5F);
                 } else if (var2.firstPerson()) {
-@@ -193,21 +196,20 @@
+@@ -192,37 +195,36 @@
+          var2.putBulkData(var8, var10, var12, var13, var14, var5, var6);
        }
  
     }
  
-    public BakedModel getModel(ItemStack var1, @Nullable Level var2, @Nullable LivingEntity var3) {
+-   public BakedModel getModel(ItemStack var1, @Nullable Level var2, @Nullable LivingEntity var3) {
 -      Item var5 = var1.getItem();
-       BakedModel var4;
+-      BakedModel var4;
 -      if (var5 == Items.TRIDENT) {
+-         var4 = this.itemModelShaper.getModelManager().getModel(new ModelResourceLocation("minecraft:trident_in_hand#inventory"));
++   public BakedModel getModel(ItemStack var1, @Nullable Level var2, @Nullable LivingEntity var3, int var4) {
++      BakedModel var5;
 +      if (var1.is(Items.TRIDENT)) {
-          var4 = this.itemModelShaper.getModelManager().getModel(new ModelResourceLocation("minecraft:trident_in_hand#inventory"));
++         var5 = this.itemModelShaper.getModelManager().getModel(new ModelResourceLocation("minecraft:trident_in_hand#inventory"));
        } else {
-          var4 = this.itemModelShaper.getItemModel(var1);
+-         var4 = this.itemModelShaper.getItemModel(var1);
++         var5 = this.itemModelShaper.getItemModel(var1);
        }
  
--      ClientLevel var6 = var2 instanceof ClientLevel ? (ClientLevel)var2 : null;
+       ClientLevel var6 = var2 instanceof ClientLevel ? (ClientLevel)var2 : null;
 -      BakedModel var7 = var4.getOverrides().resolve(var4, var1, var6, var3);
--      return var7 == null ? this.itemModelShaper.getModelManager().getMissingModel() : var7;
-+      ClientLevel var5 = var2 instanceof ClientLevel ? (ClientLevel)var2 : null;
-+      BakedModel var6 = var4.getOverrides().resolve(var4, var1, var5, var3);
-+      return var6 == null ? this.itemModelShaper.getModelManager().getMissingModel() : var6;
++      BakedModel var7 = var5.getOverrides().resolve(var5, var1, var6, var3, var4);
+       return var7 == null ? this.itemModelShaper.getModelManager().getMissingModel() : var7;
     }
  
-    public void renderStatic(ItemStack var1, ItemTransforms.TransformType var2, int var3, int var4, PoseStack var5, MultiBufferSource var6) {
-       this.renderStatic((LivingEntity)null, var1, var2, false, var5, var6, (Level)null, var3, var4);
+-   public void renderStatic(ItemStack var1, ItemTransforms.TransformType var2, int var3, int var4, PoseStack var5, MultiBufferSource var6) {
+-      this.renderStatic((LivingEntity)null, var1, var2, false, var5, var6, (Level)null, var3, var4);
++   public void renderStatic(ItemStack var1, ItemTransforms.TransformType var2, int var3, int var4, PoseStack var5, MultiBufferSource var6, int var7) {
++      this.renderStatic((LivingEntity)null, var1, var2, false, var5, var6, (Level)null, var3, var4, var7);
     }
-@@ -309,49 +311,46 @@
+ 
+-   public void renderStatic(@Nullable LivingEntity var1, ItemStack var2, ItemTransforms.TransformType var3, boolean var4, PoseStack var5, MultiBufferSource var6, @Nullable Level var7, int var8, int var9) {
++   public void renderStatic(@Nullable LivingEntity var1, ItemStack var2, ItemTransforms.TransformType var3, boolean var4, PoseStack var5, MultiBufferSource var6, @Nullable Level var7, int var8, int var9, int var10) {
+       if (!var2.isEmpty()) {
+-         BakedModel var10 = this.getModel(var2, var7, var1);
+-         this.render(var2, var3, var4, var5, var6, var8, var9, var10);
++         BakedModel var11 = this.getModel(var2, var7, var1, var10);
++         this.render(var2, var3, var4, var5, var6, var8, var9, var11);
+       }
+    }
+ 
+    public void renderGuiItem(ItemStack var1, int var2, int var3) {
+-      this.renderGuiItem(var1, var2, var3, this.getModel(var1, (Level)null, (LivingEntity)null));
++      this.renderGuiItem(var1, var2, var3, this.getModel(var1, (Level)null, (LivingEntity)null, 0));
+    }
+ 
+    protected void renderGuiItem(ItemStack var1, int var2, int var3, BakedModel var4) {
+       RenderSystem.pushMatrix();
+       this.textureManager.bind(TextureAtlas.LOCATION_BLOCKS);
+@@ -255,43 +257,47 @@
+       RenderSystem.disableRescaleNormal();
+       RenderSystem.popMatrix();
+    }
+ 
+    public void renderAndDecorateItem(ItemStack var1, int var2, int var3) {
+-      this.tryRenderGuiItem(Minecraft.getInstance().player, var1, var2, var3);
++      this.tryRenderGuiItem(Minecraft.getInstance().player, var1, var2, var3, 0);
+    }
+ 
++   public void renderAndDecorateItem(ItemStack var1, int var2, int var3, int var4) {
++      this.tryRenderGuiItem(Minecraft.getInstance().player, var1, var2, var3, var4);
++   }
++
+    public void renderAndDecorateFakeItem(ItemStack var1, int var2, int var3) {
+-      this.tryRenderGuiItem((LivingEntity)null, var1, var2, var3);
++      this.tryRenderGuiItem((LivingEntity)null, var1, var2, var3, 0);
+    }
+ 
+-   public void renderAndDecorateItem(LivingEntity var1, ItemStack var2, int var3, int var4) {
+-      this.tryRenderGuiItem(var1, var2, var3, var4);
++   public void renderAndDecorateItem(LivingEntity var1, ItemStack var2, int var3, int var4, int var5) {
++      this.tryRenderGuiItem(var1, var2, var3, var4, var5);
+    }
+ 
+-   private void tryRenderGuiItem(@Nullable LivingEntity var1, ItemStack var2, int var3, int var4) {
++   private void tryRenderGuiItem(@Nullable LivingEntity var1, ItemStack var2, int var3, int var4, int var5) {
+       if (!var2.isEmpty()) {
+          this.blitOffset += 50.0F;
+ 
+          try {
+-            this.renderGuiItem(var2, var3, var4, this.getModel(var2, (Level)null, var1));
+-         } catch (Throwable var8) {
+-            CrashReport var6 = CrashReport.forThrowable(var8, "Rendering item");
+-            CrashReportCategory var7 = var6.addCategory("Item being rendered");
+-            var7.setDetail("Item Type", () -> {
++            this.renderGuiItem(var2, var3, var4, this.getModel(var2, (Level)null, var1, var5));
++         } catch (Throwable var9) {
++            CrashReport var7 = CrashReport.forThrowable(var9, "Rendering item");
++            CrashReportCategory var8 = var7.addCategory("Item being rendered");
++            var8.setDetail("Item Type", () -> {
+                return String.valueOf(var2.getItem());
+             });
+-            var7.setDetail("Item Damage", () -> {
++            var8.setDetail("Item Damage", () -> {
+                return String.valueOf(var2.getDamageValue());
+             });
+-            var7.setDetail("Item NBT", () -> {
++            var8.setDetail("Item NBT", () -> {
+                return String.valueOf(var2.getTag());
+             });
+-            var7.setDetail("Item Foil", () -> {
++            var8.setDetail("Item Foil", () -> {
+                return String.valueOf(var2.hasFoil());
+             });
+-            throw new ReportedException(var6);
++            throw new ReportedException(var7);
+          }
+ 
+          this.blitOffset -= 50.0F;
+       }
+    }
+@@ -309,49 +315,46 @@
              MultiBufferSource.BufferSource var8 = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
              var1.drawInBatch((String)var7, (float)(var3 + 19 - 2 - var1.width(var7)), (float)(var4 + 6 + 3), 16777215, true, var6.last().pose(), var8, false, 0, 15728880);
              var8.endBatch();

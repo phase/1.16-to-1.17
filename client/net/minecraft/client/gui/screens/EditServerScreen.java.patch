@@ -1,0 +1,56 @@
+--- net/minecraft/client/gui/screens/EditServerScreen.java
++++ net/minecraft/client/gui/screens/EditServerScreen.java
+@@ -4,10 +4,11 @@
+ import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
+ import java.net.IDN;
+ import java.util.function.Predicate;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.components.Button;
++import net.minecraft.client.gui.components.CycleButton;
+ import net.minecraft.client.gui.components.EditBox;
+ import net.minecraft.client.multiplayer.ServerData;
+ import net.minecraft.network.chat.CommonComponents;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+@@ -19,11 +20,10 @@
+    private Button addButton;
+    private final BooleanConsumer callback;
+    private final ServerData serverData;
+    private EditBox ipEdit;
+    private EditBox nameEdit;
+-   private Button serverPackButton;
+    private final Screen lastScreen;
+    private final Predicate<String> addressFilter = (var0) -> {
+       if (StringUtil.isNullOrEmpty(var0)) {
+          return true;
+       } else {
+@@ -64,27 +64,22 @@
+       this.ipEdit.setMaxLength(128);
+       this.ipEdit.setValue(this.serverData.ip);
+       this.ipEdit.setFilter(this.addressFilter);
+       this.ipEdit.setResponder(this::onEdited);
+       this.children.add(this.ipEdit);
+-      this.serverPackButton = (Button)this.addButton(new Button(this.width / 2 - 100, this.height / 4 + 72, 200, 20, createServerButtonText(this.serverData.getResourcePackStatus()), (var1) -> {
+-         this.serverData.setResourcePackStatus(ServerData.ServerPackStatus.values()[(this.serverData.getResourcePackStatus().ordinal() + 1) % ServerData.ServerPackStatus.values().length]);
+-         this.serverPackButton.setMessage(createServerButtonText(this.serverData.getResourcePackStatus()));
++      this.addButton(CycleButton.builder(ServerData.ServerPackStatus::getName).withValues((Object[])ServerData.ServerPackStatus.values()).withInitialValue(this.serverData.getResourcePackStatus()).create(this.width / 2 - 100, this.height / 4 + 72, 200, 20, new TranslatableComponent("addServer.resourcePack"), (var1, var2) -> {
++         this.serverData.setResourcePackStatus(var2);
+       }));
+       this.addButton = (Button)this.addButton(new Button(this.width / 2 - 100, this.height / 4 + 96 + 18, 200, 20, new TranslatableComponent("addServer.add"), (var1) -> {
+          this.onAdd();
+       }));
+       this.addButton(new Button(this.width / 2 - 100, this.height / 4 + 120 + 18, 200, 20, CommonComponents.GUI_CANCEL, (var1) -> {
+          this.callback.accept(false);
+       }));
+       this.cleanUp();
+    }
+ 
+-   private static Component createServerButtonText(ServerData.ServerPackStatus var0) {
+-      return (new TranslatableComponent("addServer.resourcePack")).append(": ").append(var0.getName());
+-   }
+-
+    public void resize(Minecraft var1, int var2, int var3) {
+       String var4 = this.ipEdit.getValue();
+       String var5 = this.nameEdit.getValue();
+       this.init(var1, var2, var3);
+       this.ipEdit.setValue(var4);

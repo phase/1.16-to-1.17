@@ -26,3 +26,36 @@
              }
  
              return true;
+@@ -71,14 +70,13 @@
+          }
+ 
+          Tag var7 = null;
+          if (var1.has("tag")) {
+             ResourceLocation var5 = new ResourceLocation(GsonHelper.getAsString(var1, "tag"));
+-            var7 = SerializationTags.getInstance().getBlocks().getTag(var5);
+-            if (var7 == null) {
+-               throw new JsonSyntaxException("Unknown block tag '" + var5 + "'");
+-            }
++            var7 = SerializationTags.getInstance().getTagOrThrow(Registry.BLOCK_REGISTRY, var5, (var0x) -> {
++               return new JsonSyntaxException("Unknown block tag '" + var0x + "'");
++            });
+          }
+ 
+          StatePropertiesPredicate var6 = StatePropertiesPredicate.fromJson(var1.get("state"));
+          return new BlockPredicate(var7, var3, var6, var2);
+       } else {
+@@ -94,11 +92,13 @@
+          if (this.block != null) {
+             var1.addProperty("block", Registry.BLOCK.getKey(this.block).toString());
+          }
+ 
+          if (this.tag != null) {
+-            var1.addProperty("tag", SerializationTags.getInstance().getBlocks().getIdOrThrow(this.tag).toString());
++            var1.addProperty("tag", SerializationTags.getInstance().getIdOrThrow(Registry.BLOCK_REGISTRY, this.tag, () -> {
++               return new IllegalStateException("Unknown block tag");
++            }).toString());
+          }
+ 
+          var1.add("nbt", this.nbt.serializeToJson());
+          var1.add("state", this.properties.serializeToJson());
+          return var1;

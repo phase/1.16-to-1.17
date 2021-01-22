@@ -1,0 +1,185 @@
+--- net/minecraft/core/Registry.java
++++ net/minecraft/core/Registry.java
+@@ -13,11 +13,11 @@
+ import java.util.Map.Entry;
+ import java.util.function.Supplier;
+ import java.util.stream.Stream;
+ import java.util.stream.StreamSupport;
+ import javax.annotation.Nullable;
+-import net.minecraft.SharedConstants;
++import net.minecraft.Util;
+ import net.minecraft.core.particles.ParticleType;
+ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.data.BuiltinRegistries;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.resources.ResourceLocation;
+@@ -55,10 +55,12 @@
+ import net.minecraft.world.level.block.entity.BlockEntityType;
+ import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.chunk.ChunkStatus;
+ import net.minecraft.world.level.dimension.DimensionType;
+ import net.minecraft.world.level.dimension.LevelStem;
++import net.minecraft.world.level.gameevent.GameEvent;
++import net.minecraft.world.level.gameevent.PositionSourceType;
+ import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
+ import net.minecraft.world.level.levelgen.carver.ConfiguredWorldCarver;
+ import net.minecraft.world.level.levelgen.carver.WorldCarver;
+ import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
+ import net.minecraft.world.level.levelgen.feature.ConfiguredStructureFeature;
+@@ -86,10 +88,16 @@
+ import net.minecraft.world.level.storage.loot.entries.LootPoolEntryType;
+ import net.minecraft.world.level.storage.loot.functions.LootItemFunctionType;
+ import net.minecraft.world.level.storage.loot.functions.LootItemFunctions;
+ import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
+ import net.minecraft.world.level.storage.loot.predicates.LootItemConditions;
++import net.minecraft.world.level.storage.loot.providers.nbt.LootNbtProviderType;
++import net.minecraft.world.level.storage.loot.providers.nbt.NbtProviders;
++import net.minecraft.world.level.storage.loot.providers.number.LootNumberProviderType;
++import net.minecraft.world.level.storage.loot.providers.number.NumberProviders;
++import net.minecraft.world.level.storage.loot.providers.score.LootScoreProviderType;
++import net.minecraft.world.level.storage.loot.providers.score.ScoreboardNameProviders;
+ import org.apache.commons.lang3.Validate;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public abstract class Registry<T> implements Codec<T>, Keyable, IdMap<T> {
+@@ -115,10 +123,12 @@
+    public static final ResourceKey<Registry<PosRuleTestType<?>>> POS_RULE_TEST_REGISTRY;
+    public static final ResourceKey<Registry<MenuType<?>>> MENU_REGISTRY;
+    public static final ResourceKey<Registry<RecipeType<?>>> RECIPE_TYPE_REGISTRY;
+    public static final ResourceKey<Registry<RecipeSerializer<?>>> RECIPE_SERIALIZER_REGISTRY;
+    public static final ResourceKey<Registry<Attribute>> ATTRIBUTE_REGISTRY;
++   public static final ResourceKey<Registry<GameEvent>> GAME_EVENT_REGISTRY;
++   public static final ResourceKey<Registry<PositionSourceType<?>>> POSITION_SOURCE_TYPE_REGISTRY;
+    public static final ResourceKey<Registry<StatType<?>>> STAT_TYPE_REGISTRY;
+    public static final ResourceKey<Registry<VillagerType>> VILLAGER_TYPE_REGISTRY;
+    public static final ResourceKey<Registry<VillagerProfession>> VILLAGER_PROFESSION_REGISTRY;
+    public static final ResourceKey<Registry<PoiType>> POINT_OF_INTEREST_TYPE_REGISTRY;
+    public static final ResourceKey<Registry<MemoryModuleType<?>>> MEMORY_MODULE_TYPE_REGISTRY;
+@@ -126,13 +136,17 @@
+    public static final ResourceKey<Registry<Schedule>> SCHEDULE_REGISTRY;
+    public static final ResourceKey<Registry<Activity>> ACTIVITY_REGISTRY;
+    public static final ResourceKey<Registry<LootPoolEntryType>> LOOT_ENTRY_REGISTRY;
+    public static final ResourceKey<Registry<LootItemFunctionType>> LOOT_FUNCTION_REGISTRY;
+    public static final ResourceKey<Registry<LootItemConditionType>> LOOT_ITEM_REGISTRY;
++   public static final ResourceKey<Registry<LootNumberProviderType>> LOOT_NUMBER_PROVIDER_REGISTRY;
++   public static final ResourceKey<Registry<LootNbtProviderType>> LOOT_NBT_PROVIDER_REGISTRY;
++   public static final ResourceKey<Registry<LootScoreProviderType>> LOOT_SCORE_PROVIDER_REGISTRY;
+    public static final ResourceKey<Registry<DimensionType>> DIMENSION_TYPE_REGISTRY;
+    public static final ResourceKey<Registry<Level>> DIMENSION_REGISTRY;
+    public static final ResourceKey<Registry<LevelStem>> LEVEL_STEM_REGISTRY;
++   public static final DefaultedRegistry<GameEvent> GAME_EVENT;
+    public static final Registry<SoundEvent> SOUND_EVENT;
+    public static final DefaultedRegistry<Fluid> FLUID;
+    public static final Registry<MobEffect> MOB_EFFECT;
+    public static final DefaultedRegistry<Block> BLOCK;
+    public static final Registry<Enchantment> ENCHANTMENT;
+@@ -148,10 +162,11 @@
+    public static final Registry<PosRuleTestType<?>> POS_RULE_TEST;
+    public static final Registry<MenuType<?>> MENU;
+    public static final Registry<RecipeType<?>> RECIPE_TYPE;
+    public static final Registry<RecipeSerializer<?>> RECIPE_SERIALIZER;
+    public static final Registry<Attribute> ATTRIBUTE;
++   public static final Registry<PositionSourceType<?>> POSITION_SOURCE_TYPE;
+    public static final Registry<StatType<?>> STAT_TYPE;
+    public static final DefaultedRegistry<VillagerType> VILLAGER_TYPE;
+    public static final DefaultedRegistry<VillagerProfession> VILLAGER_PROFESSION;
+    public static final DefaultedRegistry<PoiType> POINT_OF_INTEREST_TYPE;
+    public static final DefaultedRegistry<MemoryModuleType<?>> MEMORY_MODULE_TYPE;
+@@ -159,10 +174,13 @@
+    public static final Registry<Schedule> SCHEDULE;
+    public static final Registry<Activity> ACTIVITY;
+    public static final Registry<LootPoolEntryType> LOOT_POOL_ENTRY_TYPE;
+    public static final Registry<LootItemFunctionType> LOOT_FUNCTION_TYPE;
+    public static final Registry<LootItemConditionType> LOOT_CONDITION_TYPE;
++   public static final Registry<LootNumberProviderType> LOOT_NUMBER_PROVIDER_TYPE;
++   public static final Registry<LootNbtProviderType> LOOT_NBT_PROVIDER_TYPE;
++   public static final Registry<LootScoreProviderType> LOOT_SCORE_PROVIDER_TYPE;
+    public static final ResourceKey<Registry<NoiseGeneratorSettings>> NOISE_GENERATOR_SETTINGS_REGISTRY;
+    public static final ResourceKey<Registry<ConfiguredSurfaceBuilder<?>>> CONFIGURED_SURFACE_BUILDER_REGISTRY;
+    public static final ResourceKey<Registry<ConfiguredWorldCarver<?>>> CONFIGURED_CARVER_REGISTRY;
+    public static final ResourceKey<Registry<ConfiguredFeature<?, ?>>> CONFIGURED_FEATURE_REGISTRY;
+    public static final ResourceKey<Registry<ConfiguredStructureFeature<?, ?>>> CONFIGURED_STRUCTURE_FEATURE_REGISTRY;
+@@ -209,14 +227,11 @@
+    }
+ 
+    public static <T extends WritableRegistry<?>> void checkRegistry(WritableRegistry<T> var0) {
+       var0.forEach((var1) -> {
+          if (var1.keySet().isEmpty()) {
+-            LOGGER.error("Registry '{}' was empty after loading", var0.getKey(var1));
+-            if (SharedConstants.IS_RUNNING_IN_IDE) {
+-               throw new IllegalStateException("Registry: '" + var0.getKey(var1) + "' is empty, not allowed, fix me!");
+-            }
++            Util.logAndPauseIfInIde("Registry '" + var0.getKey(var1) + "' was empty after loading");
+          }
+ 
+          if (var1 instanceof DefaultedRegistry) {
+             ResourceLocation var2 = ((DefaultedRegistry)var1).getDefaultKey();
+             Validate.notNull(var1.get(var2), "Missing default of DefaultedMappedRegistry: " + var2, new Object[0]);
+@@ -363,10 +378,12 @@
+       POS_RULE_TEST_REGISTRY = createRegistryKey("pos_rule_test");
+       MENU_REGISTRY = createRegistryKey("menu");
+       RECIPE_TYPE_REGISTRY = createRegistryKey("recipe_type");
+       RECIPE_SERIALIZER_REGISTRY = createRegistryKey("recipe_serializer");
+       ATTRIBUTE_REGISTRY = createRegistryKey("attribute");
++      GAME_EVENT_REGISTRY = createRegistryKey("game_event");
++      POSITION_SOURCE_TYPE_REGISTRY = createRegistryKey("position_source_type");
+       STAT_TYPE_REGISTRY = createRegistryKey("stat_type");
+       VILLAGER_TYPE_REGISTRY = createRegistryKey("villager_type");
+       VILLAGER_PROFESSION_REGISTRY = createRegistryKey("villager_profession");
+       POINT_OF_INTEREST_TYPE_REGISTRY = createRegistryKey("point_of_interest_type");
+       MEMORY_MODULE_TYPE_REGISTRY = createRegistryKey("memory_module_type");
+@@ -374,13 +391,19 @@
+       SCHEDULE_REGISTRY = createRegistryKey("schedule");
+       ACTIVITY_REGISTRY = createRegistryKey("activity");
+       LOOT_ENTRY_REGISTRY = createRegistryKey("loot_pool_entry_type");
+       LOOT_FUNCTION_REGISTRY = createRegistryKey("loot_function_type");
+       LOOT_ITEM_REGISTRY = createRegistryKey("loot_condition_type");
++      LOOT_NUMBER_PROVIDER_REGISTRY = createRegistryKey("loot_number_provider_type");
++      LOOT_NBT_PROVIDER_REGISTRY = createRegistryKey("loot_nbt_provider_type");
++      LOOT_SCORE_PROVIDER_REGISTRY = createRegistryKey("loot_score_provider_type");
+       DIMENSION_TYPE_REGISTRY = createRegistryKey("dimension_type");
+       DIMENSION_REGISTRY = createRegistryKey("dimension");
+       LEVEL_STEM_REGISTRY = createRegistryKey("dimension");
++      GAME_EVENT = registerDefaulted(GAME_EVENT_REGISTRY, "step", () -> {
++         return GameEvent.STEP;
++      });
+       SOUND_EVENT = registerSimple(SOUND_EVENT_REGISTRY, () -> {
+          return SoundEvents.ITEM_PICKUP;
+       });
+       FLUID = registerDefaulted(FLUID_REGISTRY, "empty", () -> {
+          return Fluids.EMPTY;
+@@ -434,10 +457,13 @@
+          return RecipeSerializer.SHAPELESS_RECIPE;
+       });
+       ATTRIBUTE = registerSimple(ATTRIBUTE_REGISTRY, () -> {
+          return Attributes.LUCK;
+       });
++      POSITION_SOURCE_TYPE = registerSimple(POSITION_SOURCE_TYPE_REGISTRY, () -> {
++         return PositionSourceType.BLOCK;
++      });
+       STAT_TYPE = registerSimple(STAT_TYPE_REGISTRY, () -> {
+          return Stats.ITEM_USED;
+       });
+       VILLAGER_TYPE = registerDefaulted(VILLAGER_TYPE_REGISTRY, "plains", () -> {
+          return VillagerType.PLAINS;
+@@ -467,10 +493,19 @@
+          return LootItemFunctions.SET_COUNT;
+       });
+       LOOT_CONDITION_TYPE = registerSimple(LOOT_ITEM_REGISTRY, () -> {
+          return LootItemConditions.INVERTED;
+       });
++      LOOT_NUMBER_PROVIDER_TYPE = registerSimple(LOOT_NUMBER_PROVIDER_REGISTRY, () -> {
++         return NumberProviders.CONSTANT;
++      });
++      LOOT_NBT_PROVIDER_TYPE = registerSimple(LOOT_NBT_PROVIDER_REGISTRY, () -> {
++         return NbtProviders.CONTEXT;
++      });
++      LOOT_SCORE_PROVIDER_TYPE = registerSimple(LOOT_SCORE_PROVIDER_REGISTRY, () -> {
++         return ScoreboardNameProviders.CONTEXT;
++      });
+       NOISE_GENERATOR_SETTINGS_REGISTRY = createRegistryKey("worldgen/noise_settings");
+       CONFIGURED_SURFACE_BUILDER_REGISTRY = createRegistryKey("worldgen/configured_surface_builder");
+       CONFIGURED_CARVER_REGISTRY = createRegistryKey("worldgen/configured_carver");
+       CONFIGURED_FEATURE_REGISTRY = createRegistryKey("worldgen/configured_feature");
+       CONFIGURED_STRUCTURE_FEATURE_REGISTRY = createRegistryKey("worldgen/configured_structure_feature");

@@ -1,0 +1,70 @@
+--- com/mojang/realmsclient/gui/screens/RealmsConfigureWorldScreen.java
++++ com/mojang/realmsclient/gui/screens/RealmsConfigureWorldScreen.java
+@@ -19,15 +19,16 @@
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.CommonComponents;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.FormattedText;
+ import net.minecraft.network.chat.TranslatableComponent;
++import net.minecraft.realms.RealmsScreen;
+ import net.minecraft.resources.ResourceLocation;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-public class RealmsConfigureWorldScreen extends RealmsScreenWithCallback {
++public class RealmsConfigureWorldScreen extends RealmsScreen {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private static final ResourceLocation ON_ICON_LOCATION = new ResourceLocation("realms", "textures/gui/realms/on_icon.png");
+    private static final ResourceLocation OFF_ICON_LOCATION = new ResourceLocation("realms", "textures/gui/realms/off_icon.png");
+    private static final ResourceLocation EXPIRED_ICON_LOCATION = new ResourceLocation("realms", "textures/gui/realms/expired_icon.png");
+    private static final ResourceLocation EXPIRES_SOON_ICON_LOCATION = new ResourceLocation("realms", "textures/gui/realms/expires_soon_icon.png");
+@@ -84,11 +85,11 @@
+       for(int var1 = 1; var1 < 5; ++var1) {
+          this.addSlotButton(var1);
+       }
+ 
+       this.switchMinigameButton = (Button)this.addButton(new Button(this.leftButton(0), row(13) - 5, 100, 20, new TranslatableComponent("mco.configure.world.buttons.switchminigame"), (var1x) -> {
+-         RealmsSelectWorldTemplateScreen var2 = new RealmsSelectWorldTemplateScreen(this, RealmsServer.WorldType.MINIGAME);
++         RealmsSelectWorldTemplateScreen var2 = new RealmsSelectWorldTemplateScreen(this::templateSelectionCallback, RealmsServer.WorldType.MINIGAME);
+          var2.setTitle(new TranslatableComponent("mco.template.title.minigame"));
+          this.minecraft.setScreen(var2);
+       }));
+       this.optionsButton = (Button)this.addButton(new Button(this.leftButton(0), row(13) - 5, 90, 20, new TranslatableComponent("mco.configure.world.buttons.options"), (var1x) -> {
+          this.minecraft.setScreen(new RealmsSlotOptionsScreen(this, ((RealmsWorldOptions)this.serverData.slots.get(this.serverData.activeSlot)).clone(), this.serverData.worldType, this.serverData.activeSlot));
+@@ -269,11 +270,11 @@
+       }
+ 
+    }
+ 
+    private void switchToMinigame() {
+-      RealmsSelectWorldTemplateScreen var1 = new RealmsSelectWorldTemplateScreen(this, RealmsServer.WorldType.MINIGAME);
++      RealmsSelectWorldTemplateScreen var1 = new RealmsSelectWorldTemplateScreen(this::templateSelectionCallback, RealmsServer.WorldType.MINIGAME);
+       var1.setTitle(new TranslatableComponent("mco.template.title.minigame"));
+       var1.setWarning(new TranslatableComponent("mco.minigame.world.info.line1"), new TranslatableComponent("mco.minigame.world.info.line2"));
+       this.minecraft.setScreen(var1);
+    }
+ 
+@@ -460,17 +461,17 @@
+ 
+    public void stateChanged() {
+       this.stateChanged = true;
+    }
+ 
+-   protected void callback(@Nullable WorldTemplate var1) {
+-      if (var1 != null) {
+-         if (WorldTemplate.WorldTemplateType.MINIGAME == var1.type) {
+-            this.minecraft.setScreen(new RealmsLongRunningMcoTaskScreen(this.lastScreen, new SwitchMinigameTask(this.serverData.id, var1, this.getNewScreen())));
+-         }
+-
++   private void templateSelectionCallback(@Nullable WorldTemplate var1) {
++      if (var1 != null && WorldTemplate.WorldTemplateType.MINIGAME == var1.type) {
++         this.minecraft.setScreen(new RealmsLongRunningMcoTaskScreen(this.lastScreen, new SwitchMinigameTask(this.serverData.id, var1, this.getNewScreen())));
++      } else {
++         this.minecraft.setScreen(this);
+       }
++
+    }
+ 
+    public RealmsConfigureWorldScreen getNewScreen() {
+       return new RealmsConfigureWorldScreen(this.lastScreen, this.serverId);
+    }

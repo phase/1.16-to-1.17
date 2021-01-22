@@ -19,6 +19,31 @@
  import net.minecraft.world.entity.EntitySelector;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.LivingEntity;
+@@ -223,20 +222,20 @@
+ 
+    public static AttributeSupplier.Builder createAttributes() {
+       return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 10.0D).add(Attributes.MOVEMENT_SPEED, 0.30000001192092896D).add(Attributes.ATTACK_DAMAGE, 3.0D);
+    }
+ 
+-   public boolean causeFallDamage(float var1, float var2) {
++   public boolean causeFallDamage(float var1, float var2, DamageSource var3) {
+       return false;
+    }
+ 
+-   protected void usePlayerItem(Player var1, ItemStack var2) {
+-      if (this.isFood(var2)) {
++   protected void usePlayerItem(Player var1, InteractionHand var2, ItemStack var3) {
++      if (this.isFood(var3)) {
+          this.playSound(SoundEvents.CAT_EAT, 1.0F, 1.0F);
+       }
+ 
+-      super.usePlayerItem(var1, var2);
++      super.usePlayerItem(var1, var2, var3);
+    }
+ 
+    private float getAttackDamage() {
+       return (float)this.getAttributeValue(Attributes.ATTACK_DAMAGE);
+    }
 @@ -296,11 +295,11 @@
  
     public float getRelaxStateOneAmount(float var1) {
@@ -32,7 +57,20 @@
           if (this.random.nextBoolean()) {
              var3.setCatType(this.getCatType());
           } else {
-@@ -379,11 +378,11 @@
+@@ -363,11 +362,11 @@
+          InteractionResult var6;
+          if (this.isTame()) {
+             if (this.isOwnedBy(var1)) {
+                if (!(var4 instanceof DyeItem)) {
+                   if (var4.isEdible() && this.isFood(var3) && this.getHealth() < this.getMaxHealth()) {
+-                     this.usePlayerItem(var1, var3);
++                     this.usePlayerItem(var1, var2, var3);
+                      this.heal((float)var4.getFoodProperties().getNutrition());
+                      return InteractionResult.CONSUME;
+                   }
+ 
+                   var6 = super.mobInteract(var1, var2);
+@@ -379,20 +378,20 @@
                 }
  
                 DyeColor var5 = ((DyeItem)var4).getDyeColor();
@@ -45,6 +83,16 @@
  
                    this.setPersistenceRequired();
                    return InteractionResult.CONSUME;
+                }
+             }
+          } else if (this.isFood(var3)) {
+-            this.usePlayerItem(var1, var3);
++            this.usePlayerItem(var1, var2, var3);
+             if (this.random.nextInt(3) == 0) {
+                this.tame(var1);
+                this.setOrderedToSit(true);
+                this.level.broadcastEntityEvent(this, (byte)7);
+             } else {
 @@ -484,11 +483,11 @@
                    return false;
                 }

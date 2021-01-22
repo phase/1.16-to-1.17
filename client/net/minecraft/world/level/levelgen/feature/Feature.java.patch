@@ -1,8 +1,12 @@
 --- net/minecraft/world/level/levelgen/feature/Feature.java
 +++ net/minecraft/world/level/levelgen/feature/Feature.java
-@@ -5,11 +5,10 @@
+@@ -2,14 +2,14 @@
+ 
+ import com.mojang.serialization.Codec;
+ import java.util.Random;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Registry;
++import net.minecraft.tags.BlockTags;
  import net.minecraft.world.level.LevelSimulatedReader;
  import net.minecraft.world.level.LevelWriter;
  import net.minecraft.world.level.WorldGenLevel;
@@ -12,31 +16,64 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.feature.configurations.BlockPileConfiguration;
-@@ -19,10 +18,11 @@
+@@ -17,13 +17,17 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.ColumnFeatureConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.CountConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.DecoratedFeatureConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.DeltaFeatureConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.DiskConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.DripstoneClusterConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.EndGatewayConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
 +import net.minecraft.world.level.levelgen.feature.configurations.GeodeConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.GlowLichenConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.HugeMushroomFeatureConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.LargeDripstoneConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.LayerConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.ProbabilityFeatureConfiguration;
-@@ -88,10 +88,11 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.RandomBooleanFeatureConfiguration;
+@@ -31,10 +35,11 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.RandomPatchConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.ReplaceBlockConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.ReplaceSphereConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.SimpleBlockConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.SimpleRandomFeatureConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.SmallDripstoneConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.SpikeConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.SpringConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
+ 
+ public abstract class Feature<FC extends FeatureConfiguration> {
+@@ -54,10 +59,11 @@
+    public static final Feature<HugeMushroomFeatureConfiguration> HUGE_BROWN_MUSHROOM;
+    public static final Feature<NoneFeatureConfiguration> ICE_SPIKE;
+    public static final Feature<NoneFeatureConfiguration> GLOWSTONE_BLOB;
+    public static final Feature<NoneFeatureConfiguration> FREEZE_TOP_LAYER;
+    public static final Feature<NoneFeatureConfiguration> VINES;
++   public static final Feature<GlowLichenConfiguration> GLOW_LICHEN;
+    public static final Feature<NoneFeatureConfiguration> MONSTER_ROOM;
+    public static final Feature<NoneFeatureConfiguration> BLUE_ICE;
+    public static final Feature<BlockStateConfiguration> ICEBERG;
+    public static final Feature<BlockStateConfiguration> FOREST_ROCK;
+    public static final Feature<DiskConfiguration> DISK;
+@@ -88,10 +94,14 @@
     public static final Feature<OreConfiguration> NO_SURFACE_ORE;
     public static final Feature<RandomFeatureConfiguration> RANDOM_SELECTOR;
     public static final Feature<SimpleRandomFeatureConfiguration> SIMPLE_RANDOM_SELECTOR;
     public static final Feature<RandomBooleanFeatureConfiguration> RANDOM_BOOLEAN_SELECTOR;
     public static final Feature<DecoratedFeatureConfiguration> DECORATED;
 +   public static final Feature<GeodeConfiguration> GEODE;
++   public static final Feature<DripstoneClusterConfiguration> DRIPSTONE_CLUSTER;
++   public static final Feature<LargeDripstoneConfiguration> LARGE_DRIPSTONE;
++   public static final Feature<SmallDripstoneConfiguration> SMALL_DRIPSTONE;
     private final Codec<ConfiguredFeature<FC, Feature<FC>>> configuredCodec;
  
     private static <C extends FeatureConfiguration, F extends Feature<C>> F register(String var0, F var1) {
        return (Feature)Registry.register(Registry.FEATURE, (String)var0, var1);
     }
-@@ -116,22 +117,20 @@
+@@ -116,22 +126,20 @@
        var1.setBlock(var2, var3, 3);
     }
  
@@ -45,7 +82,7 @@
 -   protected static boolean isStone(Block var0) {
 -      return var0 == Blocks.STONE || var0 == Blocks.GRANITE || var0 == Blocks.DIORITE || var0 == Blocks.ANDESITE;
 +   protected static boolean isStone(BlockState var0) {
-+      return var0.is(Blocks.STONE) || var0.is(Blocks.GRANITE) || var0.is(Blocks.DIORITE) || var0.is(Blocks.ANDESITE);
++      return var0.is(BlockTags.BASE_STONE_OVERWORLD);
     }
  
 -   public static boolean isDirt(Block var0) {
@@ -64,12 +101,27 @@
     public static boolean isAir(LevelSimulatedReader var0, BlockPos var1) {
        return var0.isStateAtPosition(var1, BlockBehaviour.BlockStateBase::isAir);
     }
-@@ -187,7 +186,8 @@
+@@ -153,10 +161,11 @@
+       HUGE_BROWN_MUSHROOM = register("huge_brown_mushroom", new HugeBrownMushroomFeature(HugeMushroomFeatureConfiguration.CODEC));
+       ICE_SPIKE = register("ice_spike", new IceSpikeFeature(NoneFeatureConfiguration.CODEC));
+       GLOWSTONE_BLOB = register("glowstone_blob", new GlowstoneFeature(NoneFeatureConfiguration.CODEC));
+       FREEZE_TOP_LAYER = register("freeze_top_layer", new SnowAndFreezeFeature(NoneFeatureConfiguration.CODEC));
+       VINES = register("vines", new VinesFeature(NoneFeatureConfiguration.CODEC));
++      GLOW_LICHEN = register("glow_lichen", new GlowLichenFeature(GlowLichenConfiguration.CODEC));
+       MONSTER_ROOM = register("monster_room", new MonsterRoomFeature(NoneFeatureConfiguration.CODEC));
+       BLUE_ICE = register("blue_ice", new BlueIceFeature(NoneFeatureConfiguration.CODEC));
+       ICEBERG = register("iceberg", new IcebergFeature(BlockStateConfiguration.CODEC));
+       FOREST_ROCK = register("forest_rock", new BlockBlobFeature(BlockStateConfiguration.CODEC));
+       DISK = register("disk", new DiskReplaceFeature(DiskConfiguration.CODEC));
+@@ -187,7 +196,11 @@
        NO_SURFACE_ORE = register("no_surface_ore", new NoSurfaceOreFeature(OreConfiguration.CODEC));
        RANDOM_SELECTOR = register("random_selector", new RandomSelectorFeature(RandomFeatureConfiguration.CODEC));
        SIMPLE_RANDOM_SELECTOR = register("simple_random_selector", new SimpleRandomSelectorFeature(SimpleRandomFeatureConfiguration.CODEC));
        RANDOM_BOOLEAN_SELECTOR = register("random_boolean_selector", new RandomBooleanSelectorFeature(RandomBooleanFeatureConfiguration.CODEC));
        DECORATED = register("decorated", new DecoratedFeature(DecoratedFeatureConfiguration.CODEC));
 +      GEODE = register("geode", new GeodeFeature(GeodeConfiguration.CODEC));
++      DRIPSTONE_CLUSTER = register("dripstone_cluster", new DripstoneClusterFeature(DripstoneClusterConfiguration.CODEC));
++      LARGE_DRIPSTONE = register("large_dripstone", new LargeDripstoneFeature(LargeDripstoneConfiguration.CODEC));
++      SMALL_DRIPSTONE = register("small_dripstone", new SmallDripstoneFeature(SmallDripstoneConfiguration.CODEC));
     }
  }

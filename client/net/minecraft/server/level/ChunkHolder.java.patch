@@ -1,8 +1,12 @@
 --- net/minecraft/server/level/ChunkHolder.java
 +++ net/minecraft/server/level/ChunkHolder.java
-@@ -4,10 +4,11 @@
+@@ -1,13 +1,15 @@
+ package net.minecraft.server.level;
+ 
+ import com.mojang.datafixers.util.Either;
  import it.unimi.dsi.fastutil.shorts.ShortArraySet;
  import it.unimi.dsi.fastutil.shorts.ShortSet;
++import java.util.BitSet;
  import java.util.List;
  import java.util.Optional;
  import java.util.concurrent.CompletableFuture;
@@ -12,7 +16,7 @@
  import java.util.function.IntSupplier;
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
-@@ -20,10 +21,11 @@
+@@ -20,10 +22,11 @@
  import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
  import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
  import net.minecraft.util.Mth;
@@ -24,7 +28,7 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.ChunkAccess;
  import net.minecraft.world.level.chunk.ChunkStatus;
-@@ -39,10 +41,11 @@
+@@ -39,43 +42,49 @@
     public static final Either<LevelChunk, ChunkHolder.ChunkLoadingFailure> UNLOADED_LEVEL_CHUNK;
     private static final CompletableFuture<Either<LevelChunk, ChunkHolder.ChunkLoadingFailure>> UNLOADED_LEVEL_CHUNK_FUTURE;
     private static final List<ChunkStatus> CHUNK_STATUSES;
@@ -36,7 +40,15 @@
     private volatile CompletableFuture<Either<LevelChunk, ChunkHolder.ChunkLoadingFailure>> entityTickingChunkFuture;
     private CompletableFuture<ChunkAccess> chunkToSave;
     private int oldTicketLevel;
-@@ -56,26 +59,29 @@
+    private int ticketLevel;
+    private int queueLevel;
+    private final ChunkPos pos;
+    private boolean hasChangedSections;
+    private final ShortSet[] changedBlocksPerSection;
+-   private int blockChangedLightSectionFilter;
+-   private int skyChangedLightSectionFilter;
++   private final BitSet blockChangedLightSectionFilter;
++   private final BitSet skyChangedLightSectionFilter;
     private final LevelLightEngine lightEngine;
     private final ChunkHolder.LevelChangeListener onLevelChange;
     private final ChunkHolder.PlayerProvider playerProvider;
@@ -52,6 +64,8 @@
        this.entityTickingChunkFuture = UNLOADED_LEVEL_CHUNK_FUTURE;
        this.chunkToSave = CompletableFuture.completedFuture((Object)null);
 -      this.changedBlocksPerSection = new ShortSet[16];
++      this.blockChangedLightSectionFilter = new BitSet();
++      this.skyChangedLightSectionFilter = new BitSet();
 +      this.pendingFullStateConfirmation = CompletableFuture.completedFuture((Object)null);
        this.pos = var1;
 -      this.lightEngine = var3;
@@ -71,7 +85,7 @@
     public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getFutureIfPresentUnchecked(ChunkStatus var1) {
        CompletableFuture var2 = (CompletableFuture)this.futures.get(var1.getIndex());
        return var2 == null ? UNLOADED_CHUNK_FUTURE : var2;
-@@ -138,11 +144,11 @@
+@@ -138,11 +147,11 @@
     }
  
     public void blockChanged(BlockPos var1) {
@@ -84,23 +98,50 @@
              this.changedBlocksPerSection[var3] = new ShortArraySet();
           }
  
-@@ -153,13 +159,13 @@
+@@ -152,50 +161,56 @@
+ 
     public void sectionLightChanged(LightLayer var1, int var2) {
        LevelChunk var3 = this.getTickingChunk();
        if (var3 != null) {
           var3.setUnsaved(true);
-          if (var1 == LightLayer.SKY) {
+-         if (var1 == LightLayer.SKY) {
 -            this.skyChangedLightSectionFilter |= 1 << var2 - -1;
-+            this.skyChangedLightSectionFilter |= 1 << var2 - this.lightEngine.getMinLightSection();
-          } else {
+-         } else {
 -            this.blockChangedLightSectionFilter |= 1 << var2 - -1;
-+            this.blockChangedLightSectionFilter |= 1 << var2 - this.lightEngine.getMinLightSection();
-          }
+-         }
++         int var4 = this.lightEngine.getMinLightSection();
++         int var5 = this.lightEngine.getMaxLightSection();
++         if (var2 >= var4 && var2 <= var5) {
++            int var6 = var2 - var4;
++            if (var1 == LightLayer.SKY) {
++               this.skyChangedLightSectionFilter.set(var6);
++            } else {
++               this.blockChangedLightSectionFilter.set(var6);
++            }
  
++         }
        }
     }
  
-@@ -181,21 +187,22 @@
+    public void broadcastChanges(LevelChunk var1) {
+-      if (this.hasChangedSections || this.skyChangedLightSectionFilter != 0 || this.blockChangedLightSectionFilter != 0) {
++      if (this.hasChangedSections || !this.skyChangedLightSectionFilter.isEmpty() || !this.blockChangedLightSectionFilter.isEmpty()) {
+          Level var2 = var1.getLevel();
+          int var3 = 0;
+ 
+          int var4;
+          for(var4 = 0; var4 < this.changedBlocksPerSection.length; ++var4) {
+             var3 += this.changedBlocksPerSection[var4] != null ? this.changedBlocksPerSection[var4].size() : 0;
+          }
+ 
+          this.resendLight |= var3 >= 64;
+-         if (this.skyChangedLightSectionFilter != 0 || this.blockChangedLightSectionFilter != 0) {
++         if (!this.skyChangedLightSectionFilter.isEmpty() || !this.blockChangedLightSectionFilter.isEmpty()) {
+             this.broadcast(new ClientboundLightUpdatePacket(var1.getPos(), this.lightEngine, this.skyChangedLightSectionFilter, this.blockChangedLightSectionFilter, true), !this.resendLight);
+-            this.skyChangedLightSectionFilter = 0;
+-            this.blockChangedLightSectionFilter = 0;
++            this.skyChangedLightSectionFilter.clear();
++            this.blockChangedLightSectionFilter.clear();
           }
  
           for(var4 = 0; var4 < this.changedBlocksPerSection.length; ++var4) {
@@ -132,7 +173,7 @@
                 }
  
                 this.changedBlocksPerSection[var4] = null;
-@@ -205,11 +212,11 @@
+@@ -205,11 +220,11 @@
           this.hasChangedSections = false;
        }
     }
@@ -145,7 +186,7 @@
  
     }
  
-@@ -282,86 +289,112 @@
+@@ -282,86 +297,112 @@
  
     public void setTicketLevel(int var1) {
        this.ticketLevel = var1;
@@ -291,7 +332,7 @@
     public static ChunkHolder.FullChunkStatus getFullChunkStatus(int var0) {
        return FULL_CHUNK_STATUSES[Mth.clamp(33 - var0 + 1, 0, FULL_CHUNK_STATUSES.length - 1)];
     }
-@@ -399,10 +432,11 @@
+@@ -399,10 +440,11 @@
  
     public interface PlayerProvider {
        Stream<ServerPlayer> getPlayers(ChunkPos var1, boolean var2);

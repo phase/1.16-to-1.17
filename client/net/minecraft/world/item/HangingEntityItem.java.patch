@@ -1,0 +1,46 @@
+--- net/minecraft/world/item/HangingEntityItem.java
++++ net/minecraft/world/item/HangingEntityItem.java
+@@ -10,10 +10,11 @@
+ import net.minecraft.world.entity.decoration.ItemFrame;
+ import net.minecraft.world.entity.decoration.Painting;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.context.UseOnContext;
+ import net.minecraft.world.level.Level;
++import net.minecraft.world.level.gameevent.GameEvent;
+ 
+ public class HangingEntityItem extends Item {
+    private final EntityType<? extends HangingEntity> type;
+ 
+    public HangingEntityItem(EntityType<? extends HangingEntity> var1, Item.Properties var2) {
+@@ -32,26 +33,29 @@
+       } else {
+          Level var7 = var1.getLevel();
+          Object var8;
+          if (this.type == EntityType.PAINTING) {
+             var8 = new Painting(var7, var4, var3);
++         } else if (this.type == EntityType.ITEM_FRAME) {
++            var8 = new ItemFrame(var7, var4, var3);
+          } else {
+-            if (this.type != EntityType.ITEM_FRAME) {
++            if (this.type != EntityType.GLOW_ITEM_FRAME) {
+                return InteractionResult.sidedSuccess(var7.isClientSide);
+             }
+ 
+-            var8 = new ItemFrame(var7, var4, var3);
++            var8 = new ItemFrame(EntityType.GLOW_ITEM_FRAME, var7, var4, var3);
+          }
+ 
+          CompoundTag var9 = var6.getTag();
+          if (var9 != null) {
+             EntityType.updateCustomEntityTag(var7, var5, (Entity)var8, var9);
+          }
+ 
+          if (((HangingEntity)var8).survives()) {
+             if (!var7.isClientSide) {
+                ((HangingEntity)var8).playPlacementSound();
++               var7.gameEvent(var5, GameEvent.BLOCK_PLACE, var2);
+                var7.addFreshEntity((Entity)var8);
+             }
+ 
+             var6.shrink(1);
+             return InteractionResult.sidedSuccess(var7.isClientSide);

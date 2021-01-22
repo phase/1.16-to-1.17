@@ -1,12 +1,14 @@
 --- net/minecraft/world/level/chunk/LevelChunk.java
 +++ net/minecraft/world/level/chunk/LevelChunk.java
-@@ -1,83 +1,96 @@
+@@ -1,177 +1,188 @@
  package net.minecraft.world.level.chunk;
  
 +import com.google.common.collect.ImmutableList;
  import com.google.common.collect.Maps;
  import com.google.common.collect.Sets;
 +import com.google.common.collect.UnmodifiableIterator;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
  import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
  import it.unimi.dsi.fastutil.longs.LongSet;
  import it.unimi.dsi.fastutil.shorts.ShortList;
@@ -54,11 +56,14 @@
 +import net.minecraft.world.level.block.entity.BlockEntityType;
 +import net.minecraft.world.level.block.entity.TickingBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.gameevent.EuclideanGameEventDispatcher;
++import net.minecraft.world.level.gameevent.GameEventDispatcher;
++import net.minecraft.world.level.gameevent.GameEventListener;
  import net.minecraft.world.level.levelgen.DebugLevelSource;
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.feature.StructureFeature;
  import net.minecraft.world.level.levelgen.structure.StructureStart;
- import net.minecraft.world.level.lighting.LevelLightEngine;
+-import net.minecraft.world.level.lighting.LevelLightEngine;
  import net.minecraft.world.level.material.Fluid;
  import net.minecraft.world.level.material.FluidState;
  import net.minecraft.world.level.material.Fluids;
@@ -108,7 +113,11 @@
     @Nullable
     private Supplier<ChunkHolder.FullChunkStatus> fullStatus;
     @Nullable
-@@ -88,18 +101,16 @@
+    private Consumer<LevelChunk> postLoad;
+    private final ChunkPos chunkPos;
+    private volatile boolean isLightCorrect;
++   private final Int2ObjectMap<GameEventDispatcher> gameEventDispatcherSections;
+ 
     public LevelChunk(Level var1, ChunkPos var2, ChunkBiomeContainer var3) {
        this(var1, var2, var3, UpgradeData.EMPTY, EmptyTickList.empty(), EmptyTickList.empty(), 0L, (LevelChunkSection[])null, (Consumer)null);
     }
@@ -126,9 +135,12 @@
        this.level = var1;
        this.chunkPos = var2;
        this.upgradeData = var4;
++      this.gameEventDispatcherSections = new Int2ObjectOpenHashMap();
        Heightmap.Types[] var11 = Heightmap.Types.values();
        int var12 = var11.length;
-@@ -109,60 +120,48 @@
+ 
+       for(int var13 = 0; var13 < var12; ++var13) {
+          Heightmap.Types var14 = var11[var13];
           if (ChunkStatus.FULL.heightmapsAfter().contains(var14)) {
              this.heightmaps.put(var14, new Heightmap(this, var14));
           }
@@ -202,7 +214,22 @@
           }
        }
  
-@@ -201,23 +200,24 @@
+       this.setLightCorrect(var2.isLightCorrect());
+       this.unsaved = true;
+    }
+ 
++   public GameEventDispatcher getEventDispatcher(int var1) {
++      return (GameEventDispatcher)this.gameEventDispatcherSections.computeIfAbsent(var1, (var1x) -> {
++         return new EuclideanGameEventDispatcher(this.level);
++      });
++   }
++
+    public Heightmap getOrCreateHeightmapUnprimed(Heightmap.Types var1) {
+       return (Heightmap)this.heightmaps.computeIfAbsent(var1, (var1x) -> {
+          return new Heightmap(this, var1x);
+       });
+    }
+@@ -201,23 +212,24 @@
           }
  
           return var9 == null ? Blocks.AIR.defaultBlockState() : var9;
@@ -232,7 +259,7 @@
           }
        }
     }
-@@ -226,155 +226,115 @@
+@@ -226,155 +238,110 @@
        return this.getFluidState(var1.getX(), var1.getY(), var1.getZ());
     }
  
@@ -366,11 +393,11 @@
        }
     }
  
-    @Nullable
-    public LevelLightEngine getLightEngine() {
-       return this.level.getChunkSource().getLightEngine();
-    }
- 
+-   @Nullable
+-   public LevelLightEngine getLightEngine() {
+-      return this.level.getChunkSource().getLightEngine();
+-   }
+-
 +   @Deprecated
     public void addEntity(Entity var1) {
 -      this.lastSaveHadEntities = true;
@@ -432,7 +459,7 @@
     @Nullable
     public BlockEntity getBlockEntity(BlockPos var1) {
        return this.getBlockEntity(var1, LevelChunk.EntityCreationType.CHECK);
-@@ -394,34 +354,45 @@
+@@ -394,34 +361,46 @@
        }
  
        if (var3 == null) {
@@ -458,6 +485,7 @@
 +   public void addAndRegisterBlockEntity(BlockEntity var1) {
 +      this.setBlockEntity(var1);
 +      if (this.isInLevel()) {
++         this.addGameEventListener(var1);
 +         this.updateBlockEntityTicker(var1);
        }
  
@@ -489,7 +517,7 @@
  
        }
     }
-@@ -448,19 +419,28 @@
+@@ -448,130 +427,72 @@
           return var3;
        }
     }
@@ -499,6 +527,7 @@
 +      if (this.isInLevel()) {
           BlockEntity var2 = (BlockEntity)this.blockEntities.remove(var1);
           if (var2 != null) {
++            this.removeGameEventListener(var2);
              var2.setRemoved();
           }
        }
@@ -506,25 +535,18 @@
 +      this.removeBlockEntityTicker(var1);
     }
  
-+   private void removeBlockEntityTicker(BlockPos var1) {
-+      LevelChunk.RebindableTickingBlockEntityWrapper var2 = (LevelChunk.RebindableTickingBlockEntityWrapper)this.tickersInLevel.remove(var1);
-+      if (var2 != null) {
-+         var2.rebind(NULL_TICKER);
-+      }
-+
-+   }
-+
-    public void runPostLoad() {
-       if (this.postLoad != null) {
-          this.postLoad.accept(this);
-          this.postLoad = null;
-       }
-@@ -469,109 +449,23 @@
- 
-    public void markUnsaved() {
-       this.unsaved = true;
-    }
- 
+-   public void runPostLoad() {
+-      if (this.postLoad != null) {
+-         this.postLoad.accept(this);
+-         this.postLoad = null;
+-      }
+-
+-   }
+-
+-   public void markUnsaved() {
+-      this.unsaved = true;
+-   }
+-
 -   public void getEntities(@Nullable Entity var1, AABB var2, List<Entity> var3, @Nullable Predicate<? super Entity> var4) {
 -      int var5 = Mth.floor((var2.minY - 2.0D) / 16.0D);
 -      int var6 = Mth.floor((var2.maxY + 2.0D) / 16.0D);
@@ -541,7 +563,18 @@
 -            if (var12.getBoundingBox().intersects(var2) && var12 != var1) {
 -               if (var4 == null || var4.test(var12)) {
 -                  var3.add(var12);
--               }
++   private <T extends BlockEntity> void removeGameEventListener(T var1) {
++      if (!this.level.isClientSide) {
++         Block var2 = var1.getBlockState().getBlock();
++         if (var2 instanceof EntityBlock) {
++            GameEventListener var3 = ((EntityBlock)var2).getListener(this.level, var1);
++            if (var3 != null) {
++               int var4 = SectionPos.blockToSectionCoord(var1.getBlockPos().getY());
++               GameEventDispatcher var5 = this.getEventDispatcher(var4);
++               var5.unregister(var3);
++               if (var5.isEmpty()) {
++                  this.gameEventDispatcherSections.remove(var4);
+                }
 -
 -               if (var12 instanceof EnderDragon) {
 -                  EnderDragonPart[] var13 = ((EnderDragon)var12).getSubEntities();
@@ -554,12 +587,13 @@
 -                     }
 -                  }
 -               }
--            }
--         }
+             }
+          }
 -      }
--
--   }
--
+ 
++      }
+    }
+ 
 -   public <T extends Entity> void getEntities(@Nullable EntityType<?> var1, AABB var2, List<? super T> var3, Predicate<? super T> var4) {
 -      int var5 = Mth.floor((var2.minY - 2.0D) / 16.0D);
 -      int var6 = Mth.floor((var2.maxY + 2.0D) / 16.0D);
@@ -584,10 +618,14 @@
 -               var3.add(var9);
 -            }
 -         }
--      }
--
--   }
--
++   private void removeBlockEntityTicker(BlockPos var1) {
++      LevelChunk.RebindableTickingBlockEntityWrapper var2 = (LevelChunk.RebindableTickingBlockEntityWrapper)this.tickersInLevel.remove(var1);
++      if (var2 != null) {
++         var2.rebind(NULL_TICKER);
+       }
+ 
+    }
+ 
 -   public <T extends Entity> void getEntitiesOfClass(Class<? extends T> var1, AABB var2, List<T> var3, @Nullable Predicate<? super T> var4) {
 -      int var5 = Mth.floor((var2.minY - 2.0D) / 16.0D);
 -      int var6 = Mth.floor((var2.maxY + 2.0D) / 16.0D);
@@ -612,10 +650,18 @@
 -
 -            var3.add(var9);
 -         }
--      }
--
--   }
--
++   public void runPostLoad() {
++      if (this.postLoad != null) {
++         this.postLoad.accept(this);
++         this.postLoad = null;
+       }
+ 
+    }
+ 
++   public void markUnsaved() {
++      this.unsaved = true;
++   }
++
     public boolean isEmpty() {
        return false;
     }
@@ -634,7 +680,7 @@
     }
  
     public void setLoaded(boolean var1) {
-@@ -588,20 +482,16 @@
+@@ -588,20 +509,16 @@
  
     public Map<BlockPos, BlockEntity> getBlockEntities() {
        return this.blockEntities;
@@ -650,13 +696,13 @@
  
     public Stream<BlockPos> getLights() {
 -      return StreamSupport.stream(BlockPos.betweenClosed(this.chunkPos.getMinBlockX(), 0, this.chunkPos.getMinBlockZ(), this.chunkPos.getMaxBlockX(), 255, this.chunkPos.getMaxBlockZ()).spliterator(), false).filter((var1) -> {
-+      return StreamSupport.stream(BlockPos.betweenClosed(this.chunkPos.getMinBlockX(), 0, this.chunkPos.getMinBlockZ(), this.chunkPos.getMaxBlockX(), this.getMaxBuildHeight() - 1, this.chunkPos.getMaxBlockZ()).spliterator(), false).filter((var1) -> {
++      return StreamSupport.stream(BlockPos.betweenClosed(this.chunkPos.getMinBlockX(), this.getMinBuildHeight(), this.chunkPos.getMinBlockZ(), this.chunkPos.getMaxBlockX(), this.getMaxBuildHeight() - 1, this.chunkPos.getMaxBlockZ()).spliterator(), false).filter((var1) -> {
           return this.getBlockState(var1).getLightEmission() != 0;
        });
     }
  
     public TickList<Block> getBlockTicks() {
-@@ -615,21 +505,13 @@
+@@ -615,21 +532,13 @@
     public void setUnsaved(boolean var1) {
        this.unsaved = var1;
     }
@@ -679,7 +725,7 @@
        return (StructureStart)this.structureStarts.get(var1);
     }
  
-@@ -682,22 +564,22 @@
+@@ -682,22 +591,22 @@
           if (this.postProcessing[var2] != null) {
              ShortListIterator var3 = this.postProcessing[var2].iterator();
  
@@ -704,7 +750,7 @@
           BlockPos var9 = (BlockPos)var8.next();
           this.getBlockEntity(var9);
        }
-@@ -709,24 +591,23 @@
+@@ -709,24 +618,23 @@
     @Nullable
     private BlockEntity promotePendingBlockEntity(BlockPos var1, CompoundTag var2) {
        BlockState var4 = this.getBlockState(var1);
@@ -734,18 +780,18 @@
        }
  
        return var3;
-@@ -774,10 +655,18 @@
+@@ -774,10 +682,18 @@
           this.setUnsaved(true);
        }
  
     }
  
-+   public int getSectionsCount() {
-+      return this.level.getSectionsCount();
++   public int getMinBuildHeight() {
++      return this.level.getMinBuildHeight();
 +   }
 +
-+   public int getMinSection() {
-+      return this.level.getMinSection();
++   public int getHeight() {
++      return this.level.getHeight();
 +   }
 +
     public ChunkStatus getStatus() {
@@ -753,7 +799,7 @@
     }
  
     public ChunkHolder.FullChunkStatus getFullStatus() {
-@@ -795,10 +684,134 @@
+@@ -795,10 +711,151 @@
     public void setLightCorrect(boolean var1) {
        this.isLightCorrect = var1;
        this.setUnsaved(true);
@@ -764,7 +810,24 @@
 +   }
 +
 +   public void registerAllBlockEntitiesAfterLevelLoad() {
-+      this.blockEntities.values().forEach(this::updateBlockEntityTicker);
++      this.blockEntities.values().forEach((var1) -> {
++         this.addGameEventListener(var1);
++         this.updateBlockEntityTicker(var1);
++      });
++   }
++
++   private <T extends BlockEntity> void addGameEventListener(T var1) {
++      if (!this.level.isClientSide) {
++         Block var2 = var1.getBlockState().getBlock();
++         if (var2 instanceof EntityBlock) {
++            GameEventListener var3 = ((EntityBlock)var2).getListener(this.level, var1);
++            if (var3 != null) {
++               GameEventDispatcher var4 = this.getEventDispatcher(SectionPos.blockToSectionCoord(var1.getBlockPos().getY()));
++               var4.register(var3);
++            }
++         }
++
++      }
 +   }
 +
 +   private <T extends BlockEntity> void updateBlockEntityTicker(T var1) {

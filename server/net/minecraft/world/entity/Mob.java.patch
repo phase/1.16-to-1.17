@@ -1,6 +1,31 @@
 --- net/minecraft/world/entity/Mob.java
 +++ net/minecraft/world/entity/Mob.java
-@@ -495,11 +495,11 @@
+@@ -40,10 +40,11 @@
+ import net.minecraft.world.entity.ai.goal.Goal;
+ import net.minecraft.world.entity.ai.goal.GoalSelector;
+ import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+ import net.minecraft.world.entity.ai.navigation.PathNavigation;
+ import net.minecraft.world.entity.ai.sensing.Sensing;
++import net.minecraft.world.entity.animal.axolotl.Axolotl;
+ import net.minecraft.world.entity.decoration.HangingEntity;
+ import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
+ import net.minecraft.world.entity.item.ItemEntity;
+ import net.minecraft.world.entity.monster.Enemy;
+ import net.minecraft.world.entity.player.Player;
+@@ -64,12 +65,10 @@
+ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LevelAccessor;
+ import net.minecraft.world.level.LevelReader;
+ import net.minecraft.world.level.ServerLevelAccessor;
+-import net.minecraft.world.level.block.AbstractSkullBlock;
+-import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.material.Fluid;
+ import net.minecraft.world.level.pathfinder.BlockPathTypes;
+ import net.minecraft.world.level.storage.loot.LootContext;
+ 
+ public abstract class Mob extends LivingEntity {
+@@ -495,11 +494,11 @@
           List var1 = this.level.getEntitiesOfClass(ItemEntity.class, this.getBoundingBox().inflate(1.0D, 0.0D, 1.0D));
           Iterator var2 = var1.iterator();
  
@@ -13,7 +38,7 @@
           }
        }
  
-@@ -509,11 +509,11 @@
+@@ -509,11 +508,11 @@
     protected void pickUpItem(ItemEntity var1) {
        ItemStack var2 = var1.getItem();
        if (this.equipItemIfPossible(var2)) {
@@ -26,7 +51,7 @@
     }
  
     public boolean equipItemIfPossible(ItemStack var1) {
-@@ -643,25 +643,25 @@
+@@ -643,25 +642,25 @@
        return false;
     }
  
@@ -55,28 +80,33 @@
              }
           }
  
-@@ -893,17 +893,17 @@
- 
-    }
- 
-    public static EquipmentSlot getEquipmentSlotForItem(ItemStack var0) {
-       Item var1 = var0.getItem();
--      if (var1 != Blocks.CARVED_PUMPKIN.asItem() && (!(var1 instanceof BlockItem) || !(((BlockItem)var1).getBlock() instanceof AbstractSkullBlock))) {
-+      if (!var0.is(Blocks.CARVED_PUMPKIN.asItem()) && (!(var1 instanceof BlockItem) || !(((BlockItem)var1).getBlock() instanceof AbstractSkullBlock))) {
-          if (var1 instanceof ArmorItem) {
-             return ((ArmorItem)var1).getSlot();
--         } else if (var1 == Items.ELYTRA) {
-+         } else if (var0.is(Items.ELYTRA)) {
-             return EquipmentSlot.CHEST;
-          } else {
--            return var1 == Items.SHIELD ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND;
-+            return var0.is(Items.SHIELD) ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND;
+@@ -891,25 +890,10 @@
           }
-       } else {
-          return EquipmentSlot.HEAD;
        }
+ 
     }
-@@ -1044,11 +1044,11 @@
+ 
+-   public static EquipmentSlot getEquipmentSlotForItem(ItemStack var0) {
+-      Item var1 = var0.getItem();
+-      if (var1 != Blocks.CARVED_PUMPKIN.asItem() && (!(var1 instanceof BlockItem) || !(((BlockItem)var1).getBlock() instanceof AbstractSkullBlock))) {
+-         if (var1 instanceof ArmorItem) {
+-            return ((ArmorItem)var1).getSlot();
+-         } else if (var1 == Items.ELYTRA) {
+-            return EquipmentSlot.CHEST;
+-         } else {
+-            return var1 == Items.SHIELD ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND;
+-         }
+-      } else {
+-         return EquipmentSlot.HEAD;
+-      }
+-   }
+-
+    @Nullable
+    public static Item getEquipmentForSlot(EquipmentSlot var0, int var1) {
+       switch(var0) {
+       case HEAD:
+          if (var1 == 0) {
+@@ -1044,11 +1028,11 @@
  
     public final InteractionResult interact(Player var1, InteractionHand var2) {
        if (!this.isAlive()) {
@@ -89,7 +119,7 @@
           InteractionResult var3 = this.checkAndHandleImportantInteractions(var1, var2);
           if (var3.consumesAction()) {
              return var3;
-@@ -1059,16 +1059,16 @@
+@@ -1059,16 +1043,16 @@
        }
     }
  
@@ -108,7 +138,7 @@
                 return var4;
              }
           }
-@@ -1126,11 +1126,11 @@
+@@ -1126,11 +1110,11 @@
        return this.restrictRadius != -1.0F;
     }
  
@@ -121,7 +151,7 @@
           Mob var3 = (Mob)var1.create(this.level);
           var3.copyPosition(this);
           var3.setBaby(this.isBaby());
-@@ -1166,11 +1166,11 @@
+@@ -1166,11 +1150,11 @@
              Entity var9 = this.getVehicle();
              this.stopRiding();
              var3.startRiding(var9, true);
@@ -134,20 +164,109 @@
     }
  
     protected void tickLeash() {
-@@ -1347,11 +1347,11 @@
+@@ -1186,15 +1170,10 @@
+       }
+    }
+ 
+    public void dropLeash(boolean var1, boolean var2) {
+       if (this.leashHolder != null) {
+-         this.forcedLoading = false;
+-         if (!(this.leashHolder instanceof Player)) {
+-            this.leashHolder.forcedLoading = false;
+-         }
+-
+          this.leashHolder = null;
+          this.leashInfoTag = null;
+          if (!this.level.isClientSide && var2) {
+             this.spawnAtLocation(Items.LEAD);
+          }
+@@ -1224,15 +1203,10 @@
+    }
+ 
+    public void setLeashedTo(Entity var1, boolean var2) {
+       this.leashHolder = var1;
+       this.leashInfoTag = null;
+-      this.forcedLoading = true;
+-      if (!(this.leashHolder instanceof Player)) {
+-         this.leashHolder.forcedLoading = true;
+-      }
+-
+       if (!this.level.isClientSide && var2 && this.level instanceof ServerLevel) {
+          ((ServerLevel)this.level).getChunkSource().broadcast(this, new ClientboundSetEntityLinkPacket(this, this.leashHolder));
+       }
+ 
+       if (this.isPassenger()) {
+@@ -1271,47 +1245,14 @@
+          }
+       }
+ 
+    }
+ 
+-   public boolean setSlot(int var1, ItemStack var2) {
+-      EquipmentSlot var3;
+-      if (var1 == 98) {
+-         var3 = EquipmentSlot.MAINHAND;
+-      } else if (var1 == 99) {
+-         var3 = EquipmentSlot.OFFHAND;
+-      } else if (var1 == 100 + EquipmentSlot.HEAD.getIndex()) {
+-         var3 = EquipmentSlot.HEAD;
+-      } else if (var1 == 100 + EquipmentSlot.CHEST.getIndex()) {
+-         var3 = EquipmentSlot.CHEST;
+-      } else if (var1 == 100 + EquipmentSlot.LEGS.getIndex()) {
+-         var3 = EquipmentSlot.LEGS;
+-      } else {
+-         if (var1 != 100 + EquipmentSlot.FEET.getIndex()) {
+-            return false;
+-         }
+-
+-         var3 = EquipmentSlot.FEET;
+-      }
+-
+-      if (!var2.isEmpty() && !isValidSlotForItem(var3, var2) && var3 != EquipmentSlot.HEAD) {
+-         return false;
+-      } else {
+-         this.setItemSlot(var3, var2);
+-         return true;
+-      }
+-   }
+-
+    public boolean isControlledByLocalInstance() {
+       return this.canBeControlledByRider() && super.isControlledByLocalInstance();
+    }
+ 
+-   public static boolean isValidSlotForItem(EquipmentSlot var0, ItemStack var1) {
+-      EquipmentSlot var2 = getEquipmentSlotForItem(var1);
+-      return var2 == var0 || var2 == EquipmentSlot.MAINHAND && var0 == EquipmentSlot.OFFHAND || var2 == EquipmentSlot.OFFHAND && var0 == EquipmentSlot.MAINHAND;
+-   }
+-
+    public boolean isEffectiveAi() {
+       return super.isEffectiveAi() && !this.isNoAi();
+    }
+ 
+    public void setNoAi(boolean var1) {
+@@ -1346,12 +1287,20 @@
+ 
     public HumanoidArm getMainArm() {
        return this.isLeftHanded() ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
     }
  
++   public double getMeleeAttackRangeSqr(LivingEntity var1) {
++      return (double)(this.getBbWidth() * 2.0F * this.getBbWidth() * 2.0F + var1.getBbWidth());
++   }
++
     public boolean canAttack(LivingEntity var1) {
 -      return var1.getType() == EntityType.PLAYER && ((Player)var1).abilities.invulnerable ? false : super.canAttack(var1);
-+      return var1.getType() == EntityType.PLAYER && ((Player)var1).getAbilities().invulnerable ? false : super.canAttack(var1);
++      if (var1.getType() == EntityType.PLAYER && ((Player)var1).getAbilities().invulnerable) {
++         return false;
++      } else {
++         return var1.getType() == EntityType.AXOLOTL && ((Axolotl)var1).isPlayingDead() ? false : super.canAttack(var1);
++      }
     }
  
     public boolean doHurtTarget(Entity var1) {
        float var2 = (float)this.getAttributeValue(Attributes.ATTACK_DAMAGE);
        float var3 = (float)this.getAttributeValue(Attributes.ATTACK_KNOCKBACK);
-@@ -1383,11 +1383,11 @@
+@@ -1383,11 +1332,11 @@
  
        return var5;
     }
@@ -160,7 +279,7 @@
              var1.getCooldowns().addCooldown(Items.SHIELD, 100);
              this.level.broadcastEntityEvent(var1, (byte)30);
           }
-@@ -1396,12 +1396,12 @@
+@@ -1396,12 +1345,13 @@
     }
  
     protected boolean isSunBurnTick() {
@@ -169,7 +288,8 @@
 -         BlockPos var2 = this.getVehicle() instanceof Boat ? (new BlockPos(this.getX(), (double)Math.round(this.getY()), this.getZ())).above() : new BlockPos(this.getX(), (double)Math.round(this.getY()), this.getZ());
 -         if (var1 > 0.5F && this.random.nextFloat() * 30.0F < (var1 - 0.4F) * 2.0F && this.level.canSeeSky(var2)) {
 +         BlockPos var2 = new BlockPos(this.getX(), this.getEyeY(), this.getZ());
-+         if (var1 > 0.5F && this.random.nextFloat() * 30.0F < (var1 - 0.4F) * 2.0F && !this.isInWaterRainOrBubble() && this.level.canSeeSky(var2)) {
++         boolean var3 = this.isInWaterRainOrBubble() || this.bodyIsInPowderSnow;
++         if (var1 > 0.5F && this.random.nextFloat() * 30.0F < (var1 - 0.4F) * 2.0F && !var3 && this.level.canSeeSky(var2)) {
              return true;
           }
        }

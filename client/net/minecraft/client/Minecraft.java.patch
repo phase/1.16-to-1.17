@@ -128,12 +128,25 @@
 -      List var10 = this.resourcePackRepository.openAllSelected();
 -      this.setOverlay(new LoadingOverlay(this, this.resourceManager.createFullReload(Util.backgroundExecutor(), this, RESOURCE_RELOAD_INITIAL_TASK, var10), (var1x) -> {
 +      List var11 = this.resourcePackRepository.openAllSelected();
-+      this.setOverlay(new LoadingOverlay(this, this.resourceManager.createFullReload(Util.backgroundExecutor(), this, RESOURCE_RELOAD_INITIAL_TASK, var11), (var1x) -> {
++      this.setOverlay(new LoadingOverlay(this, this.resourceManager.createReload(Util.backgroundExecutor(), this, RESOURCE_RELOAD_INITIAL_TASK, var11), (var1x) -> {
           Util.ifElse(var1x, this::rollbackResourcePacks, () -> {
              if (SharedConstants.IS_RUNNING_IN_IDE) {
                 this.selfTest();
              }
  
+@@ -738,11 +741,11 @@
+             this.pendingReload = var1;
+             return var1;
+          } else {
+             this.resourcePackRepository.reload();
+             List var2 = this.resourcePackRepository.openAllSelected();
+-            this.setOverlay(new LoadingOverlay(this, this.resourceManager.createFullReload(Util.backgroundExecutor(), this, RESOURCE_RELOAD_INITIAL_TASK, var2), (var2x) -> {
++            this.setOverlay(new LoadingOverlay(this, this.resourceManager.createReload(Util.backgroundExecutor(), this, RESOURCE_RELOAD_INITIAL_TASK, var2), (var2x) -> {
+                Util.ifElse(var2x, this::rollbackResourcePacks, () -> {
+                   this.levelRenderer.allChanged();
+                   var1.complete((Object)null);
+                });
+             }, true));
 @@ -808,10 +811,11 @@
              }
           }
@@ -227,7 +240,7 @@
              }
           }
        }
-@@ -1859,11 +1858,11 @@
+@@ -1859,15 +1858,15 @@
  
     }
  
@@ -238,8 +251,13 @@
  
        try {
           DataPackConfig var8 = MinecraftServer.configurePackRepository(var7, var6, var4);
-          CompletableFuture var9 = ServerResources.loadResources(var7.openAllSelected(), Commands.CommandSelection.INTEGRATED, 2, Util.backgroundExecutor(), this);
+-         CompletableFuture var9 = ServerResources.loadResources(var7.openAllSelected(), Commands.CommandSelection.INTEGRATED, 2, Util.backgroundExecutor(), this);
++         CompletableFuture var9 = ServerResources.loadResources(var7.openAllSelected(), var1, Commands.CommandSelection.INTEGRATED, 2, Util.backgroundExecutor(), this);
           this.managedBlock(var9::isDone);
+          ServerResources var10 = (ServerResources)var9.get();
+          WorldData var11 = (WorldData)var3.apply(var5, var1, var10.getResourceManager(), var8);
+          return new Minecraft.ServerStem(var7, var10, var11);
+       } catch (ExecutionException | InterruptedException var12) {
 @@ -1952,11 +1951,11 @@
     }
  

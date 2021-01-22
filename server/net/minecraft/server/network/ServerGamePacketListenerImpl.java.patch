@@ -1,5 +1,18 @@
 --- net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -153,11 +153,11 @@
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ import org.apache.commons.lang3.StringUtils;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-public class ServerGamePacketListenerImpl implements ServerGamePacketListener {
++public class ServerGamePacketListenerImpl implements ServerPlayerConnection, ServerGamePacketListener {
+    private static final Logger LOGGER = LogManager.getLogger();
+    public final Connection connection;
+    private final MinecraftServer server;
+    public ServerPlayer player;
+    private int tickCount;
 @@ -490,29 +490,32 @@
  
           String var6 = var1.getCommand();
@@ -127,7 +140,53 @@
                          this.player.setOnGround(var1.isOnGround());
                          if (var31) {
                             this.player.fallDistance = 0.0F;
-@@ -1012,10 +1015,16 @@
+@@ -935,11 +938,11 @@
+          this.player.releaseUsingItem();
+          return;
+       case START_DESTROY_BLOCK:
+       case ABORT_DESTROY_BLOCK:
+       case STOP_DESTROY_BLOCK:
+-         this.player.gameMode.handleBlockBreakAction(var2, var3, var1.getDirection(), this.server.getMaxBuildHeight());
++         this.player.gameMode.handleBlockBreakAction(var2, var3, var1.getDirection(), this.player.level.getMaxBuildHeight());
+          return;
+       default:
+          throw new IllegalArgumentException("Invalid player action");
+       }
+    }
+@@ -960,23 +963,24 @@
+       ItemStack var4 = this.player.getItemInHand(var3);
+       BlockHitResult var5 = var1.getHitResult();
+       BlockPos var6 = var5.getBlockPos();
+       Direction var7 = var5.getDirection();
+       this.player.resetLastActionTime();
+-      if (var6.getY() < this.server.getMaxBuildHeight()) {
++      int var8 = this.player.level.getMaxBuildHeight();
++      if (var6.getY() < var8) {
+          if (this.awaitingPositionFromClient == null && this.player.distanceToSqr((double)var6.getX() + 0.5D, (double)var6.getY() + 0.5D, (double)var6.getZ() + 0.5D) < 64.0D && var2.mayInteract(this.player, var6)) {
+-            InteractionResult var8 = this.player.gameMode.useItemOn(this.player, var2, var4, var3, var5);
+-            if (var7 == Direction.UP && !var8.consumesAction() && var6.getY() >= this.server.getMaxBuildHeight() - 1 && wasBlockPlacementAttempt(this.player, var4)) {
+-               MutableComponent var9 = (new TranslatableComponent("build.tooHigh", new Object[]{this.server.getMaxBuildHeight()})).withStyle(ChatFormatting.RED);
+-               this.player.connection.send(new ClientboundChatPacket(var9, ChatType.GAME_INFO, Util.NIL_UUID));
+-            } else if (var8.shouldSwing()) {
++            InteractionResult var9 = this.player.gameMode.useItemOn(this.player, var2, var4, var3, var5);
++            if (var7 == Direction.UP && !var9.consumesAction() && var6.getY() >= var8 - 1 && wasBlockPlacementAttempt(this.player, var4)) {
++               MutableComponent var10 = (new TranslatableComponent("build.tooHigh", new Object[]{var8})).withStyle(ChatFormatting.RED);
++               this.player.connection.send(new ClientboundChatPacket(var10, ChatType.GAME_INFO, Util.NIL_UUID));
++            } else if (var9.shouldSwing()) {
+                this.player.swing(var3, true);
+             }
+          }
+       } else {
+-         MutableComponent var10 = (new TranslatableComponent("build.tooHigh", new Object[]{this.server.getMaxBuildHeight()})).withStyle(ChatFormatting.RED);
+-         this.player.connection.send(new ClientboundChatPacket(var10, ChatType.GAME_INFO, Util.NIL_UUID));
++         MutableComponent var11 = (new TranslatableComponent("build.tooHigh", new Object[]{var8})).withStyle(ChatFormatting.RED);
++         this.player.connection.send(new ClientboundChatPacket(var11, ChatType.GAME_INFO, Util.NIL_UUID));
+       }
+ 
+       this.player.connection.send(new ClientboundBlockUpdatePacket(var2, var6));
+       this.player.connection.send(new ClientboundBlockUpdatePacket(var2, var6.relative(var7)));
+    }
+@@ -1012,10 +1016,16 @@
        }
  
     }
@@ -144,7 +203,7 @@
     public void handlePaddleBoat(ServerboundPaddleBoatPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        Entity var2 = this.player.getVehicle();
-@@ -1073,15 +1082,15 @@
+@@ -1073,15 +1083,15 @@
     }
  
     public void handleSetCarriedItem(ServerboundSetCarriedItemPacket var1) {
@@ -162,7 +221,7 @@
           LOGGER.warn((String)"{} tried to set an invalid carried item", (Object)this.player.getName().getString());
        }
     }
-@@ -1408,11 +1417,11 @@
+@@ -1408,11 +1418,11 @@
  
     }
  
@@ -175,3 +234,14 @@
     public void handleClientInformation(ServerboundClientInformationPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        this.player.updateOptions(var1);
+@@ -1432,6 +1442,10 @@
+       PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+       if (this.player.hasPermissions(2) || this.isSingleplayerOwner()) {
+          this.server.setDifficultyLocked(var1.isLocked());
+       }
+    }
++
++   public ServerPlayer getPlayer() {
++      return this.player;
++   }
+ }

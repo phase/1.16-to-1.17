@@ -32,7 +32,19 @@
  import net.minecraft.world.entity.ambient.Bat;
  import net.minecraft.world.entity.animal.Bee;
  import net.minecraft.world.entity.animal.Cat;
-@@ -131,16 +135,17 @@
+@@ -43,10 +47,11 @@
+ import net.minecraft.world.entity.animal.SnowGolem;
+ import net.minecraft.world.entity.animal.Squid;
+ import net.minecraft.world.entity.animal.TropicalFish;
+ import net.minecraft.world.entity.animal.Turtle;
+ import net.minecraft.world.entity.animal.Wolf;
++import net.minecraft.world.entity.animal.axolotl.Axolotl;
+ import net.minecraft.world.entity.animal.horse.Donkey;
+ import net.minecraft.world.entity.animal.horse.Horse;
+ import net.minecraft.world.entity.animal.horse.Llama;
+ import net.minecraft.world.entity.animal.horse.Mule;
+ import net.minecraft.world.entity.animal.horse.SkeletonHorse;
+@@ -131,20 +136,22 @@
  import net.minecraft.world.level.LevelReader;
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.Blocks;
@@ -50,8 +62,26 @@
     public static final EntityType<AreaEffectCloud> AREA_EFFECT_CLOUD;
     public static final EntityType<ArmorStand> ARMOR_STAND;
     public static final EntityType<Arrow> ARROW;
++   public static final EntityType<Axolotl> AXOLOTL;
     public static final EntityType<Bat> BAT;
-@@ -475,10 +480,36 @@
+    public static final EntityType<Bee> BEE;
+    public static final EntityType<Blaze> BLAZE;
+    public static final EntityType<Boat> BOAT;
+    public static final EntityType<Cat> CAT;
+@@ -169,10 +176,12 @@
+    public static final EntityType<FallingBlockEntity> FALLING_BLOCK;
+    public static final EntityType<FireworkRocketEntity> FIREWORK_ROCKET;
+    public static final EntityType<Fox> FOX;
+    public static final EntityType<Ghast> GHAST;
+    public static final EntityType<Giant> GIANT;
++   public static final EntityType<ItemFrame> GLOW_ITEM_FRAME;
++   public static final EntityType<GlowSquid> GLOW_SQUID;
+    public static final EntityType<Guardian> GUARDIAN;
+    public static final EntityType<Hoglin> HOGLIN;
+    public static final EntityType<Horse> HORSE;
+    public static final EntityType<Husk> HUSK;
+    public static final EntityType<Illusioner> ILLUSIONER;
+@@ -475,10 +484,36 @@
  
           return var3;
        }).orElse((Object)null);
@@ -88,10 +118,14 @@
           return create(var0, var1);
        } catch (RuntimeException var3) {
           LOGGER.warn((String)"Exception loading entity: ", (Throwable)var3);
-@@ -496,14 +527,23 @@
+@@ -493,21 +528,31 @@
+    public int updateInterval() {
+       return this.updateInterval;
+    }
  
     public boolean trackDeltas() {
-       return this != PLAYER && this != LLAMA_SPIT && this != WITHER && this != BAT && this != ITEM_FRAME && this != LEASH_KNOT && this != PAINTING && this != END_CRYSTAL && this != EVOKER_FANGS;
+-      return this != PLAYER && this != LLAMA_SPIT && this != WITHER && this != BAT && this != ITEM_FRAME && this != LEASH_KNOT && this != PAINTING && this != END_CRYSTAL && this != EVOKER_FANGS;
++      return this != PLAYER && this != LLAMA_SPIT && this != WITHER && this != BAT && this != ITEM_FRAME && this != GLOW_ITEM_FRAME && this != LEASH_KNOT && this != PAINTING && this != END_CRYSTAL && this != EVOKER_FANGS;
     }
  
 -   public boolean is(Tag<EntityType<?>> var1) {
@@ -112,8 +146,24 @@
        AREA_EFFECT_CLOUD = register("area_effect_cloud", EntityType.Builder.of(AreaEffectCloud::new, MobCategory.MISC).fireImmune().sized(6.0F, 0.5F).clientTrackingRange(10).updateInterval(Integer.MAX_VALUE));
        ARMOR_STAND = register("armor_stand", EntityType.Builder.of(ArmorStand::new, MobCategory.MISC).sized(0.5F, 1.975F).clientTrackingRange(10));
        ARROW = register("arrow", EntityType.Builder.of(Arrow::new, MobCategory.MISC).sized(0.5F, 0.5F).clientTrackingRange(4).updateInterval(20));
++      AXOLOTL = register("axolotl", EntityType.Builder.of(Axolotl::new, MobCategory.WATER_CREATURE).sized(0.75F, 0.42F).clientTrackingRange(10));
        BAT = register("bat", EntityType.Builder.of(Bat::new, MobCategory.AMBIENT).sized(0.5F, 0.9F).clientTrackingRange(5));
-@@ -541,11 +581,11 @@
+       BEE = register("bee", EntityType.Builder.of(Bee::new, MobCategory.CREATURE).sized(0.7F, 0.6F).clientTrackingRange(8));
+       BLAZE = register("blaze", EntityType.Builder.of(Blaze::new, MobCategory.MONSTER).fireImmune().sized(0.6F, 1.8F).clientTrackingRange(8));
+       BOAT = register("boat", EntityType.Builder.of(Boat::new, MobCategory.MISC).sized(1.375F, 0.5625F).clientTrackingRange(10));
+       CAT = register("cat", EntityType.Builder.of(Cat::new, MobCategory.CREATURE).sized(0.6F, 0.7F).clientTrackingRange(8));
+@@ -532,20 +577,22 @@
+       FALLING_BLOCK = register("falling_block", EntityType.Builder.of(FallingBlockEntity::new, MobCategory.MISC).sized(0.98F, 0.98F).clientTrackingRange(10).updateInterval(20));
+       FIREWORK_ROCKET = register("firework_rocket", EntityType.Builder.of(FireworkRocketEntity::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10));
+       FOX = register("fox", EntityType.Builder.of(Fox::new, MobCategory.CREATURE).sized(0.6F, 0.7F).clientTrackingRange(8).immuneTo(Blocks.SWEET_BERRY_BUSH));
+       GHAST = register("ghast", EntityType.Builder.of(Ghast::new, MobCategory.MONSTER).fireImmune().sized(4.0F, 4.0F).clientTrackingRange(10));
+       GIANT = register("giant", EntityType.Builder.of(Giant::new, MobCategory.MONSTER).sized(3.6F, 12.0F).clientTrackingRange(10));
++      GLOW_ITEM_FRAME = register("glow_item_frame", EntityType.Builder.of(ItemFrame::new, MobCategory.MISC).sized(0.5F, 0.5F).clientTrackingRange(10).updateInterval(Integer.MAX_VALUE));
++      GLOW_SQUID = register("glow_squid", EntityType.Builder.of(GlowSquid::new, MobCategory.WATER_CREATURE).sized(0.8F, 0.8F).clientTrackingRange(10));
+       GUARDIAN = register("guardian", EntityType.Builder.of(Guardian::new, MobCategory.MONSTER).sized(0.85F, 0.85F).clientTrackingRange(8));
+       HOGLIN = register("hoglin", EntityType.Builder.of(Hoglin::new, MobCategory.MONSTER).sized(1.3964844F, 1.4F).clientTrackingRange(8));
+       HORSE = register("horse", EntityType.Builder.of(Horse::new, MobCategory.CREATURE).sized(1.3964844F, 1.6F).clientTrackingRange(10));
+       HUSK = register("husk", EntityType.Builder.of(Husk::new, MobCategory.MONSTER).sized(0.6F, 1.95F).clientTrackingRange(8));
        ILLUSIONER = register("illusioner", EntityType.Builder.of(Illusioner::new, MobCategory.MONSTER).sized(0.6F, 1.95F).clientTrackingRange(8));
        IRON_GOLEM = register("iron_golem", EntityType.Builder.of(IronGolem::new, MobCategory.MISC).sized(1.4F, 2.7F).clientTrackingRange(10));
        ITEM = register("item", EntityType.Builder.of(ItemEntity::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(6).updateInterval(20));
@@ -126,7 +176,7 @@
        LLAMA_SPIT = register("llama_spit", EntityType.Builder.of(LlamaSpit::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10));
        MAGMA_CUBE = register("magma_cube", EntityType.Builder.of(MagmaCube::new, MobCategory.MONSTER).fireImmune().sized(2.04F, 2.04F).clientTrackingRange(8));
        MINECART = register("minecart", EntityType.Builder.of(Minecart::new, MobCategory.MISC).sized(0.98F, 0.7F).clientTrackingRange(8));
-@@ -608,11 +648,11 @@
+@@ -608,11 +655,11 @@
        ZOMBIE = register("zombie", EntityType.Builder.of(Zombie::new, MobCategory.MONSTER).sized(0.6F, 1.95F).clientTrackingRange(8));
        ZOMBIE_HORSE = register("zombie_horse", EntityType.Builder.of(ZombieHorse::new, MobCategory.CREATURE).sized(1.3964844F, 1.6F).clientTrackingRange(10));
        ZOMBIE_VILLAGER = register("zombie_villager", EntityType.Builder.of(ZombieVillager::new, MobCategory.MONSTER).sized(0.6F, 1.95F).clientTrackingRange(8));

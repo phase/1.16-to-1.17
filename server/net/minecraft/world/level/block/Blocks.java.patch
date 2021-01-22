@@ -1,9 +1,12 @@
 --- net/minecraft/world/level/block/Blocks.java
 +++ net/minecraft/world/level/block/Blocks.java
-@@ -6,13 +6,15 @@
+@@ -4,15 +4,18 @@
+ import java.util.Iterator;
+ import java.util.function.ToIntFunction;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.core.Registry;
++import net.minecraft.core.cauldron.CauldronInteraction;
  import net.minecraft.core.particles.ParticleTypes;
  import net.minecraft.data.worldgen.Features;
 +import net.minecraft.util.IntRange;
@@ -16,7 +19,19 @@
  import net.minecraft.world.level.block.entity.BlockEntityType;
  import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
  import net.minecraft.world.level.block.grower.AcaciaTreeGrower;
-@@ -294,10 +296,12 @@
+@@ -26,10 +29,11 @@
+ import net.minecraft.world.level.block.piston.PistonHeadBlock;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.properties.BedPart;
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import net.minecraft.world.level.block.state.properties.SculkSensorPhase;
+ import net.minecraft.world.level.block.state.properties.WoodType;
+ import net.minecraft.world.level.material.Fluids;
+ import net.minecraft.world.level.material.Material;
+ import net.minecraft.world.level.material.MaterialColor;
+ 
+@@ -294,10 +298,13 @@
     public static final Block NETHER_BRICK_STAIRS;
     public static final Block NETHER_WART;
     public static final Block ENCHANTING_TABLE;
@@ -24,12 +39,13 @@
     public static final Block CAULDRON;
 +   public static final Block WATER_CAULDRON;
 +   public static final Block LAVA_CAULDRON;
++   public static final Block POWDER_SNOW_CAULDRON;
     public static final Block END_PORTAL;
     public static final Block END_PORTAL_FRAME;
     public static final Block END_STONE;
     public static final Block DRAGON_EGG;
     public static final Block REDSTONE_LAMP;
-@@ -530,11 +534,11 @@
+@@ -530,11 +537,11 @@
     public static final Block PURPUR_BLOCK;
     public static final Block PURPUR_PILLAR;
     public static final Block PURPUR_STAIRS;
@@ -42,7 +58,7 @@
     public static final Block CHAIN_COMMAND_BLOCK;
     public static final Block FROSTED_ICE;
     public static final Block MAGMA_BLOCK;
-@@ -795,10 +799,83 @@
+@@ -795,10 +802,88 @@
     public static final Block POLISHED_BLACKSTONE_BUTTON;
     public static final Block POLISHED_BLACKSTONE_WALL;
     public static final Block CHISELED_NETHER_BRICKS;
@@ -91,6 +107,8 @@
 +   public static final Block TUFF;
 +   public static final Block CALCITE;
 +   public static final Block TINTED_GLASS;
++   public static final Block POWDER_SNOW;
++   public static final Block SCULK_SENSOR;
 +   public static final Block WEATHERED_COPPER_BLOCK;
 +   public static final Block SEMI_WEATHERED_COPPER_BLOCK;
 +   public static final Block LIGHTLY_WEATHERED_COPPER_BLOCK;
@@ -121,12 +139,15 @@
 +   public static final Block WAXED_LIGHTLY_WEATHERED_CUT_COPPER_SLAB;
 +   public static final Block WAXED_CUT_COPPER_SLAB;
 +   public static final Block LIGHTNING_ROD;
++   public static final Block POINTED_DRIPSTONE;
++   public static final Block DRIPSTONE_BLOCK;
++   public static final Block GLOW_LICHEN;
  
     private static ToIntFunction<BlockState> litBlockEmission(int var0) {
        return (var1) -> {
           return (Boolean)var1.getValue(BlockStateProperties.LIT) ? var0 : 0;
        };
-@@ -912,12 +989,12 @@
+@@ -912,12 +997,12 @@
        SAND = register("sand", new SandBlock(14406560, BlockBehaviour.Properties.of(Material.SAND, MaterialColor.SAND).strength(0.5F).sound(SoundType.SAND)));
        RED_SAND = register("red_sand", new SandBlock(11098145, BlockBehaviour.Properties.of(Material.SAND, MaterialColor.COLOR_ORANGE).strength(0.5F).sound(SoundType.SAND)));
        GRAVEL = register("gravel", new GravelBlock(BlockBehaviour.Properties.of(Material.SAND, MaterialColor.STONE).strength(0.6F).sound(SoundType.GRAVEL)));
@@ -141,7 +162,7 @@
        BIRCH_LOG = register("birch_log", log(MaterialColor.SAND, MaterialColor.QUARTZ));
        JUNGLE_LOG = register("jungle_log", log(MaterialColor.DIRT, MaterialColor.PODZOL));
        ACACIA_LOG = register("acacia_log", log(MaterialColor.COLOR_ORANGE, MaterialColor.STONE));
-@@ -947,11 +1024,11 @@
+@@ -947,11 +1032,11 @@
        ACACIA_LEAVES = register("acacia_leaves", leaves());
        DARK_OAK_LEAVES = register("dark_oak_leaves", leaves());
        SPONGE = register("sponge", new SpongeBlock(BlockBehaviour.Properties.of(Material.SPONGE).strength(0.6F).sound(SoundType.GRASS)));
@@ -154,7 +175,7 @@
        SANDSTONE = register("sandstone", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.SAND).requiresCorrectToolForDrops().strength(0.8F)));
        CHISELED_SANDSTONE = register("chiseled_sandstone", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.SAND).requiresCorrectToolForDrops().strength(0.8F)));
        CUT_SANDSTONE = register("cut_sandstone", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.SAND).requiresCorrectToolForDrops().strength(0.8F)));
-@@ -977,12 +1054,12 @@
+@@ -977,12 +1062,12 @@
        STICKY_PISTON = register("sticky_piston", pistonBase(true));
        COBWEB = register("cobweb", new WebBlock(BlockBehaviour.Properties.of(Material.WEB).noCollission().requiresCorrectToolForDrops().strength(4.0F)));
        GRASS = register("grass", new TallGrassBlock(BlockBehaviour.Properties.of(Material.REPLACEABLE_PLANT).noCollission().instabreak().sound(SoundType.GRASS)));
@@ -169,7 +190,7 @@
        WHITE_WOOL = register("white_wool", new Block(BlockBehaviour.Properties.of(Material.WOOL, MaterialColor.SNOW).strength(0.8F).sound(SoundType.WOOL)));
        ORANGE_WOOL = register("orange_wool", new Block(BlockBehaviour.Properties.of(Material.WOOL, MaterialColor.COLOR_ORANGE).strength(0.8F).sound(SoundType.WOOL)));
        MAGENTA_WOOL = register("magenta_wool", new Block(BlockBehaviour.Properties.of(Material.WOOL, MaterialColor.COLOR_MAGENTA).strength(0.8F).sound(SoundType.WOOL)));
-@@ -1013,12 +1090,16 @@
+@@ -1013,12 +1098,16 @@
        CORNFLOWER = register("cornflower", new FlowerBlock(MobEffects.JUMP, 6, BlockBehaviour.Properties.of(Material.PLANT).noCollission().instabreak().sound(SoundType.GRASS)));
        WITHER_ROSE = register("wither_rose", new WitherRoseBlock(MobEffects.WITHER, BlockBehaviour.Properties.of(Material.PLANT).noCollission().instabreak().sound(SoundType.GRASS)));
        LILY_OF_THE_VALLEY = register("lily_of_the_valley", new FlowerBlock(MobEffects.POISON, 12, BlockBehaviour.Properties.of(Material.PLANT).noCollission().instabreak().sound(SoundType.GRASS)));
@@ -188,7 +209,7 @@
        BRICKS = register("bricks", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_RED).requiresCorrectToolForDrops().strength(2.0F, 6.0F)));
        TNT = register("tnt", new TntBlock(BlockBehaviour.Properties.of(Material.EXPLOSIVE).instabreak().sound(SoundType.GRASS)));
        BOOKSHELF = register("bookshelf", new Block(BlockBehaviour.Properties.of(Material.WOOD).strength(1.5F).sound(SoundType.WOOD)));
-@@ -1040,11 +1121,11 @@
+@@ -1040,11 +1129,11 @@
        OAK_STAIRS = register("oak_stairs", new StairBlock(OAK_PLANKS.defaultBlockState(), BlockBehaviour.Properties.copy(OAK_PLANKS)));
        CHEST = register("chest", new ChestBlock(BlockBehaviour.Properties.of(Material.WOOD).strength(2.5F).sound(SoundType.WOOD), () -> {
           return BlockEntityType.CHEST;
@@ -201,7 +222,7 @@
        WHEAT = register("wheat", new CropBlock(BlockBehaviour.Properties.of(Material.PLANT).noCollission().randomTicks().instabreak().sound(SoundType.CROP)));
        FARMLAND = register("farmland", new FarmBlock(BlockBehaviour.Properties.of(Material.DIRT).randomTicks().strength(0.6F).sound(SoundType.GRAVEL).isViewBlocking(Blocks::always).isSuffocating(Blocks::always)));
        FURNACE = register("furnace", new FurnaceBlock(BlockBehaviour.Properties.of(Material.STONE).requiresCorrectToolForDrops().strength(3.5F).lightLevel(litBlockEmission(13))));
-@@ -1148,14 +1229,22 @@
+@@ -1148,14 +1237,22 @@
        MUSHROOM_STEM = register("mushroom_stem", new HugeMushroomBlock(BlockBehaviour.Properties.of(Material.WOOD, MaterialColor.WOOL).strength(0.2F).sound(SoundType.WOOD)));
        IRON_BARS = register("iron_bars", new IronBarsBlock(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.NONE).requiresCorrectToolForDrops().strength(5.0F, 6.0F).sound(SoundType.METAL).noOcclusion()));
        CHAIN = register("chain", new ChainBlock(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.NONE).requiresCorrectToolForDrops().strength(5.0F, 6.0F).sound(SoundType.CHAIN).noOcclusion()));
@@ -228,22 +249,23 @@
        BRICK_STAIRS = register("brick_stairs", new StairBlock(BRICKS.defaultBlockState(), BlockBehaviour.Properties.copy(BRICKS)));
        STONE_BRICK_STAIRS = register("stone_brick_stairs", new StairBlock(STONE_BRICKS.defaultBlockState(), BlockBehaviour.Properties.copy(STONE_BRICKS)));
        MYCELIUM = register("mycelium", new MyceliumBlock(BlockBehaviour.Properties.of(Material.GRASS, MaterialColor.COLOR_PURPLE).randomTicks().strength(0.6F).sound(SoundType.GRASS)));
-@@ -1167,10 +1256,14 @@
+@@ -1167,10 +1264,15 @@
        ENCHANTING_TABLE = register("enchanting_table", new EnchantmentTableBlock(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_RED).requiresCorrectToolForDrops().strength(5.0F, 1200.0F)));
        BREWING_STAND = register("brewing_stand", new BrewingStandBlock(BlockBehaviour.Properties.of(Material.METAL).requiresCorrectToolForDrops().strength(0.5F).lightLevel((var0x) -> {
           return 1;
        }).noOcclusion()));
        CAULDRON = register("cauldron", new CauldronBlock(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.STONE).requiresCorrectToolForDrops().strength(2.0F).noOcclusion()));
-+      WATER_CAULDRON = register("water_cauldron", new WaterCauldronBlock(BlockBehaviour.Properties.copy(CAULDRON)));
++      WATER_CAULDRON = register("water_cauldron", new LayeredCauldronBlock(BlockBehaviour.Properties.copy(CAULDRON), LayeredCauldronBlock.RAIN, CauldronInteraction.WATER));
 +      LAVA_CAULDRON = register("lava_cauldron", new LavaCauldronBlock(BlockBehaviour.Properties.copy(CAULDRON).lightLevel((var0x) -> {
 +         return 15;
 +      })));
++      POWDER_SNOW_CAULDRON = register("powder_snow_cauldron", new LayeredCauldronBlock(BlockBehaviour.Properties.copy(CAULDRON), LayeredCauldronBlock.SNOW, CauldronInteraction.POWDER_SNOW));
        END_PORTAL = register("end_portal", new EndPortalBlock(BlockBehaviour.Properties.of(Material.PORTAL, MaterialColor.COLOR_BLACK).noCollission().lightLevel((var0x) -> {
           return 15;
        }).strength(-1.0F, 3600000.0F).noDrops()));
        END_PORTAL_FRAME = register("end_portal_frame", new EndPortalFrameBlock(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_GREEN).sound(SoundType.GLASS).lightLevel((var0x) -> {
           return 1;
-@@ -1180,21 +1273,21 @@
+@@ -1180,21 +1282,21 @@
           return 1;
        }).noOcclusion()));
        REDSTONE_LAMP = register("redstone_lamp", new RedstoneLampBlock(BlockBehaviour.Properties.of(Material.BUILDABLE_GLASS).lightLevel(litBlockEmission(15)).strength(0.3F).sound(SoundType.GLASS).isValidSpawn(Blocks::always)));
@@ -267,7 +289,7 @@
        }).noOcclusion().isRedstoneConductor(Blocks::never)));
        COBBLESTONE_WALL = register("cobblestone_wall", new WallBlock(BlockBehaviour.Properties.copy(COBBLESTONE)));
        MOSSY_COBBLESTONE_WALL = register("mossy_cobblestone_wall", new WallBlock(BlockBehaviour.Properties.copy(COBBLESTONE)));
-@@ -1250,11 +1343,11 @@
+@@ -1250,11 +1352,11 @@
        LIGHT_WEIGHTED_PRESSURE_PLATE = register("light_weighted_pressure_plate", new WeightedPressurePlateBlock(15, BlockBehaviour.Properties.of(Material.METAL, MaterialColor.GOLD).requiresCorrectToolForDrops().noCollission().strength(0.5F).sound(SoundType.WOOD)));
        HEAVY_WEIGHTED_PRESSURE_PLATE = register("heavy_weighted_pressure_plate", new WeightedPressurePlateBlock(150, BlockBehaviour.Properties.of(Material.METAL).requiresCorrectToolForDrops().noCollission().strength(0.5F).sound(SoundType.WOOD)));
        COMPARATOR = register("comparator", new ComparatorBlock(BlockBehaviour.Properties.of(Material.DECORATION).instabreak().sound(SoundType.WOOD)));
@@ -280,7 +302,7 @@
        CHISELED_QUARTZ_BLOCK = register("chiseled_quartz_block", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.QUARTZ).requiresCorrectToolForDrops().strength(0.8F)));
        QUARTZ_PILLAR = register("quartz_pillar", new RotatedPillarBlock(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.QUARTZ).requiresCorrectToolForDrops().strength(0.8F)));
        QUARTZ_STAIRS = register("quartz_stairs", new StairBlock(QUARTZ_BLOCK.defaultBlockState(), BlockBehaviour.Properties.copy(QUARTZ_BLOCK)));
-@@ -1417,16 +1510,16 @@
+@@ -1417,16 +1519,16 @@
        PURPUR_BLOCK = register("purpur_block", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_MAGENTA).requiresCorrectToolForDrops().strength(1.5F, 6.0F)));
        PURPUR_PILLAR = register("purpur_pillar", new RotatedPillarBlock(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_MAGENTA).requiresCorrectToolForDrops().strength(1.5F, 6.0F)));
        PURPUR_STAIRS = register("purpur_stairs", new StairBlock(PURPUR_BLOCK.defaultBlockState(), BlockBehaviour.Properties.copy(PURPUR_BLOCK)));
@@ -300,7 +322,7 @@
        })));
        MAGMA_BLOCK = register("magma_block", new MagmaBlock(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.NETHER).requiresCorrectToolForDrops().lightLevel((var0x) -> {
           return 3;
-@@ -1609,14 +1702,14 @@
+@@ -1609,14 +1711,14 @@
        GRINDSTONE = register("grindstone", new GrindstoneBlock(BlockBehaviour.Properties.of(Material.HEAVY_METAL, MaterialColor.METAL).requiresCorrectToolForDrops().strength(2.0F, 6.0F).sound(SoundType.STONE)));
        LECTERN = register("lectern", new LecternBlock(BlockBehaviour.Properties.of(Material.WOOD).strength(2.5F).sound(SoundType.WOOD)));
        SMITHING_TABLE = register("smithing_table", new SmithingTableBlock(BlockBehaviour.Properties.of(Material.WOOD).strength(2.5F).sound(SoundType.WOOD)));
@@ -317,7 +339,7 @@
        CAMPFIRE = register("campfire", new CampfireBlock(true, 1, BlockBehaviour.Properties.of(Material.WOOD, MaterialColor.PODZOL).strength(2.0F).sound(SoundType.WOOD).lightLevel(litBlockEmission(15)).noOcclusion()));
        SOUL_CAMPFIRE = register("soul_campfire", new CampfireBlock(false, 2, BlockBehaviour.Properties.of(Material.WOOD, MaterialColor.PODZOL).strength(2.0F).sound(SoundType.WOOD).lightLevel(litBlockEmission(10)).noOcclusion()));
        SWEET_BERRY_BUSH = register("sweet_berry_bush", new SweetBerryBushBlock(BlockBehaviour.Properties.of(Material.PLANT).randomTicks().noCollission().sound(SoundType.SWEET_BERRY_BUSH)));
-@@ -1640,14 +1733,14 @@
+@@ -1640,14 +1742,14 @@
           return Features.CRIMSON_FUNGI_PLANTED;
        }));
        SHROOMLIGHT = register("shroomlight", new Block(BlockBehaviour.Properties.of(Material.GRASS, MaterialColor.COLOR_RED).strength(1.0F).sound(SoundType.SHROOMLIGHT).lightLevel((var0x) -> {
@@ -336,7 +358,7 @@
        WARPED_PLANKS = register("warped_planks", new Block(BlockBehaviour.Properties.of(Material.NETHER_WOOD, MaterialColor.WARPED_STEM).strength(2.0F, 3.0F).sound(SoundType.WOOD)));
        CRIMSON_SLAB = register("crimson_slab", new SlabBlock(BlockBehaviour.Properties.of(Material.NETHER_WOOD, CRIMSON_PLANKS.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD)));
        WARPED_SLAB = register("warped_slab", new SlabBlock(BlockBehaviour.Properties.of(Material.NETHER_WOOD, WARPED_PLANKS.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD)));
-@@ -1708,10 +1801,83 @@
+@@ -1708,10 +1810,94 @@
        POLISHED_BLACKSTONE_BUTTON = register("polished_blackstone_button", new StoneButtonBlock(BlockBehaviour.Properties.of(Material.DECORATION).noCollission().strength(0.5F)));
        POLISHED_BLACKSTONE_WALL = register("polished_blackstone_wall", new WallBlock(BlockBehaviour.Properties.copy(POLISHED_BLACKSTONE)));
        CHISELED_NETHER_BRICKS = register("chiseled_nether_bricks", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.NETHER).requiresCorrectToolForDrops().strength(2.0F, 6.0F).sound(SoundType.NETHER_BRICKS)));
@@ -385,6 +407,12 @@
 +      TUFF = register("tuff", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.TERRACOTTA_GRAY).sound(SoundType.TUFF).requiresCorrectToolForDrops().strength(1.5F, 6.0F)));
 +      CALCITE = register("calcite", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.TERRACOTTA_WHITE).sound(SoundType.CALCITE).requiresCorrectToolForDrops().strength(0.75F)));
 +      TINTED_GLASS = register("tinted_glass", new TintedGlassBlock(BlockBehaviour.Properties.copy(GLASS).color(MaterialColor.COLOR_GRAY)));
++      POWDER_SNOW = register("powder_snow", new PowderSnowBlock(BlockBehaviour.Properties.of(Material.POWDER_SNOW).strength(0.1F).sound(SoundType.POWDER_SNOW).dynamicShape()));
++      SCULK_SENSOR = register("sculk_sensor", new SculkSensorBlock(BlockBehaviour.Properties.of(Material.SCULK, MaterialColor.COLOR_CYAN).strength(1.5F).sound(SoundType.SCULK_SENSOR).lightLevel((var0x) -> {
++         return 1;
++      }).emissiveRendering((var0x, var1x, var2x) -> {
++         return SculkSensorBlock.getPhase(var0x) == SculkSensorPhase.ACTIVE;
++      }), 8));
 +      WEATHERED_COPPER_BLOCK = register("weathered_copper_block", new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.WARPED_NYLIUM).requiresCorrectToolForDrops().strength(3.0F, 6.0F).sound(SoundType.COPPER)));
 +      SEMI_WEATHERED_COPPER_BLOCK = register("semi_weathered_copper_block", new ChangeOverTimeFullBlock(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.WARPED_STEM).requiresCorrectToolForDrops().strength(3.0F, 6.0F).sound(SoundType.COPPER), WEATHERED_COPPER_BLOCK));
 +      LIGHTLY_WEATHERED_COPPER_BLOCK = register("lightly_weathered_copper_block", new ChangeOverTimeFullBlock(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.TERRACOTTA_LIGHT_GRAY).requiresCorrectToolForDrops().strength(3.0F, 6.0F).sound(SoundType.COPPER), SEMI_WEATHERED_COPPER_BLOCK));
@@ -405,9 +433,9 @@
 +      WAXED_COPPER = register("waxed_copper", new Block(BlockBehaviour.Properties.copy(COPPER_BLOCK)));
 +      WAXED_SEMI_WEATHERED_COPPER = register("waxed_semi_weathered_copper", new Block(BlockBehaviour.Properties.copy(SEMI_WEATHERED_COPPER_BLOCK)));
 +      WAXED_LIGHTLY_WEATHERED_COPPER = register("waxed_lightly_weathered_copper", new Block(BlockBehaviour.Properties.copy(LIGHTLY_WEATHERED_COPPER_BLOCK)));
-+      WAXED_SEMI_WEATHERED_CUT_COPPER = register("waxed_semi_weathered_cut_copper", new ChangeOverTimeFullBlock(BlockBehaviour.Properties.copy(SEMI_WEATHERED_COPPER_BLOCK), WEATHERED_CUT_COPPER));
-+      WAXED_LIGHTLY_WEATHERED_CUT_COPPER = register("waxed_lightly_weathered_cut_copper", new ChangeOverTimeFullBlock(BlockBehaviour.Properties.copy(LIGHTLY_WEATHERED_COPPER_BLOCK), SEMI_WEATHERED_CUT_COPPER));
-+      WAXED_CUT_COPPER = register("waxed_cut_copper", new ChangeOverTimeFullBlock(BlockBehaviour.Properties.copy(COPPER_BLOCK), LIGHTLY_WEATHERED_CUT_COPPER));
++      WAXED_SEMI_WEATHERED_CUT_COPPER = register("waxed_semi_weathered_cut_copper", new Block(BlockBehaviour.Properties.copy(SEMI_WEATHERED_COPPER_BLOCK)));
++      WAXED_LIGHTLY_WEATHERED_CUT_COPPER = register("waxed_lightly_weathered_cut_copper", new Block(BlockBehaviour.Properties.copy(LIGHTLY_WEATHERED_COPPER_BLOCK)));
++      WAXED_CUT_COPPER = register("waxed_cut_copper", new Block(BlockBehaviour.Properties.copy(COPPER_BLOCK)));
 +      WAXED_SEMI_WEATHERED_CUT_COPPER_STAIRS = register("waxed_semi_weathered_cut_copper_stairs", new StairBlock(WAXED_SEMI_WEATHERED_CUT_COPPER.defaultBlockState(), BlockBehaviour.Properties.copy(SEMI_WEATHERED_COPPER_BLOCK)));
 +      WAXED_LIGHTLY_WEATHERED_CUT_COPPER_STAIRS = register("waxed_lightly_weathered_cut_copper_stairs", new StairBlock(WAXED_LIGHTLY_WEATHERED_CUT_COPPER.defaultBlockState(), BlockBehaviour.Properties.copy(LIGHTLY_WEATHERED_COPPER_BLOCK)));
 +      WAXED_CUT_COPPER_STAIRS = register("waxed_cut_copper_stairs", new StairBlock(WAXED_CUT_COPPER.defaultBlockState(), BlockBehaviour.Properties.copy(COPPER_BLOCK)));
@@ -415,6 +443,11 @@
 +      WAXED_LIGHTLY_WEATHERED_CUT_COPPER_SLAB = register("waxed_lightly_weathered_cut_copper_slab", new SlabBlock(BlockBehaviour.Properties.copy(WAXED_LIGHTLY_WEATHERED_CUT_COPPER).requiresCorrectToolForDrops()));
 +      WAXED_CUT_COPPER_SLAB = register("waxed_cut_copper_slab", new SlabBlock(BlockBehaviour.Properties.copy(WAXED_CUT_COPPER).requiresCorrectToolForDrops()));
 +      LIGHTNING_ROD = register("lightning_rod", new LightningRodBlock(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_ORANGE).requiresCorrectToolForDrops().strength(3.0F, 6.0F).sound(SoundType.COPPER).noOcclusion()));
++      POINTED_DRIPSTONE = register("pointed_dripstone", new PointedDripstoneBlock(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.TERRACOTTA_BROWN).noOcclusion().sound(SoundType.POINTED_DRIPSTONE).randomTicks().strength(1.5F, 3.0F)));
++      DRIPSTONE_BLOCK = register("dripstone_block", new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.TERRACOTTA_BROWN).sound(SoundType.DRIPSTONE_BLOCK).requiresCorrectToolForDrops().strength(1.5F, 1.0F)));
++      GLOW_LICHEN = register("glow_lichen", new GlowLichenBlock(BlockBehaviour.Properties.of(Material.REPLACEABLE_PLANT).noCollission().strength(0.2F).sound(SoundType.GLOW_LICHEN).lightLevel((var0x) -> {
++         return 7;
++      })));
        Iterator var0 = Registry.BLOCK.iterator();
  
        while(var0.hasNext()) {

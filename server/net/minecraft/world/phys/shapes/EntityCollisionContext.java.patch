@@ -1,9 +1,14 @@
 --- net/minecraft/world/phys/shapes/EntityCollisionContext.java
 +++ net/minecraft/world/phys/shapes/EntityCollisionContext.java
-@@ -4,34 +4,34 @@
+@@ -1,53 +1,60 @@
+ package net.minecraft.world.phys.shapes;
+ 
++import java.util.Optional;
+ import java.util.function.Predicate;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.item.Item;
 -import net.minecraft.world.item.Items;
@@ -18,14 +23,20 @@
     private final double entityBottom;
 -   private final Item heldItem;
 +   private final ItemStack heldItem;
++   private final ItemStack footItem;
     private final Predicate<Fluid> canStandOnFluid;
++   private final Optional<Entity> entity;
  
 -   protected EntityCollisionContext(boolean var1, double var2, Item var4, Predicate<Fluid> var5) {
-+   protected EntityCollisionContext(boolean var1, double var2, ItemStack var4, Predicate<Fluid> var5) {
++   protected EntityCollisionContext(boolean var1, double var2, ItemStack var4, ItemStack var5, Predicate<Fluid> var6, Optional<Entity> var7) {
        this.descending = var1;
        this.entityBottom = var2;
-       this.heldItem = var4;
-       this.canStandOnFluid = var5;
+-      this.heldItem = var4;
+-      this.canStandOnFluid = var5;
++      this.footItem = var4;
++      this.heldItem = var5;
++      this.canStandOnFluid = var6;
++      this.entity = var7;
     }
  
     @Deprecated
@@ -33,15 +44,23 @@
        boolean var10001 = var1.isDescending();
        double var10002 = var1.getY();
 -      Item var10003 = var1 instanceof LivingEntity ? ((LivingEntity)var1).getMainHandItem().getItem() : Items.AIR;
-+      ItemStack var10003 = var1 instanceof LivingEntity ? ((LivingEntity)var1).getMainHandItem() : ItemStack.EMPTY;
++      ItemStack var10003 = var1 instanceof LivingEntity ? ((LivingEntity)var1).getItemBySlot(EquipmentSlot.FEET) : ItemStack.EMPTY;
++      ItemStack var10004 = var1 instanceof LivingEntity ? ((LivingEntity)var1).getMainHandItem() : ItemStack.EMPTY;
        Predicate var2;
        if (var1 instanceof LivingEntity) {
-          LivingEntity var10004 = (LivingEntity)var1;
+-         LivingEntity var10004 = (LivingEntity)var1;
++         LivingEntity var10005 = (LivingEntity)var1;
           ((LivingEntity)var1).getClass();
-          var2 = var10004::canStandOnFluid;
-@@ -43,11 +43,11 @@
+-         var2 = var10004::canStandOnFluid;
++         var2 = var10005::canStandOnFluid;
+       } else {
+          var2 = (var0) -> {
+             return false;
+          };
+       }
  
-       this(var10001, var10002, var10003, var2);
+-      this(var10001, var10002, var10003, var2);
++      this(var10001, var10002, var10003, var10004, var2, Optional.of(var1));
     }
  
     public boolean isHoldingItem(Item var1) {
@@ -52,16 +71,24 @@
     public boolean canStandOnFluid(FluidState var1, FlowingFluid var2) {
        return this.canStandOnFluid.test(var2) && !var1.getType().isSame(var2);
     }
-@@ -59,11 +59,11 @@
+@@ -58,14 +65,18 @@
+ 
     public boolean isAbove(VoxelShape var1, BlockPos var2, boolean var3) {
        return this.entityBottom > (double)var2.getY() + var1.max(Direction.Axis.Y) - 9.999999747378752E-6D;
     }
  
++   public Optional<Entity> getEntity() {
++      return this.entity;
++   }
++
     static {
 -      EMPTY = new EntityCollisionContext(false, -1.7976931348623157E308D, Items.AIR, (var0) -> {
-+      EMPTY = new EntityCollisionContext(false, -1.7976931348623157E308D, ItemStack.EMPTY, (var0) -> {
++      EMPTY = new EntityCollisionContext(false, -1.7976931348623157E308D, ItemStack.EMPTY, ItemStack.EMPTY, (var0) -> {
           return false;
-       }) {
+-      }) {
++      }, Optional.empty()) {
           public boolean isAbove(VoxelShape var1, BlockPos var2, boolean var3) {
              return var3;
           }
+       };
+    }

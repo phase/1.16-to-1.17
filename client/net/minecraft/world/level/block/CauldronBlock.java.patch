@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/CauldronBlock.java
 +++ net/minecraft/world/level/block/CauldronBlock.java
-@@ -1,232 +1,27 @@
+@@ -1,232 +1,46 @@
  package net.minecraft.world.level.block;
  
  import net.minecraft.core.BlockPos;
@@ -25,6 +25,7 @@
 +import net.minecraft.core.cauldron.CauldronInteraction;
  import net.minecraft.world.level.Level;
 -import net.minecraft.world.level.block.entity.BannerBlockEntity;
++import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.block.state.BlockBehaviour;
  import net.minecraft.world.level.block.state.BlockState;
 -import net.minecraft.world.level.block.state.StateDefinition;
@@ -36,6 +37,8 @@
 -import net.minecraft.world.phys.shapes.CollisionContext;
 -import net.minecraft.world.phys.shapes.Shapes;
 -import net.minecraft.world.phys.shapes.VoxelShape;
++import net.minecraft.world.level.material.Fluid;
++import net.minecraft.world.level.material.Fluids;
  
 -public class CauldronBlock extends Block {
 -   public static final IntegerProperty LEVEL;
@@ -51,8 +54,10 @@
  
 -   public VoxelShape getShape(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
 -      return SHAPE;
--   }
--
++   protected static boolean shouldHandlePrecipitation(Level var0) {
++      return var0.random.nextInt(20) == 1;
+    }
+ 
 -   public VoxelShape getInteractionShape(BlockState var1, BlockGetter var2, BlockPos var3) {
 -      return INSIDE;
 -   }
@@ -71,10 +76,7 @@
 -      ItemStack var7 = var4.getItemInHand(var5);
 -      if (var7.isEmpty()) {
 -         return InteractionResult.PASS;
-+   protected static boolean shouldHandleRain(Level var0, BlockPos var1) {
-+      if (var0.random.nextInt(20) != 1) {
-+         return false;
-       } else {
+-      } else {
 -         int var8 = (Integer)var1.getValue(LEVEL);
 -         Item var9 = var7.getItem();
 -         if (var9 == Items.WATER_BUCKET) {
@@ -195,10 +197,15 @@
 -                  return InteractionResult.PASS;
 -               }
 -            }
--         }
-+         return var0.getBiome(var1).getTemperature(var1) >= 0.15F;
-       }
-    }
++   public void handlePrecipitation(BlockState var1, Level var2, BlockPos var3, Biome.Precipitation var4) {
++      if (shouldHandlePrecipitation(var2)) {
++         if (var4 == Biome.Precipitation.RAIN) {
++            var2.setBlockAndUpdate(var3, Blocks.WATER_CAULDRON.defaultBlockState());
++         } else if (var4 == Biome.Precipitation.SNOW) {
++            var2.setBlockAndUpdate(var3, Blocks.POWDER_SNOW_CAULDRON.defaultBlockState());
+          }
+-      }
+-   }
  
 -   public void setWaterLevel(Level var1, BlockPos var2, BlockState var3, int var4) {
 -      var1.setBlock(var2, (BlockState)var3.setValue(LEVEL, Mth.clamp(var4, 0, 3)), 2);
@@ -215,23 +222,29 @@
 -            }
 -
 -         }
-+   public void handleRain(BlockState var1, Level var2, BlockPos var3) {
-+      if (shouldHandleRain(var2, var3)) {
-+         var2.setBlockAndUpdate(var3, Blocks.WATER_CAULDRON.defaultBlockState());
        }
     }
--
+ 
 -   public boolean hasAnalogOutputSignal(BlockState var1) {
--      return true;
--   }
--
++   protected boolean canReceiveStalactiteDrip(Fluid var1) {
+       return true;
+    }
+ 
 -   public int getAnalogOutputSignal(BlockState var1, Level var2, BlockPos var3) {
 -      return (Integer)var1.getValue(LEVEL);
 -   }
--
++   protected void receiveStalactiteDrip(BlockState var1, Level var2, BlockPos var3, Fluid var4) {
++      if (var4 == Fluids.WATER) {
++         var2.setBlockAndUpdate(var3, Blocks.WATER_CAULDRON.defaultBlockState());
++         var2.levelEvent(1047, var3, 0);
++      } else if (var4 == Fluids.LAVA) {
++         var2.setBlockAndUpdate(var3, Blocks.LAVA_CAULDRON.defaultBlockState());
++         var2.levelEvent(1046, var3, 0);
++      }
+ 
 -   protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
 -      var1.add(LEVEL);
--   }
+    }
 -
 -   public boolean isPathfindable(BlockState var1, BlockGetter var2, BlockPos var3, PathComputationType var4) {
 -      return false;

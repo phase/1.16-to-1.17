@@ -1,6 +1,17 @@
 --- net/minecraft/client/multiplayer/MultiPlayerGameMode.java
 +++ net/minecraft/client/multiplayer/MultiPlayerGameMode.java
-@@ -33,14 +33,12 @@
+@@ -1,9 +1,10 @@
+ package net.minecraft.client.multiplayer;
+ 
+ import com.mojang.datafixers.util.Pair;
+ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
++import javax.annotation.Nullable;
+ import net.minecraft.client.ClientRecipeBook;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.player.LocalPlayer;
+ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+ import net.minecraft.core.BlockPos;
+@@ -33,14 +34,12 @@
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.item.crafting.Recipe;
  import net.minecraft.world.level.GameType;
@@ -16,7 +27,23 @@
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.EntityHitResult;
  import net.minecraft.world.phys.Vec3;
-@@ -70,11 +68,11 @@
+@@ -56,38 +55,40 @@
+    private float destroyProgress;
+    private float destroyTicks;
+    private int destroyDelay;
+    private boolean isDestroying;
+    private GameType localPlayerMode;
++   @Nullable
+    private GameType previousLocalPlayerMode;
+    private final Object2ObjectLinkedOpenHashMap<Pair<BlockPos, ServerboundPlayerActionPacket.Action>, Vec3> unAckedActions;
+    private int carriedIndex;
+ 
+    public MultiPlayerGameMode(Minecraft var1, ClientPacketListener var2) {
+       this.destroyingItem = ItemStack.EMPTY;
+-      this.localPlayerMode = GameType.SURVIVAL;
+-      this.previousLocalPlayerMode = GameType.NOT_SET;
++      this.localPlayerMode = GameType.DEFAULT_MODE;
+       this.unAckedActions = new Object2ObjectLinkedOpenHashMap();
        this.minecraft = var1;
        this.connection = var2;
     }
@@ -26,10 +53,15 @@
 +      this.localPlayerMode.updatePlayerAbilities(var1.getAbilities());
     }
  
-    public void setPreviousLocalMode(GameType var1) {
-       this.previousLocalPlayerMode = var1;
+-   public void setPreviousLocalMode(GameType var1) {
+-      this.previousLocalPlayerMode = var1;
++   public void setLocalMode(GameType var1, @Nullable GameType var2) {
++      this.localPlayerMode = var1;
++      this.previousLocalPlayerMode = var2;
++      this.localPlayerMode.updatePlayerAbilities(this.minecraft.player.getAbilities());
     }
-@@ -83,11 +81,11 @@
+ 
+    public void setLocalMode(GameType var1) {
        if (var1 != this.localPlayerMode) {
           this.previousLocalPlayerMode = this.localPlayerMode;
        }
@@ -42,7 +74,7 @@
     public boolean canHurtPlayer() {
        return this.localPlayerMode.isSurvival();
     }
-@@ -100,11 +98,11 @@
+@@ -100,11 +101,11 @@
           BlockState var3 = var2.getBlockState(var1);
           if (!this.minecraft.player.getMainHandItem().getItem().canAttackBlock(var3, var2, var1, this.minecraft.player)) {
              return false;
@@ -55,7 +87,7 @@
                 return false;
              } else {
                 var4.playerWillDestroy(var2, var1, var3, this.minecraft.player);
-@@ -237,18 +235,18 @@
+@@ -237,18 +238,18 @@
  
     private boolean sameDestroyTarget(BlockPos var1) {
        ItemStack var2 = this.minecraft.player.getMainHandItem();
@@ -76,7 +108,7 @@
           this.connection.send((Packet)(new ServerboundSetCarriedItemPacket(this.carriedIndex)));
        }
  
-@@ -347,11 +345,11 @@
+@@ -347,11 +348,11 @@
        this.connection.send((Packet)(new ServerboundInteractPacket(var2, var4, var5, var1.isShiftKeyDown())));
        return this.localPlayerMode == GameType.SPECTATOR ? InteractionResult.PASS : var2.interactAt(var1, var5, var4);
     }
@@ -89,7 +121,19 @@
        return var7;
     }
  
-@@ -441,10 +439,10 @@
+@@ -405,10 +406,11 @@
+ 
+    public boolean isAlwaysFlying() {
+       return this.localPlayerMode == GameType.SPECTATOR;
+    }
+ 
++   @Nullable
+    public GameType getPreviousPlayerMode() {
+       return this.previousLocalPlayerMode;
+    }
+ 
+    public GameType getPlayerMode() {
+@@ -441,10 +443,10 @@
        }
  
        while(this.unAckedActions.size() >= 50) {

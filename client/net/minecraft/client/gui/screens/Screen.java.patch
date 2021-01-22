@@ -1,6 +1,6 @@
 --- net/minecraft/client/gui/screens/Screen.java
 +++ net/minecraft/client/gui/screens/Screen.java
-@@ -7,10 +7,11 @@
+@@ -7,20 +7,23 @@
  import com.mojang.blaze3d.vertex.BufferBuilder;
  import com.mojang.blaze3d.vertex.BufferUploader;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -12,20 +12,201 @@
  import java.net.URI;
  import java.net.URISyntaxException;
  import java.nio.file.Path;
-@@ -160,11 +161,11 @@
-          int var11 = 1347420415;
-          int var12 = 1344798847;
-          boolean var13 = true;
-          Tesselator var14 = Tesselator.getInstance();
-          BufferBuilder var15 = var14.getBuilder();
+ import java.util.Arrays;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Locale;
++import java.util.Optional;
+ import java.util.Set;
++import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportCategory;
+ import net.minecraft.ReportedException;
+ import net.minecraft.Util;
+@@ -29,17 +32,19 @@
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.components.TickableWidget;
+ import net.minecraft.client.gui.components.Widget;
+ import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
+ import net.minecraft.client.gui.components.events.GuiEventListener;
++import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.entity.ItemRenderer;
+ import net.minecraft.network.chat.ClickEvent;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.HoverEvent;
+ import net.minecraft.network.chat.Style;
+ import net.minecraft.util.FormattedCharSequence;
++import net.minecraft.world.inventory.tooltip.TooltipComponent;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.TooltipFlag;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+@@ -110,13 +115,21 @@
+       this.children.add(var1);
+       return var1;
+    }
+ 
+    protected void renderTooltip(PoseStack var1, ItemStack var2, int var3, int var4) {
+-      this.renderComponentTooltip(var1, this.getTooltipFromItem(var2), var3, var4);
++      this.renderTooltip(var1, this.getTooltipFromItem(var2), var2.getTooltipImage(), var3, var4);
+    }
+ 
++   public void renderTooltip(PoseStack var1, List<Component> var2, Optional<TooltipComponent> var3, int var4, int var5) {
++      List var6 = (List)var2.stream().map(Component::getVisualOrderText).map(ClientTooltipComponent::create).collect(Collectors.toList());
++      var3.ifPresent((var1x) -> {
++         var6.add(1, ClientTooltipComponent.create(var1x));
++      });
++      this.renderTooltipInternal(var1, var6, var4, var5);
++   }
++
+    public List<Component> getTooltipFromItem(ItemStack var1) {
+       return var1.getTooltipLines(this.minecraft.player, this.minecraft.options.advancedItemTooltips ? TooltipFlag.Default.ADVANCED : TooltipFlag.Default.NORMAL);
+    }
+ 
+    public void renderTooltip(PoseStack var1, Component var2, int var3, int var4) {
+@@ -126,83 +139,90 @@
+    public void renderComponentTooltip(PoseStack var1, List<Component> var2, int var3, int var4) {
+       this.renderTooltip(var1, Lists.transform(var2, Component::getVisualOrderText), var3, var4);
+    }
+ 
+    public void renderTooltip(PoseStack var1, List<? extends FormattedCharSequence> var2, int var3, int var4) {
++      this.renderTooltipInternal(var1, (List)var2.stream().map(ClientTooltipComponent::create).collect(Collectors.toList()), var3, var4);
++   }
++
++   private void renderTooltipInternal(PoseStack var1, List<ClientTooltipComponent> var2, int var3, int var4) {
+       if (!var2.isEmpty()) {
+          int var5 = 0;
+-         Iterator var6 = var2.iterator();
++         int var6 = var2.size() == 1 ? -2 : 0;
+ 
+-         while(var6.hasNext()) {
+-            FormattedCharSequence var7 = (FormattedCharSequence)var6.next();
+-            int var8 = this.font.width(var7);
+-            if (var8 > var5) {
+-               var5 = var8;
++         ClientTooltipComponent var8;
++         for(Iterator var7 = var2.iterator(); var7.hasNext(); var6 += var8.getHeight()) {
++            var8 = (ClientTooltipComponent)var7.next();
++            int var9 = var8.getWidth(this.font);
++            if (var9 > var5) {
++               var5 = var9;
+             }
+          }
+ 
+-         int var20 = var3 + 12;
+-         int var21 = var4 - 12;
+-         int var9 = 8;
+-         if (var2.size() > 1) {
+-            var9 += 2 + (var2.size() - 1) * 10;
++         int var23 = var3 + 12;
++         int var24 = var4 - 12;
++         if (var23 + var5 > this.width) {
++            var23 -= 28 + var5;
+          }
+ 
+-         if (var20 + var5 > this.width) {
+-            var20 -= 28 + var5;
++         if (var24 + var6 + 6 > this.height) {
++            var24 = this.height - var6 - 6;
+          }
+ 
+-         if (var21 + var9 + 6 > this.height) {
+-            var21 = this.height - var9 - 6;
+-         }
+-
+          var1.pushPose();
+-         int var10 = -267386864;
+-         int var11 = 1347420415;
+-         int var12 = 1344798847;
+-         boolean var13 = true;
+-         Tesselator var14 = Tesselator.getInstance();
+-         BufferBuilder var15 = var14.getBuilder();
 -         var15.begin(7, DefaultVertexFormat.POSITION_COLOR);
-+         var15.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-          Matrix4f var16 = var1.last().pose();
-          fillGradient(var16, var15, var20 - 3, var21 - 4, var20 + var5 + 3, var21 - 3, 400, -267386864, -267386864);
-          fillGradient(var16, var15, var20 - 3, var21 + var9 + 3, var20 + var5 + 3, var21 + var9 + 4, 400, -267386864, -267386864);
-          fillGradient(var16, var15, var20 - 3, var21 - 3, var20 + var5 + 3, var21 + var9 + 3, 400, -267386864, -267386864);
-          fillGradient(var16, var15, var20 - 4, var21 - 3, var20 - 3, var21 + var9 + 3, 400, -267386864, -267386864);
-@@ -340,11 +341,11 @@
+-         Matrix4f var16 = var1.last().pose();
+-         fillGradient(var16, var15, var20 - 3, var21 - 4, var20 + var5 + 3, var21 - 3, 400, -267386864, -267386864);
+-         fillGradient(var16, var15, var20 - 3, var21 + var9 + 3, var20 + var5 + 3, var21 + var9 + 4, 400, -267386864, -267386864);
+-         fillGradient(var16, var15, var20 - 3, var21 - 3, var20 + var5 + 3, var21 + var9 + 3, 400, -267386864, -267386864);
+-         fillGradient(var16, var15, var20 - 4, var21 - 3, var20 - 3, var21 + var9 + 3, 400, -267386864, -267386864);
+-         fillGradient(var16, var15, var20 + var5 + 3, var21 - 3, var20 + var5 + 4, var21 + var9 + 3, 400, -267386864, -267386864);
+-         fillGradient(var16, var15, var20 - 3, var21 - 3 + 1, var20 - 3 + 1, var21 + var9 + 3 - 1, 400, 1347420415, 1344798847);
+-         fillGradient(var16, var15, var20 + var5 + 2, var21 - 3 + 1, var20 + var5 + 3, var21 + var9 + 3 - 1, 400, 1347420415, 1344798847);
+-         fillGradient(var16, var15, var20 - 3, var21 - 3, var20 + var5 + 3, var21 - 3 + 1, 400, 1347420415, 1347420415);
+-         fillGradient(var16, var15, var20 - 3, var21 + var9 + 2, var20 + var5 + 3, var21 + var9 + 3, 400, 1344798847, 1344798847);
++         int var11 = -267386864;
++         int var12 = 1347420415;
++         int var13 = 1344798847;
++         boolean var14 = true;
++         float var15 = this.itemRenderer.blitOffset;
++         this.itemRenderer.blitOffset = 400.0F;
++         Tesselator var16 = Tesselator.getInstance();
++         BufferBuilder var17 = var16.getBuilder();
++         var17.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
++         Matrix4f var18 = var1.last().pose();
++         fillGradient(var18, var17, var23 - 3, var24 - 4, var23 + var5 + 3, var24 - 3, 400, -267386864, -267386864);
++         fillGradient(var18, var17, var23 - 3, var24 + var6 + 3, var23 + var5 + 3, var24 + var6 + 4, 400, -267386864, -267386864);
++         fillGradient(var18, var17, var23 - 3, var24 - 3, var23 + var5 + 3, var24 + var6 + 3, 400, -267386864, -267386864);
++         fillGradient(var18, var17, var23 - 4, var24 - 3, var23 - 3, var24 + var6 + 3, 400, -267386864, -267386864);
++         fillGradient(var18, var17, var23 + var5 + 3, var24 - 3, var23 + var5 + 4, var24 + var6 + 3, 400, -267386864, -267386864);
++         fillGradient(var18, var17, var23 - 3, var24 - 3 + 1, var23 - 3 + 1, var24 + var6 + 3 - 1, 400, 1347420415, 1344798847);
++         fillGradient(var18, var17, var23 + var5 + 2, var24 - 3 + 1, var23 + var5 + 3, var24 + var6 + 3 - 1, 400, 1347420415, 1344798847);
++         fillGradient(var18, var17, var23 - 3, var24 - 3, var23 + var5 + 3, var24 - 3 + 1, 400, 1347420415, 1347420415);
++         fillGradient(var18, var17, var23 - 3, var24 + var6 + 2, var23 + var5 + 3, var24 + var6 + 3, 400, 1344798847, 1344798847);
+          RenderSystem.enableDepthTest();
+          RenderSystem.disableTexture();
+          RenderSystem.enableBlend();
+          RenderSystem.defaultBlendFunc();
+          RenderSystem.shadeModel(7425);
+-         var15.end();
+-         BufferUploader.end(var15);
++         var17.end();
++         BufferUploader.end(var17);
+          RenderSystem.shadeModel(7424);
+          RenderSystem.disableBlend();
+          RenderSystem.enableTexture();
+-         MultiBufferSource.BufferSource var17 = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
++         MultiBufferSource.BufferSource var19 = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+          var1.translate(0.0D, 0.0D, 400.0D);
++         int var20 = var24;
+ 
+-         for(int var18 = 0; var18 < var2.size(); ++var18) {
+-            FormattedCharSequence var19 = (FormattedCharSequence)var2.get(var18);
+-            if (var19 != null) {
+-               this.font.drawInBatch((FormattedCharSequence)var19, (float)var20, (float)var21, -1, true, var16, var17, false, 0, 15728880);
+-            }
++         int var21;
++         ClientTooltipComponent var22;
++         for(var21 = 0; var21 < var2.size(); ++var21) {
++            var22 = (ClientTooltipComponent)var2.get(var21);
++            var22.renderText(this.font, var23, var20, var18, var19);
++            var20 += var22.getHeight() + (var21 == 0 ? 2 : 0);
++         }
+ 
+-            if (var18 == 0) {
+-               var21 += 2;
+-            }
++         var19.endBatch();
++         var1.popPose();
++         var20 = var24;
+ 
+-            var21 += 10;
++         for(var21 = 0; var21 < var2.size(); ++var21) {
++            var22 = (ClientTooltipComponent)var2.get(var21);
++            var22.renderImage(this.font, var23, var20, var1, this.itemRenderer, 400, this.minecraft.getTextureManager());
++            var20 += var22.getHeight() + (var21 == 0 ? 2 : 0);
+          }
+ 
+-         var17.endBatch();
+-         var1.popPose();
++         this.itemRenderer.blitOffset = var15;
+       }
+    }
+ 
+    protected void renderComponentHoverEffect(PoseStack var1, @Nullable Style var2, int var3, int var4) {
+       if (var2 != null && var2.getHoverEvent() != null) {
+@@ -340,11 +360,11 @@
        Tesselator var2 = Tesselator.getInstance();
        BufferBuilder var3 = var2.getBuilder();
        this.minecraft.getTextureManager().bind(BACKGROUND_LOCATION);

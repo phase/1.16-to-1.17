@@ -1,18 +1,51 @@
 --- net/minecraft/world/level/LevelReader.java
 +++ net/minecraft/world/level/LevelReader.java
-@@ -2,10 +2,11 @@
+@@ -2,10 +2,12 @@
  
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
++import net.minecraft.core.QuartPos;
 +import net.minecraft.core.SectionPos;
  import net.minecraft.tags.FluidTags;
  import net.minecraft.util.Mth;
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeManager;
  import net.minecraft.world.level.block.state.BlockState;
-@@ -96,11 +97,11 @@
+@@ -45,11 +47,11 @@
+    default int getBlockTint(BlockPos var1, ColorResolver var2) {
+       return var2.getColor(this.getBiome(var1), (double)var1.getX(), (double)var1.getZ());
+    }
+ 
+    default Biome getNoiseBiome(int var1, int var2, int var3) {
+-      ChunkAccess var4 = this.getChunk(var1 >> 2, var3 >> 2, ChunkStatus.BIOMES, false);
++      ChunkAccess var4 = this.getChunk(QuartPos.toSection(var1), QuartPos.toSection(var3), ChunkStatus.BIOMES, false);
+       return var4 != null && var4.getBiomes() != null ? var4.getBiomes().getNoiseBiome(var1, var2, var3) : this.getUncachedNoiseBiome(var1, var2, var3);
+    }
+ 
+    Biome getUncachedNoiseBiome(int var1, int var2, int var3);
+ 
+@@ -58,10 +60,18 @@
+    @Deprecated
+    int getSeaLevel();
+ 
+    DimensionType dimensionType();
+ 
++   default int getMinBuildHeight() {
++      return this.dimensionType().minY();
++   }
++
++   default int getHeight() {
++      return this.dimensionType().height();
++   }
++
+    default BlockPos getHeightmapPos(Heightmap.Types var1, BlockPos var2) {
+       return new BlockPos(var2.getX(), this.getHeight(var1, var2.getX(), var2.getZ()), var2.getZ());
+    }
+ 
+    default boolean isEmptyBlock(BlockPos var1) {
+@@ -96,11 +106,11 @@
     default int getDirectSignal(BlockPos var1, Direction var2) {
        return this.getBlockState(var1).getDirectSignal(this, var1, var2);
     }
@@ -25,7 +58,7 @@
     default ChunkAccess getChunk(int var1, int var2) {
        return this.getChunk(var1, var2, ChunkStatus.FULL, true);
     }
-@@ -149,21 +150,21 @@
+@@ -149,21 +159,21 @@
        return var1.getX() >= -30000000 && var1.getZ() >= -30000000 && var1.getX() < 30000000 && var1.getZ() < 30000000 ? this.getRawBrightness(var1, var2) : 15;
     }
  

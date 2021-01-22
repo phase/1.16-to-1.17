@@ -13,3 +13,39 @@
              }
  
              return false;
+@@ -193,16 +193,14 @@
+                return new JsonSyntaxException("Unknown item '" + var1 + "'");
+             });
+             return new Ingredient.ItemValue(new ItemStack(var3));
+          } else if (var0.has("tag")) {
+             var1 = new ResourceLocation(GsonHelper.getAsString(var0, "tag"));
+-            Tag var2 = SerializationTags.getInstance().getItems().getTag(var1);
+-            if (var2 == null) {
+-               throw new JsonSyntaxException("Unknown item tag '" + var1 + "'");
+-            } else {
+-               return new Ingredient.TagValue(var2);
+-            }
++            Tag var2 = SerializationTags.getInstance().getTagOrThrow(Registry.ITEM_REGISTRY, var1, (var0x) -> {
++               return new JsonSyntaxException("Unknown item tag '" + var0x + "'");
++            });
++            return new Ingredient.TagValue(var2);
+          } else {
+             throw new JsonParseException("An ingredient entry needs either a tag or an item");
+          }
+       }
+    }
+@@ -226,11 +224,13 @@
+          return var1;
+       }
+ 
+       public JsonObject serialize() {
+          JsonObject var1 = new JsonObject();
+-         var1.addProperty("tag", SerializationTags.getInstance().getItems().getIdOrThrow(this.tag).toString());
++         var1.addProperty("tag", SerializationTags.getInstance().getIdOrThrow(Registry.ITEM_REGISTRY, this.tag, () -> {
++            return new IllegalStateException("Unknown item tag");
++         }).toString());
+          return var1;
+       }
+    }
+ 
+    static class ItemValue implements Ingredient.Value {

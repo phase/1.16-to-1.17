@@ -1,6 +1,6 @@
 --- net/minecraft/gametest/framework/ReportGameListener.java
 +++ net/minecraft/gametest/framework/ReportGameListener.java
-@@ -1,0 +1,148 @@
+@@ -1,0 +1,173 @@
 +package net.minecraft.gametest.framework;
 +
 +import com.google.common.base.MoreObjects;
@@ -43,6 +43,21 @@
 +      ++this.attempts;
 +   }
 +
++   public void testPassed(GameTestInfo var1) {
++      ++this.successes;
++      if (!var1.isFlaky()) {
++         reportPassed(var1, var1.getTestName() + " passed!");
++      } else {
++         if (this.successes >= var1.requiredSuccesses()) {
++            reportPassed(var1, var1 + " passed " + this.successes + " times of " + this.attempts + " attempts.");
++         } else {
++            say(this.originalTestInfo.getLevel(), ChatFormatting.GREEN, "Flaky test " + this.originalTestInfo + " succeeded, attempt: " + this.attempts + " successes: " + this.successes);
++            this.rerunTest();
++         }
++
++      }
++   }
++
 +   public void testFailed(GameTestInfo var1) {
 +      if (!var1.isFlaky()) {
 +         reportFailure(var1, var1.getError());
@@ -61,6 +76,16 @@
 +         }
 +
 +      }
++   }
++
++   public static void reportPassed(GameTestInfo var0, String var1) {
++      spawnBeacon(var0, Blocks.LIME_STAINED_GLASS);
++      visualizePassedTest(var0, var1);
++   }
++
++   private static void visualizePassedTest(GameTestInfo var0, String var1) {
++      say(var0.getLevel(), ChatFormatting.GREEN, var1);
++      GlobalTestReporter.onTestSuccess(var0);
 +   }
 +
 +   protected static void reportFailure(GameTestInfo var0, Throwable var1) {

@@ -1,7 +1,12 @@
 --- net/minecraft/network/protocol/game/ClientboundLevelChunkPacket.java
 +++ net/minecraft/network/protocol/game/ClientboundLevelChunkPacket.java
-@@ -6,11 +6,10 @@
+@@ -2,15 +2,15 @@
+ 
+ import com.google.common.collect.Lists;
+ import io.netty.buffer.ByteBuf;
+ import io.netty.buffer.Unpooled;
  import java.io.IOException;
++import java.util.BitSet;
  import java.util.Iterator;
  import java.util.List;
  import java.util.Map.Entry;
@@ -12,7 +17,14 @@
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.world.level.ChunkPos;
-@@ -27,69 +26,50 @@
+@@ -21,75 +21,56 @@
+ import net.minecraft.world.level.levelgen.Heightmap;
+ 
+ public class ClientboundLevelChunkPacket implements Packet<ClientGamePacketListener> {
+    private int x;
+    private int z;
+-   private int availableSections;
++   private BitSet availableSections;
     private CompoundTag heightmaps;
     @Nullable
     private int[] biomes;
@@ -91,31 +103,34 @@
        this.x = var1.readInt();
        this.z = var1.readInt();
 -      this.fullChunk = var1.readBoolean();
-       this.availableSections = var1.readVarInt();
+-      this.availableSections = var1.readVarInt();
++      this.availableSections = var1.readBitSet();
        this.heightmaps = var1.readNbt();
 -      if (this.fullChunk) {
 -         this.biomes = var1.readVarIntArray(ChunkBiomeContainer.BIOMES_SIZE);
 -      }
 -
-+      this.biomes = var1.readVarIntArray(ChunkBiomeContainer.BIOMES_SIZE);
++      this.biomes = var1.readVarIntArray(ChunkBiomeContainer.MAX_SIZE);
        int var2 = var1.readVarInt();
        if (var2 > 2097152) {
           throw new RuntimeException("Chunk Packet trying to allocate too much memory on read.");
        } else {
           this.buffer = new byte[var2];
-@@ -105,11 +85,10 @@
+@@ -105,12 +86,11 @@
     }
  
     public void write(FriendlyByteBuf var1) throws IOException {
        var1.writeInt(this.x);
        var1.writeInt(this.z);
 -      var1.writeBoolean(this.fullChunk);
-       var1.writeVarInt(this.availableSections);
+-      var1.writeVarInt(this.availableSections);
++      var1.writeBitSet(this.availableSections);
        var1.writeNbt(this.heightmaps);
        if (this.biomes != null) {
           var1.writeVarIntArray(this.biomes);
        }
-@@ -138,39 +117,39 @@
+ 
+@@ -138,57 +118,53 @@
        ByteBuf var1 = Unpooled.wrappedBuffer(this.buffer);
        var1.writerIndex(0);
        return var1;
@@ -125,8 +140,8 @@
 -      int var4 = 0;
 -      LevelChunkSection[] var5 = var2.getSections();
 -      int var6 = 0;
-+   public int extractChunkData(FriendlyByteBuf var1, LevelChunk var2) {
-+      int var3 = 0;
++   public BitSet extractChunkData(FriendlyByteBuf var1, LevelChunk var2) {
++      BitSet var3 = new BitSet();
 +      LevelChunkSection[] var4 = var2.getSections();
 +      int var5 = 0;
  
@@ -138,7 +153,7 @@
 +      for(int var6 = var4.length; var5 < var6; ++var5) {
 +         LevelChunkSection var7 = var4[var5];
 +         if (var7 != LevelChunk.EMPTY_SECTION && !var7.isEmpty()) {
-+            var3 |= 1 << var5;
++            var3.set(var5);
 +            var7.write(var1);
           }
        }
@@ -174,9 +189,13 @@
     public int getX() {
        return this.x;
     }
-@@ -181,14 +160,10 @@
  
-    public int getAvailableSections() {
+    public int getZ() {
+       return this.z;
+    }
+ 
+-   public int getAvailableSections() {
++   public BitSet getAvailableSections() {
        return this.availableSections;
     }
  

@@ -35,7 +35,117 @@
        this.testFunction = var1;
        this.level = var3;
        this.timeoutTicks = var1.getMaxTicks();
-@@ -162,19 +165,28 @@
+@@ -47,49 +50,65 @@
+       this.timer.start();
+    }
+ 
+    public void tick() {
+       if (!this.isDone()) {
+-         this.tickCount = this.level.getGameTime() - this.startTick;
+-         if (this.tickCount >= 0L) {
+-            if (this.tickCount == 0L) {
+-               this.startTest();
++         this.tickInternal();
++         if (this.isDone()) {
++            if (this.error != null) {
++               this.listeners.forEach((var1) -> {
++                  var1.testFailed(this);
++               });
++            } else {
++               this.listeners.forEach((var1) -> {
++                  var1.testPassed(this);
++               });
+             }
++         }
+ 
+-            ObjectIterator var1 = this.runAtTickTimeMap.object2LongEntrySet().iterator();
++      }
++   }
+ 
+-            while(var1.hasNext()) {
+-               Entry var2 = (Entry)var1.next();
+-               if (var2.getLongValue() <= this.tickCount) {
+-                  try {
+-                     ((Runnable)var2.getKey()).run();
+-                  } catch (Exception var4) {
+-                     this.fail(var4);
+-                  }
++   private void tickInternal() {
++      this.tickCount = this.level.getGameTime() - this.startTick;
++      if (this.tickCount >= 0L) {
++         if (this.tickCount == 0L) {
++            this.startTest();
++         }
+ 
+-                  var1.remove();
++         ObjectIterator var1 = this.runAtTickTimeMap.object2LongEntrySet().iterator();
++
++         while(var1.hasNext()) {
++            Entry var2 = (Entry)var1.next();
++            if (var2.getLongValue() <= this.tickCount) {
++               try {
++                  ((Runnable)var2.getKey()).run();
++               } catch (Exception var4) {
++                  this.fail(var4);
+                }
++
++               var1.remove();
+             }
++         }
+ 
+-            if (this.tickCount > (long)this.timeoutTicks) {
+-               if (this.sequences.isEmpty()) {
+-                  this.fail(new GameTestTimeoutException("Didn't succeed or fail within " + this.testFunction.getMaxTicks() + " ticks"));
+-               } else {
+-                  this.sequences.forEach((var1x) -> {
+-                     var1x.tickAndFailIfNotComplete(this.tickCount);
+-                  });
+-                  if (this.error == null) {
+-                     this.fail(new GameTestTimeoutException("No sequences finished"));
+-                  }
+-               }
++         if (this.tickCount > (long)this.timeoutTicks) {
++            if (this.sequences.isEmpty()) {
++               this.fail(new GameTestTimeoutException("Didn't succeed or fail within " + this.testFunction.getMaxTicks() + " ticks"));
+             } else {
+                this.sequences.forEach((var1x) -> {
+-                  var1x.tickAndContinue(this.tickCount);
++                  var1x.tickAndFailIfNotComplete(this.tickCount);
+                });
++               if (this.error == null) {
++                  this.fail(new GameTestTimeoutException("No sequences finished"));
++               }
+             }
+-
++         } else {
++            this.sequences.forEach((var1x) -> {
++               var1x.tickAndContinue(this.tickCount);
++            });
+          }
++
+       }
+    }
+ 
+    private void startTest() {
+       if (this.started) {
+@@ -141,15 +160,12 @@
+       }
+ 
+    }
+ 
+    public void fail(Throwable var1) {
+-      this.finish();
+       this.error = var1;
+-      this.listeners.forEach((var1x) -> {
+-         var1x.testFailed(this);
+-      });
++      this.finish();
+    }
+ 
+    @Nullable
+    public Throwable getError() {
+       return this.error;
+@@ -162,19 +178,28 @@
     public void addListener(GameTestListener var1) {
        this.listeners.add(var1);
     }
@@ -67,7 +177,7 @@
     }
  
     public boolean isOptional() {
-@@ -190,6 +202,18 @@
+@@ -190,6 +215,18 @@
     }
  
     public TestFunction getTestFunction() {

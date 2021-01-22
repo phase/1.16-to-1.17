@@ -1,6 +1,16 @@
 --- net/minecraft/server/level/ServerPlayerGameMode.java
 +++ net/minecraft/server/level/ServerPlayerGameMode.java
-@@ -14,13 +14,11 @@
+@@ -1,8 +1,9 @@
+ package net.minecraft.server.level;
+ 
+ import java.util.Objects;
++import javax.annotation.Nullable;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.network.protocol.game.ClientboundBlockBreakAckPacket;
+ import net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket;
+@@ -14,60 +15,65 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.level.GameType;
@@ -15,10 +25,51 @@
  import net.minecraft.world.phys.BlockHitResult;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
-@@ -54,11 +52,11 @@
+ 
+ public class ServerPlayerGameMode {
+    private static final Logger LOGGER = LogManager.getLogger();
+-   public ServerLevel level;
+-   public ServerPlayer player;
++   protected ServerLevel level;
++   protected final ServerPlayer player;
+    private GameType gameModeForPlayer;
++   @Nullable
+    private GameType previousGameModeForPlayer;
+    private boolean isDestroyingBlock;
+    private int destroyProgressStart;
+    private BlockPos destroyPos;
+    private int gameTicks;
+    private boolean hasDelayedDestroy;
+    private BlockPos delayedDestroyPos;
+    private int delayedTickStart;
+    private int lastSentState;
+ 
+-   public ServerPlayerGameMode(ServerLevel var1) {
+-      this.gameModeForPlayer = GameType.NOT_SET;
+-      this.previousGameModeForPlayer = GameType.NOT_SET;
++   public ServerPlayerGameMode(ServerPlayer var1) {
++      this.gameModeForPlayer = GameType.DEFAULT_MODE;
+       this.destroyPos = BlockPos.ZERO;
+       this.delayedDestroyPos = BlockPos.ZERO;
+       this.lastSentState = -1;
+-      this.level = var1;
++      this.player = var1;
++      this.level = var1.getLevel();
     }
  
-    public void setGameModeForPlayer(GameType var1, GameType var2) {
+-   public void setGameModeForPlayer(GameType var1) {
+-      this.setGameModeForPlayer(var1, var1 != this.gameModeForPlayer ? this.gameModeForPlayer : this.previousGameModeForPlayer);
++   public boolean changeGameModeForPlayer(GameType var1) {
++      if (var1 == this.gameModeForPlayer) {
++         return false;
++      } else {
++         this.setGameModeForPlayer(var1, this.gameModeForPlayer);
++         return true;
++      }
+    }
+ 
+-   public void setGameModeForPlayer(GameType var1, GameType var2) {
++   protected void setGameModeForPlayer(GameType var1, @Nullable GameType var2) {
        this.previousGameModeForPlayer = var2;
        this.gameModeForPlayer = var1;
 -      var1.updatePlayerAbilities(this.player.abilities);
@@ -28,6 +79,35 @@
        this.level.updateSleepingPlayerList();
     }
  
+    public GameType getGameModeForPlayer() {
+       return this.gameModeForPlayer;
+    }
+ 
++   @Nullable
+    public GameType getPreviousGameModeForPlayer() {
+       return this.previousGameModeForPlayer;
+    }
+ 
+    public boolean isSurvival() {
+@@ -76,18 +82,10 @@
+ 
+    public boolean isCreative() {
+       return this.gameModeForPlayer.isCreative();
+    }
+ 
+-   public void updateGameMode(GameType var1) {
+-      if (this.gameModeForPlayer == GameType.NOT_SET) {
+-         this.gameModeForPlayer = var1;
+-      }
+-
+-      this.setGameModeForPlayer(this.gameModeForPlayer);
+-   }
+-
+    public void tick() {
+       ++this.gameTicks;
+       BlockState var1;
+       if (this.hasDelayedDestroy) {
+          var1 = this.level.getBlockState(this.delayedDestroyPos);
 @@ -198,11 +196,11 @@
  
              this.player.connection.send(new ClientboundBlockBreakAckPacket(var1, this.level.getBlockState(var1), var2, true, "stopped destroying"));

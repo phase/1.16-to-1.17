@@ -12,19 +12,37 @@
  import net.minecraft.core.Direction;
  import net.minecraft.core.IdMapper;
  import net.minecraft.core.NonNullList;
-@@ -19,11 +20,10 @@
+@@ -19,11 +20,11 @@
  import net.minecraft.network.chat.MutableComponent;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.stats.Stats;
  import net.minecraft.tags.BlockTags;
 -import net.minecraft.tags.Tag;
++import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.ExperienceOrb;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.entity.monster.piglin.PiglinAi;
-@@ -111,18 +111,10 @@
+@@ -39,14 +40,16 @@
+ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.ItemLike;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LevelAccessor;
+ import net.minecraft.world.level.LevelReader;
++import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.StateDefinition;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.storage.loot.LootContext;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.shapes.BooleanOp;
+ import net.minecraft.world.phys.shapes.Shapes;
+@@ -111,18 +114,10 @@
  
     public static VoxelShape box(double var0, double var2, double var4, double var6, double var8, double var10) {
        return Shapes.box(var0 / 16.0D, var2 / 16.0D, var4 / 16.0D, var6 / 16.0D, var8 / 16.0D, var10 / 16.0D);
@@ -43,7 +61,7 @@
        BlockPos.MutableBlockPos var4 = new BlockPos.MutableBlockPos();
        Direction[] var5 = UPDATE_SHAPE_ORDER;
        int var6 = var5.length;
-@@ -157,22 +149,28 @@
+@@ -157,22 +152,28 @@
        super(var1);
        StateDefinition.Builder var2 = new StateDefinition.Builder(this);
        this.createBlockStateDefinition(var2);
@@ -76,7 +94,37 @@
           return false;
        } else if (var5.canOcclude()) {
           Block.BlockStatePairKey var6 = new Block.BlockStatePairKey(var0, var5, var3);
-@@ -276,15 +274,11 @@
+@@ -180,18 +181,22 @@
+          byte var8 = var7.getAndMoveToFirst(var6);
+          if (var8 != 127) {
+             return var8 != 0;
+          } else {
+             VoxelShape var9 = var0.getFaceOcclusionShape(var1, var2, var3);
+-            VoxelShape var10 = var5.getFaceOcclusionShape(var1, var4, var3.getOpposite());
+-            boolean var11 = Shapes.joinIsNotEmpty(var9, var10, BooleanOp.ONLY_FIRST);
+-            if (var7.size() == 2048) {
+-               var7.removeLastByte();
+-            }
++            if (var9.isEmpty()) {
++               return true;
++            } else {
++               VoxelShape var10 = var5.getFaceOcclusionShape(var1, var4, var3.getOpposite());
++               boolean var11 = Shapes.joinIsNotEmpty(var9, var10, BooleanOp.ONLY_FIRST);
++               if (var7.size() == 2048) {
++                  var7.removeLastByte();
++               }
+ 
+-            var7.putAndMoveToFirst(var6, (byte)(var11 ? 1 : 0));
+-            return var11;
++               var7.putAndMoveToFirst(var6, (byte)(var11 ? 1 : 0));
++               return var11;
++            }
+          }
+       } else {
+          return true;
+       }
+    }
+@@ -276,15 +281,11 @@
        }
     }
  
@@ -93,7 +141,20 @@
     }
  
     public float getExplosionResistance() {
-@@ -355,17 +349,17 @@
+@@ -326,11 +327,11 @@
+ 
+       return this.descriptionId;
+    }
+ 
+    public void fallOn(Level var1, BlockPos var2, Entity var3, float var4) {
+-      var3.causeFallDamage(var4, 1.0F);
++      var3.causeFallDamage(var4, 1.0F, DamageSource.FALL);
+    }
+ 
+    public void updateEntityAfterFallOn(BlockGetter var1, Entity var2) {
+       var2.setDeltaMovement(var2.getDeltaMovement().multiply(1.0D, 0.0D, 1.0D));
+    }
+@@ -355,17 +356,18 @@
        return this.jumpFactor;
     }
  
@@ -104,10 +165,11 @@
           PiglinAi.angerNearbyPiglins(var4, false);
        }
  
++      var1.gameEvent(var4, GameEvent.BLOCK_DESTROY, var2);
     }
  
 -   public void handleRain(Level var1, BlockPos var2) {
-+   public void handleRain(BlockState var1, Level var2, BlockPos var3) {
++   public void handlePrecipitation(BlockState var1, Level var2, BlockPos var3, Biome.Precipitation var4) {
     }
  
     public boolean dropFromExplosion(Explosion var1) {

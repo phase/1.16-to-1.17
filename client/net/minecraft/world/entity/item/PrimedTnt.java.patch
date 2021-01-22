@@ -1,6 +1,22 @@
 --- net/minecraft/world/entity/item/PrimedTnt.java
 +++ net/minecraft/world/entity/item/PrimedTnt.java
-@@ -48,11 +48,11 @@
+@@ -19,15 +19,13 @@
+ 
+ public class PrimedTnt extends Entity {
+    private static final EntityDataAccessor<Integer> DATA_FUSE_ID;
+    @Nullable
+    private LivingEntity owner;
+-   private int life;
+ 
+    public PrimedTnt(EntityType<? extends PrimedTnt> var1, Level var2) {
+       super(var1, var2);
+-      this.life = 80;
+       this.blocksBuilding = true;
+    }
+ 
+    public PrimedTnt(Level var1, double var2, double var4, double var6, @Nullable LivingEntity var8) {
+       this(EntityType.TNT, var1);
+@@ -48,11 +46,11 @@
     protected boolean isMovementNoisy() {
        return false;
     }
@@ -13,16 +29,63 @@
     public void tick() {
        if (!this.isNoGravity()) {
           this.setDeltaMovement(this.getDeltaMovement().add(0.0D, -0.04D, 0.0D));
-@@ -64,11 +64,11 @@
+@@ -62,13 +60,14 @@
+       this.setDeltaMovement(this.getDeltaMovement().scale(0.98D));
+       if (this.onGround) {
           this.setDeltaMovement(this.getDeltaMovement().multiply(0.7D, -0.5D, 0.7D));
        }
  
-       --this.life;
-       if (this.life <= 0) {
+-      --this.life;
+-      if (this.life <= 0) {
 -         this.remove();
++      int var1 = this.getFuse() - 1;
++      this.setFuse(var1);
++      if (var1 <= 0) {
 +         this.discard();
           if (!this.level.isClientSide) {
              this.explode();
           }
        } else {
           this.updateInWaterStateAndDoFluidPushing();
+@@ -83,11 +82,11 @@
+       float var1 = 4.0F;
+       this.level.explode(this, this.getX(), this.getY(0.0625D), this.getZ(), 4.0F, Explosion.BlockInteraction.BREAK);
+    }
+ 
+    protected void addAdditionalSaveData(CompoundTag var1) {
+-      var1.putShort("Fuse", (short)this.getLife());
++      var1.putShort("Fuse", (short)this.getFuse());
+    }
+ 
+    protected void readAdditionalSaveData(CompoundTag var1) {
+       this.setFuse(var1.getShort("Fuse"));
+    }
+@@ -101,28 +100,16 @@
+       return 0.15F;
+    }
+ 
+    public void setFuse(int var1) {
+       this.entityData.set(DATA_FUSE_ID, var1);
+-      this.life = var1;
+    }
+ 
+-   public void onSyncedDataUpdated(EntityDataAccessor<?> var1) {
+-      if (DATA_FUSE_ID.equals(var1)) {
+-         this.life = this.getFuse();
+-      }
+-
+-   }
+-
+    public int getFuse() {
+       return (Integer)this.entityData.get(DATA_FUSE_ID);
+    }
+ 
+-   public int getLife() {
+-      return this.life;
+-   }
+-
+    public Packet<?> getAddEntityPacket() {
+       return new ClientboundAddEntityPacket(this);
+    }
+ 
+    static {

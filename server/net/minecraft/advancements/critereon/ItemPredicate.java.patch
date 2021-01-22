@@ -16,3 +16,36 @@
           return false;
        } else if (!this.durability.isAny() && !var1.isDamageableItem()) {
           return false;
+@@ -130,14 +130,13 @@
+             }
+ 
+             Tag var10 = null;
+             if (var1.has("tag")) {
+                ResourceLocation var7 = new ResourceLocation(GsonHelper.getAsString(var1, "tag"));
+-               var10 = SerializationTags.getInstance().getItems().getTag(var7);
+-               if (var10 == null) {
+-                  throw new JsonSyntaxException("Unknown item tag '" + var7 + "'");
+-               }
++               var10 = SerializationTags.getInstance().getTagOrThrow(Registry.ITEM_REGISTRY, var7, (var0x) -> {
++                  return new JsonSyntaxException("Unknown item tag '" + var0x + "'");
++               });
+             }
+ 
+             Potion var11 = null;
+             if (var1.has("potion")) {
+                ResourceLocation var8 = new ResourceLocation(GsonHelper.getAsString(var1, "potion"));
+@@ -163,11 +162,13 @@
+          if (this.item != null) {
+             var1.addProperty("item", Registry.ITEM.getKey(this.item).toString());
+          }
+ 
+          if (this.tag != null) {
+-            var1.addProperty("tag", SerializationTags.getInstance().getItems().getIdOrThrow(this.tag).toString());
++            var1.addProperty("tag", SerializationTags.getInstance().getIdOrThrow(Registry.ITEM_REGISTRY, this.tag, () -> {
++               return new IllegalStateException("Unknown item tag");
++            }).toString());
+          }
+ 
+          var1.add("count", this.count.serializeToJson());
+          var1.add("durability", this.durability.serializeToJson());
+          var1.add("nbt", this.nbt.serializeToJson());

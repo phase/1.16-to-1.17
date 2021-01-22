@@ -1,0 +1,43 @@
+--- net/minecraft/server/ServerFunctionLibrary.java
++++ net/minecraft/server/ServerFunctionLibrary.java
+@@ -37,11 +37,11 @@
+ public class ServerFunctionLibrary implements PreparableReloadListener {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private static final int PATH_PREFIX_LENGTH = "functions/".length();
+    private static final int PATH_SUFFIX_LENGTH = ".mcfunction".length();
+    private volatile Map<ResourceLocation, CommandFunction> functions = ImmutableMap.of();
+-   private final TagLoader<CommandFunction> tagsLoader = new TagLoader(this::getFunction, "tags/functions", "function");
++   private final TagLoader<CommandFunction> tagsLoader = new TagLoader(this::getFunction, "tags/functions");
+    private volatile TagCollection<CommandFunction> tags = TagCollection.empty();
+    private final int functionCompilationLevel;
+    private final CommandDispatcher<CommandSourceStack> dispatcher;
+ 
+    public Optional<CommandFunction> getFunction(ResourceLocation var1) {
+@@ -64,11 +64,13 @@
+       this.functionCompilationLevel = var1;
+       this.dispatcher = var2;
+    }
+ 
+    public CompletableFuture<Void> reload(PreparableReloadListener.PreparationBarrier var1, ResourceManager var2, ProfilerFiller var3, ProfilerFiller var4, Executor var5, Executor var6) {
+-      CompletableFuture var7 = this.tagsLoader.prepare(var2, var5);
++      CompletableFuture var7 = CompletableFuture.supplyAsync(() -> {
++         return this.tagsLoader.load(var2);
++      }, var5);
+       CompletableFuture var8 = CompletableFuture.supplyAsync(() -> {
+          return var2.listResources("functions", (var0) -> {
+             return var0.endsWith(".mcfunction");
+          });
+       }, var5).thenCompose((var3x) -> {
+@@ -106,11 +108,11 @@
+ 
+                return null;
+             }).join();
+          });
+          this.functions = var3.build();
+-         this.tags = this.tagsLoader.load((Map)var1x.getFirst());
++         this.tags = this.tagsLoader.build((Map)var1x.getFirst());
+       }, var6);
+    }
+ 
+    private static List<String> readLines(ResourceManager var0, ResourceLocation var1) {
+       try {

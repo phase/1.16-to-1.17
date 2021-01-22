@@ -1,0 +1,55 @@
+--- com/mojang/math/Vector3f.java
++++ com/mojang/math/Vector3f.java
+@@ -1,18 +1,23 @@
+ package com.mojang.math;
+ 
++import com.mojang.serialization.Codec;
+ import it.unimi.dsi.fastutil.floats.Float2FloatFunction;
++import java.util.stream.DoubleStream;
++import net.minecraft.Util;
++import net.minecraft.util.ExtraCodecs;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public final class Vector3f {
+-   public static Vector3f XN = new Vector3f(-1.0F, 0.0F, 0.0F);
+-   public static Vector3f XP = new Vector3f(1.0F, 0.0F, 0.0F);
+-   public static Vector3f YN = new Vector3f(0.0F, -1.0F, 0.0F);
+-   public static Vector3f YP = new Vector3f(0.0F, 1.0F, 0.0F);
+-   public static Vector3f ZN = new Vector3f(0.0F, 0.0F, -1.0F);
+-   public static Vector3f ZP = new Vector3f(0.0F, 0.0F, 1.0F);
++   public static final Codec<Vector3f> CODEC;
++   public static Vector3f XN;
++   public static Vector3f XP;
++   public static Vector3f YN;
++   public static Vector3f YP;
++   public static Vector3f ZN;
++   public static Vector3f ZP;
+    private float x;
+    private float y;
+    private float z;
+ 
+    public Vector3f() {
+@@ -179,6 +184,22 @@
+    }
+ 
+    public String toString() {
+       return "[" + this.x + ", " + this.y + ", " + this.z + "]";
+    }
++
++   static {
++      CODEC = ExtraCodecs.DOUBLE_STREAM.comapFlatMap((var0) -> {
++         return Util.fixedSize((DoubleStream)var0, 3).map((var0x) -> {
++            return new Vector3f((float)var0x[0], (float)var0x[1], (float)var0x[2]);
++         });
++      }, (var0) -> {
++         return DoubleStream.of(new double[]{(double)var0.x, (double)var0.y, (double)var0.z});
++      }).stable();
++      XN = new Vector3f(-1.0F, 0.0F, 0.0F);
++      XP = new Vector3f(1.0F, 0.0F, 0.0F);
++      YN = new Vector3f(0.0F, -1.0F, 0.0F);
++      YP = new Vector3f(0.0F, 1.0F, 0.0F);
++      ZN = new Vector3f(0.0F, 0.0F, -1.0F);
++      ZP = new Vector3f(0.0F, 0.0F, 1.0F);
++   }
+ }

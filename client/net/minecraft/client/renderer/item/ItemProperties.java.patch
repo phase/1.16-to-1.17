@@ -1,18 +1,6 @@
 --- net/minecraft/client/renderer/item/ItemProperties.java
 +++ net/minecraft/client/renderer/item/ItemProperties.java
-@@ -2,10 +2,11 @@
- 
- import com.google.common.collect.Maps;
- import java.util.Map;
- import java.util.Optional;
- import javax.annotation.Nullable;
-+import net.minecraft.client.Minecraft;
- import net.minecraft.client.multiplayer.ClientLevel;
- import net.minecraft.core.BlockPos;
- import net.minecraft.core.Direction;
- import net.minecraft.nbt.CompoundTag;
- import net.minecraft.nbt.NbtUtils;
-@@ -15,10 +16,11 @@
+@@ -15,10 +15,11 @@
  import net.minecraft.world.entity.HumanoidArm;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.decoration.ItemFrame;
@@ -24,13 +12,54 @@
  import net.minecraft.world.item.ElytraItem;
  import net.minecraft.world.item.FishingRodItem;
  import net.minecraft.world.item.Item;
-@@ -89,10 +91,13 @@
+@@ -29,14 +30,14 @@
+ 
+ public class ItemProperties {
+    private static final Map<ResourceLocation, ItemPropertyFunction> GENERIC_PROPERTIES = Maps.newHashMap();
+    private static final ResourceLocation DAMAGED = new ResourceLocation("damaged");
+    private static final ResourceLocation DAMAGE = new ResourceLocation("damage");
+-   private static final ItemPropertyFunction PROPERTY_DAMAGED = (var0, var1, var2) -> {
++   private static final ItemPropertyFunction PROPERTY_DAMAGED = (var0, var1, var2, var3) -> {
+       return var0.isDamaged() ? 1.0F : 0.0F;
+    };
+-   private static final ItemPropertyFunction PROPERTY_DAMAGE = (var0, var1, var2) -> {
++   private static final ItemPropertyFunction PROPERTY_DAMAGE = (var0, var1, var2, var3) -> {
+       return Mth.clamp((float)var0.getDamageValue() / (float)var0.getMaxDamage(), 0.0F, 1.0F);
+    };
+    private static final Map<Item, Map<ResourceLocation, ItemPropertyFunction>> PROPERTIES = Maps.newHashMap();
+ 
+    private static ItemPropertyFunction registerGeneric(ResourceLocation var0, ItemPropertyFunction var1) {
+@@ -70,55 +71,58 @@
+          return var3 == null ? null : (ItemPropertyFunction)var3.get(var1);
+       }
+    }
+ 
+    static {
+-      registerGeneric(new ResourceLocation("lefthanded"), (var0, var1, var2) -> {
++      registerGeneric(new ResourceLocation("lefthanded"), (var0, var1, var2, var3) -> {
+          return var2 != null && var2.getMainArm() != HumanoidArm.RIGHT ? 1.0F : 0.0F;
+       });
+-      registerGeneric(new ResourceLocation("cooldown"), (var0, var1, var2) -> {
++      registerGeneric(new ResourceLocation("cooldown"), (var0, var1, var2, var3) -> {
+          return var2 instanceof Player ? ((Player)var2).getCooldowns().getCooldownPercent(var0.getItem(), 0.0F) : 0.0F;
+       });
+-      registerGeneric(new ResourceLocation("custom_model_data"), (var0, var1, var2) -> {
++      registerGeneric(new ResourceLocation("custom_model_data"), (var0, var1, var2, var3) -> {
+          return var0.hasTag() ? (float)var0.getTag().getInt("CustomModelData") : 0.0F;
+       });
+-      register(Items.BOW, new ResourceLocation("pull"), (var0, var1, var2) -> {
++      register(Items.BOW, new ResourceLocation("pull"), (var0, var1, var2, var3) -> {
+          if (var2 == null) {
+             return 0.0F;
+          } else {
+             return var2.getUseItem() != var0 ? 0.0F : (float)(var0.getUseDuration() - var2.getUseItemRemainingTicks()) / 20.0F;
           }
        });
-       register(Items.BOW, new ResourceLocation("pulling"), (var0, var1, var2) -> {
+-      register(Items.BOW, new ResourceLocation("pulling"), (var0, var1, var2) -> {
++      register(Items.BOW, new ResourceLocation("pulling"), (var0, var1, var2, var3) -> {
           return var2 != null && var2.isUsingItem() && var2.getUseItem() == var0 ? 1.0F : 0.0F;
        });
-+      register(Items.BUNDLE, new ResourceLocation("filled"), (var0, var1, var2) -> {
++      register(Items.BUNDLE, new ResourceLocation("filled"), (var0, var1, var2, var3) -> {
 +         return BundleItem.getFullnessDisplay(var0);
 +      });
        register(Items.CLOCK, new ResourceLocation("time"), new ItemPropertyFunction() {
@@ -38,17 +67,192 @@
           private double rota;
           private long lastUpdateTick;
  
-@@ -252,10 +257,13 @@
+-         public float call(ItemStack var1, @Nullable ClientLevel var2, @Nullable LivingEntity var3) {
+-            Object var4 = var3 != null ? var3 : var1.getEntityRepresentation();
+-            if (var4 == null) {
++         public float call(ItemStack var1, @Nullable ClientLevel var2, @Nullable LivingEntity var3, int var4) {
++            Object var5 = var3 != null ? var3 : var1.getEntityRepresentation();
++            if (var5 == null) {
+                return 0.0F;
+             } else {
+-               if (var2 == null && ((Entity)var4).level instanceof ClientLevel) {
+-                  var2 = (ClientLevel)((Entity)var4).level;
++               if (var2 == null && ((Entity)var5).level instanceof ClientLevel) {
++                  var2 = (ClientLevel)((Entity)var5).level;
+                }
+ 
+                if (var2 == null) {
+                   return 0.0F;
+                } else {
+-                  double var5;
++                  double var6;
+                   if (var2.dimensionType().natural()) {
+-                     var5 = (double)var2.getTimeOfDay(1.0F);
++                     var6 = (double)var2.getTimeOfDay(1.0F);
+                   } else {
+-                     var5 = Math.random();
++                     var6 = Math.random();
+                   }
+ 
+-                  var5 = this.wobble(var2, var5);
+-                  return (float)var5;
++                  var6 = this.wobble(var2, var6);
++                  return (float)var6;
+                }
+             }
+          }
+ 
+          private double wobble(Level var1, double var2) {
+@@ -136,59 +140,63 @@
+       });
+       register(Items.COMPASS, new ResourceLocation("angle"), new ItemPropertyFunction() {
+          private final ItemProperties.CompassWobble wobble = new ItemProperties.CompassWobble();
+          private final ItemProperties.CompassWobble wobbleRandom = new ItemProperties.CompassWobble();
+ 
+-         public float call(ItemStack var1, @Nullable ClientLevel var2, @Nullable LivingEntity var3) {
+-            Object var4 = var3 != null ? var3 : var1.getEntityRepresentation();
+-            if (var4 == null) {
++         public float call(ItemStack var1, @Nullable ClientLevel var2, @Nullable LivingEntity var3, int var4) {
++            Object var5 = var3 != null ? var3 : var1.getEntityRepresentation();
++            if (var5 == null) {
+                return 0.0F;
+             } else {
+-               if (var2 == null && ((Entity)var4).level instanceof ClientLevel) {
+-                  var2 = (ClientLevel)((Entity)var4).level;
++               if (var2 == null && ((Entity)var5).level instanceof ClientLevel) {
++                  var2 = (ClientLevel)((Entity)var5).level;
+                }
+ 
+-               BlockPos var5 = CompassItem.isLodestoneCompass(var1) ? this.getLodestonePosition(var2, var1.getOrCreateTag()) : this.getSpawnPosition(var2);
+-               long var6 = var2.getGameTime();
+-               if (var5 != null && ((Entity)var4).position().distanceToSqr((double)var5.getX() + 0.5D, ((Entity)var4).position().y(), (double)var5.getZ() + 0.5D) >= 9.999999747378752E-6D) {
+-                  boolean var15 = var3 instanceof Player && ((Player)var3).isLocalPlayer();
+-                  double var9 = 0.0D;
+-                  if (var15) {
+-                     var9 = (double)var3.yRot;
+-                  } else if (var4 instanceof ItemFrame) {
+-                     var9 = this.getFrameRotation((ItemFrame)var4);
+-                  } else if (var4 instanceof ItemEntity) {
+-                     var9 = (double)(180.0F - ((ItemEntity)var4).getSpin(0.5F) / 6.2831855F * 360.0F);
++               BlockPos var6 = CompassItem.isLodestoneCompass(var1) ? this.getLodestonePosition(var2, var1.getOrCreateTag()) : this.getSpawnPosition(var2);
++               long var7 = var2.getGameTime();
++               if (var6 != null && ((Entity)var5).position().distanceToSqr((double)var6.getX() + 0.5D, ((Entity)var5).position().y(), (double)var6.getZ() + 0.5D) >= 9.999999747378752E-6D) {
++                  boolean var16 = var3 instanceof Player && ((Player)var3).isLocalPlayer();
++                  double var10 = 0.0D;
++                  if (var16) {
++                     var10 = (double)var3.yRot;
++                  } else if (var5 instanceof ItemFrame) {
++                     var10 = this.getFrameRotation((ItemFrame)var5);
++                  } else if (var5 instanceof ItemEntity) {
++                     var10 = (double)(180.0F - ((ItemEntity)var5).getSpin(0.5F) / 6.2831855F * 360.0F);
+                   } else if (var3 != null) {
+-                     var9 = (double)var3.yBodyRot;
++                     var10 = (double)var3.yBodyRot;
+                   }
+ 
+-                  var9 = Mth.positiveModulo(var9 / 360.0D, 1.0D);
+-                  double var11 = this.getAngleTo(Vec3.atCenterOf(var5), (Entity)var4) / 6.2831854820251465D;
+-                  double var13;
+-                  if (var15) {
+-                     if (this.wobble.shouldUpdate(var6)) {
+-                        this.wobble.update(var6, 0.5D - (var9 - 0.25D));
++                  var10 = Mth.positiveModulo(var10 / 360.0D, 1.0D);
++                  double var12 = this.getAngleTo(Vec3.atCenterOf(var6), (Entity)var5) / 6.2831854820251465D;
++                  double var14;
++                  if (var16) {
++                     if (this.wobble.shouldUpdate(var7)) {
++                        this.wobble.update(var7, 0.5D - (var10 - 0.25D));
+                      }
+ 
+-                     var13 = var11 + this.wobble.rotation;
++                     var14 = var12 + this.wobble.rotation;
+                   } else {
+-                     var13 = 0.5D - (var9 - 0.25D - var11);
++                     var14 = 0.5D - (var10 - 0.25D - var12);
+                   }
+ 
+-                  return Mth.positiveModulo((float)var13, 1.0F);
++                  return Mth.positiveModulo((float)var14, 1.0F);
+                } else {
+-                  if (this.wobbleRandom.shouldUpdate(var6)) {
+-                     this.wobbleRandom.update(var6, Math.random());
++                  if (this.wobbleRandom.shouldUpdate(var7)) {
++                     this.wobbleRandom.update(var7, Math.random());
+                   }
+ 
+-                  double var8 = this.wobbleRandom.rotation + (double)((float)var1.hashCode() / 2.14748365E9F);
+-                  return Mth.positiveModulo((float)var8, 1.0F);
++                  double var9 = this.wobbleRandom.rotation + (double)((float)this.hash(var4) / 2.14748365E9F);
++                  return Mth.positiveModulo((float)var9, 1.0F);
+                }
+             }
+          }
+ 
++         private int hash(int var1) {
++            return var1 * 1327217883;
++         }
++
+          @Nullable
+          private BlockPos getSpawnPosition(ClientLevel var1) {
+             return var1.dimensionType().natural() ? var1.getSharedSpawnPos() : null;
+          }
+ 
+@@ -214,46 +222,46 @@
+ 
+          private double getAngleTo(Vec3 var1, Entity var2) {
+             return Math.atan2(var1.z() - var2.getZ(), var1.x() - var2.getX());
+          }
+       });
+-      register(Items.CROSSBOW, new ResourceLocation("pull"), (var0, var1, var2) -> {
++      register(Items.CROSSBOW, new ResourceLocation("pull"), (var0, var1, var2, var3) -> {
+          if (var2 == null) {
+             return 0.0F;
+          } else {
+             return CrossbowItem.isCharged(var0) ? 0.0F : (float)(var0.getUseDuration() - var2.getUseItemRemainingTicks()) / (float)CrossbowItem.getChargeDuration(var0);
+          }
+       });
+-      register(Items.CROSSBOW, new ResourceLocation("pulling"), (var0, var1, var2) -> {
++      register(Items.CROSSBOW, new ResourceLocation("pulling"), (var0, var1, var2, var3) -> {
+          return var2 != null && var2.isUsingItem() && var2.getUseItem() == var0 && !CrossbowItem.isCharged(var0) ? 1.0F : 0.0F;
+       });
+-      register(Items.CROSSBOW, new ResourceLocation("charged"), (var0, var1, var2) -> {
++      register(Items.CROSSBOW, new ResourceLocation("charged"), (var0, var1, var2, var3) -> {
+          return var2 != null && CrossbowItem.isCharged(var0) ? 1.0F : 0.0F;
+       });
+-      register(Items.CROSSBOW, new ResourceLocation("firework"), (var0, var1, var2) -> {
++      register(Items.CROSSBOW, new ResourceLocation("firework"), (var0, var1, var2, var3) -> {
+          return var2 != null && CrossbowItem.isCharged(var0) && CrossbowItem.containsChargedProjectile(var0, Items.FIREWORK_ROCKET) ? 1.0F : 0.0F;
+       });
+-      register(Items.ELYTRA, new ResourceLocation("broken"), (var0, var1, var2) -> {
++      register(Items.ELYTRA, new ResourceLocation("broken"), (var0, var1, var2, var3) -> {
+          return ElytraItem.isFlyEnabled(var0) ? 0.0F : 1.0F;
+       });
+-      register(Items.FISHING_ROD, new ResourceLocation("cast"), (var0, var1, var2) -> {
++      register(Items.FISHING_ROD, new ResourceLocation("cast"), (var0, var1, var2, var3) -> {
+          if (var2 == null) {
+             return 0.0F;
+          } else {
+-            boolean var3 = var2.getMainHandItem() == var0;
+-            boolean var4 = var2.getOffhandItem() == var0;
++            boolean var4 = var2.getMainHandItem() == var0;
++            boolean var5 = var2.getOffhandItem() == var0;
+             if (var2.getMainHandItem().getItem() instanceof FishingRodItem) {
+-               var4 = false;
++               var5 = false;
+             }
+ 
+-            return (var3 || var4) && var2 instanceof Player && ((Player)var2).fishing != null ? 1.0F : 0.0F;
++            return (var4 || var5) && var2 instanceof Player && ((Player)var2).fishing != null ? 1.0F : 0.0F;
+          }
+       });
+-      register(Items.SHIELD, new ResourceLocation("blocking"), (var0, var1, var2) -> {
++      register(Items.SHIELD, new ResourceLocation("blocking"), (var0, var1, var2, var3) -> {
           return var2 != null && var2.isUsingItem() && var2.getUseItem() == var0 ? 1.0F : 0.0F;
        });
-       register(Items.TRIDENT, new ResourceLocation("throwing"), (var0, var1, var2) -> {
+-      register(Items.TRIDENT, new ResourceLocation("throwing"), (var0, var1, var2) -> {
++      register(Items.TRIDENT, new ResourceLocation("throwing"), (var0, var1, var2, var3) -> {
           return var2 != null && var2.isUsingItem() && var2.getUseItem() == var0 ? 1.0F : 0.0F;
        });
-+      register(Items.SPYGLASS, new ResourceLocation("scoping"), (var0, var1, var2) -> {
-+         return var2 != null && var2.isUsingItem() && var2.getUseItem() == var0 && var2.getUUID().equals(Minecraft.getInstance().player.getUUID()) ? 1.0F : 0.0F;
-+      });
     }
  
     static class CompassWobble {
-       private double rotation;
-       private double deltaRotation;

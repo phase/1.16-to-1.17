@@ -41,7 +41,7 @@
  import java.util.concurrent.Executor;
  import java.util.function.BooleanSupplier;
  import java.util.function.Function;
-@@ -37,11 +33,10 @@
+@@ -37,20 +33,20 @@
  import java.util.stream.Collectors;
  import java.util.stream.Stream;
  import javax.annotation.Nonnull;
@@ -53,7 +53,17 @@
  import net.minecraft.core.Registry;
  import net.minecraft.core.RegistryAccess;
  import net.minecraft.core.SectionPos;
-@@ -59,18 +54,16 @@
+ import net.minecraft.core.particles.ParticleOptions;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.protocol.game.ClientboundAddVibrationSignalPacket;
+ import net.minecraft.network.protocol.game.ClientboundBlockDestructionPacket;
+ import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
+ import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
+ import net.minecraft.network.protocol.game.ClientboundExplodePacket;
+ import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
+@@ -59,18 +55,16 @@
  import net.minecraft.network.protocol.game.ClientboundSetDefaultSpawnPositionPacket;
  import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
  import net.minecraft.network.protocol.game.ClientboundSoundPacket;
@@ -72,7 +82,7 @@
  import net.minecraft.util.ProgressListener;
  import net.minecraft.util.Unit;
  import net.minecraft.util.profiling.ProfilerFiller;
-@@ -111,19 +104,23 @@
+@@ -111,19 +105,26 @@
  import net.minecraft.world.level.TickNextTickData;
  import net.minecraft.world.level.WorldGenLevel;
  import net.minecraft.world.level.biome.Biome;
@@ -94,12 +104,15 @@
 +import net.minecraft.world.level.entity.LevelCallback;
 +import net.minecraft.world.level.entity.LevelEntityGetter;
 +import net.minecraft.world.level.entity.PersistentEntitySectionManager;
++import net.minecraft.world.level.gameevent.GameEvent;
++import net.minecraft.world.level.gameevent.GameEventListenerRegistrar;
++import net.minecraft.world.level.gameevent.vibrations.VibrationPath;
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.feature.StructureFeature;
  import net.minecraft.world.level.levelgen.structure.BoundingBox;
  import net.minecraft.world.level.levelgen.structure.StructureStart;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
-@@ -145,31 +142,30 @@
+@@ -145,31 +146,30 @@
  import org.apache.logging.log4j.Logger;
  
  public class ServerLevel extends Level implements WorldGenLevel {
@@ -116,7 +129,8 @@
 +   private final EntityTickList entityTickList = new EntityTickList();
 +   private final PersistentEntitySectionManager<Entity> entityManager;
     public boolean noSave;
-    private boolean allPlayersSleeping;
+-   private boolean allPlayersSleeping;
++   private float percentageSleepingPlayers;
     private int emptyTime;
     private final PortalForcer portalForcer;
     private final ServerTickList<Block> blockTicks;
@@ -135,7 +149,7 @@
  
     public ServerLevel(MinecraftServer var1, Executor var2, LevelStorageSource.LevelStorageAccess var3, ServerLevelData var4, ResourceKey<Level> var5, DimensionType var6, ChunkProgressListener var7, ChunkGenerator var8, boolean var9, long var10, List<CustomSpawner> var12, boolean var13) {
        super(var4, var5, var6, var1::getProfiler, false, var9, var10);
-@@ -177,17 +173,22 @@
+@@ -177,24 +177,31 @@
           return var0 == null || var0.defaultBlockState().isAir();
        }, Registry.BLOCK::getKey, this::tickBlock);
        this.liquidTicks = new ServerTickList(this, (var0) -> {
@@ -160,7 +174,50 @@
        this.portalForcer = new PortalForcer(this);
        this.updateSkyBrightness();
        this.prepareWeather();
-@@ -340,84 +341,53 @@
+       this.getWorldBorder().setAbsoluteMaxSize(var1.getAbsoluteMaxWorldSize());
+-      this.raids = (Raids)this.getDataStorage().computeIfAbsent(() -> {
++      this.raids = (Raids)this.getDataStorage().computeIfAbsent((var1x) -> {
++         return Raids.load(this, var1x);
++      }, () -> {
+          return new Raids(this);
+       }, Raids.getFileId(this.dimensionType()));
+       if (!var1.isSingleplayer()) {
+          var4.setGameType(var1.getDefaultGameType());
+       }
+@@ -229,13 +236,14 @@
+       this.handlingTick = true;
+       var2.push("world border");
+       this.getWorldBorder().tick();
+       var2.popPush("weather");
+       boolean var3 = this.isRaining();
++      int var4;
+       if (this.dimensionType().hasSkyLight()) {
+          if (this.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE)) {
+-            int var4 = this.serverLevelData.getClearWeatherTime();
++            var4 = this.serverLevelData.getClearWeatherTime();
+             int var5 = this.serverLevelData.getThunderTime();
+             int var6 = this.serverLevelData.getRainTime();
+             boolean var7 = this.levelData.isThundering();
+             boolean var8 = this.levelData.isRaining();
+             if (var4 > 0) {
+@@ -310,14 +318,12 @@
+ 
+          this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, this.rainLevel));
+          this.server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, this.thunderLevel));
+       }
+ 
+-      if (this.allPlayersSleeping && this.players.stream().noneMatch((var0) -> {
+-         return !var0.isSpectator() && !var0.isSleepingLongEnough();
+-      })) {
+-         this.allPlayersSleeping = false;
++      var4 = this.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
++      if (this.percentageSleepingPlayers > 0.0F && this.percentageSleepingPlayers >= (float)var4 && this.getPercentSleepingPlayers(true) >= (float)var4) {
+          if (this.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)) {
+             long var9 = this.levelData.getDayTime() + 24000L;
+             this.setDayTime(var9 - var9 % 24000L);
+          }
+ 
+@@ -340,84 +346,53 @@
        var2.popPush("raid");
        this.raids.tick();
        var2.popPush("blockEvents");
@@ -271,7 +328,7 @@
  
     protected void tickTime() {
        if (this.tickTime) {
-@@ -443,10 +413,18 @@
+@@ -443,11 +418,20 @@
           var4.tick(this, var1, var2);
        }
  
@@ -286,11 +343,13 @@
 +   }
 +
     private void wakeUpAllPlayers() {
++      this.percentageSleepingPlayers = 0.0F;
        ((List)this.players.stream().filter(LivingEntity::isSleeping).collect(Collectors.toList())).forEach((var0) -> {
           var0.stopSleepInBed(false, false);
        });
     }
-@@ -458,11 +436,11 @@
+ 
+@@ -458,11 +442,11 @@
        int var6 = var3.getMinBlockZ();
        ProfilerFiller var7 = this.getProfiler();
        var7.push("thunder");
@@ -303,15 +362,25 @@
              boolean var10 = this.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING) && this.random.nextDouble() < (double)var9.getEffectiveDifficulty() * 0.01D;
              if (var10) {
                 SkeletonHorse var11 = (SkeletonHorse)EntityType.SKELETON_HORSE.create(this);
-@@ -491,28 +469,29 @@
-          if (var4 && var20.shouldSnow(this, var8)) {
-             this.setBlockAndUpdate(var8, Blocks.SNOW.defaultBlockState());
+@@ -486,33 +470,35 @@
+          Biome var20 = this.getBiome(var8);
+          if (var20.shouldFreeze(this, var18)) {
+             this.setBlockAndUpdate(var18, Blocks.ICE.defaultBlockState());
           }
  
-          if (var4 && this.getBiome(var18).getPrecipitation() == Biome.Precipitation.RAIN) {
+-         if (var4 && var20.shouldSnow(this, var8)) {
+-            this.setBlockAndUpdate(var8, Blocks.SNOW.defaultBlockState());
+-         }
++         if (var4) {
++            if (var20.shouldSnow(this, var8)) {
++               this.setBlockAndUpdate(var8, Blocks.SNOW.defaultBlockState());
++            }
+ 
+-         if (var4 && this.getBiome(var18).getPrecipitation() == Biome.Precipitation.RAIN) {
 -            this.getBlockState(var18).getBlock().handleRain(this, var18);
 +            BlockState var23 = this.getBlockState(var18);
-+            var23.getBlock().handleRain(var23, this, var18);
++            Biome.Precipitation var12 = this.getBiome(var18).getPrecipitation();
++            var23.getBlock().handlePrecipitation(var23, this, var18, var12);
           }
        }
  
@@ -326,19 +395,20 @@
 -               int var12 = var23.bottomBlockY();
 +            LevelChunkSection var24 = var17[var21];
 +            if (var24 != LevelChunk.EMPTY_SECTION && var24.isRandomlyTicking()) {
-+               int var12 = var24.bottomBlockY();
++               int var25 = var24.bottomBlockY();
  
                 for(int var13 = 0; var13 < var2; ++var13) {
-                   BlockPos var14 = this.getBlockRandomPos(var5, var12, var6, 15);
+-                  BlockPos var14 = this.getBlockRandomPos(var5, var12, var6, 15);
++                  BlockPos var14 = this.getBlockRandomPos(var5, var25, var6, 15);
                    var7.push("randomTick");
 -                  BlockState var15 = var23.getBlockState(var14.getX() - var5, var14.getY() - var12, var14.getZ() - var6);
-+                  BlockState var15 = var24.getBlockState(var14.getX() - var5, var14.getY() - var12, var14.getZ() - var6);
++                  BlockState var15 = var24.getBlockState(var14.getX() - var5, var14.getY() - var25, var14.getZ() - var6);
                    if (var15.isRandomlyTicking()) {
                       var15.randomTick(this, var14, this.random);
                    }
  
                    FluidState var16 = var15.getFluidState();
-@@ -527,24 +506,49 @@
+@@ -527,50 +513,138 @@
        }
  
        var7.pop();
@@ -348,7 +418,7 @@
 +   private Optional<BlockPos> findLightningRod(BlockPos var1) {
 +      Optional var2 = this.getPoiManager().findClosest((var0) -> {
 +         return var0 == PoiType.LIGHTNING_ROD;
-+      }, var1, 64, PoiManager.Occupancy.ANY);
++      }, var1, 128, PoiManager.Occupancy.ANY);
 +      if (var2.isPresent()) {
 +         BlockPos var3 = (BlockPos)var2.get();
 +         int var4 = this.getLevel().getHeight(Heightmap.Types.WORLD_SURFACE, var3.getX(), var3.getZ()) - 1;
@@ -399,7 +469,108 @@
  
     public boolean isHandlingTick() {
        return this.handlingTick;
-@@ -601,99 +605,57 @@
+    }
+ 
++   public boolean canSleepThroughNights() {
++      return this.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE) <= 100;
++   }
++
++   private void announceSleepStatus() {
++      if (this.canSleepThroughNights()) {
++         int var1 = this.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
++         TranslatableComponent var2;
++         if (this.percentageSleepingPlayers >= (float)var1) {
++            var2 = new TranslatableComponent("sleep.skipping_night");
++         } else {
++            int var3 = 0;
++            int var4 = 0;
++            Iterator var5 = this.players.iterator();
++
++            while(var5.hasNext()) {
++               ServerPlayer var6 = (ServerPlayer)var5.next();
++               if (!var6.isSpectator()) {
++                  ++var4;
++                  if (var6.isSleeping()) {
++                     ++var3;
++                  }
++               }
++            }
++
++            var4 = Math.max(var4 * var1 / 100, 1);
++            var2 = new TranslatableComponent("sleep.players_sleeping", new Object[]{var3, var4});
++         }
++
++         Iterator var7 = this.players.iterator();
++
++         while(var7.hasNext()) {
++            ServerPlayer var8 = (ServerPlayer)var7.next();
++            var8.displayClientMessage(var2, true);
++         }
++
++      }
++   }
++
+    public void updateSleepingPlayerList() {
+-      this.allPlayersSleeping = false;
+       if (!this.players.isEmpty()) {
+-         int var1 = 0;
+-         int var2 = 0;
+-         Iterator var3 = this.players.iterator();
++         float var1 = this.percentageSleepingPlayers;
++         this.percentageSleepingPlayers = this.getPercentSleepingPlayers(false);
++         if (var1 != this.percentageSleepingPlayers) {
++            this.announceSleepStatus();
++         }
++      }
+ 
+-         while(var3.hasNext()) {
+-            ServerPlayer var4 = (ServerPlayer)var3.next();
+-            if (var4.isSpectator()) {
+-               ++var1;
+-            } else if (var4.isSleeping()) {
+-               ++var2;
++   }
++
++   private float getPercentSleepingPlayers(boolean var1) {
++      int var2 = 0;
++      int var3 = 0;
++      Iterator var4 = this.players.iterator();
++
++      while(true) {
++         while(true) {
++            ServerPlayer var5;
++            do {
++               if (!var4.hasNext()) {
++                  if (var2 == 0) {
++                     return 0.0F;
++                  }
++
++                  return 100.0F * (float)var3 / (float)var2;
++               }
++
++               var5 = (ServerPlayer)var4.next();
++            } while(var5.isSpectator());
++
++            ++var2;
++            if (var1) {
++               if (var5.isSleepingLongEnough()) {
++                  break;
++               }
++            } else if (var5.isSleeping()) {
++               break;
+             }
+          }
+ 
+-         this.allPlayersSleeping = var2 > 0 && var2 >= this.players.size() - var1;
++         ++var3;
+       }
+-
+    }
+ 
+    public ServerScoreboard getScoreboard() {
+       return this.server.getScoreboard();
+    }
+@@ -601,99 +675,53 @@
        }
  
     }
@@ -421,9 +592,7 @@
 -            var1.tick();
 -            var2.pop();
 -         }
-+      var1.setPosAndOldPos(var1.getX(), var1.getY(), var1.getZ());
-+      var1.yRotO = var1.yRot;
-+      var1.xRotO = var1.xRot;
++      var1.setOldPosAndRot();
 +      ProfilerFiller var2 = this.getProfiler();
 +      ++var1.tickCount;
 +      this.getProfiler().push(() -> {
@@ -454,12 +623,9 @@
 -   public void tickPassenger(Entity var1, Entity var2) {
 -      if (!var2.removed && var2.getVehicle() == var1) {
 -         if (var2 instanceof Player || this.getChunkSource().isEntityTickingChunk(var2)) {
-+   private void tickPassenger(Entity var1, Entity var2) {
-+      if (!var2.isRemoved() && var2.getVehicle() == var1) {
-+         if (var2 instanceof Player || this.entityTickList.contains(var2)) {
-             var2.setPosAndOldPos(var2.getX(), var2.getY(), var2.getZ());
-             var2.yRotO = var2.yRot;
-             var2.xRotO = var2.xRot;
+-            var2.setPosAndOldPos(var2.getX(), var2.getY(), var2.getZ());
+-            var2.yRotO = var2.yRot;
+-            var2.xRotO = var2.xRot;
 -            if (var2.inChunk) {
 -               ++var2.tickCount;
 -               ProfilerFiller var3 = this.getProfiler();
@@ -470,6 +636,10 @@
 -               var2.rideTick();
 -               var3.pop();
 -            }
++   private void tickPassenger(Entity var1, Entity var2) {
++      if (!var2.isRemoved() && var2.getVehicle() == var1) {
++         if (var2 instanceof Player || this.entityTickList.contains(var2)) {
++            var2.setOldPosAndRot();
 +            ++var2.tickCount;
 +            ProfilerFiller var3 = this.getProfiler();
 +            var3.push(() -> {
@@ -530,7 +700,7 @@
     }
  
     public void save(@Nullable ProgressListener var1, boolean var2, boolean var3) {
-@@ -707,10 +669,16 @@
+@@ -707,10 +735,16 @@
           if (var1 != null) {
              var1.progressStage(new TranslatableComponent("menu.savingChunks"));
           }
@@ -547,7 +717,7 @@
  
     private void saveLevelData() {
        if (this.dragonFight != null) {
-@@ -718,43 +686,23 @@
+@@ -718,43 +752,23 @@
        }
  
        this.getChunkSource().getDataStorage().save();
@@ -600,20 +770,20 @@
     public List<ServerPlayer> getPlayers(Predicate<? super ServerPlayer> var1) {
        ArrayList var2 = Lists.newArrayList();
        Iterator var3 = this.players.iterator();
-@@ -781,26 +729,23 @@
+@@ -781,26 +795,20 @@
  
     public boolean addWithUUID(Entity var1) {
        return this.addEntity(var1);
     }
  
 -   public void addFromAnotherDimension(Entity var1) {
-+   public void addAndForceLoad(Entity var1) {
-       boolean var2 = var1.forcedLoading;
-       var1.forcedLoading = true;
+-      boolean var2 = var1.forcedLoading;
+-      var1.forcedLoading = true;
 -      this.addWithUUID(var1);
-+      this.addEntity(var1);
-       var1.forcedLoading = var2;
+-      var1.forcedLoading = var2;
 -      this.updateChunkPos(var1);
++   public void addDuringTeleport(Entity var1) {
++      this.addEntity(var1);
     }
  
     public void addDuringCommandTeleport(ServerPlayer var1) {
@@ -629,7 +799,7 @@
     public void addNewPlayer(ServerPlayer var1) {
        this.addPlayer(var1);
     }
-@@ -808,192 +753,49 @@
+@@ -808,192 +816,49 @@
     public void addRespawnedPlayer(ServerPlayer var1) {
        this.addPlayer(var1);
     }
@@ -834,7 +1004,20 @@
  
        while(var4.hasNext()) {
           ServerPlayer var5 = (ServerPlayer)var4.next();
-@@ -1028,16 +830,17 @@
+@@ -1023,21 +888,30 @@
+ 
+    public void levelEvent(@Nullable Player var1, int var2, BlockPos var3, int var4) {
+       this.server.getPlayerList().broadcast(var1, (double)var3.getX(), (double)var3.getY(), (double)var3.getZ(), 64.0D, this.dimension(), new ClientboundLevelEventPacket(var2, var3, var4, false));
+    }
+ 
++   public int getLogicalHeight() {
++      return this.dimensionType().logicalHeight();
++   }
++
++   public void gameEvent(@Nullable Entity var1, GameEvent var2, BlockPos var3) {
++      this.postGameEventInRadius(var1, var2, var3, var2.getNotificationRadius());
++   }
++
     public void sendBlockUpdated(BlockPos var1, BlockState var2, BlockState var3, int var4) {
        this.getChunkSource().blockChanged(var1);
        VoxelShape var5 = var2.getCollisionShape(this, var1);
@@ -856,7 +1039,26 @@
  
        }
     }
-@@ -1143,16 +946,23 @@
+@@ -1108,10 +982,18 @@
+ 
+    public StructureManager getStructureManager() {
+       return this.server.getStructureManager();
+    }
+ 
++   public void sendVibrationParticle(VibrationPath var1) {
++      BlockPos var2 = var1.getOrigin();
++      ClientboundAddVibrationSignalPacket var3 = new ClientboundAddVibrationSignalPacket(var1);
++      this.players.forEach((var3x) -> {
++         this.sendParticles(var3x, false, (double)var2.getX(), (double)var2.getY(), (double)var2.getZ(), var3);
++      });
++   }
++
+    public <T extends ParticleOptions> int sendParticles(T var1, double var2, double var4, double var6, int var8, double var9, double var11, double var13, double var15) {
+       ClientboundLevelParticlesPacket var17 = new ClientboundLevelParticlesPacket(var1, false, var2, var4, var6, (float)var9, (float)var11, (float)var13, (float)var15, var8);
+       int var18 = 0;
+ 
+       for(int var19 = 0; var19 < this.players.size(); ++var19) {
+@@ -1143,16 +1025,23 @@
        }
     }
  
@@ -882,7 +1084,52 @@
     @Nullable
     public BlockPos findNearestMapFeature(StructureFeature<?> var1, BlockPos var2, int var3, boolean var4) {
        return !this.server.getWorldData().worldGenSettings().generateFeatures() ? null : this.getChunkSource().getGenerator().findNearestMapFeature(this, var1, var2, var3, var4);
-@@ -1323,136 +1133,160 @@
+@@ -1185,21 +1074,19 @@
+       return this.getChunkSource().getDataStorage();
+    }
+ 
+    @Nullable
+    public MapItemSavedData getMapData(String var1) {
+-      return (MapItemSavedData)this.getServer().overworld().getDataStorage().get(() -> {
+-         return new MapItemSavedData(var1);
+-      }, var1);
++      return (MapItemSavedData)this.getServer().overworld().getDataStorage().get(MapItemSavedData::load, var1);
+    }
+ 
+-   public void setMapData(MapItemSavedData var1) {
+-      this.getServer().overworld().getDataStorage().set(var1);
++   public void setMapData(String var1, MapItemSavedData var2) {
++      this.getServer().overworld().getDataStorage().set(var1, var2);
+    }
+ 
+    public int getFreeMapId() {
+-      return ((MapIndex)this.getServer().overworld().getDataStorage().computeIfAbsent(MapIndex::new, "idcounts")).getFreeAuxValueForMap();
++      return ((MapIndex)this.getServer().overworld().getDataStorage().computeIfAbsent(MapIndex::load, MapIndex::new, "idcounts")).getFreeAuxValueForMap();
+    }
+ 
+    public void setDefaultSpawnPos(BlockPos var1, float var2) {
+       ChunkPos var3 = new ChunkPos(new BlockPos(this.levelData.getXSpawn(), 0, this.levelData.getZSpawn()));
+       this.levelData.setSpawn(var1, var2);
+@@ -1220,16 +1107,16 @@
+    public float getSharedSpawnAngle() {
+       return this.levelData.getSpawnAngle();
+    }
+ 
+    public LongSet getForcedChunks() {
+-      ForcedChunksSavedData var1 = (ForcedChunksSavedData)this.getDataStorage().get(ForcedChunksSavedData::new, "chunks");
++      ForcedChunksSavedData var1 = (ForcedChunksSavedData)this.getDataStorage().get(ForcedChunksSavedData::load, "chunks");
+       return (LongSet)(var1 != null ? LongSets.unmodifiable(var1.getChunks()) : LongSets.EMPTY_SET);
+    }
+ 
+    public boolean setChunkForced(int var1, int var2, boolean var3) {
+-      ForcedChunksSavedData var4 = (ForcedChunksSavedData)this.getDataStorage().computeIfAbsent(ForcedChunksSavedData::new, "chunks");
++      ForcedChunksSavedData var4 = (ForcedChunksSavedData)this.getDataStorage().computeIfAbsent(ForcedChunksSavedData::load, ForcedChunksSavedData::new, "chunks");
+       ChunkPos var5 = new ChunkPos(var1, var2);
+       long var6 = var5.toLong();
+       boolean var8;
+       if (var3) {
+          var8 = var4.getChunks().add(var6);
+@@ -1323,136 +1210,160 @@
           NaturalSpawner.SpawnState var5 = this.getChunkSource().getLastSpawnState();
           if (var5 != null) {
              ObjectIterator var6 = var5.getMobCategoryCounts().object2IntEntrySet().iterator();
@@ -913,10 +1160,10 @@
              if (var4 != null) {
                 try {
                    var3.close();
--               } catch (Throwable var111) {
--                  var4.addSuppressed(var111);
-+               } catch (Throwable var151) {
-+                  var4.addSuppressed(var151);
+-               } catch (Throwable var110) {
+-                  var4.addSuppressed(var110);
++               } catch (Throwable var153) {
++                  var4.addSuppressed(var153);
                 }
              } else {
                 var3.close();
@@ -950,11 +1197,11 @@
 +            if (var169 != null) {
                 try {
 -                  var124.close();
--               } catch (Throwable var112) {
--                  var125.addSuppressed(var112);
+-               } catch (Throwable var111) {
+-                  var125.addSuppressed(var111);
 +                  var168.close();
-+               } catch (Throwable var149) {
-+                  var169.addSuppressed(var149);
++               } catch (Throwable var154) {
++                  var169.addSuppressed(var154);
                 }
              } else {
 -               var124.close();
@@ -987,11 +1234,11 @@
 +            if (var172 != null) {
                 try {
 -                  var127.close();
--               } catch (Throwable var109) {
--                  var128.addSuppressed(var109);
+-               } catch (Throwable var112) {
+-                  var128.addSuppressed(var112);
 +                  var171.close();
-+               } catch (Throwable var150) {
-+                  var172.addSuppressed(var150);
++               } catch (Throwable var152) {
++                  var172.addSuppressed(var152);
                 }
              } else {
 -               var127.close();
@@ -1024,11 +1271,11 @@
 +            if (var175 != null) {
                 try {
 -                  var130.close();
--               } catch (Throwable var110) {
--                  var131.addSuppressed(var110);
+-               } catch (Throwable var109) {
+-                  var131.addSuppressed(var109);
 +                  var174.close();
-+               } catch (Throwable var153) {
-+                  var175.addSuppressed(var153);
++               } catch (Throwable var151) {
++                  var175.addSuppressed(var151);
                 }
              } else {
 -               var130.close();
@@ -1062,8 +1309,8 @@
 -               } catch (Throwable var108) {
 -                  var8.addSuppressed(var108);
 +                  var177.close();
-+               } catch (Throwable var152) {
-+                  var8.addSuppressed(var152);
++               } catch (Throwable var150) {
++                  var8.addSuppressed(var150);
                 }
              } else {
 -               var133.close();
@@ -1087,8 +1334,8 @@
 +            if (var9 != null) {
 +               try {
 +                  var179.close();
-+               } catch (Throwable var154) {
-+                  var9.addSuppressed(var154);
++               } catch (Throwable var149) {
++                  var9.addSuppressed(var149);
 +               }
 +            } else {
 +               var179.close();
@@ -1102,7 +1349,7 @@
     private static void dumpEntities(Writer var0, Iterable<Entity> var1) throws IOException {
        CsvOutput var2 = CsvOutput.builder().addColumn("x").addColumn("y").addColumn("z").addColumn("uuid").addColumn("type").addColumn("alive").addColumn("display_name").addColumn("custom_name").build(var0);
        Iterator var3 = var1.iterator();
-@@ -1464,18 +1298,18 @@
+@@ -1464,18 +1375,18 @@
           var2.writeRow(var4.getX(), var4.getY(), var4.getZ(), var4.getUUID(), Registry.ENTITY_TYPE.getKey(var4.getType()), var4.isAlive(), var6.getString(), var5 != null ? var5.getString() : null);
        }
  
@@ -1126,7 +1373,7 @@
     }
  
     @VisibleForTesting
-@@ -1495,11 +1329,11 @@
+@@ -1495,11 +1406,11 @@
     public float getShade(Direction var1, boolean var2) {
        return 1.0F;
     }
@@ -1139,7 +1386,7 @@
     public String toString() {
        return "ServerLevel[" + this.serverLevelData.getLevelName() + "]";
     }
-@@ -1525,30 +1359,28 @@
+@@ -1525,30 +1436,28 @@
        return this;
     }
  
@@ -1177,7 +1424,7 @@
           return "";
        }
     }
-@@ -1563,6 +1395,94 @@
+@@ -1563,6 +1472,99 @@
        });
        BlockPos.betweenClosed(var2 - 2, var3, var4 - 2, var2 + 2, var3, var4 + 2).forEach((var1x) -> {
           var0.setBlockAndUpdate(var1x, Blocks.OBSIDIAN.defaultBlockState());
@@ -1267,6 +1514,11 @@
 +               EnderDragonPart var5 = var6[var4];
 +               ServerLevel.this.dragonParts.remove(var5.getId());
 +            }
++         }
++
++         GameEventListenerRegistrar var7 = var1.getGameEventListenerRegistrar();
++         if (var7 != null) {
++            var7.onListenerRemoved(var1.level);
 +         }
 +
 +      }

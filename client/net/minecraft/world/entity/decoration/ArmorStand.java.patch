@@ -1,6 +1,68 @@
 --- net/minecraft/world/entity/decoration/ArmorStand.java
 +++ net/minecraft/world/entity/decoration/ArmorStand.java
-@@ -313,11 +313,11 @@
+@@ -36,10 +36,11 @@
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LightLayer;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.material.PushReaction;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class ArmorStand extends LivingEntity {
+@@ -137,47 +138,21 @@
+ 
+    public void setItemSlot(EquipmentSlot var1, ItemStack var2) {
+       switch(var1.getType()) {
+       case HAND:
+          this.playEquipSound(var2);
++         this.gameEvent((Entity)null, GameEvent.ARMOR_STAND_ADD_ITEM);
+          this.handItems.set(var1.getIndex(), var2);
+          break;
+       case ARMOR:
+          this.playEquipSound(var2);
++         this.gameEvent((Entity)null, GameEvent.ARMOR_STAND_ADD_ITEM);
+          this.armorItems.set(var1.getIndex(), var2);
+       }
+ 
+    }
+ 
+-   public boolean setSlot(int var1, ItemStack var2) {
+-      EquipmentSlot var3;
+-      if (var1 == 98) {
+-         var3 = EquipmentSlot.MAINHAND;
+-      } else if (var1 == 99) {
+-         var3 = EquipmentSlot.OFFHAND;
+-      } else if (var1 == 100 + EquipmentSlot.HEAD.getIndex()) {
+-         var3 = EquipmentSlot.HEAD;
+-      } else if (var1 == 100 + EquipmentSlot.CHEST.getIndex()) {
+-         var3 = EquipmentSlot.CHEST;
+-      } else if (var1 == 100 + EquipmentSlot.LEGS.getIndex()) {
+-         var3 = EquipmentSlot.LEGS;
+-      } else {
+-         if (var1 != 100 + EquipmentSlot.FEET.getIndex()) {
+-            return false;
+-         }
+-
+-         var3 = EquipmentSlot.FEET;
+-      }
+-
+-      if (!var2.isEmpty() && !Mob.isValidSlotForItem(var3, var2) && var3 != EquipmentSlot.HEAD) {
+-         return false;
+-      } else {
+-         this.setItemSlot(var3, var2);
+-         return true;
+-      }
+-   }
+-
+    public boolean canTakeItem(ItemStack var1) {
+       EquipmentSlot var2 = Mob.getEquipmentSlotForItem(var1);
+       return this.getItemBySlot(var2).isEmpty() && !this.isDisabled(var2);
+    }
+ 
+@@ -313,11 +288,11 @@
  
     }
  
@@ -13,7 +75,7 @@
           } else if (var1.level.isClientSide) {
              return InteractionResult.CONSUME;
           } else {
-@@ -379,11 +379,11 @@
+@@ -379,11 +354,11 @@
           return false;
        } else if (var5.isEmpty() && (this.disabledSlots & 1 << var2.getFilterFlag() + 16) != 0) {
           return false;
@@ -26,7 +88,7 @@
              this.setItemSlot(var2, var6);
              return true;
           } else if (!var3.isEmpty() && var3.getCount() > 1) {
-@@ -403,18 +403,18 @@
+@@ -403,18 +378,18 @@
           }
        }
     }
@@ -48,7 +110,7 @@
                 if (this.isOnFire()) {
                    this.causeDamage(var1, 0.15F);
                 } else {
-@@ -429,26 +429,26 @@
+@@ -429,26 +404,28 @@
                 boolean var3 = var1.getDirectEntity() instanceof AbstractArrow;
                 boolean var4 = var3 && ((AbstractArrow)var1.getDirectEntity()).getPierceLevel() > 0;
                 boolean var5 = "player".equals(var1.getMsgId());
@@ -59,6 +121,7 @@
                    return false;
                 } else if (var1.isCreativePlayer()) {
                    this.playBrokenSound();
++                  this.gameEvent(var1.getEntity(), GameEvent.ENTITY_HIT);
                    this.showBreakingParticles();
 -                  this.remove();
 +                  this.kill();
@@ -67,6 +130,7 @@
                    long var6 = this.level.getGameTime();
                    if (var6 - this.lastHit > 5L && !var3) {
                       this.level.broadcastEntityEvent(this, (byte)32);
++                     this.gameEvent(var1.getEntity(), GameEvent.ENTITY_HIT);
                       this.lastHit = var6;
                    } else {
                       this.brokenByPlayer(var1);
@@ -78,7 +142,7 @@
                    return true;
                 }
              }
-@@ -492,11 +492,11 @@
+@@ -492,11 +469,11 @@
     private void causeDamage(DamageSource var1, float var2) {
        float var3 = this.getHealth();
        var3 -= var2;
@@ -91,7 +155,19 @@
        }
  
     }
-@@ -610,11 +610,11 @@
+@@ -506,10 +483,11 @@
+       this.brokenByAnything(var1);
+    }
+ 
+    private void brokenByAnything(DamageSource var1) {
+       this.playBrokenSound();
++      this.gameEvent(var1.getEntity(), GameEvent.BLOCK_DESTROY);
+       this.dropAllDeathLoot(var1);
+ 
+       int var2;
+       ItemStack var3;
+       for(var2 = 0; var2 < this.handItems.size(); ++var2) {
+@@ -610,11 +588,11 @@
     public boolean isBaby() {
        return this.isSmall();
     }
@@ -104,7 +180,7 @@
     public boolean ignoreExplosion() {
        return this.isInvisible();
     }
-@@ -801,10 +801,14 @@
+@@ -801,10 +779,14 @@
        } else {
           return super.getLightProbePosition(var1);
        }

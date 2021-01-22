@@ -1,6 +1,30 @@
 --- net/minecraft/world/level/chunk/ChunkGenerator.java
 +++ net/minecraft/world/level/chunk/ChunkGenerator.java
-@@ -93,14 +93,14 @@
+@@ -13,21 +13,22 @@
+ import javax.annotation.Nullable;
+ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportCategory;
+ import net.minecraft.ReportedException;
+ import net.minecraft.core.BlockPos;
++import net.minecraft.core.QuartPos;
+ import net.minecraft.core.Registry;
+ import net.minecraft.core.RegistryAccess;
+ import net.minecraft.core.SectionPos;
+ import net.minecraft.data.worldgen.StructureFeatures;
+ import net.minecraft.network.protocol.game.DebugPackets;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.WorldGenRegion;
+ import net.minecraft.world.entity.MobCategory;
+-import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.LevelAccessor;
++import net.minecraft.world.level.NoiseColumn;
+ import net.minecraft.world.level.StructureFeatureManager;
+ import net.minecraft.world.level.WorldGenLevel;
+ import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.biome.BiomeGenerationSettings;
+ import net.minecraft.world.level.biome.BiomeManager;
+@@ -93,14 +94,14 @@
  
              for(int var11 = 0; var11 < var18; ++var11) {
                 double var12 = (double)(4 * var17 + var17 * var10 * 6) + (var6.nextDouble() - 0.5D) * (double)var17 * 2.5D;
@@ -18,7 +42,31 @@
                 this.strongholdPositions.add(new ChunkPos(var14, var15));
                 var7 += 6.283185307179586D / (double)var5;
                 ++var9;
-@@ -163,11 +163,11 @@
+@@ -119,21 +120,21 @@
+ 
+    protected abstract Codec<? extends ChunkGenerator> codec();
+ 
+    public void createBiomes(Registry<Biome> var1, ChunkAccess var2) {
+       ChunkPos var3 = var2.getPos();
+-      ((ProtoChunk)var2).setBiomes(new ChunkBiomeContainer(var1, var3, this.runtimeBiomeSource));
++      ((ProtoChunk)var2).setBiomes(new ChunkBiomeContainer(var1, var2, var3, this.runtimeBiomeSource));
+    }
+ 
+    public void applyCarvers(long var1, BiomeManager var3, ChunkAccess var4, GenerationStep.Carving var5) {
+       BiomeManager var6 = var3.withDifferentSource(this.biomeSource);
+       WorldgenRandom var7 = new WorldgenRandom();
+       boolean var8 = true;
+       ChunkPos var9 = var4.getPos();
+       int var10 = var9.x;
+       int var11 = var9.z;
+-      BiomeGenerationSettings var12 = this.biomeSource.getNoiseBiome(var9.x << 2, 0, var9.z << 2).getGenerationSettings();
++      BiomeGenerationSettings var12 = this.biomeSource.getNoiseBiome(QuartPos.fromBlock(var9.getMinBlockX()), 0, QuartPos.fromBlock(var9.getMinBlockZ())).getGenerationSettings();
+       BitSet var13 = ((ProtoChunk)var4).getOrCreateCarvingMask(var5);
+ 
+       for(int var14 = var10 - 8; var14 <= var10 + 8; ++var14) {
+          for(int var15 = var11 - 8; var15 <= var11 + 8; ++var15) {
+             List var16 = var12.getCarvers(var5);
+@@ -163,11 +164,11 @@
           BlockPos.MutableBlockPos var9 = new BlockPos.MutableBlockPos();
           Iterator var10 = this.strongholdPositions.iterator();
  
@@ -31,7 +79,7 @@
                 var14 = new BlockPos(var9);
                 var7 = var12;
              } else if (var12 < var7) {
-@@ -184,14 +184,14 @@
+@@ -184,14 +185,14 @@
     }
  
     public void applyBiomeDecoration(WorldGenRegion var1, StructureFeatureManager var2) {
@@ -49,7 +97,7 @@
  
        try {
           var8.generate(var2, this, var1, var10, var9, var7);
-@@ -227,11 +227,11 @@
+@@ -227,11 +228,11 @@
        return var1.getMobSettings().getMobs(var3);
     }
  
@@ -62,7 +110,7 @@
  
        while(var9.hasNext()) {
           Supplier var10 = (Supplier)var9.next();
-@@ -253,12 +253,12 @@
+@@ -253,12 +254,12 @@
  
     public void createReferences(WorldGenLevel var1, StructureFeatureManager var2, ChunkAccess var3) {
        boolean var4 = true;
@@ -77,3 +125,16 @@
        for(int var10 = var5 - 8; var10 <= var5 + 8; ++var10) {
           for(int var11 = var6 - 8; var11 <= var6 + 8; ++var11) {
              long var12 = ChunkPos.asLong(var10, var11);
+@@ -298,11 +299,11 @@
+       return 63;
+    }
+ 
+    public abstract int getBaseHeight(int var1, int var2, Heightmap.Types var3);
+ 
+-   public abstract BlockGetter getBaseColumn(int var1, int var2);
++   public abstract NoiseColumn getBaseColumn(int var1, int var2);
+ 
+    public int getFirstFreeHeight(int var1, int var2, Heightmap.Types var3) {
+       return this.getBaseHeight(var1, var2, var3);
+    }
+ 

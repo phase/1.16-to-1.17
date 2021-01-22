@@ -12,6 +12,21 @@
  import net.minecraft.world.InteractionHand;
  import net.minecraft.world.InteractionResult;
  import net.minecraft.world.damagesource.DamageSource;
+@@ -34,12 +35,12 @@
+ import net.minecraft.world.entity.MoverType;
+ import net.minecraft.world.entity.Pose;
+ import net.minecraft.world.entity.SpawnGroupData;
+ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+ import net.minecraft.world.entity.ai.attributes.Attributes;
+-import net.minecraft.world.entity.ai.control.DolphinLookControl;
+-import net.minecraft.world.entity.ai.control.MoveControl;
++import net.minecraft.world.entity.ai.control.SmoothSwimmingLookControl;
++import net.minecraft.world.entity.ai.control.SmoothSwimmingMoveControl;
+ import net.minecraft.world.entity.ai.goal.AvoidEntityGoal;
+ import net.minecraft.world.entity.ai.goal.BreathAirGoal;
+ import net.minecraft.world.entity.ai.goal.DolphinJumpGoal;
+ import net.minecraft.world.entity.ai.goal.FollowBoatGoal;
+ import net.minecraft.world.entity.ai.goal.Goal;
 @@ -50,11 +51,11 @@
  import net.minecraft.world.entity.ai.goal.TryFindWaterGoal;
  import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
@@ -25,6 +40,21 @@
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.level.Level;
+@@ -72,12 +73,12 @@
+    private static final TargetingConditions SWIM_WITH_PLAYER_TARGETING;
+    public static final Predicate<ItemEntity> ALLOWED_ITEMS;
+ 
+    public Dolphin(EntityType<? extends Dolphin> var1, Level var2) {
+       super(var1, var2);
+-      this.moveControl = new Dolphin.DolphinMoveControl(this);
+-      this.lookControl = new DolphinLookControl(this, 10);
++      this.moveControl = new SmoothSwimmingMoveControl(this, 85, 10, 0.02F, 0.1F, true);
++      this.lookControl = new SmoothSwimmingLookControl(this, 10);
+       this.setCanPickUpLoot(true);
+    }
+ 
+    @Nullable
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor var1, DifficultyInstance var2, MobSpawnType var3, @Nullable SpawnGroupData var4, @Nullable CompoundTag var5) {
 @@ -216,11 +217,11 @@
           if (this.canHoldItem(var2)) {
              this.onItemPickup(var1);
@@ -81,3 +111,59 @@
  
              if (var3 == null) {
                 this.stuck = true;
+@@ -535,55 +536,6 @@
+             var4.setDeltaMovement((double)(0.3F * -Mth.sin(Dolphin.this.yRot * 0.017453292F) * Mth.cos(Dolphin.this.xRot * 0.017453292F) + Mth.cos(var6) * var7), (double)(0.3F * Mth.sin(Dolphin.this.xRot * 0.017453292F) * 1.5F), (double)(0.3F * Mth.cos(Dolphin.this.yRot * 0.017453292F) * Mth.cos(Dolphin.this.xRot * 0.017453292F) + Mth.sin(var6) * var7));
+             Dolphin.this.level.addFreshEntity(var4);
+          }
+       }
+    }
+-
+-   static class DolphinMoveControl extends MoveControl {
+-      private final Dolphin dolphin;
+-
+-      public DolphinMoveControl(Dolphin var1) {
+-         super(var1);
+-         this.dolphin = var1;
+-      }
+-
+-      public void tick() {
+-         if (this.dolphin.isInWater()) {
+-            this.dolphin.setDeltaMovement(this.dolphin.getDeltaMovement().add(0.0D, 0.005D, 0.0D));
+-         }
+-
+-         if (this.operation == MoveControl.Operation.MOVE_TO && !this.dolphin.getNavigation().isDone()) {
+-            double var1 = this.wantedX - this.dolphin.getX();
+-            double var3 = this.wantedY - this.dolphin.getY();
+-            double var5 = this.wantedZ - this.dolphin.getZ();
+-            double var7 = var1 * var1 + var3 * var3 + var5 * var5;
+-            if (var7 < 2.500000277905201E-7D) {
+-               this.mob.setZza(0.0F);
+-            } else {
+-               float var9 = (float)(Mth.atan2(var5, var1) * 57.2957763671875D) - 90.0F;
+-               this.dolphin.yRot = this.rotlerp(this.dolphin.yRot, var9, 10.0F);
+-               this.dolphin.yBodyRot = this.dolphin.yRot;
+-               this.dolphin.yHeadRot = this.dolphin.yRot;
+-               float var10 = (float)(this.speedModifier * this.dolphin.getAttributeValue(Attributes.MOVEMENT_SPEED));
+-               if (this.dolphin.isInWater()) {
+-                  this.dolphin.setSpeed(var10 * 0.02F);
+-                  float var11 = -((float)(Mth.atan2(var3, (double)Mth.sqrt(var1 * var1 + var5 * var5)) * 57.2957763671875D));
+-                  var11 = Mth.clamp(Mth.wrapDegrees(var11), -85.0F, 85.0F);
+-                  this.dolphin.xRot = this.rotlerp(this.dolphin.xRot, var11, 5.0F);
+-                  float var12 = Mth.cos(this.dolphin.xRot * 0.017453292F);
+-                  float var13 = Mth.sin(this.dolphin.xRot * 0.017453292F);
+-                  this.dolphin.zza = var12 * var10;
+-                  this.dolphin.yya = -var13 * var10;
+-               } else {
+-                  this.dolphin.setSpeed(var10 * 0.1F);
+-               }
+-
+-            }
+-         } else {
+-            this.dolphin.setSpeed(0.0F);
+-            this.dolphin.setXxa(0.0F);
+-            this.dolphin.setYya(0.0F);
+-            this.dolphin.setZza(0.0F);
+-         }
+-      }
+-   }
+ }

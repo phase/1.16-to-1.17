@@ -1,0 +1,79 @@
+--- net/minecraft/server/ServerScoreboard.java
++++ net/minecraft/server/ServerScoreboard.java
+@@ -6,25 +6,27 @@
+ import java.util.Arrays;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Set;
+ import javax.annotation.Nullable;
++import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundSetDisplayObjectivePacket;
+ import net.minecraft.network.protocol.game.ClientboundSetObjectivePacket;
+ import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetScorePacket;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.world.scores.Objective;
+ import net.minecraft.world.scores.PlayerTeam;
+ import net.minecraft.world.scores.Score;
+ import net.minecraft.world.scores.Scoreboard;
++import net.minecraft.world.scores.ScoreboardSaveData;
+ 
+ public class ServerScoreboard extends Scoreboard {
+    private final MinecraftServer server;
+    private final Set<Objective> trackedObjectives = Sets.newHashSet();
+-   private Runnable[] dirtyListeners = new Runnable[0];
++   private final List<Runnable> dirtyListeners = Lists.newArrayList();
+ 
+    public ServerScoreboard(MinecraftServer var1) {
+       this.server = var1;
+    }
+ 
+@@ -130,21 +132,19 @@
+       this.server.getPlayerList().broadcastAll(new ClientboundSetPlayerTeamPacket(var1, 1));
+       this.setDirty();
+    }
+ 
+    public void addDirtyListener(Runnable var1) {
+-      this.dirtyListeners = (Runnable[])Arrays.copyOf(this.dirtyListeners, this.dirtyListeners.length + 1);
+-      this.dirtyListeners[this.dirtyListeners.length - 1] = var1;
++      this.dirtyListeners.add(var1);
+    }
+ 
+    protected void setDirty() {
+-      Runnable[] var1 = this.dirtyListeners;
+-      int var2 = var1.length;
++      Iterator var1 = this.dirtyListeners.iterator();
+ 
+-      for(int var3 = 0; var3 < var2; ++var3) {
+-         Runnable var4 = var1[var3];
+-         var4.run();
++      while(var1.hasNext()) {
++         Runnable var2 = (Runnable)var1.next();
++         var2.run();
+       }
+ 
+    }
+ 
+    public List<Packet<?>> getStartTrackingPackets(Objective var1) {
+@@ -224,10 +224,20 @@
+       }
+ 
+       return var2;
+    }
+ 
++   public ScoreboardSaveData createData() {
++      ScoreboardSaveData var1 = new ScoreboardSaveData(this);
++      this.addDirtyListener(var1::setDirty);
++      return var1;
++   }
++
++   public ScoreboardSaveData createData(CompoundTag var1) {
++      return this.createData().load(var1);
++   }
++
+    public static enum Method {
+       CHANGE,
+       REMOVE;
+ 
+       private Method() {

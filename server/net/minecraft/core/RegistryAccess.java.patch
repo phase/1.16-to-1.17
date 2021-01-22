@@ -1,0 +1,100 @@
+--- net/minecraft/core/RegistryAccess.java
++++ net/minecraft/core/RegistryAccess.java
+@@ -57,22 +57,29 @@
+    });
+ 
+    public RegistryAccess() {
+    }
+ 
+-   public abstract <E> Optional<WritableRegistry<E>> registry(ResourceKey<? extends Registry<E>> var1);
++   public abstract <E> Optional<WritableRegistry<E>> ownedRegistry(ResourceKey<? extends Registry<? extends E>> var1);
+ 
+-   public <E> WritableRegistry<E> registryOrThrow(ResourceKey<? extends Registry<E>> var1) {
+-      return (WritableRegistry)this.registry(var1).orElseThrow(() -> {
++   public <E> WritableRegistry<E> ownedRegistryOrThrow(ResourceKey<? extends Registry<? extends E>> var1) {
++      return (WritableRegistry)this.ownedRegistry(var1).orElseThrow(() -> {
+          return new IllegalStateException("Missing registry: " + var1);
+       });
+    }
+ 
+-   public Registry<DimensionType> dimensionTypes() {
+-      return this.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY);
++   public <E> Optional<? extends Registry<E>> registry(ResourceKey<? extends Registry<? extends E>> var1) {
++      Optional var2 = this.ownedRegistry(var1);
++      return var2.isPresent() ? var2 : Registry.REGISTRY.getOptional(var1.location());
+    }
+ 
++   public <E> Registry<E> registryOrThrow(ResourceKey<? extends Registry<? extends E>> var1) {
++      return (Registry)this.registry(var1).orElseThrow(() -> {
++         return new IllegalStateException("Missing registry: " + var1);
++      });
++   }
++
+    private static <E> void put(ImmutableMap.Builder<ResourceKey<? extends Registry<?>>, RegistryAccess.RegistryData<?>> var0, ResourceKey<? extends Registry<E>> var1, Codec<E> var2) {
+       var0.put(var1, new RegistryAccess.RegistryData(var1, var2, (Codec)null));
+    }
+ 
+    private static <E> void put(ImmutableMap.Builder<ResourceKey<? extends Registry<?>>, RegistryAccess.RegistryData<?>> var0, ResourceKey<? extends Registry<E>> var1, Codec<E> var2, Codec<E> var3) {
+@@ -94,40 +101,35 @@
+    }
+ 
+    private static <E> void addBuiltinElements(RegistryAccess.RegistryHolder var0, RegistryReadOps.ResourceAccess.MemoryMap var1, RegistryAccess.RegistryData<E> var2) {
+       ResourceKey var3 = var2.key();
+       boolean var4 = !var3.equals(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY) && !var3.equals(Registry.DIMENSION_TYPE_REGISTRY);
+-      WritableRegistry var5 = BUILTIN.registryOrThrow(var3);
+-      WritableRegistry var6 = var0.registryOrThrow(var3);
++      Registry var5 = BUILTIN.registryOrThrow(var3);
++      WritableRegistry var6 = var0.ownedRegistryOrThrow(var3);
+       Iterator var7 = var5.entrySet().iterator();
+ 
+       while(var7.hasNext()) {
+          Entry var8 = (Entry)var7.next();
+-         Object var9 = var8.getValue();
++         ResourceKey var9 = (ResourceKey)var8.getKey();
++         Object var10 = var8.getValue();
+          if (var4) {
+-            var1.add(BUILTIN, (ResourceKey)var8.getKey(), var2.codec(), var5.getId(var9), var9, var5.lifecycle(var9));
++            var1.add(BUILTIN, var9, var2.codec(), var5.getId(var10), var10, var5.lifecycle(var10));
+          } else {
+-            var6.registerMapping(var5.getId(var9), (ResourceKey)var8.getKey(), var9, var5.lifecycle(var9));
++            var6.registerMapping(var5.getId(var10), var9, var10, var5.lifecycle(var10));
+          }
+       }
+ 
+    }
+ 
+    private static <R extends Registry<?>> void copyBuiltin(RegistryAccess.RegistryHolder var0, ResourceKey<R> var1) {
+       Registry var2 = BuiltinRegistries.REGISTRY;
+-      Registry var3 = (Registry)var2.get(var1);
+-      if (var3 == null) {
+-         throw new IllegalStateException("Missing builtin registry: " + var1);
+-      } else {
+-         copy(var0, var3);
+-      }
++      Registry var3 = (Registry)var2.getOrThrow(var1);
++      copy(var0, var3);
+    }
+ 
+    private static <E> void copy(RegistryAccess.RegistryHolder var0, Registry<E> var1) {
+-      WritableRegistry var2 = (WritableRegistry)var0.registry(var1.key()).orElseThrow(() -> {
+-         return new IllegalStateException("Missing registry: " + var1.key());
+-      });
++      WritableRegistry var2 = var0.ownedRegistryOrThrow(var1.key());
+       Iterator var3 = var1.entrySet().iterator();
+ 
+       while(var3.hasNext()) {
+          Entry var4 = (Entry)var3.next();
+          Object var5 = var4.getValue();
+@@ -202,11 +204,11 @@
+ 
+       private static <E> MappedRegistry<?> createRegistry(ResourceKey<? extends Registry<?>> var0) {
+          return new MappedRegistry(var0, Lifecycle.stable());
+       }
+ 
+-      public <E> Optional<WritableRegistry<E>> registry(ResourceKey<? extends Registry<E>> var1) {
++      public <E> Optional<WritableRegistry<E>> ownedRegistry(ResourceKey<? extends Registry<? extends E>> var1) {
+          return Optional.ofNullable(this.registries.get(var1)).map((var0) -> {
+             return var0;
+          });
+       }
+    }

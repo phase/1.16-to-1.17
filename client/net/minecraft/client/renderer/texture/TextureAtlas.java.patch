@@ -1,6 +1,18 @@
 --- net/minecraft/client/renderer/texture/TextureAtlas.java
 +++ net/minecraft/client/renderer/texture/TextureAtlas.java
-@@ -49,11 +49,11 @@
+@@ -38,22 +38,22 @@
+    private static final Logger LOGGER = LogManager.getLogger();
+    @Deprecated
+    public static final ResourceLocation LOCATION_BLOCKS;
+    @Deprecated
+    public static final ResourceLocation LOCATION_PARTICLES;
+-   private final List<TextureAtlasSprite> animatedTextures = Lists.newArrayList();
++   private final List<Tickable> animatedTextures = Lists.newArrayList();
+    private final Set<ResourceLocation> sprites = Sets.newHashSet();
+    private final Map<ResourceLocation, TextureAtlasSprite> texturesByName = Maps.newHashMap();
+    private final ResourceLocation location;
+    private final int maxSupportedTextureSize;
+ 
     public TextureAtlas(ResourceLocation var1) {
        this.location = var1;
        this.maxSupportedTextureSize = RenderSystem.maxSupportedTextureSize();
@@ -13,3 +25,34 @@
     public void reload(TextureAtlas.Preparations var1) {
        this.sprites.clear();
        this.sprites.addAll(var1.sprites);
+@@ -74,12 +74,13 @@
+             var6.setDetail("Atlas path", (Object)this.location);
+             var6.setDetail("Sprite", (Object)var3);
+             throw new ReportedException(var5);
+          }
+ 
+-         if (var3.isAnimation()) {
+-            this.animatedTextures.add(var3);
++         Tickable var4 = var3.getAnimationTicker();
++         if (var4 != null) {
++            this.animatedTextures.add(var4);
+          }
+       }
+ 
+    }
+ 
+@@ -267,12 +268,12 @@
+    public void cycleAnimationFrames() {
+       this.bind();
+       Iterator var1 = this.animatedTextures.iterator();
+ 
+       while(var1.hasNext()) {
+-         TextureAtlasSprite var2 = (TextureAtlasSprite)var1.next();
+-         var2.cycleFrames();
++         Tickable var2 = (Tickable)var1.next();
++         var2.tick();
+       }
+ 
+    }
+ 
+    public void tick() {

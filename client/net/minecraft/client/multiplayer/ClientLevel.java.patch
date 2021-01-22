@@ -15,7 +15,15 @@
  import java.util.Map;
  import java.util.Random;
  import java.util.function.BooleanSupplier;
-@@ -48,35 +44,41 @@
+@@ -41,42 +37,51 @@
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.sounds.SoundEvent;
+ import net.minecraft.sounds.SoundSource;
+ import net.minecraft.tags.BlockTags;
+ import net.minecraft.tags.TagContainer;
++import net.minecraft.util.CubicSampler;
+ import net.minecraft.util.Mth;
+ import net.minecraft.util.profiling.ProfilerFiller;
  import net.minecraft.world.Difficulty;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.player.Player;
@@ -30,6 +38,7 @@
 +import net.minecraft.world.level.LevelHeightAccessor;
  import net.minecraft.world.level.TickList;
  import net.minecraft.world.level.biome.Biome;
++import net.minecraft.world.level.biome.BiomeManager;
  import net.minecraft.world.level.biome.Biomes;
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.Blocks;
@@ -41,6 +50,7 @@
 +import net.minecraft.world.level.entity.LevelCallback;
 +import net.minecraft.world.level.entity.LevelEntityGetter;
 +import net.minecraft.world.level.entity.TransientEntitySectionManager;
++import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.material.Fluid;
  import net.minecraft.world.level.material.FluidState;
@@ -59,7 +69,7 @@
     private final ClientLevel.ClientLevelData clientLevelData;
     private final DimensionSpecialEffects effects;
     private final Minecraft minecraft = Minecraft.getInstance();
-@@ -137,133 +139,76 @@
+@@ -137,133 +142,72 @@
  
        this.clientLevelData.setDayTime(var1);
     }
@@ -118,9 +128,7 @@
 -            var1.tick();
 -            this.getProfiler().pop();
 -         }
-+      var1.setPosAndOldPos(var1.getX(), var1.getY(), var1.getZ());
-+      var1.yRotO = var1.yRot;
-+      var1.xRotO = var1.xRot;
++      var1.setOldPosAndRot();
 +      ++var1.tickCount;
 +      this.getProfiler().push(() -> {
 +         return Registry.ENTITY_TYPE.getKey(var1.getType()).toString();
@@ -149,16 +157,17 @@
 -   public void tickPassenger(Entity var1, Entity var2) {
 -      if (!var2.removed && var2.getVehicle() == var1) {
 -         if (var2 instanceof Player || this.getChunkSource().isEntityTickingChunk(var2)) {
-+   private void tickPassenger(Entity var1, Entity var2) {
-+      if (!var2.isRemoved() && var2.getVehicle() == var1) {
-+         if (var2 instanceof Player || this.tickingEntities.contains(var2)) {
-             var2.setPosAndOldPos(var2.getX(), var2.getY(), var2.getZ());
-             var2.yRotO = var2.yRot;
-             var2.xRotO = var2.xRot;
+-            var2.setPosAndOldPos(var2.getX(), var2.getY(), var2.getZ());
+-            var2.yRotO = var2.yRot;
+-            var2.xRotO = var2.xRot;
 -            if (var2.inChunk) {
 -               ++var2.tickCount;
 -               var2.rideTick();
 -            }
++   private void tickPassenger(Entity var1, Entity var2) {
++      if (!var2.isRemoved() && var2.getVehicle() == var1) {
++         if (var2 instanceof Player || this.tickingEntities.contains(var2)) {
++            var2.setOldPosAndRot();
 +            ++var2.tickCount;
 +            var2.rideTick();
 +            Iterator var3 = var2.getPassengers().iterator();
@@ -228,7 +237,7 @@
     public void clearTintCaches() {
        this.tintCaches.forEach((var0, var1) -> {
           var1.invalidateAll();
-@@ -273,64 +218,37 @@
+@@ -273,64 +217,37 @@
     public boolean hasChunk(int var1, int var2) {
        return true;
     }
@@ -301,7 +310,7 @@
     public void setKnownState(BlockPos var1, BlockState var2) {
        this.setBlock(var1, var2, 19);
     }
-@@ -346,11 +264,11 @@
+@@ -346,11 +263,11 @@
        if (this.minecraft.gameMode.getPlayerMode() == GameType.CREATIVE) {
           Iterator var7 = this.minecraft.player.getHandSlots().iterator();
  
@@ -314,7 +323,7 @@
              }
           }
        }
-@@ -429,24 +347,10 @@
+@@ -429,24 +346,10 @@
  
     private void spawnFluidParticle(double var1, double var3, double var5, double var7, double var9, ParticleOptions var11) {
        this.addParticle(var11, Mth.lerp(this.random.nextDouble(), var1, var3), var9, Mth.lerp(this.random.nextDouble(), var5, var7), 0.0D, 0.0D, 0.0D);
@@ -339,7 +348,22 @@
        var2.setDetail("Server brand", () -> {
           return this.minecraft.player.getServerBrand();
        });
-@@ -563,11 +467,11 @@
+@@ -517,12 +420,12 @@
+    @Nullable
+    public MapItemSavedData getMapData(String var1) {
+       return (MapItemSavedData)this.mapData.get(var1);
+    }
+ 
+-   public void setMapData(MapItemSavedData var1) {
+-      this.mapData.put(var1.getId(), var1);
++   public void setMapData(String var1, MapItemSavedData var2) {
++      this.mapData.put(var1, var2);
+    }
+ 
+    public int getFreeMapId() {
+       return 0;
+    }
+@@ -563,11 +466,11 @@
        try {
           this.levelRenderer.levelEvent(var1, var2, var3, var4);
        } catch (Throwable var8) {
@@ -352,12 +376,104 @@
           var7.setDetail("Event data", (Object)var4);
           throw new ReportedException(var6);
        }
-@@ -777,10 +681,53 @@
+@@ -605,55 +508,55 @@
+       var3 = (float)((double)var3 * (1.0D - (double)(this.getRainLevel(var1) * 5.0F) / 16.0D));
+       var3 = (float)((double)var3 * (1.0D - (double)(this.getThunderLevel(var1) * 5.0F) / 16.0D));
+       return var3 * 0.8F + 0.2F;
+    }
+ 
+-   public Vec3 getSkyColor(BlockPos var1, float var2) {
++   public Vec3 getSkyColor(Vec3 var1, float var2) {
+       float var3 = this.getTimeOfDay(var2);
+-      float var4 = Mth.cos(var3 * 6.2831855F) * 2.0F + 0.5F;
+-      var4 = Mth.clamp(var4, 0.0F, 1.0F);
+-      Biome var5 = this.getBiome(var1);
+-      int var6 = var5.getSkyColor();
+-      float var7 = (float)(var6 >> 16 & 255) / 255.0F;
+-      float var8 = (float)(var6 >> 8 & 255) / 255.0F;
+-      float var9 = (float)(var6 & 255) / 255.0F;
+-      var7 *= var4;
+-      var8 *= var4;
+-      var9 *= var4;
+-      float var10 = this.getRainLevel(var2);
+-      float var11;
++      Vec3 var4 = var1.subtract(2.0D, 2.0D, 2.0D).scale(0.25D);
++      BiomeManager var5 = this.getBiomeManager();
++      Vec3 var6 = CubicSampler.gaussianSampleVec3(var4, (var1x, var2x, var3x) -> {
++         return Vec3.fromRGB24(var5.getNoiseBiomeAtQuart(var1x, var2x, var3x).getSkyColor());
++      });
++      float var7 = Mth.cos(var3 * 6.2831855F) * 2.0F + 0.5F;
++      var7 = Mth.clamp(var7, 0.0F, 1.0F);
++      float var8 = (float)var6.x * var7;
++      float var9 = (float)var6.y * var7;
++      float var10 = (float)var6.z * var7;
++      float var11 = this.getRainLevel(var2);
+       float var12;
+-      if (var10 > 0.0F) {
+-         var11 = (var7 * 0.3F + var8 * 0.59F + var9 * 0.11F) * 0.6F;
+-         var12 = 1.0F - var10 * 0.75F;
+-         var7 = var7 * var12 + var11 * (1.0F - var12);
+-         var8 = var8 * var12 + var11 * (1.0F - var12);
+-         var9 = var9 * var12 + var11 * (1.0F - var12);
+-      }
+-
+-      var11 = this.getThunderLevel(var2);
++      float var13;
+       if (var11 > 0.0F) {
+-         var12 = (var7 * 0.3F + var8 * 0.59F + var9 * 0.11F) * 0.2F;
+-         float var13 = 1.0F - var11 * 0.75F;
+-         var7 = var7 * var13 + var12 * (1.0F - var13);
++         var12 = (var8 * 0.3F + var9 * 0.59F + var10 * 0.11F) * 0.6F;
++         var13 = 1.0F - var11 * 0.75F;
+          var8 = var8 * var13 + var12 * (1.0F - var13);
+          var9 = var9 * var13 + var12 * (1.0F - var13);
++         var10 = var10 * var13 + var12 * (1.0F - var13);
+       }
+ 
++      var12 = this.getThunderLevel(var2);
++      if (var12 > 0.0F) {
++         var13 = (var8 * 0.3F + var9 * 0.59F + var10 * 0.11F) * 0.2F;
++         float var14 = 1.0F - var12 * 0.75F;
++         var8 = var8 * var14 + var13 * (1.0F - var14);
++         var9 = var9 * var14 + var13 * (1.0F - var14);
++         var10 = var10 * var14 + var13 * (1.0F - var14);
++      }
++
+       if (this.skyFlashTime > 0) {
+-         var12 = (float)this.skyFlashTime - var2;
+-         if (var12 > 1.0F) {
+-            var12 = 1.0F;
++         var13 = (float)this.skyFlashTime - var2;
++         if (var13 > 1.0F) {
++            var13 = 1.0F;
+          }
+ 
+-         var12 *= 0.45F;
+-         var7 = var7 * (1.0F - var12) + 0.8F * var12;
+-         var8 = var8 * (1.0F - var12) + 0.8F * var12;
+-         var9 = var9 * (1.0F - var12) + 1.0F * var12;
++         var13 *= 0.45F;
++         var8 = var8 * (1.0F - var13) + 0.8F * var13;
++         var9 = var9 * (1.0F - var13) + 0.8F * var13;
++         var10 = var10 * (1.0F - var13) + 1.0F * var13;
+       }
+ 
+-      return new Vec3((double)var7, (double)var8, (double)var9);
++      return new Vec3((double)var8, (double)var9, (double)var10);
+    }
+ 
+    public Vec3 getCloudColor(float var1) {
+       float var2 = this.getTimeOfDay(var1);
+       float var3 = Mth.cos(var2 * 6.2831855F) * 2.0F + 0.5F;
+@@ -777,10 +680,56 @@
  
     public ClientLevel.ClientLevelData getLevelData() {
        return this.clientLevelData;
     }
  
++   public void gameEvent(@Nullable Entity var1, GameEvent var2, BlockPos var3) {
++   }
++
 +   protected LevelEntityGetter<Entity> getEntities() {
 +      return this.entityStorage.getEntityGetter();
 +   }
@@ -406,7 +522,7 @@
        private final GameRules gameRules;
        private final boolean isFlat;
        private int xSpawn;
-@@ -881,12 +828,12 @@
+@@ -881,12 +830,12 @@
  
        public boolean isDifficultyLocked() {
           return this.difficultyLocked;

@@ -1,10 +1,77 @@
 --- net/minecraft/tags/Tag.java
 +++ net/minecraft/tags/Tag.java
-@@ -126,11 +126,11 @@
+@@ -3,20 +3,23 @@
+ import com.google.common.collect.ImmutableSet;
+ import com.google.common.collect.Lists;
+ import com.google.gson.JsonArray;
+ import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
++import com.mojang.datafixers.util.Either;
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.DataResult;
+ import java.util.ArrayList;
++import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Optional;
+ import java.util.Random;
+ import java.util.Set;
+ import java.util.function.Consumer;
+ import java.util.function.Function;
++import java.util.function.Predicate;
+ import java.util.function.Supplier;
+ import java.util.stream.Stream;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.GsonHelper;
+ 
+@@ -74,10 +77,18 @@
+       }
+ 
+       public String toString() {
+          return "#" + this.id + "?";
+       }
++
++      public void visitOptionalDependencies(Consumer<ResourceLocation> var1) {
++         var1.accept(this.id);
++      }
++
++      public boolean verifyIfPresent(Predicate<ResourceLocation> var1, Predicate<ResourceLocation> var2) {
++         return true;
++      }
+    }
+ 
+    public static class TagEntry implements Tag.Entry {
+       private final ResourceLocation id;
+ 
+@@ -100,10 +111,18 @@
+       }
+ 
+       public String toString() {
+          return "#" + this.id;
+       }
++
++      public boolean verifyIfPresent(Predicate<ResourceLocation> var1, Predicate<ResourceLocation> var2) {
++         return var2.test(this.id);
++      }
++
++      public void visitRequiredDependencies(Consumer<ResourceLocation> var1) {
++         var1.accept(this.id);
++      }
+    }
+ 
+    public static class OptionalElementEntry implements Tag.Entry {
+       private final ResourceLocation id;
+ 
+@@ -125,12 +144,16 @@
+          var2.addProperty("id", this.id.toString());
           var2.addProperty("required", false);
           var1.add(var2);
        }
  
++      public boolean verifyIfPresent(Predicate<ResourceLocation> var1, Predicate<ResourceLocation> var2) {
++         return true;
++      }
++
        public String toString() {
 -         return this.id.toString() + "?";
 +         return this.id + "?";
@@ -13,7 +80,99 @@
  
     public static class ElementEntry implements Tag.Entry {
        private final ResourceLocation id;
-@@ -290,9 +290,9 @@
+@@ -151,19 +174,31 @@
+ 
+       public void serializeTo(JsonArray var1) {
+          var1.add(this.id.toString());
+       }
+ 
++      public boolean verifyIfPresent(Predicate<ResourceLocation> var1, Predicate<ResourceLocation> var2) {
++         return var1.test(this.id);
++      }
++
+       public String toString() {
+          return this.id.toString();
+       }
+    }
+ 
+    public interface Entry {
+       <T> boolean build(Function<ResourceLocation, Tag<T>> var1, Function<ResourceLocation, T> var2, Consumer<T> var3);
+ 
+       void serializeTo(JsonArray var1);
++
++      default void visitRequiredDependencies(Consumer<ResourceLocation> var1) {
++      }
++
++      default void visitOptionalDependencies(Consumer<ResourceLocation> var1) {
++      }
++
++      boolean verifyIfPresent(Predicate<ResourceLocation> var1, Predicate<ResourceLocation> var2);
+    }
+ 
+    public static class Builder {
+       private final List<Tag.BuilderEntry> entries = Lists.newArrayList();
+ 
+@@ -189,39 +224,43 @@
+ 
+       public Tag.Builder addTag(ResourceLocation var1, String var2) {
+          return this.add(new Tag.TagEntry(var1), var2);
+       }
+ 
+-      public <T> Optional<Tag<T>> build(Function<ResourceLocation, Tag<T>> var1, Function<ResourceLocation, T> var2) {
++      public <T> Either<Collection<Tag.BuilderEntry>, Tag<T>> build(Function<ResourceLocation, Tag<T>> var1, Function<ResourceLocation, T> var2) {
+          com.google.common.collect.ImmutableSet.Builder var3 = ImmutableSet.builder();
+-         Iterator var4 = this.entries.iterator();
++         ArrayList var4 = Lists.newArrayList();
++         Iterator var5 = this.entries.iterator();
+ 
+-         Tag.Entry var10000;
+-         do {
+-            if (!var4.hasNext()) {
+-               return Optional.of(Tag.fromSet(var3.build()));
++         while(var5.hasNext()) {
++            Tag.BuilderEntry var6 = (Tag.BuilderEntry)var5.next();
++            Tag.Entry var10000 = var6.getEntry();
++            var3.getClass();
++            if (!var10000.build(var1, var2, var3::add)) {
++               var4.add(var6);
+             }
++         }
+ 
+-            Tag.BuilderEntry var5 = (Tag.BuilderEntry)var4.next();
+-            var10000 = var5.getEntry();
+-            var3.getClass();
+-         } while(var10000.build(var1, var2, var3::add));
+-
+-         return Optional.empty();
++         return var4.isEmpty() ? Either.right(Tag.fromSet(var3.build())) : Either.left(var4);
+       }
+ 
+       public Stream<Tag.BuilderEntry> getEntries() {
+          return this.entries.stream();
+       }
+ 
+-      public <T> Stream<Tag.BuilderEntry> getUnresolvedEntries(Function<ResourceLocation, Tag<T>> var1, Function<ResourceLocation, T> var2) {
+-         return this.getEntries().filter((var2x) -> {
+-            return !var2x.getEntry().build(var1, var2, (var0) -> {
+-            });
++      public void visitRequiredDependencies(Consumer<ResourceLocation> var1) {
++         this.entries.forEach((var1x) -> {
++            var1x.entry.visitRequiredDependencies(var1);
+          });
+       }
+ 
++      public void visitOptionalDependencies(Consumer<ResourceLocation> var1) {
++         this.entries.forEach((var1x) -> {
++            var1x.entry.visitOptionalDependencies(var1);
++         });
++      }
++
+       public Tag.Builder addFromJson(JsonObject var1, String var2) {
+          JsonArray var3 = GsonHelper.getAsJsonArray(var1, "values");
+          ArrayList var4 = Lists.newArrayList();
+          Iterator var5 = var3.iterator();
+ 
+@@ -290,9 +329,9 @@
        public Tag.Entry getEntry() {
           return this.entry;
        }

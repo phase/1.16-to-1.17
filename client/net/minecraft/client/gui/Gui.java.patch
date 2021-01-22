@@ -12,19 +12,32 @@
  import java.util.Collection;
  import java.util.Iterator;
  import java.util.List;
-@@ -80,10 +81,11 @@
+@@ -80,10 +81,12 @@
  
  public class Gui extends GuiComponent {
     private static final ResourceLocation VIGNETTE_LOCATION = new ResourceLocation("textures/misc/vignette.png");
     private static final ResourceLocation WIDGETS_LOCATION = new ResourceLocation("textures/gui/widgets.png");
     private static final ResourceLocation PUMPKIN_BLUR_LOCATION = new ResourceLocation("textures/misc/pumpkinblur.png");
 +   private static final ResourceLocation SPYGLASS_SCOPE_LOCATION = new ResourceLocation("textures/misc/spyglass_scope.png");
++   private static final ResourceLocation POWDER_SNOW_OUTLINE_LOCATION = new ResourceLocation("textures/misc/powder_snow_outline.png");
     private static final Component DEMO_EXPIRED_TEXT = new TranslatableComponent("demo.demoExpired");
     private final Random random = new Random();
     private final Minecraft minecraft;
     private final ItemRenderer itemRenderer;
     private final ChatComponent chat;
-@@ -160,13 +162,17 @@
+@@ -113,10 +116,11 @@
+    private long lastHealthTime;
+    private long healthBlinkTime;
+    private int screenWidth;
+    private int screenHeight;
+    private final Map<ChatType, List<ChatListener>> chatListeners;
++   private float scopeScale;
+ 
+    public Gui(Minecraft var1) {
+       this.lastToolHighlight = ItemStack.EMPTY;
+       this.chatListeners = Maps.newHashMap();
+       this.minecraft = var1;
+@@ -160,20 +164,33 @@
        } else {
           RenderSystem.enableDepthTest();
           RenderSystem.defaultBlendFunc();
@@ -33,19 +46,193 @@
 -      ItemStack var4 = this.minecraft.player.inventory.getArmor(3);
 -      if (this.minecraft.options.getCameraType().isFirstPerson() && var4.getItem() == Blocks.CARVED_PUMPKIN.asItem()) {
 -         this.renderPumpkin();
-+      ItemStack var4 = this.minecraft.player.getInventory().getArmor(3);
++      float var4 = this.minecraft.getDeltaFrameTime();
++      this.scopeScale = Mth.lerp(0.5F * var4, this.scopeScale, 1.125F);
 +      if (this.minecraft.options.getCameraType().isFirstPerson()) {
 +         if (this.minecraft.player.isScoping()) {
-+            this.renderFullScreenOverlay(SPYGLASS_SCOPE_LOCATION, 0.5F, -16777216);
-+         } else if (var4.is(Blocks.CARVED_PUMPKIN.asItem())) {
-+            this.renderFullScreenOverlay(PUMPKIN_BLUR_LOCATION);
++            this.renderSpyglassOverlay(this.scopeScale);
++         } else {
++            this.scopeScale = 0.5F;
++            ItemStack var5 = this.minecraft.player.getInventory().getArmor(3);
++            if (var5.is(Blocks.CARVED_PUMPKIN.asItem())) {
++               this.renderTextureOverlay(PUMPKIN_BLUR_LOCATION, 1.0F);
++            }
 +         }
        }
  
-       float var5 = Mth.lerp(var2, this.minecraft.player.oPortalTime, this.minecraft.player.portalTime);
-       if (var5 > 0.0F && !this.minecraft.player.hasEffect(MobEffects.CONFUSION)) {
-          this.renderPortalOverlay(var5);
-@@ -486,11 +492,11 @@
+-      float var5 = Mth.lerp(var2, this.minecraft.player.oPortalTime, this.minecraft.player.portalTime);
+-      if (var5 > 0.0F && !this.minecraft.player.hasEffect(MobEffects.CONFUSION)) {
+-         this.renderPortalOverlay(var5);
++      if (this.minecraft.player.getTicksFrozen() > 0) {
++         this.renderTextureOverlay(POWDER_SNOW_OUTLINE_LOCATION, this.minecraft.player.getPercentFrozen());
+       }
+ 
++      float var11 = Mth.lerp(var2, this.minecraft.player.oPortalTime, this.minecraft.player.portalTime);
++      if (var11 > 0.0F && !this.minecraft.player.hasEffect(MobEffects.CONFUSION)) {
++         this.renderPortalOverlay(var11);
++      }
++
+       if (this.minecraft.gameMode.getPlayerMode() == GameType.SPECTATOR) {
+          this.spectatorGui.renderHotbar(var1, var2);
+       } else if (!this.minecraft.options.hideGui) {
+          this.renderHotbar(var2, var1);
+       }
+@@ -209,19 +226,19 @@
+             this.spectatorGui.renderTooltip(var1);
+          }
+       }
+ 
+       int var8;
+-      float var11;
++      float var12;
+       if (this.minecraft.player.getSleepTimer() > 0) {
+          this.minecraft.getProfiler().push("sleep");
+          RenderSystem.disableDepthTest();
+          RenderSystem.disableAlphaTest();
+-         var11 = (float)this.minecraft.player.getSleepTimer();
+-         float var7 = var11 / 100.0F;
++         var12 = (float)this.minecraft.player.getSleepTimer();
++         float var7 = var12 / 100.0F;
+          if (var7 > 1.0F) {
+-            var7 = 1.0F - (var11 - 100.0F) / 10.0F;
++            var7 = 1.0F - (var12 - 100.0F) / 10.0F;
+          }
+ 
+          var8 = (int)(220.0F * var7) << 24 | 1052704;
+          fill(var1, 0, 0, this.screenWidth, this.screenHeight, var8);
+          RenderSystem.enableAlphaTest();
+@@ -240,30 +257,30 @@
+       }
+ 
+       if (!this.minecraft.options.hideGui) {
+          int var9;
+          int var10;
+-         int var13;
++         int var14;
+          if (this.overlayMessageString != null && this.overlayMessageTime > 0) {
+             this.minecraft.getProfiler().push("overlayMessage");
+-            var11 = (float)this.overlayMessageTime - var2;
+-            var13 = (int)(var11 * 255.0F / 20.0F);
+-            if (var13 > 255) {
+-               var13 = 255;
++            var12 = (float)this.overlayMessageTime - var2;
++            var14 = (int)(var12 * 255.0F / 20.0F);
++            if (var14 > 255) {
++               var14 = 255;
+             }
+ 
+-            if (var13 > 8) {
++            if (var14 > 8) {
+                RenderSystem.pushMatrix();
+                RenderSystem.translatef((float)(this.screenWidth / 2), (float)(this.screenHeight - 68), 0.0F);
+                RenderSystem.enableBlend();
+                RenderSystem.defaultBlendFunc();
+                var8 = 16777215;
+                if (this.animateOverlayMessageColor) {
+-                  var8 = Mth.hsvToRgb(var11 / 50.0F, 0.7F, 0.6F) & 16777215;
++                  var8 = Mth.hsvToRgb(var12 / 50.0F, 0.7F, 0.6F) & 16777215;
+                }
+ 
+-               var9 = var13 << 24 & -16777216;
++               var9 = var14 << 24 & -16777216;
+                var10 = var3.width((FormattedText)this.overlayMessageString);
+                this.drawBackdrop(var1, var3, -4, var10, 16777215 | var9);
+                var3.draw(var1, this.overlayMessageString, (float)(-var10 / 2), -4.0F, var8 | var9);
+                RenderSystem.disableBlend();
+                RenderSystem.popMatrix();
+@@ -272,30 +289,30 @@
+             this.minecraft.getProfiler().pop();
+          }
+ 
+          if (this.title != null && this.titleTime > 0) {
+             this.minecraft.getProfiler().push("titleAndSubtitle");
+-            var11 = (float)this.titleTime - var2;
+-            var13 = 255;
++            var12 = (float)this.titleTime - var2;
++            var14 = 255;
+             if (this.titleTime > this.titleFadeOutTime + this.titleStayTime) {
+-               float var14 = (float)(this.titleFadeInTime + this.titleStayTime + this.titleFadeOutTime) - var11;
+-               var13 = (int)(var14 * 255.0F / (float)this.titleFadeInTime);
++               float var15 = (float)(this.titleFadeInTime + this.titleStayTime + this.titleFadeOutTime) - var12;
++               var14 = (int)(var15 * 255.0F / (float)this.titleFadeInTime);
+             }
+ 
+             if (this.titleTime <= this.titleFadeOutTime) {
+-               var13 = (int)(var11 * 255.0F / (float)this.titleFadeOutTime);
++               var14 = (int)(var12 * 255.0F / (float)this.titleFadeOutTime);
+             }
+ 
+-            var13 = Mth.clamp(var13, 0, 255);
+-            if (var13 > 8) {
++            var14 = Mth.clamp(var14, 0, 255);
++            if (var14 > 8) {
+                RenderSystem.pushMatrix();
+                RenderSystem.translatef((float)(this.screenWidth / 2), (float)(this.screenHeight / 2), 0.0F);
+                RenderSystem.enableBlend();
+                RenderSystem.defaultBlendFunc();
+                RenderSystem.pushMatrix();
+                RenderSystem.scalef(4.0F, 4.0F, 4.0F);
+-               var8 = var13 << 24 & -16777216;
++               var8 = var14 << 24 & -16777216;
+                var9 = var3.width((FormattedText)this.title);
+                this.drawBackdrop(var1, var3, -10, var9, 16777215 | var8);
+                var3.drawShadow(var1, this.title, (float)(-var9 / 2), -10.0F, 16777215 | var8);
+                RenderSystem.popMatrix();
+                if (this.subtitle != null) {
+@@ -313,23 +330,23 @@
+ 
+             this.minecraft.getProfiler().pop();
+          }
+ 
+          this.subtitleOverlay.render(var1);
+-         Scoreboard var12 = this.minecraft.level.getScoreboard();
+-         Objective var17 = null;
+-         PlayerTeam var15 = var12.getPlayersTeam(this.minecraft.player.getScoreboardName());
+-         if (var15 != null) {
+-            var9 = var15.getColor().getId();
++         Scoreboard var13 = this.minecraft.level.getScoreboard();
++         Objective var18 = null;
++         PlayerTeam var16 = var13.getPlayersTeam(this.minecraft.player.getScoreboardName());
++         if (var16 != null) {
++            var9 = var16.getColor().getId();
+             if (var9 >= 0) {
+-               var17 = var12.getDisplayObjective(3 + var9);
++               var18 = var13.getDisplayObjective(3 + var9);
+             }
+          }
+ 
+-         Objective var16 = var17 != null ? var17 : var12.getDisplayObjective(1);
+-         if (var16 != null) {
+-            this.displayScoreboardSidebar(var1, var16);
++         Objective var17 = var18 != null ? var18 : var13.getDisplayObjective(1);
++         if (var17 != null) {
++            this.displayScoreboardSidebar(var1, var17);
+          }
+ 
+          RenderSystem.enableBlend();
+          RenderSystem.defaultBlendFunc();
+          RenderSystem.disableAlphaTest();
+@@ -337,16 +354,16 @@
+          RenderSystem.translatef(0.0F, (float)(this.screenHeight - 48), 0.0F);
+          this.minecraft.getProfiler().push("chat");
+          this.chat.render(var1, this.tickCount);
+          this.minecraft.getProfiler().pop();
+          RenderSystem.popMatrix();
+-         var16 = var12.getDisplayObjective(0);
+-         if (!this.minecraft.options.keyPlayerList.isDown() || this.minecraft.isLocalServer() && this.minecraft.player.connection.getOnlinePlayers().size() <= 1 && var16 == null) {
++         var17 = var13.getDisplayObjective(0);
++         if (!this.minecraft.options.keyPlayerList.isDown() || this.minecraft.isLocalServer() && this.minecraft.player.connection.getOnlinePlayers().size() <= 1 && var17 == null) {
+             this.tabList.setVisible(false);
+          } else {
+             this.tabList.setVisible(true);
+-            this.tabList.render(var1, this.screenWidth, var12, var16);
++            this.tabList.render(var1, this.screenWidth, var13, var17);
+          }
+       }
+ 
+       RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+       RenderSystem.enableAlphaTest();
+@@ -486,11 +503,11 @@
           int var7 = this.getBlitOffset();
           boolean var8 = true;
           boolean var9 = true;
@@ -58,35 +245,122 @@
                 this.blit(var2, var6 - 91 - 29, this.screenHeight - 23, 24, 22, 29, 24);
              } else {
                 this.blit(var2, var6 + 91, this.screenHeight - 23, 53, 22, 29, 24);
-@@ -506,11 +512,11 @@
+@@ -499,43 +516,44 @@
+ 
+          this.setBlitOffset(var7);
+          RenderSystem.enableRescaleNormal();
+          RenderSystem.enableBlend();
+          RenderSystem.defaultBlendFunc();
++         int var10 = 1;
+ 
+-         int var10;
           int var11;
           int var12;
-          for(var10 = 0; var10 < 9; ++var10) {
-             var11 = var6 - 90 + var10 * 20 + 2;
-             var12 = this.screenHeight - 16 - 3;
+-         for(var10 = 0; var10 < 9; ++var10) {
+-            var11 = var6 - 90 + var10 * 20 + 2;
+-            var12 = this.screenHeight - 16 - 3;
 -            this.renderSlot(var11, var12, var1, var3, (ItemStack)var3.inventory.items.get(var10));
-+            this.renderSlot(var11, var12, var1, var3, (ItemStack)var3.getInventory().items.get(var10));
++         int var13;
++         for(var11 = 0; var11 < 9; ++var11) {
++            var12 = var6 - 90 + var11 * 20 + 2;
++            var13 = this.screenHeight - 16 - 3;
++            this.renderSlot(var12, var13, var1, var3, (ItemStack)var3.getInventory().items.get(var11), var10++);
           }
  
           if (!var4.isEmpty()) {
-             var10 = this.screenHeight - 16 - 3;
+-            var10 = this.screenHeight - 16 - 3;
++            var11 = this.screenHeight - 16 - 3;
              if (var5 == HumanoidArm.LEFT) {
-@@ -963,25 +969,76 @@
+-               this.renderSlot(var6 - 91 - 26, var10, var1, var3, var4);
++               this.renderSlot(var6 - 91 - 26, var11, var1, var3, var4, var10++);
+             } else {
+-               this.renderSlot(var6 + 91 + 10, var10, var1, var3, var4);
++               this.renderSlot(var6 + 91 + 10, var11, var1, var3, var4, var10++);
+             }
+          }
+ 
+          if (this.minecraft.options.attackIndicator == AttackIndicatorStatus.HOTBAR) {
+-            float var14 = this.minecraft.player.getAttackStrengthScale(0.0F);
+-            if (var14 < 1.0F) {
+-               var11 = this.screenHeight - 20;
+-               var12 = var6 + 91 + 6;
++            float var15 = this.minecraft.player.getAttackStrengthScale(0.0F);
++            if (var15 < 1.0F) {
++               var12 = this.screenHeight - 20;
++               var13 = var6 + 91 + 6;
+                if (var5 == HumanoidArm.RIGHT) {
+-                  var12 = var6 - 91 - 22;
++                  var13 = var6 - 91 - 22;
+                }
+ 
+                this.minecraft.getTextureManager().bind(GuiComponent.GUI_ICONS_LOCATION);
+-               int var13 = (int)(var14 * 19.0F);
++               int var14 = (int)(var15 * 19.0F);
+                RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-               this.blit(var2, var12, var11, 0, 94, 18, 18);
+-               this.blit(var2, var12, var11 + 18 - var13, 18, 112 - var13, 18, var13);
++               this.blit(var2, var13, var12, 0, 94, 18, 18);
++               this.blit(var2, var13, var12 + 18 - var14, 18, 112 - var14, 18, var14);
+             }
+          }
+ 
+          RenderSystem.disableRescaleNormal();
+          RenderSystem.disableBlend();
+@@ -813,14 +831,18 @@
+          int var25;
+          int var26;
+          int var27;
+          for(var22 = Mth.ceil((var13 + (float)var14) / 2.0F) - 1; var22 >= 0; --var22) {
+             var23 = 16;
+-            if (var2.hasEffect(MobEffects.POISON)) {
+-               var23 += 36;
+-            } else if (var2.hasEffect(MobEffects.WITHER)) {
+-               var23 += 72;
++            if (var19 <= 0) {
++               if (var2.hasEffect(MobEffects.POISON)) {
++                  var23 += 36;
++               } else if (var2.hasEffect(MobEffects.WITHER)) {
++                  var23 += 72;
++               } else if (var2.isFullyFrozen()) {
++                  var23 += 126;
++               }
+             }
+ 
+             byte var24 = 0;
+             if (var4) {
+                var24 = 1;
+@@ -963,25 +985,73 @@
  
           }
        }
     }
  
 -   private void renderPumpkin() {
-+   private void renderFullScreenOverlay(ResourceLocation var1) {
-+      this.renderFullScreenOverlay(var1, 0.0F, 0);
-+   }
-+
-+   private void renderFullScreenOverlay(ResourceLocation var1, float var2, int var3) {
++   private void renderTextureOverlay(ResourceLocation var1, float var2) {
        RenderSystem.disableDepthTest();
        RenderSystem.depthMask(false);
        RenderSystem.defaultBlendFunc();
++      RenderSystem.color4f(1.0F, 1.0F, 1.0F, var2);
++      RenderSystem.disableAlphaTest();
++      this.minecraft.getTextureManager().bind(var1);
++      Tesselator var3 = Tesselator.getInstance();
++      BufferBuilder var4 = var3.getBuilder();
++      var4.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
++      var4.vertex(0.0D, (double)this.screenHeight, -90.0D).uv(0.0F, 1.0F).endVertex();
++      var4.vertex((double)this.screenWidth, (double)this.screenHeight, -90.0D).uv(1.0F, 1.0F).endVertex();
++      var4.vertex((double)this.screenWidth, 0.0D, -90.0D).uv(1.0F, 0.0F).endVertex();
++      var4.vertex(0.0D, 0.0D, -90.0D).uv(0.0F, 0.0F).endVertex();
++      var3.end();
++      RenderSystem.depthMask(true);
++      RenderSystem.enableDepthTest();
++      RenderSystem.enableAlphaTest();
        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++   }
++
++   private void renderSpyglassOverlay(float var1) {
++      RenderSystem.disableDepthTest();
++      RenderSystem.depthMask(false);
++      RenderSystem.defaultBlendFunc();
        RenderSystem.disableAlphaTest();
 -      this.minecraft.getTextureManager().bind(PUMPKIN_BLUR_LOCATION);
 -      Tesselator var1 = Tesselator.getInstance();
@@ -97,68 +371,49 @@
 -      var2.vertex((double)this.screenWidth, 0.0D, -90.0D).uv(1.0F, 0.0F).endVertex();
 -      var2.vertex(0.0D, 0.0D, -90.0D).uv(0.0F, 0.0F).endVertex();
 -      var1.end();
-+      this.minecraft.getTextureManager().bind(var1);
-+      Tesselator var4 = Tesselator.getInstance();
-+      BufferBuilder var5 = var4.getBuilder();
-+      if (var2 == 0.0F) {
-+         var5.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-+         var5.vertex(0.0D, (double)this.screenHeight, -90.0D).uv(0.0F, 1.0F).endVertex();
-+         var5.vertex((double)this.screenWidth, (double)this.screenHeight, -90.0D).uv(1.0F, 1.0F).endVertex();
-+         var5.vertex((double)this.screenWidth, 0.0D, -90.0D).uv(1.0F, 0.0F).endVertex();
-+         var5.vertex(0.0D, 0.0D, -90.0D).uv(0.0F, 0.0F).endVertex();
-+         var4.end();
-+      } else {
-+         float var6 = (float)Math.min(this.screenWidth, this.screenHeight);
-+         float var7 = var6 * var2;
-+         float var8 = Math.min((float)this.screenWidth / var6, (float)this.screenHeight / var7);
-+         float var9 = var6 * var8;
-+         float var10 = var7 * var8;
-+         float var11 = ((float)this.screenWidth - var9) / 2.0F;
-+         float var12 = ((float)this.screenHeight - var10) / 2.0F;
-+         float var13 = var11 + var9;
-+         float var14 = var12 + var10;
-+         var5.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-+         var5.vertex((double)var11, (double)var14, -90.0D).uv(0.0F, 1.0F).endVertex();
-+         var5.vertex((double)var13, (double)var14, -90.0D).uv(1.0F, 1.0F).endVertex();
-+         var5.vertex((double)var13, (double)var12, -90.0D).uv(1.0F, 0.0F).endVertex();
-+         var5.vertex((double)var11, (double)var12, -90.0D).uv(0.0F, 0.0F).endVertex();
-+         var4.end();
-+         int var15 = FastColor.ARGB32.red(var3);
-+         int var16 = FastColor.ARGB32.green(var3);
-+         int var17 = FastColor.ARGB32.blue(var3);
-+         int var18 = FastColor.ARGB32.alpha(var3);
-+         var5.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-+         var5.vertex(0.0D, (double)this.screenHeight, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex((double)this.screenWidth, (double)this.screenHeight, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex((double)this.screenWidth, (double)var14, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex(0.0D, (double)var14, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var4.end();
-+         var5.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-+         var5.vertex(0.0D, (double)var12, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex((double)this.screenWidth, (double)var12, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex((double)this.screenWidth, 0.0D, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex(0.0D, 0.0D, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var4.end();
-+         var5.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-+         var5.vertex(0.0D, (double)var14, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex((double)var11, (double)var14, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex((double)var11, (double)var12, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex(0.0D, (double)var12, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var4.end();
-+         var5.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-+         var5.vertex((double)var13, (double)var14, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex((double)this.screenWidth, (double)var14, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex((double)this.screenWidth, (double)var12, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var5.vertex((double)var13, (double)var12, -90.0D).color(var15, var16, var17, var18).endVertex();
-+         var4.end();
-+      }
-+
++      this.minecraft.getTextureManager().bind(SPYGLASS_SCOPE_LOCATION);
++      Tesselator var2 = Tesselator.getInstance();
++      BufferBuilder var3 = var2.getBuilder();
++      float var4 = (float)Math.min(this.screenWidth, this.screenHeight);
++      float var6 = Math.min((float)this.screenWidth / var4, (float)this.screenHeight / var4) * var1;
++      float var7 = var4 * var6;
++      float var8 = var4 * var6;
++      float var9 = ((float)this.screenWidth - var7) / 2.0F;
++      float var10 = ((float)this.screenHeight - var8) / 2.0F;
++      float var11 = var9 + var7;
++      float var12 = var10 + var8;
++      var3.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
++      var3.vertex((double)var9, (double)var12, -90.0D).uv(0.0F, 1.0F).endVertex();
++      var3.vertex((double)var11, (double)var12, -90.0D).uv(1.0F, 1.0F).endVertex();
++      var3.vertex((double)var11, (double)var10, -90.0D).uv(1.0F, 0.0F).endVertex();
++      var3.vertex((double)var9, (double)var10, -90.0D).uv(0.0F, 0.0F).endVertex();
++      var2.end();
++      RenderSystem.disableTexture();
++      var3.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
++      var3.vertex(0.0D, (double)this.screenHeight, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)this.screenWidth, (double)this.screenHeight, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)this.screenWidth, (double)var12, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex(0.0D, (double)var12, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex(0.0D, (double)var10, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)this.screenWidth, (double)var10, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)this.screenWidth, 0.0D, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex(0.0D, 0.0D, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex(0.0D, (double)var12, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)var9, (double)var12, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)var9, (double)var10, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex(0.0D, (double)var10, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)var11, (double)var12, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)this.screenWidth, (double)var12, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)this.screenWidth, (double)var10, -90.0D).color(0, 0, 0, 255).endVertex();
++      var3.vertex((double)var11, (double)var10, -90.0D).color(0, 0, 0, 255).endVertex();
++      var2.end();
++      RenderSystem.enableTexture();
        RenderSystem.depthMask(true);
        RenderSystem.enableDepthTest();
        RenderSystem.enableAlphaTest();
        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
     }
-@@ -1014,11 +1071,11 @@
+@@ -1014,11 +1084,11 @@
        }
  
        this.minecraft.getTextureManager().bind(VIGNETTE_LOCATION);
@@ -171,7 +426,7 @@
        var9.vertex((double)this.screenWidth, 0.0D, -90.0D).uv(1.0F, 0.0F).endVertex();
        var9.vertex(0.0D, 0.0D, -90.0D).uv(0.0F, 0.0F).endVertex();
        var8.end();
-@@ -1046,11 +1103,11 @@
+@@ -1046,11 +1116,11 @@
        float var4 = var2.getV0();
        float var5 = var2.getU1();
        float var6 = var2.getV1();
@@ -184,7 +439,38 @@
        var8.vertex((double)this.screenWidth, 0.0D, -90.0D).uv(var5, var4).endVertex();
        var8.vertex(0.0D, 0.0D, -90.0D).uv(var3, var4).endVertex();
        var7.end();
-@@ -1098,14 +1155,14 @@
+@@ -1058,23 +1128,23 @@
+       RenderSystem.enableDepthTest();
+       RenderSystem.enableAlphaTest();
+       RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+ 
+-   private void renderSlot(int var1, int var2, float var3, Player var4, ItemStack var5) {
++   private void renderSlot(int var1, int var2, float var3, Player var4, ItemStack var5, int var6) {
+       if (!var5.isEmpty()) {
+-         float var6 = (float)var5.getPopTime() - var3;
+-         if (var6 > 0.0F) {
++         float var7 = (float)var5.getPopTime() - var3;
++         if (var7 > 0.0F) {
+             RenderSystem.pushMatrix();
+-            float var7 = 1.0F + var6 / 5.0F;
++            float var8 = 1.0F + var7 / 5.0F;
+             RenderSystem.translatef((float)(var1 + 8), (float)(var2 + 12), 0.0F);
+-            RenderSystem.scalef(1.0F / var7, (var7 + 1.0F) / 2.0F, 1.0F);
++            RenderSystem.scalef(1.0F / var8, (var8 + 1.0F) / 2.0F, 1.0F);
+             RenderSystem.translatef((float)(-(var1 + 8)), (float)(-(var2 + 12)), 0.0F);
+          }
+ 
+-         this.itemRenderer.renderAndDecorateItem(var4, var5, var1, var2);
+-         if (var6 > 0.0F) {
++         this.itemRenderer.renderAndDecorateItem(var4, var5, var1, var2, var6);
++         if (var7 > 0.0F) {
+             RenderSystem.popMatrix();
+          }
+ 
+          this.itemRenderer.renderGuiItemDecorations(this.minecraft.font, var5, var1, var2);
+       }
+@@ -1098,14 +1168,14 @@
        if (var1 != null) {
           this.updateVignetteBrightness(var1);
        }
@@ -201,7 +487,7 @@
              }
           } else {
              this.toolHighlightTimer = 40;
-@@ -1198,10 +1255,12 @@
+@@ -1198,10 +1268,12 @@
  
     public void onDisconnected() {
        this.tabList.reset();

@@ -1,6 +1,22 @@
 --- net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
 +++ net/minecraft/world/entity/vehicle/AbstractMinecartContainer.java
-@@ -29,25 +29,22 @@
+@@ -15,39 +15,38 @@
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.MenuProvider;
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.SlotAccess;
+ import net.minecraft.world.entity.monster.piglin.PiglinAi;
+ import net.minecraft.world.entity.player.Inventory;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.inventory.AbstractContainerMenu;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.Level;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.storage.loot.LootContext;
+ import net.minecraft.world.level.storage.loot.LootTable;
  import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
  import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
  
@@ -26,7 +42,31 @@
     public void destroy(DamageSource var1) {
        super.destroy(var1);
        if (this.level.getGameRules().getBoolean(GameRules.RULE_DOENTITYDROPS)) {
-@@ -118,29 +115,23 @@
+@@ -105,42 +104,40 @@
+          var2.setCount(this.getMaxStackSize());
+       }
+ 
+    }
+ 
+-   public boolean setSlot(int var1, ItemStack var2) {
+-      if (var1 >= 0 && var1 < this.getContainerSize()) {
+-         this.setItem(var1, var2);
+-         return true;
+-      } else {
+-         return false;
+-      }
++   public SlotAccess getSlot(final int var1) {
++      return var1 >= 0 && var1 < this.getContainerSize() ? new SlotAccess() {
++         public ItemStack get() {
++            return AbstractMinecartContainer.this.getItem(var1);
++         }
++
++         public boolean set(ItemStack var1x) {
++            AbstractMinecartContainer.this.setItem(var1, var1x);
++            return true;
++         }
++      } : super.getSlot(var1);
+    }
  
     public void setChanged() {
     }
@@ -60,7 +100,19 @@
     protected void addAdditionalSaveData(CompoundTag var1) {
        super.addAdditionalSaveData(var1);
        if (this.lootTable != null) {
-@@ -181,10 +172,14 @@
+@@ -167,10 +164,11 @@
+    }
+ 
+    public InteractionResult interact(Player var1, InteractionHand var2) {
+       var1.openMenu(this);
+       if (!var1.level.isClientSide) {
++         this.gameEvent(var1, GameEvent.CONTAINER_OPEN);
+          PiglinAi.angerNearbyPiglins(var1, true);
+          return InteractionResult.CONSUME;
+       } else {
+          return InteractionResult.SUCCESS;
+       }
+@@ -181,10 +179,14 @@
        if (this.lootTable == null) {
           int var2 = 15 - AbstractContainerMenu.getRedstoneSignalFromContainer(this);
           var1 += (float)var2 * 0.001F;

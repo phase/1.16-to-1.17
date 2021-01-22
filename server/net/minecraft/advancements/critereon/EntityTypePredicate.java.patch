@@ -1,6 +1,21 @@
 --- net/minecraft/advancements/critereon/EntityTypePredicate.java
 +++ net/minecraft/advancements/critereon/EntityTypePredicate.java
-@@ -65,11 +65,11 @@
+@@ -36,11 +36,13 @@
+       if (var0 != null && !var0.isJsonNull()) {
+          String var1 = GsonHelper.convertToString(var0, "type");
+          ResourceLocation var2;
+          if (var1.startsWith("#")) {
+             var2 = new ResourceLocation(var1.substring(1));
+-            return new EntityTypePredicate.TagPredicate(SerializationTags.getInstance().getEntityTypes().getTagOrEmpty(var2));
++            return new EntityTypePredicate.TagPredicate(SerializationTags.getInstance().getTagOrThrow(Registry.ENTITY_TYPE_REGISTRY, var2, (var0x) -> {
++               return new JsonSyntaxException("Unknown entity tag '" + var0x + "'");
++            }));
+          } else {
+             var2 = new ResourceLocation(var1);
+             EntityType var3 = (EntityType)Registry.ENTITY_TYPE.getOptional(var2).orElseThrow(() -> {
+                return new JsonSyntaxException("Unknown entity type '" + var2 + "', valid types are: " + COMMA_JOINER.join((Iterable)Registry.ENTITY_TYPE.keySet()));
+             });
+@@ -65,15 +67,17 @@
        public TagPredicate(Tag<EntityType<?>> var1) {
           this.tag = var1;
        }
@@ -11,5 +26,12 @@
        }
  
        public JsonElement serializeToJson() {
-          return new JsonPrimitive("#" + SerializationTags.getInstance().getEntityTypes().getIdOrThrow(this.tag));
+-         return new JsonPrimitive("#" + SerializationTags.getInstance().getEntityTypes().getIdOrThrow(this.tag));
++         return new JsonPrimitive("#" + SerializationTags.getInstance().getIdOrThrow(Registry.ENTITY_TYPE_REGISTRY, this.tag, () -> {
++            return new IllegalStateException("Unknown entity type tag");
++         }));
        }
+    }
+ 
+    static class TypePredicate extends EntityTypePredicate {
+       private final EntityType<?> type;

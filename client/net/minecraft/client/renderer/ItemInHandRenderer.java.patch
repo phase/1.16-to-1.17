@@ -1,63 +1,465 @@
 --- net/minecraft/client/renderer/ItemInHandRenderer.java
 +++ net/minecraft/client/renderer/ItemInHandRenderer.java
-@@ -209,30 +209,30 @@
-       boolean var9 = true;
-       boolean var10 = true;
-       ItemStack var11;
-       if (var4.isUsingItem()) {
-          var11 = var4.getUseItem();
--         if (var11.getItem() == Items.BOW || var11.getItem() == Items.CROSSBOW) {
-+         if (var11.is(Items.BOW) || var11.is(Items.CROSSBOW)) {
-             var9 = var4.getUsedItemHand() == InteractionHand.MAIN_HAND;
-             var10 = !var9;
-          }
+@@ -1,7 +1,8 @@
+ package net.minecraft.client.renderer;
  
-          InteractionHand var12 = var4.getUsedItemHand();
-          if (var12 == InteractionHand.MAIN_HAND) {
-             ItemStack var13 = var4.getOffhandItem();
--            if (var13.getItem() == Items.CROSSBOW && CrossbowItem.isCharged(var13)) {
-+            if (var13.is(Items.CROSSBOW) && CrossbowItem.isCharged(var13)) {
-                var10 = false;
-             }
-          }
-       } else {
-          var11 = var4.getMainHandItem();
-          ItemStack var16 = var4.getOffhandItem();
--         if (var11.getItem() == Items.CROSSBOW && CrossbowItem.isCharged(var11)) {
-+         if (var11.is(Items.CROSSBOW) && CrossbowItem.isCharged(var11)) {
-             var10 = !var9;
-          }
++import com.google.common.annotations.VisibleForTesting;
+ import com.google.common.base.MoreObjects;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ import com.mojang.math.Matrix4f;
+ import com.mojang.math.Vector3f;
+@@ -45,11 +46,11 @@
+       this.itemRenderer = var1.getItemRenderer();
+    }
  
--         if (var16.getItem() == Items.CROSSBOW && CrossbowItem.isCharged(var16)) {
-+         if (var16.is(Items.CROSSBOW) && CrossbowItem.isCharged(var16)) {
-             var9 = !var11.isEmpty();
-             var10 = !var9;
-          }
+    public void renderItem(LivingEntity var1, ItemStack var2, ItemTransforms.TransformType var3, boolean var4, PoseStack var5, MultiBufferSource var6, int var7) {
+       if (!var2.isEmpty()) {
+-         this.itemRenderer.renderStatic(var1, var2, var3, var4, var5, var6, var1.level, var7, OverlayTexture.NO_OVERLAY);
++         this.itemRenderer.renderStatic(var1, var2, var3, var4, var5, var6, var1.level, var7, OverlayTexture.NO_OVERLAY, var1.getId() + var3.ordinal());
+       }
+    }
+ 
+    private float calculateMapTilt(float var1) {
+       float var2 = 1.0F - var1 / 45.0F + 0.1F;
+@@ -126,19 +127,20 @@
+       var1.mulPose(Vector3f.YP.rotationDegrees(180.0F));
+       var1.mulPose(Vector3f.ZP.rotationDegrees(180.0F));
+       var1.scale(0.38F, 0.38F, 0.38F);
+       var1.translate(-0.5D, -0.5D, 0.0D);
+       var1.scale(0.0078125F, 0.0078125F, 0.0078125F);
+-      MapItemSavedData var5 = MapItem.getOrCreateSavedData(var4, this.minecraft.level);
+-      VertexConsumer var6 = var2.getBuffer(var5 == null ? MAP_BACKGROUND : MAP_BACKGROUND_CHECKERBOARD);
+-      Matrix4f var7 = var1.last().pose();
+-      var6.vertex(var7, -7.0F, 135.0F, 0.0F).color(255, 255, 255, 255).uv(0.0F, 1.0F).uv2(var3).endVertex();
+-      var6.vertex(var7, 135.0F, 135.0F, 0.0F).color(255, 255, 255, 255).uv(1.0F, 1.0F).uv2(var3).endVertex();
+-      var6.vertex(var7, 135.0F, -7.0F, 0.0F).color(255, 255, 255, 255).uv(1.0F, 0.0F).uv2(var3).endVertex();
+-      var6.vertex(var7, -7.0F, -7.0F, 0.0F).color(255, 255, 255, 255).uv(0.0F, 0.0F).uv2(var3).endVertex();
+-      if (var5 != null) {
+-         this.minecraft.gameRenderer.getMapRenderer().render(var1, var2, var5, false, var3);
++      Integer var5 = MapItem.getMapId(var4);
++      MapItemSavedData var6 = MapItem.getSavedData((Integer)var5, this.minecraft.level);
++      VertexConsumer var7 = var2.getBuffer(var6 == null ? MAP_BACKGROUND : MAP_BACKGROUND_CHECKERBOARD);
++      Matrix4f var8 = var1.last().pose();
++      var7.vertex(var8, -7.0F, 135.0F, 0.0F).color(255, 255, 255, 255).uv(0.0F, 1.0F).uv2(var3).endVertex();
++      var7.vertex(var8, 135.0F, 135.0F, 0.0F).color(255, 255, 255, 255).uv(1.0F, 1.0F).uv2(var3).endVertex();
++      var7.vertex(var8, 135.0F, -7.0F, 0.0F).color(255, 255, 255, 255).uv(1.0F, 0.0F).uv2(var3).endVertex();
++      var7.vertex(var8, -7.0F, -7.0F, 0.0F).color(255, 255, 255, 255).uv(0.0F, 0.0F).uv2(var3).endVertex();
++      if (var6 != null) {
++         this.minecraft.gameRenderer.getMapRenderer().render(var1, var2, var5, var6, false, var3);
        }
  
-@@ -263,11 +263,11 @@
-       var8.pushPose();
-       if (var6.isEmpty()) {
-          if (var11 && !var1.isInvisible()) {
-             this.renderPlayerArm(var8, var9, var10, var7, var5, var12);
-          }
+    }
+ 
+    private void renderPlayerArm(PoseStack var1, MultiBufferSource var2, int var3, float var4, float var5, HumanoidArm var6) {
+@@ -204,207 +206,213 @@
+ 
+    public void renderHandsWithItems(float var1, PoseStack var2, MultiBufferSource.BufferSource var3, LocalPlayer var4, int var5) {
+       float var6 = var4.getAttackAnim(var1);
+       InteractionHand var7 = (InteractionHand)MoreObjects.firstNonNull(var4.swingingArm, InteractionHand.MAIN_HAND);
+       float var8 = Mth.lerp(var1, var4.xRotO, var4.xRot);
+-      boolean var9 = true;
+-      boolean var10 = true;
+-      ItemStack var11;
+-      if (var4.isUsingItem()) {
+-         var11 = var4.getUseItem();
+-         if (var11.getItem() == Items.BOW || var11.getItem() == Items.CROSSBOW) {
+-            var9 = var4.getUsedItemHand() == InteractionHand.MAIN_HAND;
+-            var10 = !var9;
+-         }
+-
+-         InteractionHand var12 = var4.getUsedItemHand();
+-         if (var12 == InteractionHand.MAIN_HAND) {
+-            ItemStack var13 = var4.getOffhandItem();
+-            if (var13.getItem() == Items.CROSSBOW && CrossbowItem.isCharged(var13)) {
+-               var10 = false;
+-            }
+-         }
+-      } else {
+-         var11 = var4.getMainHandItem();
+-         ItemStack var16 = var4.getOffhandItem();
+-         if (var11.getItem() == Items.CROSSBOW && CrossbowItem.isCharged(var11)) {
+-            var10 = !var9;
+-         }
+-
+-         if (var16.getItem() == Items.CROSSBOW && CrossbowItem.isCharged(var16)) {
+-            var9 = !var11.isEmpty();
+-            var10 = !var9;
+-         }
++      ItemInHandRenderer.HandRenderSelection var9 = evaluateWhichHandsToRender(var4);
++      float var10 = Mth.lerp(var1, var4.xBobO, var4.xBob);
++      float var11 = Mth.lerp(var1, var4.yBobO, var4.yBob);
++      var2.mulPose(Vector3f.XP.rotationDegrees((var4.getViewXRot(var1) - var10) * 0.1F));
++      var2.mulPose(Vector3f.YP.rotationDegrees((var4.getViewYRot(var1) - var11) * 0.1F));
++      float var12;
++      float var13;
++      if (var9.renderMainHand) {
++         var12 = var7 == InteractionHand.MAIN_HAND ? var6 : 0.0F;
++         var13 = 1.0F - Mth.lerp(var1, this.oMainHandHeight, this.mainHandHeight);
++         this.renderArmWithItem(var4, var1, var8, InteractionHand.MAIN_HAND, var12, this.mainHandItem, var13, var2, var3, var5);
+       }
+ 
+-      float var15 = Mth.lerp(var1, var4.xBobO, var4.xBob);
+-      float var17 = Mth.lerp(var1, var4.yBobO, var4.yBob);
+-      var2.mulPose(Vector3f.XP.rotationDegrees((var4.getViewXRot(var1) - var15) * 0.1F));
+-      var2.mulPose(Vector3f.YP.rotationDegrees((var4.getViewYRot(var1) - var17) * 0.1F));
+-      float var14;
+-      float var18;
+-      if (var9) {
+-         var18 = var7 == InteractionHand.MAIN_HAND ? var6 : 0.0F;
+-         var14 = 1.0F - Mth.lerp(var1, this.oMainHandHeight, this.mainHandHeight);
+-         this.renderArmWithItem(var4, var1, var8, InteractionHand.MAIN_HAND, var18, this.mainHandItem, var14, var2, var3, var5);
++      if (var9.renderOffHand) {
++         var12 = var7 == InteractionHand.OFF_HAND ? var6 : 0.0F;
++         var13 = 1.0F - Mth.lerp(var1, this.oOffHandHeight, this.offHandHeight);
++         this.renderArmWithItem(var4, var1, var8, InteractionHand.OFF_HAND, var12, this.offHandItem, var13, var2, var3, var5);
+       }
+ 
+-      if (var10) {
+-         var18 = var7 == InteractionHand.OFF_HAND ? var6 : 0.0F;
+-         var14 = 1.0F - Mth.lerp(var1, this.oOffHandHeight, this.offHandHeight);
+-         this.renderArmWithItem(var4, var1, var8, InteractionHand.OFF_HAND, var18, this.offHandItem, var14, var2, var3, var5);
+-      }
+-
+       var3.endBatch();
+    }
+ 
+-   private void renderArmWithItem(AbstractClientPlayer var1, float var2, float var3, InteractionHand var4, float var5, ItemStack var6, float var7, PoseStack var8, MultiBufferSource var9, int var10) {
+-      boolean var11 = var4 == InteractionHand.MAIN_HAND;
+-      HumanoidArm var12 = var11 ? var1.getMainArm() : var1.getMainArm().getOpposite();
+-      var8.pushPose();
+-      if (var6.isEmpty()) {
+-         if (var11 && !var1.isInvisible()) {
+-            this.renderPlayerArm(var8, var9, var10, var7, var5, var12);
+-         }
 -      } else if (var6.getItem() == Items.FILLED_MAP) {
-+      } else if (var6.is(Items.FILLED_MAP)) {
-          if (var11 && this.offHandItem.isEmpty()) {
-             this.renderTwoHandedMap(var8, var9, var10, var3, var7, var5);
-          } else {
-             this.renderOneHandedMap(var8, var9, var10, var7, var12, var5, var6);
-          }
-@@ -275,11 +275,11 @@
-          boolean var13;
-          float var16;
-          float var17;
-          float var18;
-          float var19;
+-         if (var11 && this.offHandItem.isEmpty()) {
+-            this.renderTwoHandedMap(var8, var9, var10, var3, var7, var5);
+-         } else {
+-            this.renderOneHandedMap(var8, var9, var10, var7, var12, var5, var6);
+-         }
++   @VisibleForTesting
++   static ItemInHandRenderer.HandRenderSelection evaluateWhichHandsToRender(LocalPlayer var0) {
++      ItemStack var1 = var0.getMainHandItem();
++      ItemStack var2 = var0.getOffhandItem();
++      boolean var3 = var1.is(Items.BOW) || var2.is(Items.BOW);
++      boolean var4 = var1.is(Items.CROSSBOW) || var2.is(Items.CROSSBOW);
++      if (!var3 && !var4) {
++         return ItemInHandRenderer.HandRenderSelection.RENDER_BOTH_HANDS;
++      } else if (var0.isUsingItem()) {
++         return selectionUsingItemWhileHoldingBowLike(var0);
++      } else if (isChargedCrossbow(var1)) {
++         return ItemInHandRenderer.HandRenderSelection.RENDER_MAIN_HAND_ONLY;
++      } else if (isChargedCrossbow(var2)) {
++         return var1.isEmpty() ? ItemInHandRenderer.HandRenderSelection.RENDER_OFF_HAND_ONLY : ItemInHandRenderer.HandRenderSelection.RENDER_BOTH_HANDS;
+       } else {
+-         boolean var13;
+-         float var16;
+-         float var17;
+-         float var18;
+-         float var19;
 -         if (var6.getItem() == Items.CROSSBOW) {
-+         if (var6.is(Items.CROSSBOW)) {
-             var13 = CrossbowItem.isCharged(var6);
-             boolean var14 = var12 == HumanoidArm.RIGHT;
-             int var15 = var14 ? 1 : -1;
-             if (var1.isUsingItem() && var1.getUseItemRemainingTicks() > 0 && var1.getUsedItemHand() == var4) {
-                this.applyItemArmTransform(var8, var12, var7);
+-            var13 = CrossbowItem.isCharged(var6);
+-            boolean var14 = var12 == HumanoidArm.RIGHT;
+-            int var15 = var14 ? 1 : -1;
+-            if (var1.isUsingItem() && var1.getUseItemRemainingTicks() > 0 && var1.getUsedItemHand() == var4) {
+-               this.applyItemArmTransform(var8, var12, var7);
+-               var8.translate((double)((float)var15 * -0.4785682F), -0.0943870022892952D, 0.05731530860066414D);
+-               var8.mulPose(Vector3f.XP.rotationDegrees(-11.935F));
+-               var8.mulPose(Vector3f.YP.rotationDegrees((float)var15 * 65.3F));
+-               var8.mulPose(Vector3f.ZP.rotationDegrees((float)var15 * -9.785F));
+-               var16 = (float)var6.getUseDuration() - ((float)this.minecraft.player.getUseItemRemainingTicks() - var2 + 1.0F);
+-               var17 = var16 / (float)CrossbowItem.getChargeDuration(var6);
+-               if (var17 > 1.0F) {
+-                  var17 = 1.0F;
+-               }
++         return ItemInHandRenderer.HandRenderSelection.RENDER_BOTH_HANDS;
++      }
++   }
+ 
+-               if (var17 > 0.1F) {
+-                  var18 = Mth.sin((var16 - 0.1F) * 1.3F);
+-                  var19 = var17 - 0.1F;
+-                  float var20 = var18 * var19;
+-                  var8.translate((double)(var20 * 0.0F), (double)(var20 * 0.004F), (double)(var20 * 0.0F));
+-               }
++   private static ItemInHandRenderer.HandRenderSelection selectionUsingItemWhileHoldingBowLike(LocalPlayer var0) {
++      ItemStack var1 = var0.getUseItem();
++      InteractionHand var2 = var0.getUsedItemHand();
++      if (!var1.is(Items.BOW) && !var1.is(Items.CROSSBOW)) {
++         return var2 == InteractionHand.MAIN_HAND && isChargedCrossbow(var0.getOffhandItem()) ? ItemInHandRenderer.HandRenderSelection.RENDER_MAIN_HAND_ONLY : ItemInHandRenderer.HandRenderSelection.RENDER_BOTH_HANDS;
++      } else {
++         return ItemInHandRenderer.HandRenderSelection.onlyForHand(var2);
++      }
++   }
+ 
+-               var8.translate((double)(var17 * 0.0F), (double)(var17 * 0.0F), (double)(var17 * 0.04F));
+-               var8.scale(1.0F, 1.0F, 1.0F + var17 * 0.2F);
+-               var8.mulPose(Vector3f.YN.rotationDegrees((float)var15 * 45.0F));
++   private static boolean isChargedCrossbow(ItemStack var0) {
++      return var0.is(Items.CROSSBOW) && CrossbowItem.isCharged(var0);
++   }
++
++   private void renderArmWithItem(AbstractClientPlayer var1, float var2, float var3, InteractionHand var4, float var5, ItemStack var6, float var7, PoseStack var8, MultiBufferSource var9, int var10) {
++      if (!var1.isScoping()) {
++         boolean var11 = var4 == InteractionHand.MAIN_HAND;
++         HumanoidArm var12 = var11 ? var1.getMainArm() : var1.getMainArm().getOpposite();
++         var8.pushPose();
++         if (var6.isEmpty()) {
++            if (var11 && !var1.isInvisible()) {
++               this.renderPlayerArm(var8, var9, var10, var7, var5, var12);
++            }
++         } else if (var6.is(Items.FILLED_MAP)) {
++            if (var11 && this.offHandItem.isEmpty()) {
++               this.renderTwoHandedMap(var8, var9, var10, var3, var7, var5);
+             } else {
+-               var16 = -0.4F * Mth.sin(Mth.sqrt(var5) * 3.1415927F);
+-               var17 = 0.2F * Mth.sin(Mth.sqrt(var5) * 6.2831855F);
+-               var18 = -0.2F * Mth.sin(var5 * 3.1415927F);
+-               var8.translate((double)((float)var15 * var16), (double)var17, (double)var18);
+-               this.applyItemArmTransform(var8, var12, var7);
+-               this.applyItemArmAttackTransform(var8, var12, var5);
+-               if (var13 && var5 < 0.001F) {
+-                  var8.translate((double)((float)var15 * -0.641864F), 0.0D, 0.0D);
+-                  var8.mulPose(Vector3f.YP.rotationDegrees((float)var15 * 10.0F));
+-               }
++               this.renderOneHandedMap(var8, var9, var10, var7, var12, var5, var6);
+             }
+-
+-            this.renderItem(var1, var6, var14 ? ItemTransforms.TransformType.FIRST_PERSON_RIGHT_HAND : ItemTransforms.TransformType.FIRST_PERSON_LEFT_HAND, !var14, var8, var9, var10);
+          } else {
+-            var13 = var12 == HumanoidArm.RIGHT;
+-            int var21;
+-            float var23;
+-            if (var1.isUsingItem() && var1.getUseItemRemainingTicks() > 0 && var1.getUsedItemHand() == var4) {
+-               var21 = var13 ? 1 : -1;
+-               switch(var6.getUseAnimation()) {
+-               case NONE:
++            boolean var13;
++            float var16;
++            float var17;
++            float var18;
++            float var19;
++            if (var6.is(Items.CROSSBOW)) {
++               var13 = CrossbowItem.isCharged(var6);
++               boolean var14 = var12 == HumanoidArm.RIGHT;
++               int var15 = var14 ? 1 : -1;
++               if (var1.isUsingItem() && var1.getUseItemRemainingTicks() > 0 && var1.getUsedItemHand() == var4) {
+                   this.applyItemArmTransform(var8, var12, var7);
+-                  break;
+-               case EAT:
+-               case DRINK:
+-                  this.applyEatTransform(var8, var2, var12, var6);
+-                  this.applyItemArmTransform(var8, var12, var7);
+-                  break;
+-               case BLOCK:
+-                  this.applyItemArmTransform(var8, var12, var7);
+-                  break;
+-               case BOW:
+-                  this.applyItemArmTransform(var8, var12, var7);
+-                  var8.translate((double)((float)var21 * -0.2785682F), 0.18344387412071228D, 0.15731531381607056D);
+-                  var8.mulPose(Vector3f.XP.rotationDegrees(-13.935F));
+-                  var8.mulPose(Vector3f.YP.rotationDegrees((float)var21 * 35.3F));
+-                  var8.mulPose(Vector3f.ZP.rotationDegrees((float)var21 * -9.785F));
+-                  var23 = (float)var6.getUseDuration() - ((float)this.minecraft.player.getUseItemRemainingTicks() - var2 + 1.0F);
+-                  var16 = var23 / 20.0F;
+-                  var16 = (var16 * var16 + var16 * 2.0F) / 3.0F;
+-                  if (var16 > 1.0F) {
+-                     var16 = 1.0F;
++                  var8.translate((double)((float)var15 * -0.4785682F), -0.0943870022892952D, 0.05731530860066414D);
++                  var8.mulPose(Vector3f.XP.rotationDegrees(-11.935F));
++                  var8.mulPose(Vector3f.YP.rotationDegrees((float)var15 * 65.3F));
++                  var8.mulPose(Vector3f.ZP.rotationDegrees((float)var15 * -9.785F));
++                  var16 = (float)var6.getUseDuration() - ((float)this.minecraft.player.getUseItemRemainingTicks() - var2 + 1.0F);
++                  var17 = var16 / (float)CrossbowItem.getChargeDuration(var6);
++                  if (var17 > 1.0F) {
++                     var17 = 1.0F;
+                   }
+ 
+-                  if (var16 > 0.1F) {
+-                     var17 = Mth.sin((var23 - 0.1F) * 1.3F);
+-                     var18 = var16 - 0.1F;
+-                     var19 = var17 * var18;
+-                     var8.translate((double)(var19 * 0.0F), (double)(var19 * 0.004F), (double)(var19 * 0.0F));
++                  if (var17 > 0.1F) {
++                     var18 = Mth.sin((var16 - 0.1F) * 1.3F);
++                     var19 = var17 - 0.1F;
++                     float var20 = var18 * var19;
++                     var8.translate((double)(var20 * 0.0F), (double)(var20 * 0.004F), (double)(var20 * 0.0F));
+                   }
+ 
+-                  var8.translate((double)(var16 * 0.0F), (double)(var16 * 0.0F), (double)(var16 * 0.04F));
+-                  var8.scale(1.0F, 1.0F, 1.0F + var16 * 0.2F);
+-                  var8.mulPose(Vector3f.YN.rotationDegrees((float)var21 * 45.0F));
+-                  break;
+-               case SPEAR:
++                  var8.translate((double)(var17 * 0.0F), (double)(var17 * 0.0F), (double)(var17 * 0.04F));
++                  var8.scale(1.0F, 1.0F, 1.0F + var17 * 0.2F);
++                  var8.mulPose(Vector3f.YN.rotationDegrees((float)var15 * 45.0F));
++               } else {
++                  var16 = -0.4F * Mth.sin(Mth.sqrt(var5) * 3.1415927F);
++                  var17 = 0.2F * Mth.sin(Mth.sqrt(var5) * 6.2831855F);
++                  var18 = -0.2F * Mth.sin(var5 * 3.1415927F);
++                  var8.translate((double)((float)var15 * var16), (double)var17, (double)var18);
+                   this.applyItemArmTransform(var8, var12, var7);
+-                  var8.translate((double)((float)var21 * -0.5F), 0.699999988079071D, 0.10000000149011612D);
+-                  var8.mulPose(Vector3f.XP.rotationDegrees(-55.0F));
+-                  var8.mulPose(Vector3f.YP.rotationDegrees((float)var21 * 35.3F));
+-                  var8.mulPose(Vector3f.ZP.rotationDegrees((float)var21 * -9.785F));
+-                  var23 = (float)var6.getUseDuration() - ((float)this.minecraft.player.getUseItemRemainingTicks() - var2 + 1.0F);
+-                  var16 = var23 / 10.0F;
+-                  if (var16 > 1.0F) {
+-                     var16 = 1.0F;
++                  this.applyItemArmAttackTransform(var8, var12, var5);
++                  if (var13 && var5 < 0.001F && var11) {
++                     var8.translate((double)((float)var15 * -0.641864F), 0.0D, 0.0D);
++                     var8.mulPose(Vector3f.YP.rotationDegrees((float)var15 * 10.0F));
+                   }
++               }
+ 
+-                  if (var16 > 0.1F) {
+-                     var17 = Mth.sin((var23 - 0.1F) * 1.3F);
+-                     var18 = var16 - 0.1F;
+-                     var19 = var17 * var18;
+-                     var8.translate((double)(var19 * 0.0F), (double)(var19 * 0.004F), (double)(var19 * 0.0F));
+-                  }
++               this.renderItem(var1, var6, var14 ? ItemTransforms.TransformType.FIRST_PERSON_RIGHT_HAND : ItemTransforms.TransformType.FIRST_PERSON_LEFT_HAND, !var14, var8, var9, var10);
++            } else {
++               var13 = var12 == HumanoidArm.RIGHT;
++               int var21;
++               float var23;
++               if (var1.isUsingItem() && var1.getUseItemRemainingTicks() > 0 && var1.getUsedItemHand() == var4) {
++                  var21 = var13 ? 1 : -1;
++                  switch(var6.getUseAnimation()) {
++                  case NONE:
++                     this.applyItemArmTransform(var8, var12, var7);
++                     break;
++                  case EAT:
++                  case DRINK:
++                     this.applyEatTransform(var8, var2, var12, var6);
++                     this.applyItemArmTransform(var8, var12, var7);
++                     break;
++                  case BLOCK:
++                     this.applyItemArmTransform(var8, var12, var7);
++                     break;
++                  case BOW:
++                     this.applyItemArmTransform(var8, var12, var7);
++                     var8.translate((double)((float)var21 * -0.2785682F), 0.18344387412071228D, 0.15731531381607056D);
++                     var8.mulPose(Vector3f.XP.rotationDegrees(-13.935F));
++                     var8.mulPose(Vector3f.YP.rotationDegrees((float)var21 * 35.3F));
++                     var8.mulPose(Vector3f.ZP.rotationDegrees((float)var21 * -9.785F));
++                     var23 = (float)var6.getUseDuration() - ((float)this.minecraft.player.getUseItemRemainingTicks() - var2 + 1.0F);
++                     var16 = var23 / 20.0F;
++                     var16 = (var16 * var16 + var16 * 2.0F) / 3.0F;
++                     if (var16 > 1.0F) {
++                        var16 = 1.0F;
++                     }
+ 
+-                  var8.translate(0.0D, 0.0D, (double)(var16 * 0.2F));
+-                  var8.scale(1.0F, 1.0F, 1.0F + var16 * 0.2F);
+-                  var8.mulPose(Vector3f.YN.rotationDegrees((float)var21 * 45.0F));
++                     if (var16 > 0.1F) {
++                        var17 = Mth.sin((var23 - 0.1F) * 1.3F);
++                        var18 = var16 - 0.1F;
++                        var19 = var17 * var18;
++                        var8.translate((double)(var19 * 0.0F), (double)(var19 * 0.004F), (double)(var19 * 0.0F));
++                     }
++
++                     var8.translate((double)(var16 * 0.0F), (double)(var16 * 0.0F), (double)(var16 * 0.04F));
++                     var8.scale(1.0F, 1.0F, 1.0F + var16 * 0.2F);
++                     var8.mulPose(Vector3f.YN.rotationDegrees((float)var21 * 45.0F));
++                     break;
++                  case SPEAR:
++                     this.applyItemArmTransform(var8, var12, var7);
++                     var8.translate((double)((float)var21 * -0.5F), 0.699999988079071D, 0.10000000149011612D);
++                     var8.mulPose(Vector3f.XP.rotationDegrees(-55.0F));
++                     var8.mulPose(Vector3f.YP.rotationDegrees((float)var21 * 35.3F));
++                     var8.mulPose(Vector3f.ZP.rotationDegrees((float)var21 * -9.785F));
++                     var23 = (float)var6.getUseDuration() - ((float)this.minecraft.player.getUseItemRemainingTicks() - var2 + 1.0F);
++                     var16 = var23 / 10.0F;
++                     if (var16 > 1.0F) {
++                        var16 = 1.0F;
++                     }
++
++                     if (var16 > 0.1F) {
++                        var17 = Mth.sin((var23 - 0.1F) * 1.3F);
++                        var18 = var16 - 0.1F;
++                        var19 = var17 * var18;
++                        var8.translate((double)(var19 * 0.0F), (double)(var19 * 0.004F), (double)(var19 * 0.0F));
++                     }
++
++                     var8.translate(0.0D, 0.0D, (double)(var16 * 0.2F));
++                     var8.scale(1.0F, 1.0F, 1.0F + var16 * 0.2F);
++                     var8.mulPose(Vector3f.YN.rotationDegrees((float)var21 * 45.0F));
++                  }
++               } else if (var1.isAutoSpinAttack()) {
++                  this.applyItemArmTransform(var8, var12, var7);
++                  var21 = var13 ? 1 : -1;
++                  var8.translate((double)((float)var21 * -0.4F), 0.800000011920929D, 0.30000001192092896D);
++                  var8.mulPose(Vector3f.YP.rotationDegrees((float)var21 * 65.0F));
++                  var8.mulPose(Vector3f.ZP.rotationDegrees((float)var21 * -85.0F));
++               } else {
++                  float var22 = -0.4F * Mth.sin(Mth.sqrt(var5) * 3.1415927F);
++                  var23 = 0.2F * Mth.sin(Mth.sqrt(var5) * 6.2831855F);
++                  var16 = -0.2F * Mth.sin(var5 * 3.1415927F);
++                  int var24 = var13 ? 1 : -1;
++                  var8.translate((double)((float)var24 * var22), (double)var23, (double)var16);
++                  this.applyItemArmTransform(var8, var12, var7);
++                  this.applyItemArmAttackTransform(var8, var12, var5);
+                }
+-            } else if (var1.isAutoSpinAttack()) {
+-               this.applyItemArmTransform(var8, var12, var7);
+-               var21 = var13 ? 1 : -1;
+-               var8.translate((double)((float)var21 * -0.4F), 0.800000011920929D, 0.30000001192092896D);
+-               var8.mulPose(Vector3f.YP.rotationDegrees((float)var21 * 65.0F));
+-               var8.mulPose(Vector3f.ZP.rotationDegrees((float)var21 * -85.0F));
+-            } else {
+-               float var22 = -0.4F * Mth.sin(Mth.sqrt(var5) * 3.1415927F);
+-               var23 = 0.2F * Mth.sin(Mth.sqrt(var5) * 6.2831855F);
+-               var16 = -0.2F * Mth.sin(var5 * 3.1415927F);
+-               int var24 = var13 ? 1 : -1;
+-               var8.translate((double)((float)var24 * var22), (double)var23, (double)var16);
+-               this.applyItemArmTransform(var8, var12, var7);
+-               this.applyItemArmAttackTransform(var8, var12, var5);
+-            }
+ 
+-            this.renderItem(var1, var6, var13 ? ItemTransforms.TransformType.FIRST_PERSON_RIGHT_HAND : ItemTransforms.TransformType.FIRST_PERSON_LEFT_HAND, !var13, var8, var9, var10);
++               this.renderItem(var1, var6, var13 ? ItemTransforms.TransformType.FIRST_PERSON_RIGHT_HAND : ItemTransforms.TransformType.FIRST_PERSON_LEFT_HAND, !var13, var8, var9, var10);
++            }
+          }
+-      }
+ 
+-      var8.popPose();
++         var8.popPose();
++      }
+    }
+ 
+    public void tick() {
+       this.oMainHandHeight = this.mainHandHeight;
+       this.oOffHandHeight = this.offHandHeight;
+@@ -444,6 +452,25 @@
+       } else {
+          this.offHandHeight = 0.0F;
+       }
+ 
+    }
++
++   @VisibleForTesting
++   static enum HandRenderSelection {
++      RENDER_BOTH_HANDS(true, true),
++      RENDER_MAIN_HAND_ONLY(true, false),
++      RENDER_OFF_HAND_ONLY(false, true);
++
++      final boolean renderMainHand;
++      final boolean renderOffHand;
++
++      private HandRenderSelection(boolean var3, boolean var4) {
++         this.renderMainHand = var3;
++         this.renderOffHand = var4;
++      }
++
++      public static ItemInHandRenderer.HandRenderSelection onlyForHand(InteractionHand var0) {
++         return var0 == InteractionHand.MAIN_HAND ? RENDER_MAIN_HAND_ONLY : RENDER_OFF_HAND_ONLY;
++      }
++   }
+ }

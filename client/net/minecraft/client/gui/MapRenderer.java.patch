@@ -1,0 +1,122 @@
+--- net/minecraft/client/gui/MapRenderer.java
++++ net/minecraft/client/gui/MapRenderer.java
+@@ -1,14 +1,15 @@
+ package net.minecraft.client.gui;
+ 
+-import com.google.common.collect.Maps;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ import com.mojang.math.Matrix4f;
+ import com.mojang.math.Vector3f;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.objects.ObjectIterator;
+ import java.util.Iterator;
+-import java.util.Map;
+ import javax.annotation.Nullable;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.client.renderer.texture.DynamicTexture;
+@@ -23,55 +24,47 @@
+ 
+ public class MapRenderer implements AutoCloseable {
+    private static final ResourceLocation MAP_ICONS_LOCATION = new ResourceLocation("textures/map/map_icons.png");
+    private static final RenderType MAP_ICONS;
+    private final TextureManager textureManager;
+-   private final Map<String, MapRenderer.MapInstance> maps = Maps.newHashMap();
++   private final Int2ObjectMap<MapRenderer.MapInstance> maps = new Int2ObjectOpenHashMap();
+ 
+    public MapRenderer(TextureManager var1) {
+       this.textureManager = var1;
+    }
+ 
+-   public void update(MapItemSavedData var1) {
+-      this.getMapInstance(var1).updateTexture();
++   public void update(int var1, MapItemSavedData var2) {
++      this.getOrCreateMapInstance(var1, var2).updateTexture();
+    }
+ 
+-   public void render(PoseStack var1, MultiBufferSource var2, MapItemSavedData var3, boolean var4, int var5) {
+-      this.getMapInstance(var3).draw(var1, var2, var4, var5);
++   public void render(PoseStack var1, MultiBufferSource var2, int var3, MapItemSavedData var4, boolean var5, int var6) {
++      this.getOrCreateMapInstance(var3, var4).draw(var1, var2, var5, var6);
+    }
+ 
+-   private MapRenderer.MapInstance getMapInstance(MapItemSavedData var1) {
+-      MapRenderer.MapInstance var2 = (MapRenderer.MapInstance)this.maps.get(var1.getId());
+-      if (var2 == null) {
+-         var2 = new MapRenderer.MapInstance(var1);
+-         this.maps.put(var1.getId(), var2);
+-      }
+-
+-      return var2;
++   private MapRenderer.MapInstance getOrCreateMapInstance(int var1, MapItemSavedData var2) {
++      return (MapRenderer.MapInstance)this.maps.computeIfAbsent(var1, (var2x) -> {
++         return new MapRenderer.MapInstance(var2x, var2);
++      });
+    }
+ 
+    @Nullable
+-   public MapRenderer.MapInstance getMapInstanceIfExists(String var1) {
+-      return (MapRenderer.MapInstance)this.maps.get(var1);
++   public MapItemSavedData retrieveMapFromRenderer(int var1) {
++      MapRenderer.MapInstance var2 = (MapRenderer.MapInstance)this.maps.get(var1);
++      return var2 != null ? var2.data : null;
+    }
+ 
+    public void resetData() {
+-      Iterator var1 = this.maps.values().iterator();
++      ObjectIterator var1 = this.maps.values().iterator();
+ 
+       while(var1.hasNext()) {
+          MapRenderer.MapInstance var2 = (MapRenderer.MapInstance)var1.next();
+          var2.close();
+       }
+ 
+       this.maps.clear();
+    }
+ 
+-   @Nullable
+-   public MapItemSavedData getData(@Nullable MapRenderer.MapInstance var1) {
+-      return var1 != null ? var1.data : null;
+-   }
+-
+    public void close() {
+       this.resetData();
+    }
+ 
+    static {
+@@ -81,15 +74,15 @@
+    class MapInstance implements AutoCloseable {
+       private final MapItemSavedData data;
+       private final DynamicTexture texture;
+       private final RenderType renderType;
+ 
+-      private MapInstance(MapItemSavedData var2) {
+-         this.data = var2;
++      private MapInstance(int var2, MapItemSavedData var3) {
++         this.data = var3;
+          this.texture = new DynamicTexture(128, 128, true);
+-         ResourceLocation var3 = MapRenderer.this.textureManager.register("map/" + var2.getId(), this.texture);
+-         this.renderType = RenderType.text(var3);
++         ResourceLocation var4 = MapRenderer.this.textureManager.register("map/" + var2, this.texture);
++         this.renderType = RenderType.text(var4);
+       }
+ 
+       private void updateTexture() {
+          for(int var1 = 0; var1 < 128; ++var1) {
+             for(int var2 = 0; var2 < 128; ++var2) {
+@@ -115,11 +108,11 @@
+          var9.vertex(var8, 0.0F, 128.0F, -0.01F).color(255, 255, 255, 255).uv(0.0F, 1.0F).uv2(var4).endVertex();
+          var9.vertex(var8, 128.0F, 128.0F, -0.01F).color(255, 255, 255, 255).uv(1.0F, 1.0F).uv2(var4).endVertex();
+          var9.vertex(var8, 128.0F, 0.0F, -0.01F).color(255, 255, 255, 255).uv(1.0F, 0.0F).uv2(var4).endVertex();
+          var9.vertex(var8, 0.0F, 0.0F, -0.01F).color(255, 255, 255, 255).uv(0.0F, 0.0F).uv2(var4).endVertex();
+          int var10 = 0;
+-         Iterator var11 = this.data.decorations.values().iterator();
++         Iterator var11 = this.data.getDecorations().iterator();
+ 
+          while(true) {
+             MapDecoration var12;
+             do {
+                if (!var11.hasNext()) {

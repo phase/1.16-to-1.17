@@ -1,18 +1,23 @@
 --- net/minecraft/world/item/BundleItem.java
 +++ net/minecraft/world/item/BundleItem.java
-@@ -1,0 +1,118 @@
+@@ -1,0 +1,187 @@
 +package net.minecraft.world.item;
 +
 +import java.util.Optional;
++import java.util.stream.Stream;
 +import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.nbt.ListTag;
++import net.minecraft.nbt.Tag;
 +import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.stats.Stats;
 +import net.minecraft.util.Mth;
 +import net.minecraft.world.InteractionHand;
 +import net.minecraft.world.InteractionResultHolder;
++import net.minecraft.world.entity.item.ItemEntity;
 +import net.minecraft.world.entity.player.Inventory;
 +import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.inventory.ClickAction;
++import net.minecraft.world.inventory.Slot;
 +import net.minecraft.world.level.Level;
 +
 +public class BundleItem extends Item {
@@ -22,37 +27,50 @@
 +      super(var1);
 +   }
 +
-+   public boolean overrideStackedOnOther(ItemStack var1, ItemStack var2, ClickAction var3, Inventory var4) {
-+      if (var3 == ClickAction.SECONDARY) {
-+         add(var1, var2);
-+         return true;
++   public boolean overrideStackedOnOther(ItemStack var1, Slot var2, ClickAction var3, Inventory var4) {
++      if (var3 != ClickAction.SECONDARY) {
++         return false;
 +      } else {
-+         return super.overrideStackedOnOther(var1, var2, var3, var4);
++         ItemStack var5 = var2.getItem();
++         if (var5.isEmpty()) {
++            removeOne(var1).ifPresent((var2x) -> {
++               add(var1, var2.safeInsert(var2x));
++            });
++         } else if (var5.getItem().canFitInsideContainerItems()) {
++            int var6 = (64 - getContentWeight(var1)) / getWeight(var5);
++            add(var1, var2.safeTake(var5.getCount(), var6, var4.player));
++         }
++
++         return true;
 +      }
 +   }
 +
-+   public boolean overrideOtherStackedOnMe(ItemStack var1, ItemStack var2, ClickAction var3, Inventory var4) {
-+      if (var3 == ClickAction.SECONDARY) {
++   public boolean overrideOtherStackedOnMe(ItemStack var1, ItemStack var2, Slot var3, ClickAction var4, Inventory var5) {
++      if (var4 == ClickAction.SECONDARY && var3.allowModification(var5.player)) {
 +         if (var2.isEmpty()) {
-+            removeAll(var1, var4);
++            removeOne(var1).ifPresent(var5::setCarried);
 +         } else {
-+            add(var1, var2);
++            var2.shrink(add(var1, var2));
 +         }
 +
 +         return true;
 +      } else {
-+         return super.overrideOtherStackedOnMe(var1, var2, var3, var4);
++         return false;
 +      }
 +   }
 +
 +   public InteractionResultHolder<ItemStack> use(Level var1, Player var2, InteractionHand var3) {
 +      ItemStack var4 = var2.getItemInHand(var3);
-+      removeAll(var4, var2.getInventory());
-+      return InteractionResultHolder.success(var4);
++      if (dropContents(var4, var2)) {
++         var2.awardStat(Stats.ITEM_USED.get(this));
++         return InteractionResultHolder.sidedSuccess(var4, var1.isClientSide());
++      } else {
++         return InteractionResultHolder.fail(var4);
++      }
 +   }
 +
-+   private static void add(ItemStack var0, ItemStack var1) {
-+      if (var1.getItem().canFitInsideContainerItems()) {
++   private static int add(ItemStack var0, ItemStack var1) {
++      if (!var1.isEmpty() && var1.getItem().canFitInsideContainerItems()) {
 +         CompoundTag var2 = var0.getOrCreateTag();
 +         if (!var2.contains("Items")) {
 +            var2.put("Items", new ListTag());
@@ -61,26 +79,44 @@
 +         int var3 = getContentWeight(var0);
 +         int var4 = getWeight(var1);
 +         int var5 = Math.min(var1.getCount(), (64 - var3) / var4);
-+         if (var5 != 0) {
++         if (var5 == 0) {
++            return 0;
++         } else {
 +            ListTag var6 = var2.getList("Items", 10);
-+            Optional var7 = var6.stream().filter((var1x) -> {
-+               return var1x instanceof CompoundTag && ItemStack.isSameItemSameTags(ItemStack.of((CompoundTag)var1x), var1);
-+            }).findFirst();
++            Optional var7 = getMatchingItem(var1, var6);
 +            if (var7.isPresent()) {
 +               CompoundTag var8 = (CompoundTag)var7.get();
 +               ItemStack var9 = ItemStack.of(var8);
 +               var9.grow(var5);
 +               var9.save(var8);
++               var6.remove(var8);
++               var6.add(0, (Tag)var8);
 +            } else {
 +               ItemStack var10 = var1.copy();
 +               var10.setCount(var5);
 +               CompoundTag var11 = new CompoundTag();
 +               var10.save(var11);
-+               var6.add(var11);
++               var6.add(0, (Tag)var11);
 +            }
 +
-+            var1.shrink(var5);
++            return var5;
 +         }
++      } else {
++         return 0;
++      }
++   }
++
++   private static Optional<CompoundTag> getMatchingItem(ItemStack var0, ListTag var1) {
++      if (var0.is(Items.BUNDLE)) {
++         return Optional.empty();
++      } else {
++         Stream var10000 = var1.stream();
++         CompoundTag.class.getClass();
++         var10000 = var10000.filter(CompoundTag.class::isInstance);
++         CompoundTag.class.getClass();
++         return var10000.map(CompoundTag.class::cast).filter((var1x) -> {
++            return ItemStack.isSameItemSameTags(ItemStack.of(var1x), var0);
++         }).findFirst();
 +      }
 +   }
 +
@@ -89,33 +125,66 @@
 +   }
 +
 +   private static int getContentWeight(ItemStack var0) {
++      return getContents(var0).mapToInt((var0x) -> {
++         return getWeight(var0x) * var0x.getCount();
++      }).sum();
++   }
++
++   private static Optional<ItemStack> removeOne(ItemStack var0) {
 +      CompoundTag var1 = var0.getOrCreateTag();
 +      if (!var1.contains("Items")) {
-+         return 0;
++         return Optional.empty();
 +      } else {
 +         ListTag var2 = var1.getList("Items", 10);
-+         return var2.stream().map((var0x) -> {
-+            return ItemStack.of((CompoundTag)var0x);
-+         }).mapToInt((var0x) -> {
-+            return getWeight(var0x) * var0x.getCount();
-+         }).sum();
++         if (var2.isEmpty()) {
++            return Optional.empty();
++         } else {
++            boolean var3 = false;
++            CompoundTag var4 = var2.getCompound(0);
++            ItemStack var5 = ItemStack.of(var4);
++            var2.remove(0);
++            if (var2.isEmpty()) {
++               var0.removeTagKey("Items");
++            }
++
++            return Optional.of(var5);
++         }
 +      }
 +   }
 +
-+   private static void removeAll(ItemStack var0, Inventory var1) {
++   private static boolean dropContents(ItemStack var0, Player var1) {
 +      CompoundTag var2 = var0.getOrCreateTag();
-+      if (var2.contains("Items")) {
-+         ListTag var3 = var2.getList("Items", 10);
++      if (!var2.contains("Items")) {
++         return false;
++      } else {
++         if (var1 instanceof ServerPlayer) {
++            ListTag var3 = var2.getList("Items", 10);
 +
-+         for(int var4 = 0; var4 < var3.size(); ++var4) {
-+            CompoundTag var5 = var3.getCompound(var4);
-+            ItemStack var6 = ItemStack.of(var5);
-+            if (var1.player instanceof ServerPlayer || var1.player.isCreative()) {
-+               var1.placeItemBackInInventory(var6);
++            for(int var4 = 0; var4 < var3.size(); ++var4) {
++               CompoundTag var5 = var3.getCompound(var4);
++               ItemStack var6 = ItemStack.of(var5);
++               var1.drop(var6, true);
 +            }
 +         }
 +
 +         var0.removeTagKey("Items");
++         return true;
 +      }
++   }
++
++   private static Stream<ItemStack> getContents(ItemStack var0) {
++      CompoundTag var1 = var0.getTag();
++      if (var1 == null) {
++         return Stream.empty();
++      } else {
++         ListTag var2 = var1.getList("Items", 10);
++         Stream var10000 = var2.stream();
++         CompoundTag.class.getClass();
++         return var10000.map(CompoundTag.class::cast).map(ItemStack::of);
++      }
++   }
++
++   public void onDestroyed(ItemEntity var1) {
++      ItemUtils.onContainerDestroyed(var1, getContents(var1.getItem()));
 +   }
 +}

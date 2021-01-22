@@ -1,6 +1,21 @@
 --- net/minecraft/world/level/block/ShulkerBoxBlock.java
 +++ net/minecraft/world/level/block/ShulkerBoxBlock.java
-@@ -30,10 +30,12 @@
+@@ -16,13 +16,13 @@
+ import net.minecraft.stats.Stats;
+ import net.minecraft.world.Container;
+ import net.minecraft.world.ContainerHelper;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+-import net.minecraft.world.ShulkerSharedHelper;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.item.ItemEntity;
++import net.minecraft.world.entity.monster.Shulker;
+ import net.minecraft.world.entity.monster.piglin.PiglinAi;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.inventory.AbstractContainerMenu;
+ import net.minecraft.world.item.DyeColor;
+ import net.minecraft.world.item.Item;
+@@ -30,18 +30,21 @@
  import net.minecraft.world.item.TooltipFlag;
  import net.minecraft.world.item.context.BlockPlaceContext;
  import net.minecraft.world.level.BlockGetter;
@@ -13,7 +28,16 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.StateDefinition;
  import net.minecraft.world.level.block.state.properties.EnumProperty;
-@@ -55,14 +57,19 @@
+ import net.minecraft.world.level.material.PushReaction;
+ import net.minecraft.world.level.storage.loot.LootContext;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
++import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+@@ -55,14 +58,19 @@
        super(var2);
        this.color = var1;
        this.registerDefaultState((BlockState)((BlockState)this.stateDefinition.any()).setValue(FACING, Direction.UP));
@@ -35,3 +59,44 @@
     }
  
     public InteractionResult use(BlockState var1, Level var2, BlockPos var3, Player var4, InteractionHand var5, BlockHitResult var6) {
+@@ -72,19 +80,11 @@
+          return InteractionResult.CONSUME;
+       } else {
+          BlockEntity var7 = var2.getBlockEntity(var3);
+          if (var7 instanceof ShulkerBoxBlockEntity) {
+             ShulkerBoxBlockEntity var8 = (ShulkerBoxBlockEntity)var7;
+-            boolean var9;
+-            if (var8.getAnimationStatus() == ShulkerBoxBlockEntity.AnimationStatus.CLOSED) {
+-               Direction var10 = (Direction)var1.getValue(FACING);
+-               var9 = var2.noCollision(ShulkerSharedHelper.openBoundingBox(var3, var10));
+-            } else {
+-               var9 = true;
+-            }
+-
+-            if (var9) {
++            if (canOpen(var1, var2, var3, var8)) {
+                var4.openMenu(var8);
+                var4.awardStat(Stats.OPEN_SHULKER_BOX);
+                PiglinAi.angerNearbyPiglins(var4, true);
+             }
+ 
+@@ -93,10 +93,19 @@
+             return InteractionResult.PASS;
+          }
+       }
+    }
+ 
++   private static boolean canOpen(BlockState var0, Level var1, BlockPos var2, ShulkerBoxBlockEntity var3) {
++      if (var3.getAnimationStatus() != ShulkerBoxBlockEntity.AnimationStatus.CLOSED) {
++         return true;
++      } else {
++         AABB var4 = Shulker.getProgressDeltaAabb((Direction)var0.getValue(FACING), 0.0F, 0.5F).move(var2).deflate(1.0E-6D);
++         return var1.noCollision(var4);
++      }
++   }
++
+    public BlockState getStateForPlacement(BlockPlaceContext var1) {
+       return (BlockState)this.defaultBlockState().setValue(FACING, var1.getClickedFace());
+    }
+ 
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {

@@ -1,0 +1,70 @@
+--- net/minecraft/core/BlockPos.java
++++ net/minecraft/core/BlockPos.java
+@@ -24,11 +24,11 @@
+    public static final Codec<BlockPos> CODEC;
+    private static final Logger LOGGER;
+    public static final BlockPos ZERO;
+    private static final int PACKED_X_LENGTH;
+    private static final int PACKED_Z_LENGTH;
+-   private static final int PACKED_Y_LENGTH;
++   public static final int PACKED_Y_LENGTH;
+    private static final long PACKED_X_MASK;
+    private static final long PACKED_Y_MASK;
+    private static final long PACKED_Z_MASK;
+    private static final int Z_OFFSET;
+    private static final int X_OFFSET;
+@@ -192,10 +192,14 @@
+ 
+    public BlockPos cross(Vec3i var1) {
+       return new BlockPos(this.getY() * var1.getZ() - this.getZ() * var1.getY(), this.getZ() * var1.getX() - this.getX() * var1.getZ(), this.getX() * var1.getY() - this.getY() * var1.getX());
+    }
+ 
++   public BlockPos atY(int var1) {
++      return new BlockPos(this.getX(), var1, this.getZ());
++   }
++
+    public BlockPos immutable() {
+       return this;
+    }
+ 
+    public BlockPos.MutableBlockPos mutable() {
+@@ -375,11 +379,11 @@
+       };
+    }
+ 
+    static {
+       CODEC = Codec.INT_STREAM.comapFlatMap((var0) -> {
+-         return Util.fixedSize(var0, 3).map((var0x) -> {
++         return Util.fixedSize((IntStream)var0, 3).map((var0x) -> {
+             return new BlockPos(var0x[0], var0x[1], var0x[2]);
+          });
+       }, (var0) -> {
+          return IntStream.of(new int[]{var0.getX(), var0.getY(), var0.getZ()});
+       }).stable();
+@@ -486,20 +490,23 @@
+          default:
+             throw new IllegalStateException("Unable to clamp axis " + var1);
+          }
+       }
+ 
+-      public void setX(int var1) {
++      public BlockPos.MutableBlockPos setX(int var1) {
+          super.setX(var1);
++         return this;
+       }
+ 
+-      public void setY(int var1) {
++      public BlockPos.MutableBlockPos setY(int var1) {
+          super.setY(var1);
++         return this;
+       }
+ 
+-      public void setZ(int var1) {
++      public BlockPos.MutableBlockPos setZ(int var1) {
+          super.setZ(var1);
++         return this;
+       }
+ 
+       public BlockPos immutable() {
+          return new BlockPos(this);
+       }

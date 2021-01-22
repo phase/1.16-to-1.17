@@ -13,3 +13,36 @@
              return false;
           } else {
              return this.properties.matches(var3);
+@@ -57,14 +57,13 @@
+          }
+ 
+          Tag var5 = null;
+          if (var1.has("tag")) {
+             ResourceLocation var4 = new ResourceLocation(GsonHelper.getAsString(var1, "tag"));
+-            var5 = SerializationTags.getInstance().getFluids().getTag(var4);
+-            if (var5 == null) {
+-               throw new JsonSyntaxException("Unknown fluid tag '" + var4 + "'");
+-            }
++            var5 = SerializationTags.getInstance().getTagOrThrow(Registry.FLUID_REGISTRY, var4, (var0x) -> {
++               return new JsonSyntaxException("Unknown fluid tag '" + var0x + "'");
++            });
+          }
+ 
+          StatePropertiesPredicate var6 = StatePropertiesPredicate.fromJson(var1.get("state"));
+          return new FluidPredicate(var5, var2, var6);
+       } else {
+@@ -80,11 +79,13 @@
+          if (this.fluid != null) {
+             var1.addProperty("fluid", Registry.FLUID.getKey(this.fluid).toString());
+          }
+ 
+          if (this.tag != null) {
+-            var1.addProperty("tag", SerializationTags.getInstance().getFluids().getIdOrThrow(this.tag).toString());
++            var1.addProperty("tag", SerializationTags.getInstance().getIdOrThrow(Registry.FLUID_REGISTRY, this.tag, () -> {
++               return new IllegalStateException("Unknown fluid tag");
++            }).toString());
+          }
+ 
+          var1.add("state", this.properties.serializeToJson());
+          return var1;
+       }

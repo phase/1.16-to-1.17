@@ -1,0 +1,87 @@
+--- net/minecraft/client/gui/screens/PresetFlatWorldScreen.java
++++ net/minecraft/client/gui/screens/PresetFlatWorldScreen.java
+@@ -19,11 +19,10 @@
+ import net.minecraft.client.gui.chat.NarratorChatListener;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.EditBox;
+ import net.minecraft.client.gui.components.ObjectSelectionList;
+ import net.minecraft.core.Registry;
+-import net.minecraft.core.WritableRegistry;
+ import net.minecraft.network.chat.CommonComponents;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.resources.ResourceLocation;
+@@ -43,10 +42,11 @@
+ import org.apache.logging.log4j.Logger;
+ 
+ public class PresetFlatWorldScreen extends Screen {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private static final List<PresetFlatWorldScreen.PresetInfo> PRESETS = Lists.newArrayList();
++   private static final ResourceKey<Biome> DEFAULT_BIOME;
+    private final CreateFlatWorldScreen parent;
+    private Component shareText;
+    private Component listText;
+    private PresetFlatWorldScreen.PresetsList list;
+    private Button selectButton;
+@@ -124,20 +124,21 @@
+          List var4 = getLayersInfoFromString((String)var3.next());
+          if (var4.isEmpty()) {
+             return FlatLevelGeneratorSettings.getDefault(var0);
+          } else {
+             FlatLevelGeneratorSettings var5 = var2.withLayers(var4, var2.structureSettings());
+-            ResourceKey var6 = Biomes.PLAINS;
++            ResourceKey var6 = DEFAULT_BIOME;
+             if (var3.hasNext()) {
+                try {
+                   ResourceLocation var7 = new ResourceLocation((String)var3.next());
+                   var6 = ResourceKey.create(Registry.BIOME_REGISTRY, var7);
+                   var0.getOptional(var6).orElseThrow(() -> {
+                      return new IllegalArgumentException("Invalid Biome: " + var7);
+                   });
+                } catch (Exception var8) {
+                   LOGGER.error("Error while parsing flat world string => {}", var8.getMessage());
++                  var6 = DEFAULT_BIOME;
+                }
+             }
+ 
+             var5.setBiome(() -> {
+                return (Biome)var0.getOrThrow(var6);
+@@ -167,11 +168,11 @@
+       this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
+       this.shareText = new TranslatableComponent("createWorld.customize.presets.share");
+       this.listText = new TranslatableComponent("createWorld.customize.presets.list");
+       this.export = new EditBox(this.font, 50, 40, this.width - 100, 20, this.shareText);
+       this.export.setMaxLength(1230);
+-      WritableRegistry var1 = this.parent.parent.worldGenSettingsComponent.registryHolder().registryOrThrow(Registry.BIOME_REGISTRY);
++      Registry var1 = this.parent.parent.worldGenSettingsComponent.registryHolder().registryOrThrow(Registry.BIOME_REGISTRY);
+       this.export.setValue(save(var1, this.parent.settings()));
+       this.settings = this.parent.settings();
+       this.children.add(this.export);
+       this.list = new PresetFlatWorldScreen.PresetsList();
+       this.children.add(this.list);
+@@ -257,10 +258,11 @@
+          return var12.withStructureSettings(var11);
+       }));
+    }
+ 
+    static {
++      DEFAULT_BIOME = Biomes.PLAINS;
+       preset(new TranslatableComponent("createWorld.customize.preset.classic_flat"), Blocks.GRASS_BLOCK, Biomes.PLAINS, Arrays.asList(StructureFeature.VILLAGE), false, false, false, new FlatLayerInfo(1, Blocks.GRASS_BLOCK), new FlatLayerInfo(2, Blocks.DIRT), new FlatLayerInfo(1, Blocks.BEDROCK));
+       preset(new TranslatableComponent("createWorld.customize.preset.tunnelers_dream"), Blocks.STONE, Biomes.MOUNTAINS, Arrays.asList(StructureFeature.MINESHAFT), true, true, false, new FlatLayerInfo(1, Blocks.GRASS_BLOCK), new FlatLayerInfo(5, Blocks.DIRT), new FlatLayerInfo(230, Blocks.STONE), new FlatLayerInfo(1, Blocks.BEDROCK));
+       preset(new TranslatableComponent("createWorld.customize.preset.water_world"), Items.WATER_BUCKET, Biomes.DEEP_OCEAN, Arrays.asList(StructureFeature.OCEAN_RUIN, StructureFeature.SHIPWRECK, StructureFeature.OCEAN_MONUMENT), false, false, false, new FlatLayerInfo(90, Blocks.WATER), new FlatLayerInfo(5, Blocks.SAND), new FlatLayerInfo(5, Blocks.DIRT), new FlatLayerInfo(5, Blocks.STONE), new FlatLayerInfo(1, Blocks.BEDROCK));
+       preset(new TranslatableComponent("createWorld.customize.preset.overworld"), Blocks.GRASS, Biomes.PLAINS, Arrays.asList(StructureFeature.VILLAGE, StructureFeature.MINESHAFT, StructureFeature.PILLAGER_OUTPOST, StructureFeature.RUINED_PORTAL), true, true, true, new FlatLayerInfo(1, Blocks.GRASS_BLOCK), new FlatLayerInfo(3, Blocks.DIRT), new FlatLayerInfo(59, Blocks.STONE), new FlatLayerInfo(1, Blocks.BEDROCK));
+       preset(new TranslatableComponent("createWorld.customize.preset.snowy_kingdom"), Blocks.SNOW, Biomes.SNOWY_TUNDRA, Arrays.asList(StructureFeature.VILLAGE, StructureFeature.IGLOO), false, false, false, new FlatLayerInfo(1, Blocks.SNOW), new FlatLayerInfo(1, Blocks.GRASS_BLOCK), new FlatLayerInfo(3, Blocks.DIRT), new FlatLayerInfo(59, Blocks.STONE), new FlatLayerInfo(1, Blocks.BEDROCK));
+@@ -340,11 +342,11 @@
+          }
+ 
+          private void select() {
+             PresetsList.this.setSelected(this);
+             PresetFlatWorldScreen.PresetInfo var1 = (PresetFlatWorldScreen.PresetInfo)PresetFlatWorldScreen.PRESETS.get(PresetsList.this.children().indexOf(this));
+-            WritableRegistry var2 = PresetFlatWorldScreen.this.parent.parent.worldGenSettingsComponent.registryHolder().registryOrThrow(Registry.BIOME_REGISTRY);
++            Registry var2 = PresetFlatWorldScreen.this.parent.parent.worldGenSettingsComponent.registryHolder().registryOrThrow(Registry.BIOME_REGISTRY);
+             PresetFlatWorldScreen.this.settings = (FlatLevelGeneratorSettings)var1.settings.apply(var2);
+             PresetFlatWorldScreen.this.export.setValue(PresetFlatWorldScreen.save(var2, PresetFlatWorldScreen.this.settings));
+             PresetFlatWorldScreen.this.export.moveCursorToStart();
+          }
+ 

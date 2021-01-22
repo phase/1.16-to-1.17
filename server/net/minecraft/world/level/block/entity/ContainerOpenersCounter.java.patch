@@ -1,13 +1,15 @@
 --- net/minecraft/world/level/block/entity/ContainerOpenersCounter.java
 +++ net/minecraft/world/level/block/entity/ContainerOpenersCounter.java
-@@ -1,0 +1,81 @@
+@@ -1,0 +1,87 @@
 +package net.minecraft.world.level.block.entity;
 +
 +import net.minecraft.core.BlockPos;
++import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.level.Level;
 +import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.entity.EntityTypeTest;
++import net.minecraft.world.level.gameevent.GameEvent;
 +import net.minecraft.world.phys.AABB;
 +
 +public abstract class ContainerOpenersCounter {
@@ -24,23 +26,25 @@
 +
 +   protected abstract boolean isOwnContainer(Player var1);
 +
-+   public void incrementOpeners(Level var1, BlockPos var2, BlockState var3) {
-+      int var4 = this.openCount++;
-+      if (var4 == 0) {
-+         this.onOpen(var1, var2, var3);
-+         scheduleRecheck(var1, var2, var3);
++   public void incrementOpeners(Player var1, Level var2, BlockPos var3, BlockState var4) {
++      int var5 = this.openCount++;
++      if (var5 == 0) {
++         this.onOpen(var2, var3, var4);
++         var2.gameEvent(var1, GameEvent.CONTAINER_OPEN, var3);
++         scheduleRecheck(var2, var3, var4);
 +      }
 +
-+      this.openerCountChanged(var1, var2, var3, var4, this.openCount);
++      this.openerCountChanged(var2, var3, var4, var5, this.openCount);
 +   }
 +
-+   public void decrementOpeners(Level var1, BlockPos var2, BlockState var3) {
-+      int var4 = this.openCount--;
++   public void decrementOpeners(Player var1, Level var2, BlockPos var3, BlockState var4) {
++      int var5 = this.openCount--;
 +      if (this.openCount == 0) {
-+         this.onClose(var1, var2, var3);
++         this.onClose(var2, var3, var4);
++         var2.gameEvent(var1, GameEvent.CONTAINER_CLOSE, var3);
 +      }
 +
-+      this.openerCountChanged(var1, var2, var3, var4, this.openCount);
++      this.openerCountChanged(var2, var3, var4, var5, this.openCount);
 +   }
 +
 +   private int getOpenCount(Level var1, BlockPos var2) {
@@ -60,8 +64,10 @@
 +         boolean var7 = var5 != 0;
 +         if (var6 && !var7) {
 +            this.onOpen(var1, var2, var3);
++            var1.gameEvent((Entity)null, GameEvent.CONTAINER_OPEN, var2);
 +         } else if (!var6) {
 +            this.onClose(var1, var2, var3);
++            var1.gameEvent((Entity)null, GameEvent.CONTAINER_CLOSE, var2);
 +         }
 +
 +         this.openCount = var4;

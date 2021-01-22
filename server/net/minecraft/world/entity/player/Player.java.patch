@@ -23,6 +23,30 @@
  import net.minecraft.core.Direction;
  import net.minecraft.core.particles.ParticleTypes;
  import net.minecraft.nbt.CompoundTag;
+@@ -59,10 +61,11 @@
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.MobType;
+ import net.minecraft.world.entity.MoverType;
+ import net.minecraft.world.entity.Pose;
++import net.minecraft.world.entity.SlotAccess;
+ import net.minecraft.world.entity.TamableAnimal;
+ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+ import net.minecraft.world.entity.ai.attributes.Attributes;
+ import net.minecraft.world.entity.animal.Parrot;
+ import net.minecraft.world.entity.animal.Pig;
+@@ -76,11 +79,10 @@
+ import net.minecraft.world.entity.vehicle.Boat;
+ import net.minecraft.world.food.FoodData;
+ import net.minecraft.world.inventory.AbstractContainerMenu;
+ import net.minecraft.world.inventory.InventoryMenu;
+ import net.minecraft.world.inventory.PlayerEnderChestContainer;
+-import net.minecraft.world.item.ArmorItem;
+ import net.minecraft.world.item.AxeItem;
+ import net.minecraft.world.item.ElytraItem;
+ import net.minecraft.world.item.ItemCooldowns;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
 @@ -116,11 +118,11 @@
     protected static final EntityDataAccessor<Byte> DATA_PLAYER_MODE_CUSTOMISATION;
     protected static final EntityDataAccessor<Byte> DATA_PLAYER_MAIN_HAND;
@@ -62,6 +86,19 @@
  
     }
  
+@@ -401,11 +403,11 @@
+    protected void closeContainer() {
+       this.containerMenu = this.inventoryMenu;
+    }
+ 
+    public void rideTick() {
+-      if (this.wantsToStopRiding() && this.isPassenger()) {
++      if (!this.level.isClientSide && this.wantsToStopRiding() && this.isPassenger()) {
+          this.stopRiding();
+          this.setShiftKeyDown(false);
+       } else {
+          double var1 = this.getX();
+          double var3 = this.getY();
 @@ -455,24 +457,31 @@
        }
  
@@ -99,7 +136,56 @@
        this.playShoulderEntityAmbientSound(this.getShoulderEntityLeft());
        this.playShoulderEntityAmbientSound(this.getShoulderEntityRight());
        if (!this.level.isClientSide && (this.fallDistance > 0.5F || this.isInWater()) || this.abilities.flying || this.isSleeping()) {
-@@ -783,11 +792,11 @@
+@@ -555,12 +564,14 @@
+    protected SoundEvent getHurtSound(DamageSource var1) {
+       if (var1 == DamageSource.ON_FIRE) {
+          return SoundEvents.PLAYER_HURT_ON_FIRE;
+       } else if (var1 == DamageSource.DROWN) {
+          return SoundEvents.PLAYER_HURT_DROWN;
++      } else if (var1 == DamageSource.SWEET_BERRY_BUSH) {
++         return SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH;
+       } else {
+-         return var1 == DamageSource.SWEET_BERRY_BUSH ? SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH : SoundEvents.PLAYER_HURT;
++         return var1 == DamageSource.FREEZE ? SoundEvents.PLAYER_HURT_FREEZE : SoundEvents.PLAYER_HURT;
+       }
+    }
+ 
+    protected SoundEvent getDeathSound() {
+       return SoundEvents.PLAYER_DEATH;
+@@ -721,14 +732,16 @@
+    public boolean isInvulnerableTo(DamageSource var1) {
+       if (super.isInvulnerableTo(var1)) {
+          return true;
+       } else if (var1 == DamageSource.DROWN) {
+          return !this.level.getGameRules().getBoolean(GameRules.RULE_DROWNING_DAMAGE);
+-      } else if (var1 == DamageSource.FALL) {
++      } else if (var1.isFall()) {
+          return !this.level.getGameRules().getBoolean(GameRules.RULE_FALL_DAMAGE);
+       } else if (var1.isFire()) {
+          return !this.level.getGameRules().getBoolean(GameRules.RULE_FIRE_DAMAGE);
++      } else if (var1 == DamageSource.FREEZE) {
++         return !this.level.getGameRules().getBoolean(GameRules.RULE_FREEZE_DAMAGE);
+       } else {
+          return false;
+       }
+    }
+ 
+@@ -768,10 +781,14 @@
+          this.disableShield(true);
+       }
+ 
+    }
+ 
++   public boolean canBeTargeted() {
++      return !this.getAbilities().invulnerable && super.canBeTargeted();
++   }
++
+    public boolean canHarmPlayer(Player var1) {
+       Team var2 = this.getTeam();
+       Team var3 = var1.getTeam();
+       if (var2 == null) {
+          return true;
+@@ -783,11 +800,11 @@
     protected void hurtArmor(DamageSource var1, float var2) {
        this.inventory.hurtArmor(var1, var2);
     }
@@ -112,7 +198,7 @@
           }
  
           if (var1 >= 3.0F) {
-@@ -1181,12 +1190,12 @@
+@@ -1181,12 +1198,12 @@
           ((ServerLevel)this.level).sendParticles(ParticleTypes.SWEEP_ATTACK, this.getX() + var1, this.getY(0.5D), this.getZ() + var3, 0, var1, 0.0D, var3, 0.0D);
        }
  
@@ -127,7 +213,7 @@
           this.containerMenu.removed(this);
        }
  
-@@ -1198,10 +1207,18 @@
+@@ -1198,10 +1215,18 @@
  
     public GameProfile getGameProfile() {
        return this.gameProfile;
@@ -146,7 +232,24 @@
        this.sleepCounter = 0;
        return Either.right(Unit.INSTANCE);
     }
-@@ -1425,11 +1442,11 @@
+@@ -1410,26 +1435,26 @@
+          }
+       }
+ 
+    }
+ 
+-   public boolean causeFallDamage(float var1, float var2) {
++   public boolean causeFallDamage(float var1, float var2, DamageSource var3) {
+       if (this.abilities.mayfly) {
+          return false;
+       } else {
+          if (var1 >= 2.0F) {
+             this.awardStat(Stats.FALL_ONE_CM, (int)Math.round((double)var1 * 100.0D));
+          }
+ 
+-         return super.causeFallDamage(var1, var2);
++         return super.causeFallDamage(var1, var2, var3);
+       }
     }
  
     public boolean tryToStartFallFlying() {
@@ -159,7 +262,82 @@
           }
        }
  
-@@ -1899,10 +1916,14 @@
+@@ -1583,13 +1608,10 @@
+    }
+ 
+    public void onUpdateAbilities() {
+    }
+ 
+-   public void setGameMode(GameType var1) {
+-   }
+-
+    public Component getName() {
+       return new TextComponent(this.gameProfile.getName());
+    }
+ 
+    public PlayerEnderChestContainer getEnderChestInventory() {
+@@ -1743,56 +1765,16 @@
+ 
+    public static UUID createPlayerUUID(String var0) {
+       return UUID.nameUUIDFromBytes(("OfflinePlayer:" + var0).getBytes(StandardCharsets.UTF_8));
+    }
+ 
+-   public boolean setSlot(int var1, ItemStack var2) {
++   public SlotAccess getSlot(int var1) {
+       if (var1 >= 0 && var1 < this.inventory.items.size()) {
+-         this.inventory.setItem(var1, var2);
+-         return true;
++         return SlotAccess.forContainer(this.inventory, var1);
+       } else {
+-         EquipmentSlot var3;
+-         if (var1 == 100 + EquipmentSlot.HEAD.getIndex()) {
+-            var3 = EquipmentSlot.HEAD;
+-         } else if (var1 == 100 + EquipmentSlot.CHEST.getIndex()) {
+-            var3 = EquipmentSlot.CHEST;
+-         } else if (var1 == 100 + EquipmentSlot.LEGS.getIndex()) {
+-            var3 = EquipmentSlot.LEGS;
+-         } else if (var1 == 100 + EquipmentSlot.FEET.getIndex()) {
+-            var3 = EquipmentSlot.FEET;
+-         } else {
+-            var3 = null;
+-         }
+-
+-         if (var1 == 98) {
+-            this.setItemSlot(EquipmentSlot.MAINHAND, var2);
+-            return true;
+-         } else if (var1 == 99) {
+-            this.setItemSlot(EquipmentSlot.OFFHAND, var2);
+-            return true;
+-         } else if (var3 == null) {
+-            int var4 = var1 - 200;
+-            if (var4 >= 0 && var4 < this.enderChestInventory.getContainerSize()) {
+-               this.enderChestInventory.setItem(var4, var2);
+-               return true;
+-            } else {
+-               return false;
+-            }
+-         } else {
+-            if (!var2.isEmpty()) {
+-               if (!(var2.getItem() instanceof ArmorItem) && !(var2.getItem() instanceof ElytraItem)) {
+-                  if (var3 != EquipmentSlot.HEAD) {
+-                     return false;
+-                  }
+-               } else if (Mob.getEquipmentSlotForItem(var2) != var3) {
+-                  return false;
+-               }
+-            }
+-
+-            this.inventory.setItem(var3.getIndex() + this.inventory.items.size(), var2);
+-            return true;
+-         }
++         int var2 = var1 - 200;
++         return var2 >= 0 && var2 < this.enderChestInventory.getContainerSize() ? SlotAccess.forContainer(this.enderChestInventory, var2) : super.getSlot(var1);
+       }
+    }
+ 
+    public void setRemainingFireTicks(int var1) {
+       super.setRemainingFireTicks(this.abilities.invulnerable ? Math.min(var1, 1) : var1);
+@@ -1899,10 +1881,14 @@
  
     protected boolean shouldRemoveSoulSpeed(BlockState var1) {
        return this.abilities.flying || super.shouldRemoveSoulSpeed(var1);

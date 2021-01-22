@@ -1,0 +1,65 @@
+--- net/minecraft/network/protocol/game/ClientboundLoginPacket.java
++++ net/minecraft/network/protocol/game/ClientboundLoginPacket.java
+@@ -3,10 +3,11 @@
+ import com.google.common.collect.Sets;
+ import java.io.IOException;
+ import java.util.Iterator;
+ import java.util.Set;
+ import java.util.function.Supplier;
++import javax.annotation.Nullable;
+ import net.minecraft.core.Registry;
+ import net.minecraft.core.RegistryAccess;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.resources.ResourceKey;
+@@ -17,10 +18,11 @@
+ public class ClientboundLoginPacket implements Packet<ClientGamePacketListener> {
+    private int playerId;
+    private long seed;
+    private boolean hardcore;
+    private GameType gameType;
++   @Nullable
+    private GameType previousGameType;
+    private Set<ResourceKey<Level>> levels;
+    private RegistryAccess.RegistryHolder registryHolder;
+    private DimensionType dimensionType;
+    private ResourceKey<Level> dimension;
+@@ -32,11 +34,11 @@
+    private boolean isFlat;
+ 
+    public ClientboundLoginPacket() {
+    }
+ 
+-   public ClientboundLoginPacket(int var1, GameType var2, GameType var3, long var4, boolean var6, Set<ResourceKey<Level>> var7, RegistryAccess.RegistryHolder var8, DimensionType var9, ResourceKey<Level> var10, int var11, int var12, boolean var13, boolean var14, boolean var15, boolean var16) {
++   public ClientboundLoginPacket(int var1, GameType var2, @Nullable GameType var3, long var4, boolean var6, Set<ResourceKey<Level>> var7, RegistryAccess.RegistryHolder var8, DimensionType var9, ResourceKey<Level> var10, int var11, int var12, boolean var13, boolean var14, boolean var15, boolean var16) {
+       this.playerId = var1;
+       this.levels = var7;
+       this.registryHolder = var8;
+       this.dimensionType = var9;
+       this.dimension = var10;
+@@ -54,11 +56,11 @@
+ 
+    public void read(FriendlyByteBuf var1) throws IOException {
+       this.playerId = var1.readInt();
+       this.hardcore = var1.readBoolean();
+       this.gameType = GameType.byId(var1.readByte());
+-      this.previousGameType = GameType.byId(var1.readByte());
++      this.previousGameType = GameType.byNullableId(var1.readByte());
+       int var2 = var1.readVarInt();
+       this.levels = Sets.newHashSet();
+ 
+       for(int var3 = 0; var3 < var2; ++var3) {
+          this.levels.add(ResourceKey.create(Registry.DIMENSION_REGISTRY, var1.readResourceLocation()));
+@@ -78,11 +80,11 @@
+ 
+    public void write(FriendlyByteBuf var1) throws IOException {
+       var1.writeInt(this.playerId);
+       var1.writeBoolean(this.hardcore);
+       var1.writeByte(this.gameType.getId());
+-      var1.writeByte(this.previousGameType.getId());
++      var1.writeByte(GameType.getNullableId(this.previousGameType));
+       var1.writeVarInt(this.levels.size());
+       Iterator var2 = this.levels.iterator();
+ 
+       while(var2.hasNext()) {
+          ResourceKey var3 = (ResourceKey)var2.next();

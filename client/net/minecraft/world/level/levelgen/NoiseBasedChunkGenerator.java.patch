@@ -1,6 +1,160 @@
 --- net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
 +++ net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
-@@ -380,12 +380,12 @@
+@@ -16,11 +16,10 @@
+ import net.minecraft.core.SectionPos;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.server.level.WorldGenRegion;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.entity.MobCategory;
+-import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.LevelAccessor;
+ import net.minecraft.world.level.NaturalSpawner;
+ import net.minecraft.world.level.NoiseColumn;
+ import net.minecraft.world.level.StructureFeatureManager;
+@@ -185,12 +184,12 @@
+ 
+    private void fillNoiseColumn(double[] var1, int var2, int var3) {
+       NoiseSettings var8 = ((NoiseGeneratorSettings)this.settings.get()).noiseSettings();
+       double var4;
+       double var6;
+-      double var52;
+-      double var53;
++      double var54;
++      double var55;
+       if (this.islandNoise != null) {
+          var4 = (double)(TheEndBiomeSource.getHeightValue(this.islandNoise, var2, var3) - 8.0F);
+          if (var4 > 0.0D) {
+             var6 = 0.25D;
+          } else {
+@@ -225,55 +224,57 @@
+                var10 += var20 * var23;
+                var11 += var23;
+             }
+          }
+ 
+-         float var49 = var10 / var11;
+-         float var51 = var9 / var11;
+-         var52 = (double)(var49 * 0.5F - 0.125F);
+-         var53 = (double)(var51 * 0.9F + 0.1F);
+-         var4 = var52 * 0.265625D;
+-         var6 = 96.0D / var53;
++         float var51 = var10 / var11;
++         float var53 = var9 / var11;
++         var54 = (double)(var51 * 0.5F - 0.125F);
++         var55 = (double)(var53 * 0.9F + 0.1F);
++         var4 = var54 * 0.265625D;
++         var6 = 96.0D / var55;
+       }
+ 
+-      double var46 = 684.412D * var8.noiseSamplingSettings().xzScale();
+-      double var47 = 684.412D * var8.noiseSamplingSettings().yScale();
+-      double var48 = var46 / var8.noiseSamplingSettings().xzFactor();
+-      double var50 = var47 / var8.noiseSamplingSettings().yFactor();
+-      var52 = (double)var8.topSlideSettings().target();
+-      var53 = (double)var8.topSlideSettings().size();
+-      double var54 = (double)var8.topSlideSettings().offset();
+-      double var55 = (double)var8.bottomSlideSettings().target();
++      double var48 = 684.412D * var8.noiseSamplingSettings().xzScale();
++      double var49 = 684.412D * var8.noiseSamplingSettings().yScale();
++      double var50 = var48 / var8.noiseSamplingSettings().xzFactor();
++      double var52 = var49 / var8.noiseSamplingSettings().yFactor();
++      var54 = (double)var8.topSlideSettings().target();
++      var55 = (double)var8.topSlideSettings().size();
++      double var56 = (double)var8.topSlideSettings().offset();
++      double var57 = (double)var8.bottomSlideSettings().target();
+       double var25 = (double)var8.bottomSlideSettings().size();
+       double var27 = (double)var8.bottomSlideSettings().offset();
+       double var29 = var8.randomDensityOffset() ? this.getRandomDensity(var2, var3) : 0.0D;
+       double var31 = var8.densityFactor();
+       double var33 = var8.densityOffset();
++      int var35 = Mth.intFloorDiv(var8.minY(), this.chunkHeight);
+ 
+-      for(int var35 = 0; var35 <= this.chunkCountY; ++var35) {
+-         double var36 = this.sampleAndClampNoise(var2, var35, var3, var46, var47, var48, var50);
+-         double var38 = 1.0D - (double)var35 * 2.0D / (double)this.chunkCountY + var29;
+-         double var40 = var38 * var31 + var33;
+-         double var42 = (var40 + var4) * var6;
+-         if (var42 > 0.0D) {
+-            var36 += var42 * 4.0D;
++      for(int var36 = 0; var36 <= this.chunkCountY; ++var36) {
++         int var37 = var36 + var35;
++         double var38 = this.sampleAndClampNoise(var2, var37, var3, var48, var49, var50, var52);
++         double var40 = 1.0D - (double)var37 * 2.0D / (double)this.chunkCountY + var29;
++         double var42 = var40 * var31 + var33;
++         double var44 = (var42 + var4) * var6;
++         if (var44 > 0.0D) {
++            var38 += var44 * 4.0D;
+          } else {
+-            var36 += var42;
++            var38 += var44;
+          }
+ 
+-         double var44;
+-         if (var53 > 0.0D) {
+-            var44 = ((double)(this.chunkCountY - var35) - var54) / var53;
+-            var36 = Mth.clampedLerp(var52, var36, var44);
++         double var46;
++         if (var55 > 0.0D) {
++            var46 = ((double)(this.chunkCountY - var36) - var56) / var55;
++            var38 = Mth.clampedLerp(var54, var38, var46);
+          }
+ 
+          if (var25 > 0.0D) {
+-            var44 = ((double)var35 - var27) / var25;
+-            var36 = Mth.clampedLerp(var55, var36, var44);
++            var46 = ((double)var36 - var27) / var25;
++            var38 = Mth.clampedLerp(var57, var38, var46);
+          }
+ 
+-         var1[var35] = var36;
++         var1[var36] = var38;
+       }
+ 
+    }
+ 
+    private double getRandomDensity(int var1, int var2) {
+@@ -291,14 +292,14 @@
+ 
+    public int getBaseHeight(int var1, int var2, Heightmap.Types var3) {
+       return this.iterateNoiseColumn(var1, var2, (BlockState[])null, var3.isOpaque());
+    }
+ 
+-   public BlockGetter getBaseColumn(int var1, int var2) {
++   public NoiseColumn getBaseColumn(int var1, int var2) {
+       BlockState[] var3 = new BlockState[this.chunkCountY * this.chunkHeight];
+       this.iterateNoiseColumn(var1, var2, var3, (Predicate)null);
+-      return new NoiseColumn(var3);
++      return new NoiseColumn(((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY(), var3);
+    }
+ 
+    private int iterateNoiseColumn(int var1, int var2, @Nullable BlockState[] var3, @Nullable Predicate<BlockState> var4) {
+       int var5 = Math.floorDiv(var1, this.chunkWidth);
+       int var6 = Math.floorDiv(var2, this.chunkWidth);
+@@ -320,17 +321,18 @@
+ 
+          for(int var31 = this.chunkHeight - 1; var31 >= 0; --var31) {
+             double var32 = (double)var31 / (double)this.chunkHeight;
+             double var34 = Mth.lerp3(var32, var9, var11, var15, var23, var19, var27, var17, var25, var21, var29);
+             int var36 = var14 * this.chunkHeight + var31;
+-            BlockState var37 = this.generateBaseState(var34, var36);
++            int var37 = var36 + ((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY();
++            BlockState var38 = this.generateBaseState(var34, var37);
+             if (var3 != null) {
+-               var3[var36] = var37;
++               var3[var36] = var38;
+             }
+ 
+-            if (var4 != null && var4.test(var37)) {
+-               return var36 + 1;
++            if (var4 != null && var4.test(var38)) {
++               return var37 + 1;
+             }
+          }
+       }
+ 
+       return 0;
+@@ -380,12 +382,12 @@
        int var5 = var1.getPos().getMinBlockZ();
        NoiseGeneratorSettings var6 = (NoiseGeneratorSettings)this.settings.get();
        int var7 = var6.getBedrockFloorPosition();
@@ -8,14 +162,14 @@
        boolean var9 = true;
 -      boolean var10 = var8 + 4 >= 0 && var8 < this.height;
 -      boolean var11 = var7 + 4 >= 0 && var7 < this.height;
-+      boolean var10 = var8 + 5 - 1 >= 0 && var8 < this.height;
-+      boolean var11 = var7 + 5 - 1 >= 0 && var7 < this.height;
++      boolean var10 = var8 + 5 - 1 >= var1.getMinBuildHeight() && var8 < var1.getMaxBuildHeight();
++      boolean var11 = var7 + 5 - 1 >= var1.getMinBuildHeight() && var7 < var1.getMaxBuildHeight();
        if (var10 || var11) {
           Iterator var12 = BlockPos.betweenClosed(var4, 0, var5, var4 + 15, 0, var5 + 15).iterator();
  
           while(true) {
              BlockPos var13;
-@@ -418,12 +418,12 @@
+@@ -418,12 +420,12 @@
        ObjectArrayList var4 = new ObjectArrayList(10);
        ObjectArrayList var5 = new ObjectArrayList(32);
        ChunkPos var6 = var3.getPos();
@@ -30,7 +184,7 @@
        while(var11.hasNext()) {
           StructureFeature var12 = (StructureFeature)var11.next();
           var2.startsForFeature(SectionPos.of(var6, 0), var12).forEach((var5x) -> {
-@@ -485,11 +485,11 @@
+@@ -485,11 +487,11 @@
           for(var19 = 0; var19 < this.chunkCountZ + 1; ++var19) {
              this.fillNoiseColumn(var75[1][var19], var7 * this.chunkCountX + var18 + 1, var8 * this.chunkCountZ + var19);
           }
@@ -43,11 +197,14 @@
              for(int var21 = this.chunkCountY - 1; var21 >= 0; --var21) {
                 double var22 = var75[0][var19][var21];
                 double var24 = var75[0][var19 + 1][var21];
-@@ -501,12 +501,12 @@
+@@ -499,14 +501,14 @@
+                double var32 = var75[0][var19 + 1][var21 + 1];
+                double var34 = var75[1][var19][var21 + 1];
                 double var36 = var75[1][var19 + 1][var21 + 1];
  
                 for(int var38 = this.chunkHeight - 1; var38 >= 0; --var38) {
-                   int var39 = var21 * this.chunkHeight + var38;
+-                  int var39 = var21 * this.chunkHeight + var38;
++                  int var39 = var21 * this.chunkHeight + var38 + ((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY();
                    int var40 = var39 & 15;
 -                  int var41 = var39 >> 4;
 -                  if (var20.bottomBlockY() >> 4 != var41) {
@@ -58,7 +215,7 @@
                       var20.acquire();
                    }
  
-@@ -642,11 +642,11 @@
+@@ -642,11 +644,11 @@
        if (!((NoiseGeneratorSettings)this.settings.get()).disableMobGeneration()) {
           int var2 = var1.getCenterX();
           int var3 = var1.getCenterZ();

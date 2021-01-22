@@ -1,13 +1,13 @@
 --- net/minecraft/world/level/chunk/EmptyLevelChunk.java
 +++ net/minecraft/world/level/chunk/EmptyLevelChunk.java
-@@ -1,27 +1,23 @@
+@@ -1,33 +1,24 @@
  package net.minecraft.world.level.chunk;
  
- import java.util.Arrays;
+-import java.util.Arrays;
 -import java.util.List;
 -import java.util.function.Predicate;
  import javax.annotation.Nullable;
- import net.minecraft.Util;
+-import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Registry;
  import net.minecraft.data.worldgen.biome.Biomes;
@@ -19,17 +19,33 @@
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.entity.BlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
- import net.minecraft.world.level.lighting.LevelLightEngine;
+-import net.minecraft.world.level.lighting.LevelLightEngine;
  import net.minecraft.world.level.material.FluidState;
  import net.minecraft.world.level.material.Fluids;
 -import net.minecraft.world.phys.AABB;
  
  public class EmptyLevelChunk extends LevelChunk {
-    private static final Biome[] BIOMES;
- 
+-   private static final Biome[] BIOMES;
+-
     public EmptyLevelChunk(Level var1, ChunkPos var2) {
-@@ -48,42 +44,27 @@
+-      super(var1, var2, new ChunkBiomeContainer(var1.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY), BIOMES));
++      super((Level)var1, (ChunkPos)var2, (ChunkBiomeContainer)(new EmptyLevelChunk.EmptyChunkBiomeContainer(var1)));
+    }
  
+    public BlockState getBlockState(BlockPos var1) {
+       return Blocks.VOID_AIR.defaultBlockState();
+    }
+@@ -39,51 +30,31 @@
+ 
+    public FluidState getFluidState(BlockPos var1) {
+       return Fluids.EMPTY.defaultFluidState();
+    }
+ 
+-   @Nullable
+-   public LevelLightEngine getLightEngine() {
+-      return null;
+-   }
+-
     public int getLightEmission(BlockPos var1) {
        return 0;
     }
@@ -73,3 +89,29 @@
     }
  
     public boolean isYSpaceEmpty(int var1, int var2) {
+@@ -92,11 +63,21 @@
+ 
+    public ChunkHolder.FullChunkStatus getFullStatus() {
+       return ChunkHolder.FullChunkStatus.BORDER;
+    }
+ 
+-   static {
+-      BIOMES = (Biome[])Util.make(new Biome[ChunkBiomeContainer.BIOMES_SIZE], (var0) -> {
+-         Arrays.fill(var0, Biomes.PLAINS);
+-      });
++   static class EmptyChunkBiomeContainer extends ChunkBiomeContainer {
++      private static final Biome[] EMPTY_BIOMES = new Biome[0];
++
++      public EmptyChunkBiomeContainer(Level var1) {
++         super(var1.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY), var1, (Biome[])EMPTY_BIOMES);
++      }
++
++      public int[] writeBiomes() {
++         throw new UnsupportedOperationException("Can not write biomes of an empty chunk");
++      }
++
++      public Biome getNoiseBiome(int var1, int var2, int var3) {
++         return Biomes.PLAINS;
++      }
+    }
+ }

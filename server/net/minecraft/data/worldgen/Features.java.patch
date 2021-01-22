@@ -1,6 +1,13 @@
 --- net/minecraft/data/worldgen/Features.java
 +++ net/minecraft/data/worldgen/Features.java
-@@ -12,10 +12,13 @@
+@@ -6,16 +6,20 @@
+ import java.util.function.Supplier;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Registry;
+ import net.minecraft.data.BuiltinRegistries;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraft.util.UniformFloat;
+ import net.minecraft.util.UniformInt;
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.HugeMushroomBlock;
  import net.minecraft.world.level.block.SweetBerryBushBlock;
@@ -14,31 +21,53 @@
  import net.minecraft.world.level.levelgen.feature.Feature;
  import net.minecraft.world.level.levelgen.feature.HugeFungusConfiguration;
  import net.minecraft.world.level.levelgen.feature.blockplacers.ColumnPlacer;
-@@ -28,10 +31,11 @@
+@@ -26,13 +30,17 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.ColumnFeatureConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.CountConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.DecoratorConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.DeltaFeatureConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.DiskConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.DripstoneClusterConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.EndGatewayConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
 +import net.minecraft.world.level.levelgen.feature.configurations.GeodeConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.GlowLichenConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.HugeMushroomFeatureConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.LargeDripstoneConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.NoiseDependantDecoratorConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.NoneDecoratorConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.ProbabilityFeatureConfiguration;
-@@ -213,10 +217,11 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.RandomBooleanFeatureConfiguration;
+@@ -41,10 +49,11 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.RangeDecoratorConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.ReplaceBlockConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.ReplaceSphereConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.SimpleBlockConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.SimpleRandomFeatureConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.SmallDripstoneConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.SpikeConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.SpringConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
+ import net.minecraft.world.level.levelgen.feature.featuresize.ThreeLayersFeatureSize;
+ import net.minecraft.world.level.levelgen.feature.featuresize.TwoLayersFeatureSize;
+@@ -213,10 +222,15 @@
     public static final ConfiguredFeature<?, ?> ORE_LAPIS;
     public static final ConfiguredFeature<?, ?> ORE_INFESTED;
     public static final ConfiguredFeature<?, ?> ORE_EMERALD;
     public static final ConfiguredFeature<?, ?> ORE_DEBRIS_LARGE;
     public static final ConfiguredFeature<?, ?> ORE_DEBRIS_SMALL;
 +   public static final ConfiguredFeature<?, ?> ORE_COPPER;
++   public static final ConfiguredFeature<?, ?> DRIPSTONE_CLUSTER_FEATURE;
++   public static final ConfiguredFeature<?, ?> LARGE_DRIPSTONE_FEATURE;
++   public static final ConfiguredFeature<?, ?> SMALL_DRIPSTONE_FEATURE;
++   public static final ConfiguredFeature<?, ?> GLOW_LICHEN;
     public static final ConfiguredFeature<?, ?> CRIMSON_FUNGI;
     public static final ConfiguredFeature<HugeFungusConfiguration, ?> CRIMSON_FUNGI_PLANTED;
     public static final ConfiguredFeature<?, ?> WARPED_FUNGI;
     public static final ConfiguredFeature<HugeFungusConfiguration, ?> WARPED_FUNGI_PLANTED;
     public static final ConfiguredFeature<?, ?> HUGE_BROWN_MUSHROOM;
-@@ -274,10 +279,11 @@
+@@ -274,10 +288,11 @@
     public static final ConfiguredFeature<?, ?> TREES_GIANT_SPRUCE;
     public static final ConfiguredFeature<?, ?> TREES_GIANT;
     public static final ConfiguredFeature<?, ?> TREES_JUNGLE;
@@ -50,31 +79,120 @@
        return (ConfiguredFeature)Registry.register(BuiltinRegistries.CONFIGURED_FEATURE, (String)var0, var1);
     }
  
-@@ -411,10 +417,11 @@
+@@ -307,17 +322,17 @@
+       SEAGRASS_RIVER = register("seagrass_river", ((ConfiguredFeature)Feature.SEAGRASS.configured(new ProbabilityFeatureConfiguration(0.4F)).count(48)).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP_SQUARE));
+       SEAGRASS_DEEP = register("seagrass_deep", ((ConfiguredFeature)Feature.SEAGRASS.configured(new ProbabilityFeatureConfiguration(0.8F)).count(48)).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP_SQUARE));
+       SEAGRASS_SWAMP = register("seagrass_swamp", ((ConfiguredFeature)Feature.SEAGRASS.configured(new ProbabilityFeatureConfiguration(0.6F)).count(64)).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP_SQUARE));
+       SEAGRASS_WARM = register("seagrass_warm", ((ConfiguredFeature)Feature.SEAGRASS.configured(new ProbabilityFeatureConfiguration(0.3F)).count(80)).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP_SQUARE));
+       SEAGRASS_DEEP_WARM = register("seagrass_deep_warm", ((ConfiguredFeature)Feature.SEAGRASS.configured(new ProbabilityFeatureConfiguration(0.8F)).count(80)).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP_SQUARE));
+-      SEA_PICKLE = register("sea_pickle", (ConfiguredFeature)Feature.SEA_PICKLE.configured(new CountConfiguration(20)).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP_SQUARE).chance(16));
++      SEA_PICKLE = register("sea_pickle", (ConfiguredFeature)Feature.SEA_PICKLE.configured(new CountConfiguration(20)).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP_SQUARE).rarity(16));
+       ICE_SPIKE = register("ice_spike", (ConfiguredFeature)Feature.ICE_SPIKE.configured(FeatureConfiguration.NONE).decorated(Features.Decorators.HEIGHTMAP_SQUARE).count(3));
+       ICE_PATCH = register("ice_patch", (ConfiguredFeature)Feature.ICE_PATCH.configured(new DiskConfiguration(Features.States.PACKED_ICE, UniformInt.of(2, 1), 1, ImmutableList.of(Features.States.DIRT, Features.States.GRASS_BLOCK, Features.States.PODZOL, Features.States.COARSE_DIRT, Features.States.MYCELIUM, Features.States.SNOW_BLOCK, Features.States.ICE))).decorated(Features.Decorators.HEIGHTMAP_SQUARE).count(2));
+       FOREST_ROCK = register("forest_rock", (ConfiguredFeature)Feature.FOREST_ROCK.configured(new BlockStateConfiguration(Features.States.MOSSY_COBBLESTONE)).decorated(Features.Decorators.HEIGHTMAP_SQUARE).countRandom(2));
+       SEAGRASS_SIMPLE = register("seagrass_simple", Feature.SIMPLE_BLOCK.configured(new SimpleBlockConfiguration(Features.States.SEAGRASS, ImmutableList.of(Features.States.STONE), ImmutableList.of(Features.States.WATER), ImmutableList.of(Features.States.WATER))).decorated(FeatureDecorator.CARVING_MASK.configured(new CarvingMaskDecoratorConfiguration(GenerationStep.Carving.LIQUID, 0.1F))));
+-      ICEBERG_PACKED = register("iceberg_packed", (ConfiguredFeature)Feature.ICEBERG.configured(new BlockStateConfiguration(Features.States.PACKED_ICE)).decorated(FeatureDecorator.ICEBERG.configured(NoneDecoratorConfiguration.INSTANCE)).chance(16));
+-      ICEBERG_BLUE = register("iceberg_blue", (ConfiguredFeature)Feature.ICEBERG.configured(new BlockStateConfiguration(Features.States.BLUE_ICE)).decorated(FeatureDecorator.ICEBERG.configured(NoneDecoratorConfiguration.INSTANCE)).chance(200));
++      ICEBERG_PACKED = register("iceberg_packed", (ConfiguredFeature)Feature.ICEBERG.configured(new BlockStateConfiguration(Features.States.PACKED_ICE)).decorated(FeatureDecorator.ICEBERG.configured(NoneDecoratorConfiguration.INSTANCE)).rarity(16));
++      ICEBERG_BLUE = register("iceberg_blue", (ConfiguredFeature)Feature.ICEBERG.configured(new BlockStateConfiguration(Features.States.BLUE_ICE)).decorated(FeatureDecorator.ICEBERG.configured(NoneDecoratorConfiguration.INSTANCE)).rarity(200));
+       KELP_COLD = register("kelp_cold", ((ConfiguredFeature)Feature.KELP.configured(FeatureConfiguration.NONE).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP).squared()).decorated(FeatureDecorator.COUNT_NOISE_BIASED.configured(new NoiseCountFactorDecoratorConfiguration(120, 80.0D, 0.0D))));
+       KELP_WARM = register("kelp_warm", ((ConfiguredFeature)Feature.KELP.configured(FeatureConfiguration.NONE).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP).squared()).decorated(FeatureDecorator.COUNT_NOISE_BIASED.configured(new NoiseCountFactorDecoratorConfiguration(80, 80.0D, 0.0D))));
+       BLUE_ICE = register("blue_ice", (ConfiguredFeature)((ConfiguredFeature)Feature.BLUE_ICE.configured(FeatureConfiguration.NONE).decorated(FeatureDecorator.RANGE.configured(new RangeDecoratorConfiguration(30, 32, 64))).squared()).countRandom(19));
+       BAMBOO_LIGHT = register("bamboo_light", (ConfiguredFeature)Feature.BAMBOO.configured(new ProbabilityFeatureConfiguration(0.0F)).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(16));
+       BAMBOO = register("bamboo", ((ConfiguredFeature)Feature.BAMBOO.configured(new ProbabilityFeatureConfiguration(0.2F)).decorated(Features.Decorators.HEIGHTMAP_WORLD_SURFACE).squared()).decorated(FeatureDecorator.COUNT_NOISE_BIASED.configured(new NoiseCountFactorDecoratorConfiguration(160, 80.0D, 0.3D))));
+@@ -329,12 +344,12 @@
+       DISK_SAND = register("disk_sand", (ConfiguredFeature)Feature.DISK.configured(new DiskConfiguration(Features.States.SAND, UniformInt.of(2, 4), 2, ImmutableList.of(Features.States.DIRT, Features.States.GRASS_BLOCK))).decorated(Features.Decorators.TOP_SOLID_HEIGHTMAP_SQUARE).count(3));
+       FREEZE_TOP_LAYER = register("freeze_top_layer", Feature.FREEZE_TOP_LAYER.configured(FeatureConfiguration.NONE));
+       BONUS_CHEST = register("bonus_chest", Feature.BONUS_CHEST.configured(FeatureConfiguration.NONE));
+       VOID_START_PLATFORM = register("void_start_platform", Feature.VOID_START_PLATFORM.configured(FeatureConfiguration.NONE));
+       MONSTER_ROOM = register("monster_room", (ConfiguredFeature)((ConfiguredFeature)((ConfiguredFeature)Feature.MONSTER_ROOM.configured(FeatureConfiguration.NONE).range(256)).squared()).count(8));
+-      WELL = register("desert_well", (ConfiguredFeature)Feature.DESERT_WELL.configured(FeatureConfiguration.NONE).decorated(Features.Decorators.HEIGHTMAP_SQUARE).chance(1000));
+-      FOSSIL = register("fossil", (ConfiguredFeature)Feature.FOSSIL.configured(FeatureConfiguration.NONE).chance(64));
++      WELL = register("desert_well", (ConfiguredFeature)Feature.DESERT_WELL.configured(FeatureConfiguration.NONE).decorated(Features.Decorators.HEIGHTMAP_SQUARE).rarity(1000));
++      FOSSIL = register("fossil", (ConfiguredFeature)Feature.FOSSIL.configured(FeatureConfiguration.NONE).rarity(64));
+       SPRING_LAVA_DOUBLE = register("spring_lava_double", (ConfiguredFeature)((ConfiguredFeature)Feature.SPRING.configured(Features.Configs.LAVA_SPRING_CONFIG).decorated(FeatureDecorator.RANGE_VERY_BIASED.configured(new RangeDecoratorConfiguration(8, 16, 256))).squared()).count(40));
+       SPRING_LAVA = register("spring_lava", (ConfiguredFeature)((ConfiguredFeature)Feature.SPRING.configured(Features.Configs.LAVA_SPRING_CONFIG).decorated(FeatureDecorator.RANGE_VERY_BIASED.configured(new RangeDecoratorConfiguration(8, 16, 256))).squared()).count(20));
+       SPRING_DELTA = register("spring_delta", (ConfiguredFeature)((ConfiguredFeature)Feature.SPRING.configured(new SpringConfiguration(Features.States.LAVA_STATE, true, 4, 1, ImmutableSet.of(Blocks.NETHERRACK, Blocks.SOUL_SAND, Blocks.GRAVEL, Blocks.MAGMA_BLOCK, Blocks.BLACKSTONE))).decorated(Features.Decorators.RANGE_4_8_ROOFED).squared()).count(16));
+       SPRING_CLOSED = register("spring_closed", (ConfiguredFeature)((ConfiguredFeature)Feature.SPRING.configured(Features.Configs.CLOSED_NETHER_SPRING_CONFIG).decorated(Features.Decorators.RANGE_10_20_ROOFED).squared()).count(16));
+       SPRING_CLOSED_DOUBLE = register("spring_closed_double", (ConfiguredFeature)((ConfiguredFeature)Feature.SPRING.configured(Features.Configs.CLOSED_NETHER_SPRING_CONFIG).decorated(Features.Decorators.RANGE_10_20_ROOFED).squared()).count(32));
+@@ -349,11 +364,11 @@
+       PATCH_SOUL_FIRE = register("patch_soul_fire", Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.SOUL_FIRE), new SimpleBlockPlacer())).tries(64).whitelist(ImmutableSet.of(Features.States.SOUL_SOIL.getBlock())).noProjection().build()).decorated(Features.Decorators.FIRE));
+       PATCH_BROWN_MUSHROOM = register("patch_brown_mushroom", Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.BROWN_MUSHROOM), SimpleBlockPlacer.INSTANCE)).tries(64).noProjection().build()));
+       PATCH_RED_MUSHROOM = register("patch_red_mushroom", Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.RED_MUSHROOM), SimpleBlockPlacer.INSTANCE)).tries(64).noProjection().build()));
+       PATCH_CRIMSON_ROOTS = register("patch_crimson_roots", (ConfiguredFeature)Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.CRIMSON_ROOTS), new SimpleBlockPlacer())).tries(64).noProjection().build()).range(128));
+       PATCH_SUNFLOWER = register("patch_sunflower", (ConfiguredFeature)Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.SUNFLOWER), new DoublePlantPlacer())).tries(64).noProjection().build()).decorated(Features.Decorators.ADD_32).decorated(Features.Decorators.HEIGHTMAP_SQUARE).count(10));
+-      PATCH_PUMPKIN = register("patch_pumpkin", (ConfiguredFeature)Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.PUMPKIN), SimpleBlockPlacer.INSTANCE)).tries(64).whitelist(ImmutableSet.of(Features.States.GRASS_BLOCK.getBlock())).noProjection().build()).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).chance(32));
++      PATCH_PUMPKIN = register("patch_pumpkin", (ConfiguredFeature)Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.PUMPKIN), SimpleBlockPlacer.INSTANCE)).tries(64).whitelist(ImmutableSet.of(Features.States.GRASS_BLOCK.getBlock())).noProjection().build()).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).rarity(32));
+       PATCH_TAIGA_GRASS = register("patch_taiga_grass", Feature.RANDOM_PATCH.configured(Features.Configs.TAIGA_GRASS_CONFIG));
+       PATCH_BERRY_BUSH = register("patch_berry_bush", Feature.RANDOM_PATCH.configured(Features.Configs.SWEET_BERRY_BUSH_CONFIG));
+       PATCH_GRASS_PLAIN = register("patch_grass_plain", Feature.RANDOM_PATCH.configured(Features.Configs.DEFAULT_GRASS_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).decorated(FeatureDecorator.COUNT_NOISE.configured(new NoiseDependantDecoratorConfiguration(-0.8D, 5, 10))));
+       PATCH_GRASS_FOREST = register("patch_grass_forest", (ConfiguredFeature)Feature.RANDOM_PATCH.configured(Features.Configs.DEFAULT_GRASS_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(2));
+       PATCH_GRASS_BADLANDS = register("patch_grass_badlands", Feature.RANDOM_PATCH.configured(Features.Configs.DEFAULT_GRASS_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE));
+@@ -365,11 +380,11 @@
+       PATCH_DEAD_BUSH_2 = register("patch_dead_bush_2", (ConfiguredFeature)Feature.RANDOM_PATCH.configured(Features.Configs.DEAD_BUSH_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(2));
+       PATCH_DEAD_BUSH = register("patch_dead_bush", Feature.RANDOM_PATCH.configured(Features.Configs.DEAD_BUSH_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE));
+       PATCH_DEAD_BUSH_BADLANDS = register("patch_dead_bush_badlands", (ConfiguredFeature)Feature.RANDOM_PATCH.configured(Features.Configs.DEAD_BUSH_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(20));
+       PATCH_MELON = register("patch_melon", Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.MELON), SimpleBlockPlacer.INSTANCE)).tries(64).whitelist(ImmutableSet.of(Features.States.GRASS_BLOCK.getBlock())).canReplace().noProjection().build()).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE));
+       PATCH_BERRY_SPARSE = register("patch_berry_sparse", PATCH_BERRY_BUSH.decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE));
+-      PATCH_BERRY_DECORATED = register("patch_berry_decorated", (ConfiguredFeature)PATCH_BERRY_BUSH.decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).chance(12));
++      PATCH_BERRY_DECORATED = register("patch_berry_decorated", (ConfiguredFeature)PATCH_BERRY_BUSH.decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).rarity(12));
+       PATCH_WATERLILLY = register("patch_waterlilly", (ConfiguredFeature)Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.LILY_PAD), SimpleBlockPlacer.INSTANCE)).tries(10).build()).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(4));
+       PATCH_TALL_GRASS_2 = register("patch_tall_grass_2", ((ConfiguredFeature)Feature.RANDOM_PATCH.configured(Features.Configs.TALL_GRASS_CONFIG).decorated(Features.Decorators.ADD_32).decorated(Features.Decorators.HEIGHTMAP).squared()).decorated(FeatureDecorator.COUNT_NOISE.configured(new NoiseDependantDecoratorConfiguration(-0.8D, 0, 7))));
+       PATCH_TALL_GRASS = register("patch_tall_grass", (ConfiguredFeature)Feature.RANDOM_PATCH.configured(Features.Configs.TALL_GRASS_CONFIG).decorated(Features.Decorators.ADD_32).decorated(Features.Decorators.HEIGHTMAP_SQUARE).count(7));
+       PATCH_LARGE_FERN = register("patch_large_fern", (ConfiguredFeature)Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.LARGE_FERN), new DoublePlantPlacer())).tries(64).noProjection().build()).decorated(Features.Decorators.ADD_32).decorated(Features.Decorators.HEIGHTMAP_SQUARE).count(7));
+       PATCH_CACTUS = register("patch_cactus", Feature.RANDOM_PATCH.configured((new RandomPatchConfiguration.GrassConfigurationBuilder(new SimpleStateProvider(Features.States.CACTUS), new ColumnPlacer(1, 2))).tries(10).noProjection().build()));
+@@ -377,16 +392,16 @@
+       PATCH_CACTUS_DECORATED = register("patch_cactus_decorated", (ConfiguredFeature)PATCH_CACTUS.decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(5));
+       PATCH_SUGAR_CANE_SWAMP = register("patch_sugar_cane_swamp", (ConfiguredFeature)Feature.RANDOM_PATCH.configured(Features.Configs.SUGAR_CANE_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(20));
+       PATCH_SUGAR_CANE_DESERT = register("patch_sugar_cane_desert", (ConfiguredFeature)Feature.RANDOM_PATCH.configured(Features.Configs.SUGAR_CANE_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(60));
+       PATCH_SUGAR_CANE_BADLANDS = register("patch_sugar_cane_badlands", (ConfiguredFeature)Feature.RANDOM_PATCH.configured(Features.Configs.SUGAR_CANE_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(13));
+       PATCH_SUGAR_CANE = register("patch_sugar_cane", (ConfiguredFeature)Feature.RANDOM_PATCH.configured(Features.Configs.SUGAR_CANE_CONFIG).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).count(10));
+-      BROWN_MUSHROOM_NETHER = register("brown_mushroom_nether", (ConfiguredFeature)((ConfiguredFeature)PATCH_BROWN_MUSHROOM.range(128)).chance(2));
+-      RED_MUSHROOM_NETHER = register("red_mushroom_nether", (ConfiguredFeature)((ConfiguredFeature)PATCH_RED_MUSHROOM.range(128)).chance(2));
+-      BROWN_MUSHROOM_NORMAL = register("brown_mushroom_normal", (ConfiguredFeature)PATCH_BROWN_MUSHROOM.decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).chance(4));
+-      RED_MUSHROOM_NORMAL = register("red_mushroom_normal", (ConfiguredFeature)PATCH_RED_MUSHROOM.decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).chance(8));
+-      BROWN_MUSHROOM_TAIGA = register("brown_mushroom_taiga", ((ConfiguredFeature)PATCH_BROWN_MUSHROOM.chance(4)).decorated(Features.Decorators.HEIGHTMAP_SQUARE));
+-      RED_MUSHROOM_TAIGA = register("red_mushroom_taiga", ((ConfiguredFeature)PATCH_RED_MUSHROOM.chance(8)).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE));
++      BROWN_MUSHROOM_NETHER = register("brown_mushroom_nether", (ConfiguredFeature)((ConfiguredFeature)PATCH_BROWN_MUSHROOM.range(128)).rarity(2));
++      RED_MUSHROOM_NETHER = register("red_mushroom_nether", (ConfiguredFeature)((ConfiguredFeature)PATCH_RED_MUSHROOM.range(128)).rarity(2));
++      BROWN_MUSHROOM_NORMAL = register("brown_mushroom_normal", (ConfiguredFeature)PATCH_BROWN_MUSHROOM.decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).rarity(4));
++      RED_MUSHROOM_NORMAL = register("red_mushroom_normal", (ConfiguredFeature)PATCH_RED_MUSHROOM.decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE).rarity(8));
++      BROWN_MUSHROOM_TAIGA = register("brown_mushroom_taiga", ((ConfiguredFeature)PATCH_BROWN_MUSHROOM.rarity(4)).decorated(Features.Decorators.HEIGHTMAP_SQUARE));
++      RED_MUSHROOM_TAIGA = register("red_mushroom_taiga", ((ConfiguredFeature)PATCH_RED_MUSHROOM.rarity(8)).decorated(Features.Decorators.HEIGHTMAP_DOUBLE_SQUARE));
+       BROWN_MUSHROOM_GIANT = register("brown_mushroom_giant", (ConfiguredFeature)BROWN_MUSHROOM_TAIGA.count(3));
+       RED_MUSHROOM_GIANT = register("red_mushroom_giant", (ConfiguredFeature)RED_MUSHROOM_TAIGA.count(3));
+       BROWN_MUSHROOM_SWAMP = register("brown_mushroom_swamp", (ConfiguredFeature)BROWN_MUSHROOM_TAIGA.count(8));
+       RED_MUSHROOM_SWAMP = register("red_mushroom_swamp", (ConfiguredFeature)RED_MUSHROOM_TAIGA.count(8));
+       ORE_MAGMA = register("ore_magma", (ConfiguredFeature)((ConfiguredFeature)Feature.ORE.configured(new OreConfiguration(OreConfiguration.Predicates.NETHERRACK, Features.States.MAGMA_BLOCK, 33)).decorated(FeatureDecorator.MAGMA.configured(NoneDecoratorConfiguration.INSTANCE)).squared()).count(4));
+@@ -411,10 +426,15 @@
        ORE_LAPIS = register("ore_lapis", (ConfiguredFeature)Feature.ORE.configured(new OreConfiguration(OreConfiguration.Predicates.NATURAL_STONE, Features.States.LAPIS_ORE, 7)).decorated(FeatureDecorator.DEPTH_AVERAGE.configured(new DepthAverageConfigation(16, 16))).squared());
        ORE_INFESTED = register("ore_infested", (ConfiguredFeature)((ConfiguredFeature)((ConfiguredFeature)Feature.ORE.configured(new OreConfiguration(OreConfiguration.Predicates.NATURAL_STONE, Features.States.INFESTED_STONE, 9)).range(64)).squared()).count(7));
        ORE_EMERALD = register("ore_emerald", Feature.EMERALD_ORE.configured(new ReplaceBlockConfiguration(Features.States.STONE, Features.States.EMERALD_ORE)).decorated(FeatureDecorator.EMERALD_ORE.configured(DecoratorConfiguration.NONE)));
        ORE_DEBRIS_LARGE = register("ore_debris_large", (ConfiguredFeature)Feature.NO_SURFACE_ORE.configured(new OreConfiguration(OreConfiguration.Predicates.NETHER_ORE_REPLACEABLES, Features.States.ANCIENT_DEBRIS, 3)).decorated(FeatureDecorator.DEPTH_AVERAGE.configured(new DepthAverageConfigation(16, 8))).squared());
        ORE_DEBRIS_SMALL = register("ore_debris_small", (ConfiguredFeature)Feature.NO_SURFACE_ORE.configured(new OreConfiguration(OreConfiguration.Predicates.NETHER_ORE_REPLACEABLES, Features.States.ANCIENT_DEBRIS, 2)).decorated(FeatureDecorator.RANGE.configured(new RangeDecoratorConfiguration(8, 16, 128))).squared());
 +      ORE_COPPER = register("ore_copper", (ConfiguredFeature)((ConfiguredFeature)((ConfiguredFeature)Feature.ORE.configured(new OreConfiguration(OreConfiguration.Predicates.NATURAL_STONE, Features.States.COPPER_ORE, 10)).range(64)).squared()).count(10));
++      DRIPSTONE_CLUSTER_FEATURE = register("dripstone_cluster", (ConfiguredFeature)((ConfiguredFeature)((ConfiguredFeature)Feature.DRIPSTONE_CLUSTER.configured(new DripstoneClusterConfiguration(12, UniformInt.of(3, 3), UniformInt.of(2, 6), 1, 3, UniformInt.of(2, 2), UniformFloat.of(0.3F, 0.4F), UniformFloat.of(0.1F, 0.9F), 0.1F, 0.3F, 0.1F, 3, 8)).range(60)).squared()).count(UniformInt.of(5, 10)));
++      LARGE_DRIPSTONE_FEATURE = register("large_dripstone", (ConfiguredFeature)((ConfiguredFeature)((ConfiguredFeature)Feature.LARGE_DRIPSTONE.configured(new LargeDripstoneConfiguration(30, UniformInt.of(3, 16), UniformFloat.of(0.4F, 1.6F), 0.33F, UniformFloat.of(0.3F, 0.6F), UniformFloat.of(0.4F, 0.6F), UniformFloat.of(0.0F, 0.3F), 4, 0.6F)).range(60)).squared()).count(UniformInt.of(1, 4)));
++      SMALL_DRIPSTONE_FEATURE = register("small_dripstone", (ConfiguredFeature)((ConfiguredFeature)((ConfiguredFeature)Feature.SMALL_DRIPSTONE.configured(new SmallDripstoneConfiguration(5, 10, 2, 0.2F)).range(60)).squared()).count(UniformInt.of(20, 40)));
++      GLOW_LICHEN = register("glow_lichen", (ConfiguredFeature)((ConfiguredFeature)((ConfiguredFeature)Feature.GLOW_LICHEN.configured(new GlowLichenConfiguration(10, false, true, true, 0.5F, ImmutableList.of(Blocks.STONE.defaultBlockState(), Blocks.ANDESITE.defaultBlockState(), Blocks.DIORITE.defaultBlockState(), Blocks.GRANITE.defaultBlockState(), Blocks.DRIPSTONE_BLOCK.defaultBlockState(), Blocks.CALCITE.defaultBlockState(), Blocks.TUFF.defaultBlockState()))).squared()).range(55)).count(UniformInt.of(5, 5)));
        CRIMSON_FUNGI = register("crimson_fungi", Feature.HUGE_FUNGUS.configured(HugeFungusConfiguration.HUGE_CRIMSON_FUNGI_NOT_PLANTED_CONFIG).decorated(FeatureDecorator.COUNT_MULTILAYER.configured(new CountConfiguration(8))));
        CRIMSON_FUNGI_PLANTED = register("crimson_fungi_planted", Feature.HUGE_FUNGUS.configured(HugeFungusConfiguration.HUGE_CRIMSON_FUNGI_PLANTED_CONFIG));
        WARPED_FUNGI = register("warped_fungi", Feature.HUGE_FUNGUS.configured(HugeFungusConfiguration.HUGE_WARPED_FUNGI_NOT_PLANTED_CONFIG).decorated(FeatureDecorator.COUNT_MULTILAYER.configured(new CountConfiguration(8))));
        WARPED_FUNGI_PLANTED = register("warped_fungi_planted", Feature.HUGE_FUNGUS.configured(HugeFungusConfiguration.HUGE_WARPED_FUNGI_PLANTED_CONFIG));
        HUGE_BROWN_MUSHROOM = register("huge_brown_mushroom", Feature.HUGE_BROWN_MUSHROOM.configured(new HugeMushroomFeatureConfiguration(new SimpleStateProvider(Features.States.HUGE_BROWN_MUSHROOM), new SimpleStateProvider(Features.States.HUGE_MUSHROOM_STEM), 3)));
-@@ -490,10 +497,11 @@
+@@ -490,10 +510,11 @@
        MUSHROOM_FIELD_VEGETATION = register("mushroom_field_vegetation", Feature.RANDOM_BOOLEAN_SELECTOR.configured(new RandomBooleanFeatureConfiguration(() -> {
           return HUGE_RED_MUSHROOM;
        }, () -> {
           return HUGE_BROWN_MUSHROOM;
        })).decorated(Features.Decorators.HEIGHTMAP_SQUARE));
-+      AMETHYST_GEODE = register("amethyst_geode", (ConfiguredFeature)((ConfiguredFeature)Feature.GEODE.configured(new GeodeConfiguration(new GeodeBlockSettings(new SimpleStateProvider(Features.States.AIR), new SimpleStateProvider(Features.States.AMETHYST_BLOCK), new SimpleStateProvider(Features.States.BUDDING_AMETHYST), new SimpleStateProvider(Features.States.CALCITE), new SimpleStateProvider(Features.States.TUFF), ImmutableList.of(Blocks.SMALL_AMETHYST_BUD.defaultBlockState(), Blocks.MEDIUM_AMETHYST_BUD.defaultBlockState(), Blocks.LARGE_AMETHYST_BUD.defaultBlockState(), Blocks.AMETHYST_CLUSTER.defaultBlockState())), new GeodeLayerSettings(1.7D, 2.2D, 3.2D, 4.2D), new GeodeCrackSettings(0.95D, 2.0D, 2), 0.35D, 0.083D, true, 4, 7, 3, 5, 1, 3, -16, 16, 0.05D)).decorated(FeatureDecorator.RANGE.configured(new RangeDecoratorConfiguration(6, 0, 47))).squared()).chance(48));
++      AMETHYST_GEODE = register("amethyst_geode", (ConfiguredFeature)((ConfiguredFeature)Feature.GEODE.configured(new GeodeConfiguration(new GeodeBlockSettings(new SimpleStateProvider(Features.States.AIR), new SimpleStateProvider(Features.States.AMETHYST_BLOCK), new SimpleStateProvider(Features.States.BUDDING_AMETHYST), new SimpleStateProvider(Features.States.CALCITE), new SimpleStateProvider(Features.States.TUFF), ImmutableList.of(Blocks.SMALL_AMETHYST_BUD.defaultBlockState(), Blocks.MEDIUM_AMETHYST_BUD.defaultBlockState(), Blocks.LARGE_AMETHYST_BUD.defaultBlockState(), Blocks.AMETHYST_CLUSTER.defaultBlockState())), new GeodeLayerSettings(1.7D, 2.2D, 3.2D, 4.2D), new GeodeCrackSettings(0.95D, 2.0D, 2), 0.35D, 0.083D, true, 4, 7, 3, 5, 1, 3, -16, 16, 0.05D)).decorated(FeatureDecorator.RANGE.configured(new RangeDecoratorConfiguration(6, 0, 47))).squared()).rarity(48));
     }
  
     public static final class Configs {
        public static final RandomPatchConfiguration DEFAULT_GRASS_CONFIG;
        public static final RandomPatchConfiguration TAIGA_GRASS_CONFIG;
-@@ -586,10 +594,11 @@
+@@ -586,10 +607,11 @@
        protected static final BlockState GRAVEL;
        protected static final BlockState GRANITE;
        protected static final BlockState DIORITE;
@@ -86,7 +204,7 @@
        protected static final BlockState REDSTONE_ORE;
        protected static final BlockState DIAMOND_ORE;
        protected static final BlockState LAPIS_ORE;
-@@ -609,10 +618,15 @@
+@@ -609,10 +631,15 @@
        protected static final BlockState BASALT;
        protected static final BlockState CRIMSON_FUNGUS;
        protected static final BlockState WARPED_FUNGUS;
@@ -102,7 +220,7 @@
           GRASS = Blocks.GRASS.defaultBlockState();
           FERN = Blocks.FERN.defaultBlockState();
           PODZOL = Blocks.PODZOL.defaultBlockState();
-@@ -672,10 +686,11 @@
+@@ -672,10 +699,11 @@
           GRAVEL = Blocks.GRAVEL.defaultBlockState();
           GRANITE = Blocks.GRANITE.defaultBlockState();
           DIORITE = Blocks.DIORITE.defaultBlockState();
@@ -114,7 +232,7 @@
           REDSTONE_ORE = Blocks.REDSTONE_ORE.defaultBlockState();
           DIAMOND_ORE = Blocks.DIAMOND_ORE.defaultBlockState();
           LAPIS_ORE = Blocks.LAPIS_ORE.defaultBlockState();
-@@ -695,10 +710,15 @@
+@@ -695,10 +723,15 @@
           BASALT = Blocks.BASALT.defaultBlockState();
           CRIMSON_FUNGUS = Blocks.CRIMSON_FUNGUS.defaultBlockState();
           WARPED_FUNGUS = Blocks.WARPED_FUNGUS.defaultBlockState();

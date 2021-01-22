@@ -1,12 +1,13 @@
 --- net/minecraft/world/item/Item.java
 +++ net/minecraft/world/item/Item.java
-@@ -3,49 +3,52 @@
+@@ -3,49 +3,56 @@
  import com.google.common.collect.ImmutableMultimap;
  import com.google.common.collect.Maps;
  import com.google.common.collect.Multimap;
  import java.util.List;
  import java.util.Map;
 -import java.util.Random;
++import java.util.Optional;
  import java.util.UUID;
  import javax.annotation.Nullable;
 +import net.minecraft.SharedConstants;
@@ -30,10 +31,13 @@
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.ai.attributes.Attribute;
  import net.minecraft.world.entity.ai.attributes.AttributeModifier;
++import net.minecraft.world.entity.item.ItemEntity;
 +import net.minecraft.world.entity.player.Inventory;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.food.FoodProperties;
 +import net.minecraft.world.inventory.ClickAction;
++import net.minecraft.world.inventory.Slot;
++import net.minecraft.world.inventory.tooltip.TooltipComponent;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.level.ClipContext;
  import net.minecraft.world.level.ItemLike;
@@ -56,7 +60,7 @@
     private final int maxStackSize;
     private final int maxDamage;
     private final boolean isFireResistant;
-@@ -74,10 +77,17 @@
+@@ -74,15 +81,25 @@
        this.craftingRemainingItem = var1.craftingRemainingItem;
        this.maxDamage = var1.maxDamage;
        this.maxStackSize = var1.maxStackSize;
@@ -74,7 +78,15 @@
     public void onUseTick(Level var1, LivingEntity var2, ItemStack var3, int var4) {
     }
  
-@@ -129,10 +139,31 @@
++   public void onDestroyed(ItemEntity var1) {
++   }
++
+    public boolean verifyTagAfterLoad(CompoundTag var1) {
+       return false;
+    }
+ 
+    public boolean canAttackBlock(BlockState var1, Level var2, BlockPos var3, Player var4) {
+@@ -129,10 +146,31 @@
  
     public boolean canBeDepleted() {
        return this.maxDamage > 0;
@@ -93,11 +105,11 @@
 +      return Mth.hsvToRgb(var2 / 3.0F, 1.0F, 1.0F);
 +   }
 +
-+   public boolean overrideStackedOnOther(ItemStack var1, ItemStack var2, ClickAction var3, Inventory var4) {
++   public boolean overrideStackedOnOther(ItemStack var1, Slot var2, ClickAction var3, Inventory var4) {
 +      return false;
 +   }
 +
-+   public boolean overrideOtherStackedOnMe(ItemStack var1, ItemStack var2, ClickAction var3, Inventory var4) {
++   public boolean overrideOtherStackedOnMe(ItemStack var1, ItemStack var2, Slot var3, ClickAction var4, Inventory var5) {
 +      return false;
 +   }
 +
@@ -106,7 +118,22 @@
     }
  
     public boolean mineBlock(ItemStack var1, Level var2, BlockState var3, BlockPos var4, LivingEntity var5) {
-@@ -284,21 +315,17 @@
+@@ -210,10 +248,14 @@
+    }
+ 
+    public void appendHoverText(ItemStack var1, @Nullable Level var2, List<Component> var3, TooltipFlag var4) {
+    }
+ 
++   public Optional<TooltipComponent> getTooltipImage(ItemStack var1) {
++      return Optional.empty();
++   }
++
+    public Component getName(ItemStack var1) {
+       return new TranslatableComponent(this.getDescriptionId(var1));
+    }
+ 
+    public boolean isFoil(ItemStack var1) {
+@@ -284,21 +326,17 @@
     public Multimap<Attribute, AttributeModifier> getDefaultAttributeModifiers(EquipmentSlot var1) {
        return ImmutableMultimap.of();
     }
@@ -129,7 +156,7 @@
     }
  
     @Nullable
-@@ -320,10 +347,19 @@
+@@ -320,10 +358,19 @@
  
     public boolean canBeHurtBy(DamageSource var1) {
        return !this.isFireResistant || !var1.isFire();

@@ -1,0 +1,118 @@
+--- net/minecraft/client/gui/screens/debug/GameModeSwitcherScreen.java
++++ net/minecraft/client/gui/screens/debug/GameModeSwitcherScreen.java
+@@ -10,10 +10,11 @@
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.chat.NarratorChatListener;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+ import net.minecraft.client.renderer.entity.ItemRenderer;
+ import net.minecraft.client.renderer.texture.TextureManager;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.resources.ResourceLocation;
+@@ -22,11 +23,11 @@
+ import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.block.Blocks;
+ 
+ public class GameModeSwitcherScreen extends Screen {
+    private static final ResourceLocation GAMEMODE_SWITCHER_LOCATION = new ResourceLocation("textures/gui/container/gamemode_switcher.png");
+-   private static final int ALL_SLOTS_WIDTH = GameModeSwitcherScreen.GameModeIcon.values().length * 30 - 5;
++   private static final int ALL_SLOTS_WIDTH = GameModeSwitcherScreen.GameModeIcon.values().length * 31 - 5;
+    private static final Component SELECT_KEY;
+    private final Optional<GameModeSwitcherScreen.GameModeIcon> previousHovered = GameModeSwitcherScreen.GameModeIcon.getFromGameType(this.getDefaultSelected());
+    private Optional<GameModeSwitcherScreen.GameModeIcon> currentlyHovered = Optional.empty();
+    private int firstMouseX;
+    private int firstMouseY;
+@@ -36,46 +37,42 @@
+    public GameModeSwitcherScreen() {
+       super(NarratorChatListener.NO_TITLE);
+    }
+ 
+    private GameType getDefaultSelected() {
+-      GameType var1 = Minecraft.getInstance().gameMode.getPlayerMode();
+-      GameType var2 = Minecraft.getInstance().gameMode.getPreviousPlayerMode();
+-      if (var2 == GameType.NOT_SET) {
+-         if (var1 == GameType.CREATIVE) {
+-            var2 = GameType.SURVIVAL;
+-         } else {
+-            var2 = GameType.CREATIVE;
+-         }
++      MultiPlayerGameMode var1 = Minecraft.getInstance().gameMode;
++      GameType var2 = var1.getPreviousPlayerMode();
++      if (var2 != null) {
++         return var2;
++      } else {
++         return var1.getPlayerMode() == GameType.CREATIVE ? GameType.SURVIVAL : GameType.CREATIVE;
+       }
+-
+-      return var2;
+    }
+ 
+    protected void init() {
+       super.init();
+       this.currentlyHovered = this.previousHovered.isPresent() ? this.previousHovered : GameModeSwitcherScreen.GameModeIcon.getFromGameType(this.minecraft.gameMode.getPlayerMode());
+ 
+       for(int var1 = 0; var1 < GameModeSwitcherScreen.GameModeIcon.VALUES.length; ++var1) {
+          GameModeSwitcherScreen.GameModeIcon var2 = GameModeSwitcherScreen.GameModeIcon.VALUES[var1];
+-         this.slots.add(new GameModeSwitcherScreen.GameModeSlot(var2, this.width / 2 - ALL_SLOTS_WIDTH / 2 + var1 * 30, this.height / 2 - 30));
++         this.slots.add(new GameModeSwitcherScreen.GameModeSlot(var2, this.width / 2 - ALL_SLOTS_WIDTH / 2 + var1 * 31, this.height / 2 - 31));
+       }
+ 
+    }
+ 
+    public void render(PoseStack var1, int var2, int var3, float var4) {
+       if (!this.checkToClose()) {
+          var1.pushPose();
+          RenderSystem.enableBlend();
+          this.minecraft.getTextureManager().bind(GAMEMODE_SWITCHER_LOCATION);
+          int var5 = this.width / 2 - 62;
+-         int var6 = this.height / 2 - 30 - 27;
++         int var6 = this.height / 2 - 31 - 27;
+          blit(var1, var5, var6, 0.0F, 0.0F, 125, 75, 128, 128);
+          var1.popPose();
+          super.render(var1, var2, var3, var4);
+          this.currentlyHovered.ifPresent((var2x) -> {
+-            drawCenteredString(var1, this.font, var2x.getName(), this.width / 2, this.height / 2 - 30 - 20, -1);
++            drawCenteredString(var1, this.font, var2x.getName(), this.width / 2, this.height / 2 - 31 - 20, -1);
+          });
+          drawCenteredString(var1, this.font, SELECT_KEY, this.width / 2, this.height / 2 + 5, 16777215);
+          if (!this.setFirstMousePos) {
+             this.firstMouseX = var2;
+             this.firstMouseY = var3;
+@@ -145,11 +142,11 @@
+    public class GameModeSlot extends AbstractWidget {
+       private final GameModeSwitcherScreen.GameModeIcon icon;
+       private boolean isSelected;
+ 
+       public GameModeSlot(GameModeSwitcherScreen.GameModeIcon var2, int var3, int var4) {
+-         super(var3, var4, 25, 25, var2.getName());
++         super(var3, var4, 26, 26, var2.getName());
+          this.icon = var2;
+       }
+ 
+       public void renderButton(PoseStack var1, int var2, int var3, float var4) {
+          Minecraft var5 = Minecraft.getInstance();
+@@ -172,19 +169,19 @@
+ 
+       private void drawSlot(PoseStack var1, TextureManager var2) {
+          var2.bind(GameModeSwitcherScreen.GAMEMODE_SWITCHER_LOCATION);
+          var1.pushPose();
+          var1.translate((double)this.x, (double)this.y, 0.0D);
+-         blit(var1, 0, 0, 0.0F, 75.0F, 25, 25, 128, 128);
++         blit(var1, 0, 0, 0.0F, 75.0F, 26, 26, 128, 128);
+          var1.popPose();
+       }
+ 
+       private void drawSelection(PoseStack var1, TextureManager var2) {
+          var2.bind(GameModeSwitcherScreen.GAMEMODE_SWITCHER_LOCATION);
+          var1.pushPose();
+          var1.translate((double)this.x, (double)this.y, 0.0D);
+-         blit(var1, 0, 0, 25.0F, 75.0F, 25, 25, 128, 128);
++         blit(var1, 0, 0, 26.0F, 75.0F, 26, 26, 128, 128);
+          var1.popPose();
+       }
+    }
+ 
+    static enum GameModeIcon {

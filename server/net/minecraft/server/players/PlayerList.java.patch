@@ -1,6 +1,62 @@
 --- net/minecraft/server/players/PlayerList.java
 +++ net/minecraft/server/players/PlayerList.java
-@@ -169,12 +169,12 @@
+@@ -53,14 +53,12 @@
+ import net.minecraft.network.protocol.game.ClientboundUpdateTagsPacket;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.PlayerAdvancements;
+ import net.minecraft.server.ServerScoreboard;
+-import net.minecraft.server.level.DemoMode;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+-import net.minecraft.server.level.ServerPlayerGameMode;
+ import net.minecraft.server.network.ServerGamePacketListenerImpl;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.sounds.SoundSource;
+ import net.minecraft.stats.ServerStatsCounter;
+ import net.minecraft.stats.Stats;
+@@ -69,11 +67,10 @@
+ import net.minecraft.world.effect.MobEffectInstance;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.level.GameRules;
+-import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.biome.BiomeManager;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.border.BorderChangeListener;
+@@ -108,11 +105,10 @@
+    private final PlayerDataStorage playerIo;
+    private boolean doWhiteList;
+    private final RegistryAccess.RegistryHolder registryHolder;
+    protected final int maxPlayers;
+    private int viewDistance;
+-   private GameType overrideGameMode;
+    private boolean allowCheatsForAllPlayers;
+    private int sendAllPlayerInfoIn;
+ 
+    public PlayerList(MinecraftServer var1, RegistryAccess.RegistryHolder var2, PlayerDataStorage var3, int var4) {
+       this.bans = new UserBanList(USERBANLIST_FILE);
+@@ -153,30 +149,29 @@
+       } else {
+          var10 = var9;
+       }
+ 
+       var2.setLevel(var10);
+-      var2.gameMode.setLevel((ServerLevel)var2.level);
+       String var11 = "local";
+       if (var1.getRemoteAddress() != null) {
+          var11 = var1.getRemoteAddress().toString();
+       }
+ 
+       LOGGER.info((String)"{}[{}] logged in with entity id {} at ({}, {}, {})", (Object)var2.getName().getString(), var11, var2.getId(), var2.getX(), var2.getY(), var2.getZ());
+       LevelData var12 = var10.getLevelData();
+-      this.updatePlayerGameMode(var2, (ServerPlayer)null, var10);
++      var2.loadGameTypes(var7);
+       ServerGamePacketListenerImpl var13 = new ServerGamePacketListenerImpl(this.server, var1, var2);
+       GameRules var14 = var10.getGameRules();
        boolean var15 = var14.getBoolean(GameRules.RULE_DO_IMMEDIATE_RESPAWN);
        boolean var16 = var14.getBoolean(GameRules.RULE_REDUCEDDEBUGINFO);
        var13.send(new ClientboundLoginPacket(var2.getId(), var2.gameMode.getGameModeForPlayer(), var2.gameMode.getPreviousGameModeForPlayer(), BiomeManager.obfuscateSeed(var10.getSeed()), var12.isHardcore(), this.server.levelKeys(), this.registryHolder, var10.dimensionType(), var10.dimension(), this.getMaxPlayers(), this.viewDistance, var16, !var15, var10.isDebug(), var10.isFlat()));
@@ -11,11 +67,14 @@
 +      var13.send(new ClientboundPlayerAbilitiesPacket(var2.getAbilities()));
 +      var13.send(new ClientboundSetCarriedItemPacket(var2.getInventory().selected));
        var13.send(new ClientboundUpdateRecipesPacket(this.server.getRecipeManager().getRecipes()));
-       var13.send(new ClientboundUpdateTagsPacket(this.server.getTags()));
+-      var13.send(new ClientboundUpdateTagsPacket(this.server.getTags()));
++      var13.send(new ClientboundUpdateTagsPacket(this.server.getTags().serializeToNetwork(this.registryHolder)));
        this.sendPlayerPermissionLevel(var2);
        var2.getStats().markAllDirty();
        var2.getRecipeBook().sendInitialRecipeBook(var2);
-@@ -199,11 +199,11 @@
+       this.updateEntireScoreboard(var10.getScoreboard(), var2);
+       this.server.invalidateStatus();
+@@ -199,11 +194,11 @@
  
        var10.addNewPlayer(var2);
        this.server.getCustomBossEvents().onPlayerConnect(var2);
@@ -28,7 +87,7 @@
        Iterator var24 = var2.getActiveEffects().iterator();
  
        while(var24.hasNext()) {
-@@ -240,16 +240,16 @@
+@@ -240,16 +235,16 @@
                 }
              }
  
@@ -47,7 +106,7 @@
           }
        }
  
-@@ -345,37 +345,30 @@
+@@ -345,37 +340,30 @@
        ServerLevel var2 = var1.getLevel();
        var1.awardStat(Stats.LEAVE_GAME);
        this.save(var1);
@@ -96,8 +155,22 @@
        this.broadcastAll(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.REMOVE_PLAYER, new ServerPlayer[]{var1}));
     }
  
-@@ -439,11 +432,11 @@
-       return new ServerPlayer(this.server, var10, var1, (ServerPlayerGameMode)var9);
+@@ -426,24 +414,16 @@
+       while(var8.hasNext()) {
+          ServerPlayer var6 = (ServerPlayer)var8.next();
+          var6.connection.disconnect(new TranslatableComponent("multiplayer.disconnect.duplicate_login"));
+       }
+ 
+-      ServerLevel var10 = this.server.overworld();
+-      Object var9;
+-      if (this.server.isDemo()) {
+-         var9 = new DemoMode(var10);
+-      } else {
+-         var9 = new ServerPlayerGameMode(var10);
+-      }
+-
+-      return new ServerPlayer(this.server, var10, var1, (ServerPlayerGameMode)var9);
++      return new ServerPlayer(this.server, this.server.overworld(), var1);
     }
  
     public ServerPlayer respawn(ServerPlayer var1, boolean var2) {
@@ -109,20 +182,122 @@
        boolean var5 = var1.isRespawnForced();
        ServerLevel var6 = this.server.getLevel(var1.getRespawnDimension());
        Optional var7;
-@@ -492,11 +485,11 @@
-          var17 = !var2 && var13;
+@@ -451,73 +431,65 @@
+          var7 = Player.findRespawnPositionAndUseSpawnBlock(var6, var3, var4, var5, var2);
+       } else {
+          var7 = Optional.empty();
+       }
+ 
+-      ServerLevel var9 = var6 != null && var7.isPresent() ? var6 : this.server.overworld();
+-      Object var8;
+-      if (this.server.isDemo()) {
+-         var8 = new DemoMode(var9);
+-      } else {
+-         var8 = new ServerPlayerGameMode(var9);
+-      }
++      ServerLevel var8 = var6 != null && var7.isPresent() ? var6 : this.server.overworld();
++      ServerPlayer var9 = new ServerPlayer(this.server, var8, var1.getGameProfile());
++      var9.connection = var1.connection;
++      var9.restoreFrom(var1, var2);
++      var9.setId(var1.getId());
++      var9.setMainArm(var1.getMainArm());
++      Iterator var10 = var1.getTags().iterator();
+ 
+-      ServerPlayer var10 = new ServerPlayer(this.server, var9, var1.getGameProfile(), (ServerPlayerGameMode)var8);
+-      var10.connection = var1.connection;
+-      var10.restoreFrom(var1, var2);
+-      var10.setId(var1.getId());
+-      var10.setMainArm(var1.getMainArm());
+-      Iterator var11 = var1.getTags().iterator();
+-
+-      while(var11.hasNext()) {
+-         String var12 = (String)var11.next();
+-         var10.addTag(var12);
++      while(var10.hasNext()) {
++         String var11 = (String)var10.next();
++         var9.addTag(var11);
+       }
+ 
+-      this.updatePlayerGameMode(var10, var1, var9);
+-      boolean var17 = false;
++      boolean var16 = false;
+       if (var7.isPresent()) {
+-         BlockState var18 = var9.getBlockState(var3);
+-         boolean var13 = var18.is(Blocks.RESPAWN_ANCHOR);
+-         Vec3 var14 = (Vec3)var7.get();
+-         float var15;
+-         if (!var18.is(BlockTags.BEDS) && !var13) {
+-            var15 = var4;
++         BlockState var17 = var8.getBlockState(var3);
++         boolean var12 = var17.is(Blocks.RESPAWN_ANCHOR);
++         Vec3 var13 = (Vec3)var7.get();
++         float var14;
++         if (!var17.is(BlockTags.BEDS) && !var12) {
++            var14 = var4;
+          } else {
+-            Vec3 var16 = Vec3.atBottomCenterOf(var3).subtract(var14).normalize();
+-            var15 = (float)Mth.wrapDegrees(Mth.atan2(var16.z, var16.x) * 57.2957763671875D - 90.0D);
++            Vec3 var15 = Vec3.atBottomCenterOf(var3).subtract(var13).normalize();
++            var14 = (float)Mth.wrapDegrees(Mth.atan2(var15.z, var15.x) * 57.2957763671875D - 90.0D);
+          }
+ 
+-         var10.moveTo(var14.x, var14.y, var14.z, var15, 0.0F);
+-         var10.setRespawnPosition(var9.dimension(), var3, var4, var5, false);
+-         var17 = !var2 && var13;
++         var9.moveTo(var13.x, var13.y, var13.z, var14, 0.0F);
++         var9.setRespawnPosition(var8.dimension(), var3, var4, var5, false);
++         var16 = !var2 && var12;
        } else if (var3 != null) {
-          var10.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.NO_RESPAWN_BLOCK_AVAILABLE, 0.0F));
+-         var10.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.NO_RESPAWN_BLOCK_AVAILABLE, 0.0F));
++         var9.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.NO_RESPAWN_BLOCK_AVAILABLE, 0.0F));
        }
  
 -      while(!var9.noCollision(var10) && var10.getY() < 256.0D) {
-+      while(!var9.noCollision(var10) && var10.getY() < (double)var9.getMaxBuildHeight()) {
-          var10.setPos(var10.getX(), var10.getY() + 1.0D, var10.getZ());
+-         var10.setPos(var10.getX(), var10.getY() + 1.0D, var10.getZ());
++      while(!var8.noCollision(var9) && var9.getY() < (double)var8.getMaxBuildHeight()) {
++         var9.setPos(var9.getX(), var9.getY() + 1.0D, var9.getZ());
        }
  
-       LevelData var19 = var10.level.getLevelData();
-       var10.connection.send(new ClientboundRespawnPacket(var10.level.dimensionType(), var10.level.dimension(), BiomeManager.obfuscateSeed(var10.getLevel().getSeed()), var10.gameMode.getGameModeForPlayer(), var10.gameMode.getPreviousGameModeForPlayer(), var10.getLevel().isDebug(), var10.getLevel().isFlat(), var2));
-@@ -713,11 +706,11 @@
+-      LevelData var19 = var10.level.getLevelData();
+-      var10.connection.send(new ClientboundRespawnPacket(var10.level.dimensionType(), var10.level.dimension(), BiomeManager.obfuscateSeed(var10.getLevel().getSeed()), var10.gameMode.getGameModeForPlayer(), var10.gameMode.getPreviousGameModeForPlayer(), var10.getLevel().isDebug(), var10.getLevel().isFlat(), var2));
+-      var10.connection.teleport(var10.getX(), var10.getY(), var10.getZ(), var10.yRot, var10.xRot);
+-      var10.connection.send(new ClientboundSetDefaultSpawnPositionPacket(var9.getSharedSpawnPos(), var9.getSharedSpawnAngle()));
+-      var10.connection.send(new ClientboundChangeDifficultyPacket(var19.getDifficulty(), var19.isDifficultyLocked()));
+-      var10.connection.send(new ClientboundSetExperiencePacket(var10.experienceProgress, var10.totalExperience, var10.experienceLevel));
+-      this.sendLevelInfo(var10, var9);
+-      this.sendPlayerPermissionLevel(var10);
+-      var9.addRespawnedPlayer(var10);
+-      this.players.add(var10);
+-      this.playersByUUID.put(var10.getUUID(), var10);
+-      var10.initMenu();
+-      var10.setHealth(var10.getHealth());
+-      if (var17) {
+-         var10.connection.send(new ClientboundSoundPacket(SoundEvents.RESPAWN_ANCHOR_DEPLETE, SoundSource.BLOCKS, (double)var3.getX(), (double)var3.getY(), (double)var3.getZ(), 1.0F, 1.0F));
++      LevelData var18 = var9.level.getLevelData();
++      var9.connection.send(new ClientboundRespawnPacket(var9.level.dimensionType(), var9.level.dimension(), BiomeManager.obfuscateSeed(var9.getLevel().getSeed()), var9.gameMode.getGameModeForPlayer(), var9.gameMode.getPreviousGameModeForPlayer(), var9.getLevel().isDebug(), var9.getLevel().isFlat(), var2));
++      var9.connection.teleport(var9.getX(), var9.getY(), var9.getZ(), var9.yRot, var9.xRot);
++      var9.connection.send(new ClientboundSetDefaultSpawnPositionPacket(var8.getSharedSpawnPos(), var8.getSharedSpawnAngle()));
++      var9.connection.send(new ClientboundChangeDifficultyPacket(var18.getDifficulty(), var18.isDifficultyLocked()));
++      var9.connection.send(new ClientboundSetExperiencePacket(var9.experienceProgress, var9.totalExperience, var9.experienceLevel));
++      this.sendLevelInfo(var9, var8);
++      this.sendPlayerPermissionLevel(var9);
++      var8.addRespawnedPlayer(var9);
++      this.players.add(var9);
++      this.playersByUUID.put(var9.getUUID(), var9);
++      var9.initMenu();
++      var9.setHealth(var9.getHealth());
++      if (var16) {
++         var9.connection.send(new ClientboundSoundPacket(SoundEvents.RESPAWN_ANCHOR_DEPLETE, SoundSource.BLOCKS, (double)var3.getX(), (double)var3.getY(), (double)var3.getZ(), 1.0F, 1.0F));
+       }
+ 
+-      return var10;
++      return var9;
+    }
+ 
+    public void sendPlayerPermissionLevel(ServerPlayer var1) {
+       GameProfile var2 = var1.getGameProfile();
+       int var3 = this.server.getProfilePermissions(var2);
+@@ -713,11 +685,11 @@
     }
  
     public void sendAllPlayerInfo(ServerPlayer var1) {
@@ -135,3 +310,37 @@
     public int getPlayerCount() {
        return this.players.size();
     }
+@@ -758,20 +730,10 @@
+ 
+    public CompoundTag getSingleplayerData() {
+       return null;
+    }
+ 
+-   private void updatePlayerGameMode(ServerPlayer var1, @Nullable ServerPlayer var2, ServerLevel var3) {
+-      if (var2 != null) {
+-         var1.gameMode.setGameModeForPlayer(var2.gameMode.getGameModeForPlayer(), var2.gameMode.getPreviousGameModeForPlayer());
+-      } else if (this.overrideGameMode != null) {
+-         var1.gameMode.setGameModeForPlayer(this.overrideGameMode, GameType.NOT_SET);
+-      }
+-
+-      var1.gameMode.updateGameMode(var3.getServer().getWorldData().getGameType());
+-   }
+-
+    public void removeAll() {
+       for(int var1 = 0; var1 < this.players.size(); ++var1) {
+          ((ServerPlayer)this.players.get(var1)).connection.disconnect(new TranslatableComponent("multiplayer.disconnect.server_shutdown"));
+       }
+ 
+@@ -849,11 +811,11 @@
+       while(var1.hasNext()) {
+          PlayerAdvancements var2 = (PlayerAdvancements)var1.next();
+          var2.reload(this.server.getAdvancements());
+       }
+ 
+-      this.broadcastAll(new ClientboundUpdateTagsPacket(this.server.getTags()));
++      this.broadcastAll(new ClientboundUpdateTagsPacket(this.server.getTags().serializeToNetwork(this.registryHolder)));
+       ClientboundUpdateRecipesPacket var4 = new ClientboundUpdateRecipesPacket(this.server.getRecipeManager().getRecipes());
+       Iterator var5 = this.players.iterator();
+ 
+       while(var5.hasNext()) {
+          ServerPlayer var3 = (ServerPlayer)var5.next();

@@ -1,6 +1,115 @@
 --- net/minecraft/server/MinecraftServer.java
 +++ net/minecraft/server/MinecraftServer.java
-@@ -875,11 +875,11 @@
+@@ -74,14 +74,16 @@
+ import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
+ import net.minecraft.network.protocol.status.ServerStatus;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.bossevents.CustomBossEvents;
++import net.minecraft.server.level.DemoMode;
+ import net.minecraft.server.level.PlayerRespawnLogic;
+ import net.minecraft.server.level.ServerChunkCache;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.level.ServerPlayerGameMode;
+ import net.minecraft.server.level.TicketType;
+ import net.minecraft.server.level.progress.ChunkProgressListener;
+ import net.minecraft.server.level.progress.ChunkProgressListenerFactory;
+ import net.minecraft.server.network.ServerConnectionListener;
+ import net.minecraft.server.network.TextFilter;
+@@ -132,25 +134,24 @@
+ import net.minecraft.world.level.levelgen.PatrolSpawner;
+ import net.minecraft.world.level.levelgen.PhantomSpawner;
+ import net.minecraft.world.level.levelgen.WorldGenSettings;
+ import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
+-import net.minecraft.world.level.saveddata.SaveDataDirtyRunnable;
+ import net.minecraft.world.level.storage.CommandStorage;
+ import net.minecraft.world.level.storage.DerivedLevelData;
+ import net.minecraft.world.level.storage.DimensionDataStorage;
+ import net.minecraft.world.level.storage.LevelData;
+ import net.minecraft.world.level.storage.LevelResource;
+ import net.minecraft.world.level.storage.LevelStorageSource;
+ import net.minecraft.world.level.storage.PlayerDataStorage;
+ import net.minecraft.world.level.storage.ServerLevelData;
+ import net.minecraft.world.level.storage.WorldData;
++import net.minecraft.world.level.storage.loot.ItemModifierManager;
+ import net.minecraft.world.level.storage.loot.LootTables;
+ import net.minecraft.world.level.storage.loot.PredicateManager;
+ import net.minecraft.world.phys.Vec2;
+ import net.minecraft.world.phys.Vec3;
+-import net.minecraft.world.scores.ScoreboardSaveData;
+ import org.apache.commons.lang3.Validate;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTask> implements SnooperPopulator, CommandSource, AutoCloseable {
+@@ -181,11 +182,10 @@
+    private boolean preventProxyConnections;
+    private boolean pvp;
+    private boolean allowFlight;
+    @Nullable
+    private String motd;
+-   private int maxBuildHeight;
+    private int playerIdleTimeout;
+    public final long[] tickTimes;
+    @Nullable
+    private KeyPair keyPair;
+    @Nullable
+@@ -194,11 +194,10 @@
+    private String resourcePack;
+    private String resourcePackHash;
+    private volatile boolean isReady;
+    private long lastOverloadWarning;
+    private boolean delayProfilerStart;
+-   private boolean forceGameType;
+    private final MinecraftSessionService sessionService;
+    private final GameProfileRepository profileRepository;
+    private final GameProfileCache profileCache;
+    private long lastServerStatus;
+    private final Thread serverThread;
+@@ -270,13 +269,11 @@
+       this.serverThread = var1;
+       this.executor = Util.backgroundExecutor();
+    }
+ 
+    private void readScoreboard(DimensionDataStorage var1) {
+-      ScoreboardSaveData var2 = (ScoreboardSaveData)var1.computeIfAbsent(ScoreboardSaveData::new, "scoreboard");
+-      var2.setScoreboard(this.getScoreboard());
+-      this.getScoreboard().addDirtyListener(new SaveDataDirtyRunnable(var2));
++      var1.computeIfAbsent(this.getScoreboard()::createData, this.getScoreboard()::createData, "scoreboard");
+    }
+ 
+    protected abstract boolean initServer() throws IOException;
+ 
+    public static void convertFromRegionFormatIfNeeded(LevelStorageSource.LevelStorageAccess var0) {
+@@ -331,11 +328,11 @@
+       MappedRegistry var10 = var3.dimensions();
+       LevelStem var12 = (LevelStem)var10.get(LevelStem.OVERWORLD);
+       Object var11;
+       DimensionType var13;
+       if (var12 == null) {
+-         var13 = (DimensionType)this.registryHolder.dimensionTypes().getOrThrow(DimensionType.OVERWORLD_LOCATION);
++         var13 = (DimensionType)this.registryHolder.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY).getOrThrow(DimensionType.OVERWORLD_LOCATION);
+          var11 = WorldGenSettings.makeDefaultOverworld(this.registryHolder.registryOrThrow(Registry.BIOME_REGISTRY), this.registryHolder.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY), (new Random()).nextLong());
+       } else {
+          var13 = var12.type();
+          var11 = var12.generator();
+       }
+@@ -495,11 +492,11 @@
+                this.updateMobSpawningFlags();
+                return;
+             }
+ 
+             var6 = (ServerLevel)var5.next();
+-            var7 = (ForcedChunksSavedData)var6.getDataStorage().get(ForcedChunksSavedData::new, "chunks");
++            var7 = (ForcedChunksSavedData)var6.getDataStorage().get(ForcedChunksSavedData::load, "chunks");
+          } while(var7 == null);
+ 
+          LongIterator var8 = var7.getChunks().iterator();
+ 
+          while(var8.hasNext()) {
+@@ -875,11 +872,11 @@
        this.profiler.popPush("connection");
        this.getConnection().tick();
        this.profiler.popPush("players");
@@ -13,7 +122,101 @@
        this.profiler.popPush("server gui refresh");
  
        for(int var7 = 0; var7 < this.tickables.size(); ++var7) {
-@@ -1568,11 +1568,11 @@
+@@ -1098,11 +1095,11 @@
+          if (var4 != null) {
+             var1.setDynamicData("world[" + var2 + "][dimension]", var4.dimension().location());
+             var1.setDynamicData("world[" + var2 + "][mode]", this.worldData.getGameType());
+             var1.setDynamicData("world[" + var2 + "][difficulty]", var4.getDifficulty());
+             var1.setDynamicData("world[" + var2 + "][hardcore]", this.worldData.isHardcore());
+-            var1.setDynamicData("world[" + var2 + "][height]", this.maxBuildHeight);
++            var1.setDynamicData("world[" + var2 + "][height]", var4.getMaxBuildHeight());
+             var1.setDynamicData("world[" + var2 + "][chunks_loaded]", var4.getChunkSource().getLoadedChunksCount());
+             ++var2;
+          }
+       }
+ 
+@@ -1163,18 +1160,10 @@
+ 
+    public void setMotd(String var1) {
+       this.motd = var1;
+    }
+ 
+-   public int getMaxBuildHeight() {
+-      return this.maxBuildHeight;
+-   }
+-
+-   public void setMaxBuildHeight(int var1) {
+-      this.maxBuildHeight = var1;
+-   }
+-
+    public boolean isStopped() {
+       return this.stopped;
+    }
+ 
+    public PlayerList getPlayerList() {
+@@ -1202,11 +1191,13 @@
+ 
+    public boolean hasGui() {
+       return false;
+    }
+ 
+-   public abstract boolean publishServer(GameType var1, boolean var2, int var3);
++   public boolean publishServer(@Nullable GameType var1, boolean var2, int var3) {
++      return false;
++   }
+ 
+    public int getTickCount() {
+       return this.tickCount;
+    }
+ 
+@@ -1220,18 +1211,10 @@
+ 
+    public boolean isUnderSpawnProtection(ServerLevel var1, BlockPos var2, Player var3) {
+       return false;
+    }
+ 
+-   public void setForceGameType(boolean var1) {
+-      this.forceGameType = var1;
+-   }
+-
+-   public boolean getForceGameType() {
+-      return this.forceGameType;
+-   }
+-
+    public boolean repliesToStatus() {
+       return true;
+    }
+ 
+    public int getPlayerIdleTimeout() {
+@@ -1303,11 +1286,11 @@
+          Stream var10000 = var1.stream();
+          PackRepository var10001 = this.packRepository;
+          var10001.getClass();
+          return (ImmutableList)var10000.map(var10001::getPack).filter(Objects::nonNull).map(Pack::open).collect(ImmutableList.toImmutableList());
+       }, this).thenCompose((var1x) -> {
+-         return ServerResources.loadResources(var1x, this.isDedicatedServer() ? Commands.CommandSelection.DEDICATED : Commands.CommandSelection.INTEGRATED, this.getFunctionCompilationLevel(), this.executor, this);
++         return ServerResources.loadResources(var1x, this.registryHolder, this.isDedicatedServer() ? Commands.CommandSelection.DEDICATED : Commands.CommandSelection.INTEGRATED, this.getFunctionCompilationLevel(), this.executor, this);
+       }).thenAcceptAsync((var2x) -> {
+          this.resources.close();
+          this.resources = var2x;
+          this.packRepository.setSelected(var1);
+          this.worldData.setDataPackConfig(getSelectedPacks(this.packRepository));
+@@ -1436,10 +1419,14 @@
+ 
+    public PredicateManager getPredicateManager() {
+       return this.resources.getPredicateManager();
+    }
+ 
++   public ItemModifierManager getItemModifierManager() {
++      return this.resources.getItemModifierManager();
++   }
++
+    public GameRules getGameRules() {
+       return this.overworld().getGameRules();
+    }
+ 
+    public CustomBossEvents getCustomBossEvents() {
+@@ -1568,11 +1555,11 @@
        try {
           final ArrayList var4 = Lists.newArrayList();
           final GameRules var5 = this.getGameRules();
@@ -26,7 +229,7 @@
           Iterator var6 = var4.iterator();
  
           while(var6.hasNext()) {
-@@ -1723,9 +1723,13 @@
+@@ -1723,9 +1710,22 @@
     @Nullable
     public TextFilter createTextFilterForPlayer(ServerPlayer var1) {
        return null;
@@ -34,6 +237,15 @@
  
 +   public boolean isResourcePackRequired() {
 +      return false;
++   }
++
++   public ServerPlayerGameMode createGameModeForPlayer(ServerPlayer var1) {
++      return (ServerPlayerGameMode)(this.isDemo() ? new DemoMode(var1) : new ServerPlayerGameMode(var1));
++   }
++
++   @Nullable
++   public GameType getForcedGameType() {
++      return null;
 +   }
 +
     static {

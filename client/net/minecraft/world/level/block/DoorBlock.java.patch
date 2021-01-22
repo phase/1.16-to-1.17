@@ -1,6 +1,30 @@
 --- net/minecraft/world/level/block/DoorBlock.java
 +++ net/minecraft/world/level/block/DoorBlock.java
-@@ -103,12 +103,12 @@
+@@ -4,10 +4,11 @@
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
++import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.context.BlockPlaceContext;
+ import net.minecraft.world.level.BlockGetter;
+@@ -21,10 +22,11 @@
+ import net.minecraft.world.level.block.state.properties.BooleanProperty;
+ import net.minecraft.world.level.block.state.properties.DirectionProperty;
+ import net.minecraft.world.level.block.state.properties.DoorHingeSide;
+ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+ import net.minecraft.world.level.block.state.properties.EnumProperty;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.material.Material;
+ import net.minecraft.world.level.material.PushReaction;
+ import net.minecraft.world.level.pathfinder.PathComputationType;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.Vec3;
+@@ -103,12 +105,12 @@
     }
  
     @Nullable
@@ -15,7 +39,30 @@
        } else {
           return null;
        }
-@@ -174,11 +174,11 @@
+@@ -157,30 +159,33 @@
+          return InteractionResult.PASS;
+       } else {
+          var1 = (BlockState)var1.cycle(OPEN);
+          var2.setBlock(var3, var1, 10);
+          var2.levelEvent(var4, (Boolean)var1.getValue(OPEN) ? this.getOpenSound() : this.getCloseSound(), var3, 0);
++         var2.gameEvent(var4, this.isOpen(var1) ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, var3);
+          return InteractionResult.sidedSuccess(var2.isClientSide);
+       }
+    }
+ 
+    public boolean isOpen(BlockState var1) {
+       return (Boolean)var1.getValue(OPEN);
+    }
+ 
+-   public void setOpen(Level var1, BlockState var2, BlockPos var3, boolean var4) {
+-      if (var2.is(this) && (Boolean)var2.getValue(OPEN) != var4) {
+-         var1.setBlock(var3, (BlockState)var2.setValue(OPEN, var4), 10);
+-         this.playSound(var1, var3, var4);
++   public void setOpen(@Nullable Entity var1, Level var2, BlockState var3, BlockPos var4, boolean var5) {
++      if (var3.is(this) && (Boolean)var3.getValue(OPEN) != var5) {
++         var2.setBlock(var4, (BlockState)var3.setValue(OPEN, var5), 10);
++         this.playSound(var2, var4, var5);
++         var2.gameEvent(var1, var5 ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, var4);
        }
     }
  
@@ -25,6 +72,9 @@
 +      if (!this.defaultBlockState().is(var4) && var7 != (Boolean)var1.getValue(POWERED)) {
           if (var7 != (Boolean)var1.getValue(OPEN)) {
              this.playSound(var2, var3, var7);
++            var2.gameEvent(var7 ? GameEvent.BLOCK_OPEN : GameEvent.BLOCK_CLOSE, var3);
           }
  
           var2.setBlock(var3, (BlockState)((BlockState)var1.setValue(POWERED, var7)).setValue(OPEN, var7), 2);
+       }
+ 

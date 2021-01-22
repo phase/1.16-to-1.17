@@ -1,0 +1,103 @@
+--- net/minecraft/world/level/storage/DimensionDataStorage.java
++++ net/minecraft/world/level/storage/DimensionDataStorage.java
+@@ -6,12 +6,12 @@
+ import java.io.File;
+ import java.io.FileInputStream;
+ import java.io.IOException;
+ import java.io.InputStream;
+ import java.io.PushbackInputStream;
+-import java.util.Iterator;
+ import java.util.Map;
++import java.util.function.Function;
+ import java.util.function.Supplier;
+ import javax.annotation.Nullable;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.NbtIo;
+@@ -34,51 +34,49 @@
+ 
+    private File getDataFile(String var1) {
+       return new File(this.dataFolder, var1 + ".dat");
+    }
+ 
+-   public <T extends SavedData> T computeIfAbsent(Supplier<T> var1, String var2) {
+-      SavedData var3 = this.get(var1, var2);
+-      if (var3 != null) {
+-         return var3;
+-      } else {
+-         SavedData var4 = (SavedData)var1.get();
+-         this.set(var4);
++   public <T extends SavedData> T computeIfAbsent(Function<CompoundTag, T> var1, Supplier<T> var2, String var3) {
++      SavedData var4 = this.get(var1, var3);
++      if (var4 != null) {
+          return var4;
++      } else {
++         SavedData var5 = (SavedData)var2.get();
++         this.set(var3, var5);
++         return var5;
+       }
+    }
+ 
+    @Nullable
+-   public <T extends SavedData> T get(Supplier<T> var1, String var2) {
++   public <T extends SavedData> T get(Function<CompoundTag, T> var1, String var2) {
+       SavedData var3 = (SavedData)this.cache.get(var2);
+       if (var3 == null && !this.cache.containsKey(var2)) {
+          var3 = this.readSavedData(var1, var2);
+          this.cache.put(var2, var3);
+       }
+ 
+       return var3;
+    }
+ 
+    @Nullable
+-   private <T extends SavedData> T readSavedData(Supplier<T> var1, String var2) {
++   private <T extends SavedData> T readSavedData(Function<CompoundTag, T> var1, String var2) {
+       try {
+          File var3 = this.getDataFile(var2);
+          if (var3.exists()) {
+-            SavedData var4 = (SavedData)var1.get();
+-            CompoundTag var5 = this.readTagFromDisk(var2, SharedConstants.getCurrentVersion().getWorldVersion());
+-            var4.load(var5.getCompound("data"));
+-            return var4;
++            CompoundTag var4 = this.readTagFromDisk(var2, SharedConstants.getCurrentVersion().getWorldVersion());
++            return (SavedData)var1.apply(var4.getCompound("data"));
+          }
+-      } catch (Exception var6) {
+-         LOGGER.error((String)"Error loading saved data: {}", (Object)var2, (Object)var6);
++      } catch (Exception var5) {
++         LOGGER.error((String)"Error loading saved data: {}", (Object)var2, (Object)var5);
+       }
+ 
+       return null;
+    }
+ 
+-   public void set(SavedData var1) {
+-      this.cache.put(var1.getId(), var1);
++   public void set(String var1, SavedData var2) {
++      this.cache.put(var1, var2);
+    }
+ 
+    public CompoundTag readTagFromDisk(String var1, int var2) throws IOException {
+       File var3 = this.getDataFile(var1);
+       FileInputStream var4 = new FileInputStream(var3);
+@@ -175,16 +173,13 @@
+ 
+       return var3;
+    }
+ 
+    public void save() {
+-      Iterator var1 = this.cache.values().iterator();
+-
+-      while(var1.hasNext()) {
+-         SavedData var2 = (SavedData)var1.next();
++      this.cache.forEach((var1, var2) -> {
+          if (var2 != null) {
+-            var2.save(this.getDataFile(var2.getId()));
++            var2.save(this.getDataFile(var1));
+          }
+-      }
+ 
++      });
+    }
+ }

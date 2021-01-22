@@ -1,6 +1,94 @@
 --- net/minecraft/server/level/ServerEntity.java
 +++ net/minecraft/server/level/ServerEntity.java
-@@ -201,12 +201,12 @@
+@@ -82,19 +82,22 @@
+ 
+       if (this.entity instanceof ItemFrame && this.tickCount % 10 == 0) {
+          ItemFrame var2 = (ItemFrame)this.entity;
+          ItemStack var3 = var2.getItem();
+          if (var3.getItem() instanceof MapItem) {
+-            MapItemSavedData var4 = MapItem.getOrCreateSavedData(var3, this.level);
+-            Iterator var5 = this.level.players().iterator();
++            Integer var4 = MapItem.getMapId(var3);
++            MapItemSavedData var5 = MapItem.getSavedData((Integer)var4, this.level);
++            if (var5 != null) {
++               Iterator var6 = this.level.players().iterator();
+ 
+-            while(var5.hasNext()) {
+-               ServerPlayer var6 = (ServerPlayer)var5.next();
+-               var4.tickCarriedBy(var6, var3);
+-               Packet var7 = ((MapItem)var3.getItem()).getUpdatePacket(var3, this.level, var6);
+-               if (var7 != null) {
+-                  var6.connection.send(var7);
++               while(var6.hasNext()) {
++                  ServerPlayer var7 = (ServerPlayer)var6.next();
++                  var5.tickCarriedBy(var7, var3);
++                  Packet var8 = var5.getUpdatePacket(var4, var7);
++                  if (var8 != null) {
++                     var7.connection.send(var8);
++                  }
+                }
+             }
+          }
+ 
+          this.sendDirtyEntityData();
+@@ -122,21 +125,21 @@
+             var17 = Mth.floor(this.entity.xRot * 256.0F / 360.0F);
+             Vec3 var18 = this.entity.position().subtract(ClientboundMoveEntityPacket.packetToEntity(this.xp, this.yp, this.zp));
+             boolean var20 = var18.lengthSqr() >= 7.62939453125E-6D;
+             Object var21 = null;
+             boolean var22 = var20 || this.tickCount % 60 == 0;
+-            boolean var8 = Math.abs(var16 - this.yRotp) >= 1 || Math.abs(var17 - this.xRotp) >= 1;
++            boolean var23 = Math.abs(var16 - this.yRotp) >= 1 || Math.abs(var17 - this.xRotp) >= 1;
+             if (this.tickCount > 0 || this.entity instanceof AbstractArrow) {
+                long var9 = ClientboundMoveEntityPacket.entityToPacket(var18.x);
+                long var11 = ClientboundMoveEntityPacket.entityToPacket(var18.y);
+                long var13 = ClientboundMoveEntityPacket.entityToPacket(var18.z);
+                boolean var15 = var9 < -32768L || var9 > 32767L || var11 < -32768L || var11 > 32767L || var13 < -32768L || var13 > 32767L;
+                if (!var15 && this.teleportDelay <= 400 && !this.wasRiding && this.wasOnGround == this.entity.isOnGround()) {
+-                  if ((!var22 || !var8) && !(this.entity instanceof AbstractArrow)) {
++                  if ((!var22 || !var23) && !(this.entity instanceof AbstractArrow)) {
+                      if (var22) {
+                         var21 = new ClientboundMoveEntityPacket.Pos(this.entity.getId(), (short)((int)var9), (short)((int)var11), (short)((int)var13), this.entity.isOnGround());
+-                     } else if (var8) {
++                     } else if (var23) {
+                         var21 = new ClientboundMoveEntityPacket.Rot(this.entity.getId(), (byte)var16, (byte)var17, this.entity.isOnGround());
+                      }
+                   } else {
+                      var21 = new ClientboundMoveEntityPacket.PosRot(this.entity.getId(), (short)((int)var9), (short)((int)var11), (short)((int)var13), (byte)var16, (byte)var17, this.entity.isOnGround());
+                   }
+@@ -146,14 +149,14 @@
+                   var21 = new ClientboundTeleportEntityPacket(this.entity);
+                }
+             }
+ 
+             if ((this.trackDelta || this.entity.hasImpulse || this.entity instanceof LivingEntity && ((LivingEntity)this.entity).isFallFlying()) && this.tickCount > 0) {
+-               Vec3 var23 = this.entity.getDeltaMovement();
+-               double var10 = var23.distanceToSqr(this.ap);
+-               if (var10 > 1.0E-7D || var10 > 0.0D && var23.lengthSqr() == 0.0D) {
+-                  this.ap = var23;
++               Vec3 var24 = this.entity.getDeltaMovement();
++               double var10 = var24.distanceToSqr(this.ap);
++               if (var10 > 1.0E-7D || var10 > 0.0D && var24.lengthSqr() == 0.0D) {
++                  this.ap = var24;
+                   this.broadcast.accept(new ClientboundSetEntityMotionPacket(this.entity.getId(), this.ap));
+                }
+             }
+ 
+             if (var21 != null) {
+@@ -163,11 +166,11 @@
+             this.sendDirtyEntityData();
+             if (var22) {
+                this.updateSentPos();
+             }
+ 
+-            if (var8) {
++            if (var23) {
+                this.yRotp = var16;
+                this.xRotp = var17;
+             }
+ 
+             this.wasRiding = false;
+@@ -201,12 +204,12 @@
        this.entity.startSeenByPlayer(var1);
        var1.cancelRemoveEntity(this.entity);
     }

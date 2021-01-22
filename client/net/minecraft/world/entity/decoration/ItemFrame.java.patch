@@ -1,6 +1,50 @@
 --- net/minecraft/world/entity/decoration/ItemFrame.java
 +++ net/minecraft/world/entity/decoration/ItemFrame.java
-@@ -188,11 +188,11 @@
+@@ -16,10 +16,11 @@
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityDimensions;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.MoverType;
+ import net.minecraft.world.entity.Pose;
++import net.minecraft.world.entity.SlotAccess;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.item.MapItem;
+ import net.minecraft.world.level.GameRules;
+@@ -36,22 +37,28 @@
+ 
+ public class ItemFrame extends HangingEntity {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private static final EntityDataAccessor<ItemStack> DATA_ITEM;
+    private static final EntityDataAccessor<Integer> DATA_ROTATION;
+-   private float dropChance = 1.0F;
++   private float dropChance;
+    private boolean fixed;
+ 
+    public ItemFrame(EntityType<? extends ItemFrame> var1, Level var2) {
+       super(var1, var2);
++      this.dropChance = 1.0F;
+    }
+ 
+    public ItemFrame(Level var1, BlockPos var2, Direction var3) {
+-      super(EntityType.ITEM_FRAME, var1, var2);
+-      this.setDirection(var3);
++      this(EntityType.ITEM_FRAME, var1, var2, var3);
+    }
+ 
++   public ItemFrame(EntityType<? extends ItemFrame> var1, Level var2, BlockPos var3, Direction var4) {
++      super(var1, var2, var3);
++      this.dropChance = 1.0F;
++      this.setDirection(var4);
++   }
++
+    protected float getEyeHeight(Pose var1, EntityDimensions var2) {
+       return 0.0F;
+    }
+ 
+    protected void defineSynchedData() {
+@@ -188,18 +195,18 @@
              }
  
           } else {
@@ -13,20 +57,65 @@
                 }
              }
  
-@@ -211,11 +211,11 @@
+             if (var2) {
+-               this.spawnAtLocation(Items.ITEM_FRAME);
++               this.spawnAtLocation(this.getFrameItemStack());
+             }
+ 
+             if (!var3.isEmpty()) {
+                var3 = var3.copy();
+                this.removeFramedMap(var3);
+@@ -211,14 +218,16 @@
           }
        }
     }
  
     private void removeFramedMap(ItemStack var1) {
 -      if (var1.getItem() == Items.FILLED_MAP) {
+-         MapItemSavedData var2 = MapItem.getOrCreateSavedData(var1, this.level);
+-         var2.removedFromFrame(this.pos, this.getId());
+-         var2.setDirty(true);
 +      if (var1.is(Items.FILLED_MAP)) {
-          MapItemSavedData var2 = MapItem.getOrCreateSavedData(var1, this.level);
-          var2.removedFromFrame(this.pos, this.getId());
-          var2.setDirty(true);
++         MapItemSavedData var2 = MapItem.getSavedData(var1, this.level);
++         if (var2 != null) {
++            var2.removedFromFrame(this.pos, this.getId());
++            var2.setDirty(true);
++         }
        }
  
-@@ -328,13 +328,13 @@
+       var1.setEntityRepresentation((Entity)null);
+    }
+ 
+@@ -246,17 +255,21 @@
+          this.level.updateNeighbourForOutputSignal(this.pos, Blocks.AIR);
+       }
+ 
+    }
+ 
+-   public boolean setSlot(int var1, ItemStack var2) {
+-      if (var1 == 0) {
+-         this.setItem(var2);
+-         return true;
+-      } else {
+-         return false;
+-      }
++   public SlotAccess getSlot(int var1) {
++      return var1 == 0 ? new SlotAccess() {
++         public ItemStack get() {
++            return ItemFrame.this.getItem();
++         }
++
++         public boolean set(ItemStack var1) {
++            ItemFrame.this.setItem(var1);
++            return true;
++         }
++      } : super.getSlot(var1);
+    }
+ 
+    public void onSyncedDataUpdated(EntityDataAccessor<?> var1) {
+       if (var1.equals(DATA_ITEM)) {
+          ItemStack var2 = this.getItem();
+@@ -328,13 +341,13 @@
        boolean var5 = !var3.isEmpty();
        if (this.fixed) {
           return InteractionResult.PASS;
@@ -42,7 +131,7 @@
              }
           } else {
              this.playSound(SoundEvents.ITEM_FRAME_ROTATE_ITEM, 1.0F, 1.0F);
-@@ -353,10 +353,20 @@
+@@ -353,10 +366,28 @@
  
     public Packet<?> getAddEntityPacket() {
        return new ClientboundAddEntityPacket(this, this.getType(), this.direction.get3DDataValue(), this.getPos());
@@ -55,7 +144,15 @@
 +
 +   public ItemStack getPickResult() {
 +      ItemStack var1 = this.getItem();
-+      return var1.isEmpty() ? new ItemStack(Items.ITEM_FRAME) : var1.copy();
++      return var1.isEmpty() ? this.getFrameItemStack() : var1.copy();
++   }
++
++   private ItemStack getFrameItemStack() {
++      return this.isGlowFrame() ? new ItemStack(Items.GLOW_ITEM_FRAME) : new ItemStack(Items.ITEM_FRAME);
++   }
++
++   public boolean isGlowFrame() {
++      return this.getType() == EntityType.GLOW_ITEM_FRAME;
 +   }
 +
     static {

@@ -1,0 +1,73 @@
+--- net/minecraft/client/gui/screens/worldselection/WorldPreset.java
++++ net/minecraft/client/gui/screens/worldselection/WorldPreset.java
+@@ -10,11 +10,10 @@
+ import net.minecraft.client.gui.screens.CreateFlatWorldScreen;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.core.MappedRegistry;
+ import net.minecraft.core.Registry;
+ import net.minecraft.core.RegistryAccess;
+-import net.minecraft.core.WritableRegistry;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.biome.Biomes;
+ import net.minecraft.world.level.biome.FixedBiomeSource;
+@@ -62,13 +61,13 @@
+          });
+       }
+    };
+    private static final WorldPreset SINGLE_BIOME_CAVES = new WorldPreset("single_biome_caves") {
+       public WorldGenSettings create(RegistryAccess.RegistryHolder var1, long var2, boolean var4, boolean var5) {
+-         WritableRegistry var6 = var1.registryOrThrow(Registry.BIOME_REGISTRY);
+-         WritableRegistry var7 = var1.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY);
+-         WritableRegistry var8 = var1.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY);
++         Registry var6 = var1.registryOrThrow(Registry.BIOME_REGISTRY);
++         Registry var7 = var1.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY);
++         Registry var8 = var1.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY);
+          return new WorldGenSettings(var2, var4, var5, WorldGenSettings.withOverworld(DimensionType.defaultDimensions(var7, var6, var8, var2), () -> {
+             return (DimensionType)var7.getOrThrow(DimensionType.OVERWORLD_CAVES_LOCATION);
+          }, this.generator(var6, var8, var2)));
+       }
+ 
+@@ -98,12 +97,12 @@
+       this.description = new TranslatableComponent("generator." + var1);
+    }
+ 
+    private static WorldGenSettings fromBuffetSettings(RegistryAccess var0, WorldGenSettings var1, WorldPreset var2, Biome var3) {
+       FixedBiomeSource var4 = new FixedBiomeSource(var3);
+-      WritableRegistry var6 = var0.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY);
+-      WritableRegistry var7 = var0.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY);
++      Registry var6 = var0.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY);
++      Registry var7 = var0.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY);
+       Supplier var5;
+       if (var2 == SINGLE_BIOME_CAVES) {
+          var5 = () -> {
+             return (NoiseGeneratorSettings)var7.getOrThrow(NoiseGeneratorSettings.CAVES);
+          };
+@@ -136,18 +135,22 @@
+    public Component description() {
+       return this.description;
+    }
+ 
+    public WorldGenSettings create(RegistryAccess.RegistryHolder var1, long var2, boolean var4, boolean var5) {
+-      WritableRegistry var6 = var1.registryOrThrow(Registry.BIOME_REGISTRY);
+-      WritableRegistry var7 = var1.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY);
+-      WritableRegistry var8 = var1.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY);
+-      return new WorldGenSettings(var2, var4, var5, WorldGenSettings.withOverworld((Registry)var7, (MappedRegistry)DimensionType.defaultDimensions(var7, var6, var8, var2), this.generator(var6, var8, var2)));
++      Registry var6 = var1.registryOrThrow(Registry.BIOME_REGISTRY);
++      Registry var7 = var1.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY);
++      Registry var8 = var1.registryOrThrow(Registry.NOISE_GENERATOR_SETTINGS_REGISTRY);
++      return new WorldGenSettings(var2, var4, var5, WorldGenSettings.withOverworld(var7, DimensionType.defaultDimensions(var7, var6, var8, var2), this.generator(var6, var8, var2)));
+    }
+ 
+    protected abstract ChunkGenerator generator(Registry<Biome> var1, Registry<NoiseGeneratorSettings> var2, long var3);
+ 
++   public static boolean isVisibleByDefault(WorldPreset var0) {
++      return var0 != DEBUG;
++   }
++
+    static {
+       PRESETS = Lists.newArrayList(new WorldPreset[]{NORMAL, FLAT, LARGE_BIOMES, AMPLIFIED, SINGLE_BIOME_SURFACE, SINGLE_BIOME_CAVES, SINGLE_BIOME_FLOATING_ISLANDS, DEBUG});
+       EDITORS = ImmutableMap.of(Optional.of(FLAT), (var0, var1) -> {
+          ChunkGenerator var2 = var1.overworld();
+          return new CreateFlatWorldScreen(var0, (var2x) -> {

@@ -1,6 +1,64 @@
 --- net/minecraft/world/item/MapItem.java
 +++ net/minecraft/world/item/MapItem.java
-@@ -123,29 +123,29 @@
+@@ -37,36 +37,40 @@
+       createAndStoreSavedData(var6, var0, var1, var2, var3, var4, var5, var0.dimension());
+       return var6;
+    }
+ 
+    @Nullable
++   public static MapItemSavedData getSavedData(@Nullable Integer var0, Level var1) {
++      return var0 == null ? null : var1.getMapData(makeKey(var0));
++   }
++
++   @Nullable
+    public static MapItemSavedData getSavedData(ItemStack var0, Level var1) {
+-      return var1.getMapData(makeKey(getMapId(var0)));
++      Integer var2 = getMapId(var0);
++      return getSavedData(var2, var1);
+    }
+ 
+    @Nullable
+-   public static MapItemSavedData getOrCreateSavedData(ItemStack var0, Level var1) {
+-      MapItemSavedData var2 = getSavedData(var0, var1);
+-      if (var2 == null && var1 instanceof ServerLevel) {
+-         var2 = createAndStoreSavedData(var0, var1, var1.getLevelData().getXSpawn(), var1.getLevelData().getZSpawn(), 3, false, false, var1.dimension());
+-      }
++   public static Integer getMapId(ItemStack var0) {
++      CompoundTag var1 = var0.getTag();
++      return var1 != null && var1.contains("map", 99) ? var1.getInt("map") : null;
++   }
+ 
+-      return var2;
++   private static int createNewSavedData(Level var0, int var1, int var2, int var3, boolean var4, boolean var5, ResourceKey<Level> var6) {
++      MapItemSavedData var7 = MapItemSavedData.createFresh((double)var1, (double)var2, (byte)var3, var4, var5, var6);
++      int var8 = var0.getFreeMapId();
++      var0.setMapData(makeKey(var8), var7);
++      return var8;
+    }
+ 
+-   public static int getMapId(ItemStack var0) {
+-      CompoundTag var1 = var0.getTag();
+-      return var1 != null && var1.contains("map", 99) ? var1.getInt("map") : 0;
++   private static void storeMapData(ItemStack var0, int var1) {
++      var0.getOrCreateTag().putInt("map", var1);
+    }
+ 
+-   private static MapItemSavedData createAndStoreSavedData(ItemStack var0, Level var1, int var2, int var3, int var4, boolean var5, boolean var6, ResourceKey<Level> var7) {
+-      int var8 = var1.getFreeMapId();
+-      MapItemSavedData var9 = new MapItemSavedData(makeKey(var8));
+-      var9.setProperties(var2, var3, var4, var5, var6, var7);
+-      var1.setMapData(var9);
+-      var0.getOrCreateTag().putInt("map", var8);
+-      return var9;
++   private static void createAndStoreSavedData(ItemStack var0, Level var1, int var2, int var3, int var4, boolean var5, boolean var6, ResourceKey<Level> var7) {
++      int var8 = createNewSavedData(var1, var2, var3, var4, var5, var6, var7);
++      storeMapData(var0, var8);
+    }
+ 
+    public static String makeKey(int var0) {
+       return "map_" + var0;
+    }
+@@ -123,29 +127,29 @@
  
                             for(int var31 = 0; var31 < var4; ++var31) {
                                for(int var32 = 0; var32 < var4; ++var32) {
@@ -34,3 +92,126 @@
                                      }
                                   }
  
+@@ -180,17 +184,11 @@
+                            }
+                         }
+ 
+                         var13 = var27;
+                         if (var15 >= 0 && var16 * var16 + var17 * var17 < var9 * var9 && (!var18 || (var12 + var15 & 1) != 0)) {
+-                           byte var41 = var3.colors[var12 + var15 * 128];
+-                           byte var42 = (byte)(var40.id * 4 + var39);
+-                           if (var41 != var42) {
+-                              var3.colors[var12 + var15 * 128] = var42;
+-                              var3.setDirty(var12, var15);
+-                              var11 = true;
+-                           }
++                           var11 |= var3.updateColor(var12, var15, (byte)(var40.id * 4 + var39));
+                         }
+                      }
+                   }
+                }
+             }
+@@ -207,11 +205,11 @@
+    private static boolean isLand(Biome[] var0, int var1, int var2, int var3) {
+       return var0[var2 * var1 + var3 * var1 * 128 * var1].getDepth() >= 0.0F;
+    }
+ 
+    public static void renderBiomePreviewMap(ServerLevel var0, ItemStack var1) {
+-      MapItemSavedData var2 = getOrCreateSavedData(var1, var0);
++      MapItemSavedData var2 = getSavedData((ItemStack)var1, var0);
+       if (var2 != null) {
+          if (var0.dimension() == var2.dimension) {
+             int var3 = 1 << var2.scale;
+             int var4 = var2.x;
+             int var5 = var2.z;
+@@ -290,12 +288,11 @@
+                            var11 = 3;
+                         }
+                      }
+ 
+                      if (var12 != MaterialColor.NONE) {
+-                        var2.colors[var7 + var8 * 128] = (byte)(var12.id * 4 + var11);
+-                        var2.setDirty(var7, var8);
++                        var2.setColor(var7, var8, (byte)(var12.id * 4 + var11));
+                      }
+                   }
+                }
+             }
+ 
+@@ -303,11 +300,11 @@
+       }
+    }
+ 
+    public void inventoryTick(ItemStack var1, Level var2, Entity var3, int var4, boolean var5) {
+       if (!var2.isClientSide) {
+-         MapItemSavedData var6 = getOrCreateSavedData(var1, var2);
++         MapItemSavedData var6 = getSavedData(var1, var2);
+          if (var6 != null) {
+             if (var3 instanceof Player) {
+                Player var7 = (Player)var3;
+                var6.tickCarriedBy(var7, var1);
+             }
+@@ -320,11 +317,13 @@
+       }
+    }
+ 
+    @Nullable
+    public Packet<?> getUpdatePacket(ItemStack var1, Level var2, Player var3) {
+-      return getOrCreateSavedData(var1, var2).getUpdatePacket(var1, var2, var3);
++      Integer var4 = getMapId(var1);
++      MapItemSavedData var5 = getSavedData(var4, var2);
++      return var5 != null ? var5.getUpdatePacket(var4, var3) : null;
+    }
+ 
+    public void onCraftedBy(ItemStack var1, Level var2, Player var3) {
+       CompoundTag var4 = var1.getTag();
+       if (var4 != null && var4.contains("map_scale_direction", 99)) {
+@@ -335,33 +334,40 @@
+          var4.remove("map_to_lock");
+       }
+ 
+    }
+ 
+-   protected static void scaleMap(ItemStack var0, Level var1, int var2) {
+-      MapItemSavedData var3 = getOrCreateSavedData(var0, var1);
++   private static void scaleMap(ItemStack var0, Level var1, int var2) {
++      MapItemSavedData var3 = getSavedData(var0, var1);
+       if (var3 != null) {
+-         createAndStoreSavedData(var0, var1, var3.x, var3.z, Mth.clamp(var3.scale + var2, 0, 4), var3.trackingPosition, var3.unlimitedTracking, var3.dimension);
++         int var4 = var1.getFreeMapId();
++         var1.setMapData(makeKey(var4), var3.scaled(var2));
++         storeMapData(var0, var4);
+       }
+ 
+    }
+ 
+    public static void lockMap(Level var0, ItemStack var1) {
+-      MapItemSavedData var2 = getOrCreateSavedData(var1, var0);
++      MapItemSavedData var2 = getSavedData(var1, var0);
+       if (var2 != null) {
+-         MapItemSavedData var3 = createAndStoreSavedData(var1, var0, 0, 0, var2.scale, var2.trackingPosition, var2.unlimitedTracking, var2.dimension);
+-         var3.lockData(var2);
++         int var3 = var0.getFreeMapId();
++         String var4 = makeKey(var3);
++         MapItemSavedData var5 = var2.locked();
++         var0.setMapData(var4, var5);
++         storeMapData(var1, var3);
+       }
+ 
+    }
+ 
+    public InteractionResult useOn(UseOnContext var1) {
+       BlockState var2 = var1.getLevel().getBlockState(var1.getClickedPos());
+       if (var2.is(BlockTags.BANNERS)) {
+          if (!var1.getLevel().isClientSide) {
+-            MapItemSavedData var3 = getOrCreateSavedData(var1.getItemInHand(), var1.getLevel());
+-            var3.toggleBanner(var1.getLevel(), var1.getClickedPos());
++            MapItemSavedData var3 = getSavedData(var1.getItemInHand(), var1.getLevel());
++            if (var3 != null) {
++               var3.toggleBanner(var1.getLevel(), var1.getClickedPos());
++            }
+          }
+ 
+          return InteractionResult.sidedSuccess(var1.getLevel().isClientSide);
+       } else {
+          return super.useOn(var1);

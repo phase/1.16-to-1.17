@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/projectile/Projectile.java
 +++ net/minecraft/world/entity/projectile/Projectile.java
-@@ -2,10 +2,12 @@
+@@ -2,16 +2,19 @@
  
  import java.util.Iterator;
  import java.util.UUID;
@@ -13,7 +13,41 @@
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.level.Level;
-@@ -161,6 +163,20 @@
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.EntityHitResult;
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+ 
+@@ -92,10 +95,11 @@
+       float var10 = Mth.sqrt(getHorizontalDistanceSqr(var9));
+       this.yRot = (float)(Mth.atan2(var9.x, var9.z) * 57.2957763671875D);
+       this.xRot = (float)(Mth.atan2(var9.y, (double)var10) * 57.2957763671875D);
+       this.yRotO = this.yRot;
+       this.xRotO = this.xRot;
++      this.gameEvent(this.getOwner(), GameEvent.PROJECTILE_SHOOT);
+    }
+ 
+    public void shootFromRotation(Entity var1, float var2, float var3, float var4, float var5, float var6) {
+       float var7 = -Mth.sin(var3 * 0.017453292F) * Mth.cos(var2 * 0.017453292F);
+       float var8 = -Mth.sin((var2 + var4) * 0.017453292F);
+@@ -111,10 +115,14 @@
+          this.onHitEntity((EntityHitResult)var1);
+       } else if (var2 == HitResult.Type.BLOCK) {
+          this.onHitBlock((BlockHitResult)var1);
+       }
+ 
++      if (var2 != HitResult.Type.MISS) {
++         this.gameEvent(this.getOwner(), GameEvent.PROJECTILE_LAND);
++      }
++
+    }
+ 
+    protected void onHitEntity(EntityHitResult var1) {
+    }
+ 
+@@ -161,6 +169,20 @@
           var0 += 360.0F;
        }
  

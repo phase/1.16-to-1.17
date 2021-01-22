@@ -24,7 +24,7 @@
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.resources.ResourceKey;
  import net.minecraft.resources.ResourceLocation;
-@@ -31,29 +31,31 @@
+@@ -31,29 +31,32 @@
  import net.minecraft.util.Mth;
  import net.minecraft.util.profiling.ProfilerFiller;
  import net.minecraft.world.DifficultyInstance;
@@ -54,12 +54,13 @@
  import net.minecraft.world.level.dimension.DimensionType;
 +import net.minecraft.world.level.entity.EntityTypeTest;
 +import net.minecraft.world.level.entity.LevelEntityGetter;
++import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.lighting.LevelLightEngine;
  import net.minecraft.world.level.material.FluidState;
  import net.minecraft.world.level.material.Fluids;
  import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-@@ -69,14 +71,13 @@
+@@ -69,14 +72,13 @@
     public static final Codec<ResourceKey<Level>> RESOURCE_KEY_CODEC;
     public static final ResourceKey<Level> OVERWORLD;
     public static final ResourceKey<Level> NETHER;
@@ -77,7 +78,7 @@
     private int skyDarken;
     protected int randValue = (new Random()).nextInt();
     protected final int addend = 1013904223;
-@@ -87,11 +88,10 @@
+@@ -87,11 +89,10 @@
     public final Random random = new Random();
     private final DimensionType dimensionType;
     protected final WritableLevelData levelData;
@@ -89,7 +90,7 @@
     private final ResourceKey<Level> dimension;
  
     protected Level(WritableLevelData var1, ResourceKey<Level> var2, final DimensionType var3, Supplier<ProfilerFiller> var4, boolean var5, boolean var6, long var7) {
-@@ -126,12 +126,12 @@
+@@ -126,12 +127,12 @@
     @Nullable
     public MinecraftServer getServer() {
        return null;
@@ -104,7 +105,7 @@
     public static boolean isInSpawnableBounds(BlockPos var0) {
        return !isOutsideSpawnableHeight(var0.getY()) && isInWorldBoundsHorizontal(var0);
     }
-@@ -142,20 +142,12 @@
+@@ -142,20 +143,12 @@
  
     private static boolean isOutsideSpawnableHeight(int var0) {
        return var0 < -20000000 || var0 >= 20000000;
@@ -126,7 +127,7 @@
     public LevelChunk getChunk(int var1, int var2) {
        return (LevelChunk)this.getChunk(var1, var2, ChunkStatus.FULL);
     }
-@@ -172,11 +164,11 @@
+@@ -172,11 +165,11 @@
     public boolean setBlock(BlockPos var1, BlockState var2, int var3) {
        return this.setBlock(var1, var2, var3, 512);
     }
@@ -139,7 +140,7 @@
           return false;
        } else {
           LevelChunk var5 = this.getChunkAt(var1);
-@@ -240,18 +232,21 @@
+@@ -240,18 +233,26 @@
           if (!(var5.getBlock() instanceof BaseFireBlock)) {
              this.levelEvent(2001, var1, Block.getId(var5));
           }
@@ -150,7 +151,13 @@
              Block.dropResources(var5, this, var1, var7, var3, ItemStack.EMPTY);
           }
  
-          return this.setBlock(var1, var6.createLegacyBlock(), 3, var4);
+-         return this.setBlock(var1, var6.createLegacyBlock(), 3, var4);
++         boolean var8 = this.setBlock(var1, var6.createLegacyBlock(), 3, var4);
++         if (var8) {
++            this.gameEvent(var3, GameEvent.BLOCK_DESTROY, var1);
++         }
++
++         return var8;
        }
     }
  
@@ -162,7 +169,7 @@
     }
  
     public abstract void sendBlockUpdated(BlockPos var1, BlockState var2, BlockState var3, int var4);
-@@ -309,23 +304,23 @@
+@@ -309,23 +310,23 @@
                    return String.format("ID #%s (%s // %s)", Registry.BLOCK.getKey(var2), var2.getDescriptionId(), var2.getClass().getCanonicalName());
                 } catch (Throwable var2x) {
                    return "ID #" + Registry.BLOCK.getKey(var2);
@@ -190,7 +197,7 @@
           var4 = this.getSeaLevel() + 1;
        }
  
-@@ -335,20 +330,20 @@
+@@ -335,20 +336,20 @@
     public LevelLightEngine getLightEngine() {
        return this.getChunkSource().getLightEngine();
     }
@@ -214,7 +221,7 @@
           LevelChunk var2 = this.getChunkAt(var1);
           return var2.getFluidState(var1);
        }
-@@ -388,117 +383,39 @@
+@@ -388,117 +389,39 @@
     public float getSunAngle(float var1) {
        float var2 = this.getTimeOfDay(var1);
        return var2 * 6.2831855F;
@@ -345,7 +352,7 @@
        } catch (Throwable var6) {
           CrashReport var4 = CrashReport.forThrowable(var6, "Ticking entity");
           CrashReportCategory var5 = var4.addCategory("Entity being ticked");
-@@ -520,101 +437,41 @@
+@@ -520,101 +443,41 @@
        var13.explode();
        var13.finalizeExplosion(true);
        return var13;
@@ -457,7 +464,7 @@
     }
  
     public boolean loadedAndEntityCanStandOn(BlockPos var1, Entity var2) {
-@@ -649,97 +506,63 @@
+@@ -649,97 +512,63 @@
     @Nullable
     public BlockGetter getChunkForCollisions(int var1, int var2) {
        return this.getChunk(var1, var2, ChunkStatus.FULL, false);
@@ -586,7 +593,20 @@
        }
  
     }
-@@ -923,11 +746,11 @@
+@@ -904,11 +733,11 @@
+    }
+ 
+    @Nullable
+    public abstract MapItemSavedData getMapData(String var1);
+ 
+-   public abstract void setMapData(MapItemSavedData var1);
++   public abstract void setMapData(String var1, MapItemSavedData var2);
+ 
+    public abstract int getFreeMapId();
+ 
+    public void globalLevelEvent(int var1, BlockPos var2, int var3) {
+    }
+@@ -923,11 +752,11 @@
        var2.setDetail("Level dimension", () -> {
           return this.dimension().location().toString();
        });
@@ -599,21 +619,34 @@
        }
  
        return var2;
-@@ -1032,10 +855,20 @@
+@@ -1032,10 +861,33 @@
  
     public final boolean isDebug() {
        return this.isDebug;
     }
  
-+   public int getSectionsCount() {
-+      return 16;
-+   }
-+
-+   public int getMinSection() {
-+      return 0;
-+   }
-+
 +   protected abstract LevelEntityGetter<Entity> getEntities();
++
++   protected void postGameEventInRadius(@Nullable Entity var1, GameEvent var2, BlockPos var3, int var4) {
++      int var5 = SectionPos.blockToSectionCoord(var3.getX() - var4);
++      int var6 = SectionPos.blockToSectionCoord(var3.getZ() - var4);
++      int var7 = SectionPos.blockToSectionCoord(var3.getX() + var4);
++      int var8 = SectionPos.blockToSectionCoord(var3.getZ() + var4);
++      int var9 = SectionPos.blockToSectionCoord(var3.getY() - var4);
++      int var10 = SectionPos.blockToSectionCoord(var3.getY() + var4);
++
++      for(int var11 = var5; var11 <= var7; ++var11) {
++         for(int var12 = var6; var12 <= var8; ++var12) {
++            LevelChunk var13 = this.getChunkSource().getChunkNow(var11, var12);
++            if (var13 != null) {
++               for(int var14 = var9; var14 <= var10; ++var14) {
++                  var13.getEventDispatcher(var14).post(var2, var1, var3);
++               }
++            }
++         }
++      }
++
++   }
 +
     static {
        RESOURCE_KEY_CODEC = ResourceLocation.CODEC.xmap(ResourceKey.elementKey(Registry.DIMENSION_REGISTRY), ResourceKey::location);

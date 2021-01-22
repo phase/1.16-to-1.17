@@ -1,6 +1,43 @@
 --- net/minecraft/client/gui/screens/worldselection/WorldSelectionList.java
 +++ net/minecraft/client/gui/screens/worldselection/WorldSelectionList.java
-@@ -316,11 +316,11 @@
+@@ -263,13 +263,20 @@
+          }
+       }
+ 
+       public void joinWorld() {
+          if (!this.summary.isLocked()) {
+-            if (this.summary.shouldBackup()) {
+-               TranslatableComponent var1 = new TranslatableComponent("selectWorld.backupQuestion");
+-               TranslatableComponent var2 = new TranslatableComponent("selectWorld.backupWarning", new Object[]{this.summary.getWorldVersionName(), SharedConstants.getCurrentVersion().getName()});
++            LevelSummary.BackupStatus var1 = this.summary.backupStatus();
++            if (var1.shouldBackup()) {
++               String var2 = "selectWorld.backupQuestion." + var1.getTranslationKey();
++               String var3 = "selectWorld.backupWarning." + var1.getTranslationKey();
++               TranslatableComponent var4 = new TranslatableComponent(var2);
++               if (var1.isSevere()) {
++                  var4.withStyle(ChatFormatting.BOLD, ChatFormatting.RED);
++               }
++
++               TranslatableComponent var5 = new TranslatableComponent(var3, new Object[]{this.summary.getWorldVersionName(), SharedConstants.getCurrentVersion().getName()});
+                this.minecraft.setScreen(new BackupConfirmScreen(this.screen, (var1x, var2x) -> {
+                   if (var1x) {
+                      String var3 = this.summary.getLevelId();
+ 
+                      try {
+@@ -300,11 +307,11 @@
+                         WorldSelectionList.LOGGER.error("Failed to backup level {}", var3, var17);
+                      }
+                   }
+ 
+                   this.loadWorld();
+-               }, var1, var2, false));
++               }, var4, var5, false));
+             } else if (this.summary.askToOpenWorld()) {
+                this.minecraft.setScreen(new ConfirmScreen((var1x) -> {
+                   if (var1x) {
+                      try {
+                         this.loadWorld();
+@@ -316,11 +323,11 @@
                       }
                    } else {
                       this.minecraft.setScreen(this.screen);

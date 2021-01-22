@@ -1,0 +1,78 @@
+--- net/minecraft/world/level/storage/CommandStorage.java
++++ net/minecraft/world/level/storage/CommandStorage.java
+@@ -14,31 +14,31 @@
+ 
+    public CommandStorage(DimensionDataStorage var1) {
+       this.storage = var1;
+    }
+ 
+-   private CommandStorage.Container newStorage(String var1, String var2) {
+-      CommandStorage.Container var3 = new CommandStorage.Container(var2);
+-      this.namespaces.put(var1, var3);
+-      return var3;
++   private CommandStorage.Container newStorage(String var1) {
++      CommandStorage.Container var2 = new CommandStorage.Container();
++      this.namespaces.put(var1, var2);
++      return var2;
+    }
+ 
+    public CompoundTag get(ResourceLocation var1) {
+       String var2 = var1.getNamespace();
+-      String var3 = createId(var2);
+-      CommandStorage.Container var4 = (CommandStorage.Container)this.storage.get(() -> {
+-         return this.newStorage(var2, var3);
+-      }, var3);
+-      return var4 != null ? var4.get(var1.getPath()) : new CompoundTag();
++      CommandStorage.Container var3 = (CommandStorage.Container)this.storage.get((var2x) -> {
++         return this.newStorage(var2).load(var2x);
++      }, createId(var2));
++      return var3 != null ? var3.get(var1.getPath()) : new CompoundTag();
+    }
+ 
+    public void set(ResourceLocation var1, CompoundTag var2) {
+       String var3 = var1.getNamespace();
+-      String var4 = createId(var3);
+-      ((CommandStorage.Container)this.storage.computeIfAbsent(() -> {
+-         return this.newStorage(var3, var4);
+-      }, var4)).put(var1.getPath(), var2);
++      ((CommandStorage.Container)this.storage.computeIfAbsent((var2x) -> {
++         return this.newStorage(var3).load(var2x);
++      }, () -> {
++         return this.newStorage(var3);
++      }, createId(var3))).put(var1.getPath(), var2);
+    }
+ 
+    public Stream<ResourceLocation> keys() {
+       return this.namespaces.entrySet().stream().flatMap((var0) -> {
+          return ((CommandStorage.Container)var0.getValue()).getKeys((String)var0.getKey());
+@@ -48,25 +48,26 @@
+    private static String createId(String var0) {
+       return "command_storage_" + var0;
+    }
+ 
+    static class Container extends SavedData {
+-      private final Map<String, CompoundTag> storage = Maps.newHashMap();
++      private final Map<String, CompoundTag> storage;
+ 
+-      public Container(String var1) {
+-         super(var1);
++      private Container() {
++         this.storage = Maps.newHashMap();
+       }
+ 
+-      public void load(CompoundTag var1) {
++      private CommandStorage.Container load(CompoundTag var1) {
+          CompoundTag var2 = var1.getCompound("contents");
+          Iterator var3 = var2.getAllKeys().iterator();
+ 
+          while(var3.hasNext()) {
+             String var4 = (String)var3.next();
+             this.storage.put(var4, var2.getCompound(var4));
+          }
+ 
++         return this;
+       }
+ 
+       public CompoundTag save(CompoundTag var1) {
+          CompoundTag var2 = new CompoundTag();
+          this.storage.forEach((var1x, var2x) -> {

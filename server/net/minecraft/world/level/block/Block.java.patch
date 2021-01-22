@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/Block.java
 +++ net/minecraft/world/level/block/Block.java
-@@ -6,20 +6,20 @@
+@@ -6,20 +6,21 @@
  import it.unimi.dsi.fastutil.objects.Object2ByteLinkedOpenHashMap;
  import java.util.Iterator;
  import java.util.List;
@@ -17,12 +17,30 @@
  import net.minecraft.stats.Stats;
  import net.minecraft.tags.BlockTags;
 -import net.minecraft.tags.Tag;
++import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.ExperienceOrb;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.entity.monster.piglin.PiglinAi;
-@@ -106,18 +106,10 @@
+@@ -34,14 +35,16 @@
+ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.ItemLike;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LevelAccessor;
+ import net.minecraft.world.level.LevelReader;
++import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.StateDefinition;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.storage.loot.LootContext;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.shapes.BooleanOp;
+ import net.minecraft.world.phys.shapes.Shapes;
+@@ -106,18 +109,10 @@
  
     public static VoxelShape box(double var0, double var2, double var4, double var6, double var8, double var10) {
        return Shapes.box(var0 / 16.0D, var2 / 16.0D, var4 / 16.0D, var6 / 16.0D, var8 / 16.0D, var10 / 16.0D);
@@ -41,7 +59,7 @@
        BlockPos.MutableBlockPos var4 = new BlockPos.MutableBlockPos();
        Direction[] var5 = UPDATE_SHAPE_ORDER;
        int var6 = var5.length;
-@@ -152,14 +144,21 @@
+@@ -152,14 +147,21 @@
        super(var1);
        StateDefinition.Builder var2 = new StateDefinition.Builder(this);
        this.createBlockStateDefinition(var2);
@@ -65,7 +83,7 @@
     public boolean isRandomlyTicking(BlockState var1) {
        return this.isRandomlyTicking;
     }
-@@ -241,15 +240,11 @@
+@@ -241,15 +243,11 @@
        }
     }
  
@@ -82,7 +100,20 @@
     }
  
     public float getExplosionResistance() {
-@@ -312,17 +307,17 @@
+@@ -287,11 +285,11 @@
+ 
+       return this.descriptionId;
+    }
+ 
+    public void fallOn(Level var1, BlockPos var2, Entity var3, float var4) {
+-      var3.causeFallDamage(var4, 1.0F);
++      var3.causeFallDamage(var4, 1.0F, DamageSource.FALL);
+    }
+ 
+    public void updateEntityAfterFallOn(BlockGetter var1, Entity var2) {
+       var2.setDeltaMovement(var2.getDeltaMovement().multiply(1.0D, 0.0D, 1.0D));
+    }
+@@ -312,17 +310,18 @@
        return this.jumpFactor;
     }
  
@@ -93,10 +124,11 @@
           PiglinAi.angerNearbyPiglins(var4, false);
        }
  
++      var1.gameEvent(var4, GameEvent.BLOCK_DESTROY, var2);
     }
  
 -   public void handleRain(Level var1, BlockPos var2) {
-+   public void handleRain(BlockState var1, Level var2, BlockPos var3) {
++   public void handlePrecipitation(BlockState var1, Level var2, BlockPos var3, Biome.Precipitation var4) {
     }
  
     public boolean dropFromExplosion(Explosion var1) {

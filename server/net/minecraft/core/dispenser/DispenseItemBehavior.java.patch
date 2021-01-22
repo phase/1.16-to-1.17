@@ -1,5 +1,18 @@
 --- net/minecraft/core/dispenser/DispenseItemBehavior.java
 +++ net/minecraft/core/dispenser/DispenseItemBehavior.java
+@@ -35,11 +35,11 @@
+ import net.minecraft.world.entity.projectile.ThrownExperienceBottle;
+ import net.minecraft.world.entity.projectile.ThrownPotion;
+ import net.minecraft.world.entity.vehicle.Boat;
+ import net.minecraft.world.item.ArmorItem;
+ import net.minecraft.world.item.BoneMealItem;
+-import net.minecraft.world.item.BucketItem;
++import net.minecraft.world.item.DispensibleContainerItem;
+ import net.minecraft.world.item.DyeColor;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.item.SpawnEggItem;
 @@ -50,10 +50,12 @@
  import net.minecraft.world.level.block.BeehiveBlock;
  import net.minecraft.world.level.block.Block;
@@ -13,7 +26,97 @@
  import net.minecraft.world.level.block.RespawnAnchorBlock;
  import net.minecraft.world.level.block.ShulkerBoxBlock;
  import net.minecraft.world.level.block.SkullBlock;
-@@ -383,17 +385,19 @@
+@@ -63,12 +65,11 @@
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.entity.DispenserBlockEntity;
+ import net.minecraft.world.level.block.entity.SkullBlockEntity;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+-import net.minecraft.world.level.material.FlowingFluid;
+-import net.minecraft.world.level.material.Fluid;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.BlockHitResult;
+ 
+ public interface DispenseItemBehavior {
+    DispenseItemBehavior NOOP = (var0, var1) -> {
+@@ -232,11 +233,11 @@
+                }
+ 
+                var6 = (AbstractHorse)var5.next();
+             } while(!var6.isArmor(var2) || var6.isWearingArmor() || !var6.isTamed());
+ 
+-            var6.setSlot(401, var2.split(1));
++            var6.getSlot(401).set(var2.split(1));
+             this.setSuccess(true);
+             return var2;
+          }
+       };
+       DispenserBlock.registerBehavior(Items.LEATHER_HORSE_ARMOR, var8);
+@@ -272,11 +273,11 @@
+                if (!var5.hasNext()) {
+                   return super.execute(var1, var2);
+                }
+ 
+                var6 = (AbstractChestedHorse)var5.next();
+-            } while(!var6.isTamed() || !var6.setSlot(499, var2));
++            } while(!var6.isTamed() || !var6.getSlot(499).set(var2));
+ 
+             var2.shrink(1);
+             this.setSuccess(true);
+             return var2;
+          }
+@@ -327,41 +328,44 @@
+       DispenserBlock.registerBehavior(Items.ACACIA_BOAT, new BoatDispenseItemBehavior(Boat.Type.ACACIA));
+       DefaultDispenseItemBehavior var9 = new DefaultDispenseItemBehavior() {
+          private final DefaultDispenseItemBehavior defaultDispenseItemBehavior = new DefaultDispenseItemBehavior();
+ 
+          public ItemStack execute(BlockSource var1, ItemStack var2) {
+-            BucketItem var3 = (BucketItem)var2.getItem();
++            DispensibleContainerItem var3 = (DispensibleContainerItem)var2.getItem();
+             BlockPos var4 = var1.getPos().relative((Direction)var1.getBlockState().getValue(DispenserBlock.FACING));
+             ServerLevel var5 = var1.getLevel();
+-            if (var3.emptyBucket((Player)null, var5, var4, (BlockHitResult)null)) {
++            if (var3.emptyContents((Player)null, var5, var4, (BlockHitResult)null)) {
+                var3.checkExtraContent(var5, var2, var4);
+                return new ItemStack(Items.BUCKET);
+             } else {
+                return this.defaultDispenseItemBehavior.dispense(var1, var2);
+             }
+          }
+       };
+       DispenserBlock.registerBehavior(Items.LAVA_BUCKET, var9);
+       DispenserBlock.registerBehavior(Items.WATER_BUCKET, var9);
++      DispenserBlock.registerBehavior(Items.POWDER_SNOW_BUCKET, var9);
+       DispenserBlock.registerBehavior(Items.SALMON_BUCKET, var9);
+       DispenserBlock.registerBehavior(Items.COD_BUCKET, var9);
+       DispenserBlock.registerBehavior(Items.PUFFERFISH_BUCKET, var9);
+       DispenserBlock.registerBehavior(Items.TROPICAL_FISH_BUCKET, var9);
++      DispenserBlock.registerBehavior(Items.AXOLOTL_BUCKET, var9);
+       DispenserBlock.registerBehavior(Items.BUCKET, new DefaultDispenseItemBehavior() {
+          private final DefaultDispenseItemBehavior defaultDispenseItemBehavior = new DefaultDispenseItemBehavior();
+ 
+          public ItemStack execute(BlockSource var1, ItemStack var2) {
+             ServerLevel var3 = var1.getLevel();
+             BlockPos var4 = var1.getPos().relative((Direction)var1.getBlockState().getValue(DispenserBlock.FACING));
+             BlockState var5 = var3.getBlockState(var4);
+             Block var6 = var5.getBlock();
+             if (var6 instanceof BucketPickup) {
+-               Fluid var8 = ((BucketPickup)var6).takeLiquid(var3, var4, var5);
+-               if (!(var8 instanceof FlowingFluid)) {
++               ItemStack var8 = ((BucketPickup)var6).pickupBlock(var3, var4, var5);
++               if (var8.isEmpty()) {
+                   return super.execute(var1, var2);
+                } else {
+-                  Item var7 = var8.getBucket();
++                  var3.gameEvent((Entity)null, GameEvent.FLUID_PICKUP, (BlockPos)var4);
++                  Item var7 = var8.getItem();
+                   var2.shrink(1);
+                   if (var2.isEmpty()) {
+                      return new ItemStack(var7);
+                   } else {
+                      if (((DispenserBlockEntity)var1.getEntity()).addItem(new ItemStack(var7)) < 0) {
+@@ -383,21 +387,26 @@
              Direction var4 = (Direction)var1.getBlockState().getValue(DispenserBlock.FACING);
              BlockPos var5 = var1.getPos().relative(var4);
              BlockState var6 = var3.getBlockState(var5);
@@ -36,6 +139,15 @@
 +               var3.setBlockAndUpdate(var5, (BlockState)var6.setValue(BlockStateProperties.LIT, true));
              }
  
-             if (this.isSuccess() && var2.hurt(1, var3.random, (ServerPlayer)null)) {
-                var2.setCount(0);
+-            if (this.isSuccess() && var2.hurt(1, var3.random, (ServerPlayer)null)) {
+-               var2.setCount(0);
++            if (this.isSuccess()) {
++               var3.gameEvent((Entity)null, GameEvent.FLINT_AND_STEEL_USE, var5);
++               if (var2.hurt(1, var3.random, (ServerPlayer)null)) {
++                  var2.setCount(0);
++               }
              }
+ 
+             return var2;
+          }
+       });

@@ -1,20 +1,38 @@
 --- net/minecraft/world/item/ItemStack.java
 +++ net/minecraft/world/item/ItemStack.java
-@@ -55,11 +55,13 @@
+@@ -55,11 +55,16 @@
  import net.minecraft.world.entity.MobType;
  import net.minecraft.world.entity.ai.attributes.Attribute;
  import net.minecraft.world.entity.ai.attributes.AttributeModifier;
  import net.minecraft.world.entity.ai.attributes.Attributes;
  import net.minecraft.world.entity.decoration.ItemFrame;
++import net.minecraft.world.entity.item.ItemEntity;
 +import net.minecraft.world.entity.player.Inventory;
  import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.inventory.ClickAction;
++import net.minecraft.world.inventory.Slot;
++import net.minecraft.world.inventory.tooltip.TooltipComponent;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.item.enchantment.DigDurabilityEnchantment;
  import net.minecraft.world.item.enchantment.Enchantment;
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.enchantment.Enchantments;
-@@ -148,11 +150,11 @@
+@@ -97,10 +102,14 @@
+    private BlockInWorld cachedBreakBlock;
+    private boolean cachedBreakBlockResult;
+    private BlockInWorld cachedPlaceBlock;
+    private boolean cachedPlaceBlockResult;
+ 
++   public Optional<TooltipComponent> getTooltipImage() {
++      return this.getItem().getTooltipImage(this);
++   }
++
+    public ItemStack(ItemLike var1) {
+       this(var1, 1);
+    }
+ 
+    private ItemStack(ItemLike var1, int var2, Optional<CompoundTag> var3) {
+@@ -148,11 +157,11 @@
     }
  
     public boolean isEmpty() {
@@ -27,7 +45,7 @@
           return true;
        }
     }
-@@ -167,15 +169,23 @@
+@@ -167,15 +176,23 @@
  
     public Item getItem() {
        return this.emptyCacheFlag ? Items.AIR : this.item;
@@ -52,7 +70,7 @@
           Item var5 = this.getItem();
           InteractionResult var6 = var5.useOn(var1);
           if (var2 != null && var6.consumesAction()) {
-@@ -272,11 +282,11 @@
+@@ -272,11 +289,11 @@
           return var4 >= this.getMaxDamage();
        }
     }
@@ -65,7 +83,7 @@
                 var3.accept(var2);
                 Item var4 = this.getItem();
                 this.shrink(1);
-@@ -289,10 +299,30 @@
+@@ -289,10 +306,30 @@
  
           }
        }
@@ -83,12 +101,12 @@
 +      return this.item.getBarColor(this);
 +   }
 +
-+   public boolean overrideStackedOnOther(ItemStack var1, ClickAction var2, Inventory var3) {
++   public boolean overrideStackedOnOther(Slot var1, ClickAction var2, Inventory var3) {
 +      return this.getItem().overrideStackedOnOther(this, var1, var2, var3);
 +   }
 +
-+   public boolean overrideOtherStackedOnMe(ItemStack var1, ClickAction var2, Inventory var3) {
-+      return this.getItem().overrideOtherStackedOnMe(this, var1, var2, var3);
++   public boolean overrideOtherStackedOnMe(ItemStack var1, Slot var2, ClickAction var3, Inventory var4) {
++      return this.getItem().overrideOtherStackedOnMe(this, var1, var2, var3, var4);
 +   }
 +
     public void hurtEnemy(LivingEntity var1, Player var2) {
@@ -96,7 +114,7 @@
        if (var3.hurtEnemy(this, var1, var2)) {
           var2.awardStat(Stats.ITEM_USED.get(var3));
        }
-@@ -352,11 +382,11 @@
+@@ -352,11 +389,11 @@
     }
  
     private boolean matches(ItemStack var1) {
@@ -109,7 +127,7 @@
           return false;
        } else {
           return this.tag == null || this.tag.equals(var1.tag);
-@@ -378,21 +408,25 @@
+@@ -378,21 +415,25 @@
           return !var0.isEmpty() && !var1.isEmpty() ? var0.sameItemStackIgnoreDurability(var1) : false;
        }
     }
@@ -137,20 +155,141 @@
     }
  
     public String toString() {
-@@ -540,11 +574,11 @@
+@@ -540,28 +581,31 @@
        if (this.hasCustomHoverName()) {
           var4.withStyle(ChatFormatting.ITALIC);
        }
  
        var3.add(var4);
 -      if (!var2.isAdvanced() && !this.hasCustomHoverName() && this.getItem() == Items.FILLED_MAP) {
+-         var3.add((new TextComponent("#" + MapItem.getMapId(this))).withStyle(ChatFormatting.GRAY));
 +      if (!var2.isAdvanced() && !this.hasCustomHoverName() && this.is(Items.FILLED_MAP)) {
-          var3.add((new TextComponent("#" + MapItem.getMapId(this))).withStyle(ChatFormatting.GRAY));
++         Integer var5 = MapItem.getMapId(this);
++         if (var5 != null) {
++            var3.add((new TextComponent("#" + var5)).withStyle(ChatFormatting.GRAY));
++         }
        }
  
-       int var5 = this.getHideFlags();
-       if (shouldShowInTooltip(var5, ItemStack.TooltipPart.ADDITIONAL)) {
-@@ -964,10 +998,15 @@
+-      int var5 = this.getHideFlags();
+-      if (shouldShowInTooltip(var5, ItemStack.TooltipPart.ADDITIONAL)) {
++      int var20 = this.getHideFlags();
++      if (shouldShowInTooltip(var20, ItemStack.TooltipPart.ADDITIONAL)) {
+          this.getItem().appendHoverText(this, var1 == null ? null : var1.level, var3, var2);
+       }
+ 
+       int var8;
+       if (this.hasTag()) {
+-         if (shouldShowInTooltip(var5, ItemStack.TooltipPart.ENCHANTMENTS)) {
++         if (shouldShowInTooltip(var20, ItemStack.TooltipPart.ENCHANTMENTS)) {
+             appendEnchantmentNames(var3, this.getEnchantmentTags());
+          }
+ 
+          if (this.tag.contains("display", 10)) {
+             CompoundTag var6 = this.tag.getCompound("display");
+-            if (shouldShowInTooltip(var5, ItemStack.TooltipPart.DYE) && var6.contains("color", 99)) {
++            if (shouldShowInTooltip(var20, ItemStack.TooltipPart.DYE) && var6.contains("color", 99)) {
+                if (var2.isAdvanced()) {
+                   var3.add((new TranslatableComponent("item.color", new Object[]{String.format("#%06X", var6.getInt("color"))})).withStyle(ChatFormatting.GRAY));
+                } else {
+                   var3.add((new TranslatableComponent("item.dyed")).withStyle(new ChatFormatting[]{ChatFormatting.GRAY, ChatFormatting.ITALIC}));
+                }
+@@ -584,22 +628,22 @@
+                }
+             }
+          }
+       }
+ 
+-      int var22;
+-      if (shouldShowInTooltip(var5, ItemStack.TooltipPart.MODIFIERS)) {
+-         EquipmentSlot[] var20 = EquipmentSlot.values();
+-         var22 = var20.length;
++      int var23;
++      if (shouldShowInTooltip(var20, ItemStack.TooltipPart.MODIFIERS)) {
++         EquipmentSlot[] var21 = EquipmentSlot.values();
++         var23 = var21.length;
+ 
+-         for(var8 = 0; var8 < var22; ++var8) {
+-            EquipmentSlot var23 = var20[var8];
+-            Multimap var24 = this.getAttributeModifiers(var23);
+-            if (!var24.isEmpty()) {
++         for(var8 = 0; var8 < var23; ++var8) {
++            EquipmentSlot var24 = var21[var8];
++            Multimap var25 = this.getAttributeModifiers(var24);
++            if (!var25.isEmpty()) {
+                var3.add(TextComponent.EMPTY);
+-               var3.add((new TranslatableComponent("item.modifiers." + var23.getName())).withStyle(ChatFormatting.GRAY));
+-               Iterator var11 = var24.entries().iterator();
++               var3.add((new TranslatableComponent("item.modifiers." + var24.getName())).withStyle(ChatFormatting.GRAY));
++               Iterator var11 = var25.entries().iterator();
+ 
+                while(var11.hasNext()) {
+                   Entry var12 = (Entry)var11.next();
+                   AttributeModifier var13 = (AttributeModifier)var12.getValue();
+                   double var14 = var13.getAmount();
+@@ -638,35 +682,35 @@
+             }
+          }
+       }
+ 
+       if (this.hasTag()) {
+-         if (shouldShowInTooltip(var5, ItemStack.TooltipPart.UNBREAKABLE) && this.tag.getBoolean("Unbreakable")) {
++         if (shouldShowInTooltip(var20, ItemStack.TooltipPart.UNBREAKABLE) && this.tag.getBoolean("Unbreakable")) {
+             var3.add((new TranslatableComponent("item.unbreakable")).withStyle(ChatFormatting.BLUE));
+          }
+ 
+-         ListTag var21;
+-         if (shouldShowInTooltip(var5, ItemStack.TooltipPart.CAN_DESTROY) && this.tag.contains("CanDestroy", 9)) {
+-            var21 = this.tag.getList("CanDestroy", 8);
+-            if (!var21.isEmpty()) {
++         ListTag var22;
++         if (shouldShowInTooltip(var20, ItemStack.TooltipPart.CAN_DESTROY) && this.tag.contains("CanDestroy", 9)) {
++            var22 = this.tag.getList("CanDestroy", 8);
++            if (!var22.isEmpty()) {
+                var3.add(TextComponent.EMPTY);
+                var3.add((new TranslatableComponent("item.canBreak")).withStyle(ChatFormatting.GRAY));
+ 
+-               for(var22 = 0; var22 < var21.size(); ++var22) {
+-                  var3.addAll(expandBlockState(var21.getString(var22)));
++               for(var23 = 0; var23 < var22.size(); ++var23) {
++                  var3.addAll(expandBlockState(var22.getString(var23)));
+                }
+             }
+          }
+ 
+-         if (shouldShowInTooltip(var5, ItemStack.TooltipPart.CAN_PLACE) && this.tag.contains("CanPlaceOn", 9)) {
+-            var21 = this.tag.getList("CanPlaceOn", 8);
+-            if (!var21.isEmpty()) {
++         if (shouldShowInTooltip(var20, ItemStack.TooltipPart.CAN_PLACE) && this.tag.contains("CanPlaceOn", 9)) {
++            var22 = this.tag.getList("CanPlaceOn", 8);
++            if (!var22.isEmpty()) {
+                var3.add(TextComponent.EMPTY);
+                var3.add((new TranslatableComponent("item.canPlace")).withStyle(ChatFormatting.GRAY));
+ 
+-               for(var22 = 0; var22 < var21.size(); ++var22) {
+-                  var3.addAll(expandBlockState(var21.getString(var22)));
++               for(var23 = 0; var23 < var22.size(); ++var23) {
++                  var3.addAll(expandBlockState(var22.getString(var23)));
+                }
+             }
+          }
+       }
+ 
+@@ -952,10 +996,14 @@
+ 
+    public void onUseTick(Level var1, LivingEntity var2, int var3) {
+       this.getItem().onUseTick(var1, var2, this, var3);
+    }
+ 
++   public void onDestroyed(ItemEntity var1) {
++      this.getItem().onDestroyed(var1);
++   }
++
+    public boolean isEdible() {
+       return this.getItem().isEdible();
+    }
+ 
+    public SoundEvent getDrinkingSound() {
+@@ -964,10 +1012,15 @@
  
     public SoundEvent getEatingSound() {
        return this.getItem().getEatingSound();
@@ -166,7 +305,7 @@
     }
  
     public static enum TooltipPart {
-@@ -977,11 +1016,11 @@
+@@ -977,11 +1030,11 @@
        CAN_DESTROY,
        CAN_PLACE,
        ADDITIONAL,

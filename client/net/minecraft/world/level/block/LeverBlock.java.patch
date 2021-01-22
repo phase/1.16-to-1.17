@@ -1,0 +1,39 @@
+--- net/minecraft/world/level/block/LeverBlock.java
++++ net/minecraft/world/level/block/LeverBlock.java
+@@ -16,10 +16,11 @@
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.StateDefinition;
+ import net.minecraft.world.level.block.state.properties.AttachFace;
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+ import net.minecraft.world.level.block.state.properties.BooleanProperty;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+ public class LeverBlock extends FaceAttachedHorizontalDirectionalBlock {
+@@ -83,10 +84,11 @@
+          return InteractionResult.SUCCESS;
+       } else {
+          var7 = this.pull(var1, var2, var3);
+          float var8 = (Boolean)var7.getValue(POWERED) ? 0.6F : 0.5F;
+          var2.playSound((Player)null, (BlockPos)var3, SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.3F, var8);
++         var2.gameEvent(var4, (Boolean)var7.getValue(POWERED) ? GameEvent.BLOCK_SWITCH : GameEvent.BLOCK_UNSWITCH, var3);
+          return InteractionResult.CONSUME;
+       }
+    }
+ 
+    public BlockState pull(BlockState var1, Level var2, BlockPos var3) {
+@@ -100,11 +102,11 @@
+       Direction var4 = ((Direction)var0.getValue(FACING)).getOpposite();
+       Direction var5 = getConnectedDirection(var0).getOpposite();
+       double var6 = (double)var2.getX() + 0.5D + 0.1D * (double)var4.getStepX() + 0.2D * (double)var5.getStepX();
+       double var8 = (double)var2.getY() + 0.5D + 0.1D * (double)var4.getStepY() + 0.2D * (double)var5.getStepY();
+       double var10 = (double)var2.getZ() + 0.5D + 0.1D * (double)var4.getStepZ() + 0.2D * (double)var5.getStepZ();
+-      var1.addParticle(new DustParticleOptions(1.0F, 0.0F, 0.0F, var3), var6, var8, var10, 0.0D, 0.0D, 0.0D);
++      var1.addParticle(new DustParticleOptions(DustParticleOptions.REDSTONE_PARTICLE_COLOR, var3), var6, var8, var10, 0.0D, 0.0D, 0.0D);
+    }
+ 
+    public void animateTick(BlockState var1, Level var2, BlockPos var3, Random var4) {
+       if ((Boolean)var1.getValue(POWERED) && var4.nextFloat() < 0.25F) {
+          makeParticle(var1, var2, var3, 0.5F);
