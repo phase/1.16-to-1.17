@@ -13,7 +13,13 @@
  import net.minecraft.world.entity.Mob;
  import net.minecraft.world.entity.MobSpawnType;
  import net.minecraft.world.entity.player.Player;
-@@ -32,20 +32,20 @@
+@@ -27,25 +27,26 @@
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.LiquidBlock;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.HitResult;
  import net.minecraft.world.phys.Vec3;
@@ -40,7 +46,19 @@
  
     public InteractionResult useOn(UseOnContext var1) {
        Level var2 = var1.getLevel();
-@@ -100,11 +100,11 @@
+@@ -77,10 +78,11 @@
+          }
+ 
+          EntityType var8 = this.getType(var3.getTag());
+          if (var8.spawn((ServerLevel)var2, var3, var1.getPlayer(), var10, MobSpawnType.SPAWN_EGG, true, !Objects.equals(var4, var10) && var5 == Direction.UP) != null) {
+             var3.shrink(1);
++            var2.gameEvent(var1.getPlayer(), GameEvent.ENTITY_PLACE, var4);
+          }
+ 
+          return InteractionResult.CONSUME;
+       }
+    }
+@@ -100,15 +102,16 @@
           } else if (var1.mayInteract(var2, var7) && var2.mayUseItemAt(var7, var6.getDirection(), var4)) {
              EntityType var8 = this.getType(var4.getTag());
              if (var8.spawn((ServerLevel)var1, var4, var2, var7, MobSpawnType.SPAWN_EGG, false, false) == null) {
@@ -52,8 +70,13 @@
                 }
  
                 var2.awardStat(Stats.ITEM_USED.get(this));
++               var1.gameEvent(GameEvent.ENTITY_PLACE, var2);
                 return InteractionResultHolder.consume(var4);
-@@ -118,11 +118,11 @@
+             }
+          } else {
+             return InteractionResultHolder.fail(var4);
+          }
+@@ -118,11 +121,11 @@
     public boolean spawnsEntity(@Nullable CompoundTag var1, EntityType<?> var2) {
        return Objects.equals(this.getType(var1), var2);
     }
@@ -66,7 +89,7 @@
     @Nullable
     public static SpawnEggItem byId(@Nullable EntityType<?> var0) {
        return (SpawnEggItem)BY_ID.get(var0);
-@@ -146,12 +146,12 @@
+@@ -146,12 +149,12 @@
     public Optional<Mob> spawnOffspringFromSpawnEgg(Player var1, Mob var2, EntityType<? extends Mob> var3, ServerLevel var4, Vec3 var5, ItemStack var6) {
        if (!this.spawnsEntity(var6.getTag(), var3)) {
           return Optional.empty();
@@ -81,7 +104,7 @@
           }
  
           if (var7 == null) {
-@@ -165,11 +165,11 @@
+@@ -165,11 +168,11 @@
                 var4.addFreshEntityWithPassengers((Entity)var7);
                 if (var6.hasCustomHoverName()) {
                    ((Mob)var7).setCustomName(var6.getHoverName());

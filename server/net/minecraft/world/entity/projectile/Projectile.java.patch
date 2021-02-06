@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/projectile/Projectile.java
 +++ net/minecraft/world/entity/projectile/Projectile.java
-@@ -2,16 +2,19 @@
+@@ -2,25 +2,29 @@
  
  import java.util.Iterator;
  import java.util.UUID;
@@ -20,26 +20,53 @@
  import net.minecraft.world.phys.HitResult;
  import net.minecraft.world.phys.Vec3;
  
-@@ -92,10 +95,11 @@
-       float var10 = Mth.sqrt(getHorizontalDistanceSqr(var9));
-       this.yRot = (float)(Mth.atan2(var9.x, var9.z) * 57.2957763671875D);
-       this.xRot = (float)(Mth.atan2(var9.y, (double)var10) * 57.2957763671875D);
-       this.yRotO = this.yRot;
-       this.xRotO = this.xRot;
-+      this.gameEvent(this.getOwner(), GameEvent.PROJECTILE_SHOOT);
+ public abstract class Projectile extends Entity {
+    private UUID ownerUUID;
+    private int ownerNetworkId;
+    private boolean leftOwner;
++   private boolean hasBeenShot;
+ 
+    Projectile(EntityType<? extends Projectile> var1, Level var2) {
+       super(var1, var2);
     }
  
-    public void shootFromRotation(Entity var1, float var2, float var3, float var4, float var5, float var6) {
-       float var7 = -Mth.sin(var3 * 0.017453292F) * Mth.cos(var2 * 0.017453292F);
-       float var8 = -Mth.sin((var2 + var4) * 0.017453292F);
-@@ -111,10 +115,14 @@
+@@ -48,21 +52,28 @@
+ 
+       if (this.leftOwner) {
+          var1.putBoolean("LeftOwner", true);
+       }
+ 
++      var1.putBoolean("HasBeenShot", this.hasBeenShot);
+    }
+ 
+    protected void readAdditionalSaveData(CompoundTag var1) {
+       if (var1.hasUUID("Owner")) {
+          this.ownerUUID = var1.getUUID("Owner");
+       }
+ 
+       this.leftOwner = var1.getBoolean("LeftOwner");
++      this.hasBeenShot = var1.getBoolean("HasBeenShot");
+    }
+ 
+    public void tick() {
++      if (!this.hasBeenShot) {
++         this.gameEvent(GameEvent.PROJECTILE_SHOOT, this.getOwner(), this.blockPosition());
++         this.hasBeenShot = true;
++      }
++
+       if (!this.leftOwner) {
+          this.leftOwner = this.checkLeftOwner();
+       }
+ 
+       super.tick();
+@@ -111,10 +122,14 @@
           this.onHitEntity((EntityHitResult)var1);
        } else if (var2 == HitResult.Type.BLOCK) {
           this.onHitBlock((BlockHitResult)var1);
        }
  
 +      if (var2 != HitResult.Type.MISS) {
-+         this.gameEvent(this.getOwner(), GameEvent.PROJECTILE_LAND);
++         this.gameEvent(GameEvent.PROJECTILE_LAND, this.getOwner());
 +      }
 +
     }
@@ -47,7 +74,7 @@
     protected void onHitEntity(EntityHitResult var1) {
     }
  
-@@ -148,6 +156,11 @@
+@@ -148,6 +163,11 @@
           var0 += 360.0F;
        }
  

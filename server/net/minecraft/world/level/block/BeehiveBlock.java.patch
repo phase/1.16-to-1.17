@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/BeehiveBlock.java
 +++ net/minecraft/world/level/block/BeehiveBlock.java
-@@ -27,16 +27,17 @@
+@@ -27,22 +27,24 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.context.BlockPlaceContext;
@@ -19,7 +19,14 @@
  import net.minecraft.world.level.block.state.StateDefinition;
  import net.minecraft.world.level.block.state.properties.BlockStateProperties;
  import net.minecraft.world.level.block.state.properties.DirectionProperty;
-@@ -72,11 +73,11 @@
+ import net.minecraft.world.level.block.state.properties.IntegerProperty;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.storage.loot.LootContext;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.BlockHitResult;
+ 
+@@ -72,11 +74,11 @@
              var7.emptyAllLivingFromHive(var2, var4, BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY);
              var1.updateNeighbourForOutputSignal(var3, this);
              this.angerNearbyBees(var1, var3);
@@ -32,7 +39,7 @@
     }
  
     private void angerNearbyBees(Level var1, BlockPos var2) {
-@@ -103,23 +104,23 @@
+@@ -103,27 +105,29 @@
     public InteractionResult use(BlockState var1, Level var2, BlockPos var3, Player var4, InteractionHand var5, BlockHitResult var6) {
        ItemStack var7 = var4.getItemInHand(var5);
        int var8 = (Integer)var1.getValue(HONEY_LEVEL);
@@ -47,6 +54,7 @@
              });
              var9 = true;
 -         } else if (var7.getItem() == Items.GLASS_BOTTLE) {
++            var2.gameEvent(var4, GameEvent.SHEAR, var3);
 +         } else if (var7.is(Items.GLASS_BOTTLE)) {
              var7.shrink(1);
              var2.playSound(var4, var4.getX(), var4.getY(), var4.getZ(), SoundEvents.BOTTLE_FILL, SoundSource.NEUTRAL, 1.0F, 1.0F);
@@ -58,8 +66,13 @@
              }
  
              var9 = true;
++            var2.gameEvent(var4, GameEvent.FLUID_PICKUP, var3);
           }
-@@ -177,14 +178,19 @@
+       }
+ 
+       if (var9) {
+          if (!CampfireBlock.isSmokeyPos(var2, var3)) {
+@@ -177,39 +181,42 @@
     public RenderShape getRenderShape(BlockState var1) {
        return RenderShape.MODEL;
     }
@@ -81,3 +94,40 @@
           BlockEntity var5 = var1.getBlockEntity(var2);
           if (var5 instanceof BeehiveBlockEntity) {
              BeehiveBlockEntity var6 = (BeehiveBlockEntity)var5;
+             ItemStack var7 = new ItemStack(this);
+             int var8 = (Integer)var3.getValue(HONEY_LEVEL);
+             boolean var9 = !var6.isEmpty();
+-            if (!var9 && var8 == 0) {
+-               return;
+-            }
++            if (var9 || var8 > 0) {
++               CompoundTag var10;
++               if (var9) {
++                  var10 = new CompoundTag();
++                  var10.put("Bees", var6.writeBees());
++                  var7.addTagElement("BlockEntityTag", var10);
++               }
+ 
+-            CompoundTag var10;
+-            if (var9) {
+                var10 = new CompoundTag();
+-               var10.put("Bees", var6.writeBees());
+-               var7.addTagElement("BlockEntityTag", var10);
++               var10.putInt("honey_level", var8);
++               var7.addTagElement("BlockStateTag", var10);
++               ItemEntity var11 = new ItemEntity(var1, (double)var2.getX(), (double)var2.getY(), (double)var2.getZ(), var7);
++               var11.setDefaultPickUpDelay();
++               var1.addFreshEntity(var11);
+             }
+-
+-            var10 = new CompoundTag();
+-            var10.putInt("honey_level", var8);
+-            var7.addTagElement("BlockStateTag", var10);
+-            ItemEntity var11 = new ItemEntity(var1, (double)var2.getX(), (double)var2.getY(), (double)var2.getZ(), var7);
+-            var11.setDefaultPickUpDelay();
+-            var1.addFreshEntity(var11);
+          }
+       }
+ 
+       super.playerWillDestroy(var1, var2, var3, var4);
+    }

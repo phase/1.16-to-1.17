@@ -362,7 +362,7 @@
              boolean var10 = this.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING) && this.random.nextDouble() < (double)var9.getEffectiveDifficulty() * 0.01D;
              if (var10) {
                 SkeletonHorse var11 = (SkeletonHorse)EntityType.SKELETON_HORSE.create(this);
-@@ -486,33 +470,35 @@
+@@ -486,33 +470,39 @@
           Biome var20 = this.getBiome(var8);
           if (var20.shouldFreeze(this, var18)) {
              this.setBlockAndUpdate(var18, Blocks.ICE.defaultBlockState());
@@ -379,7 +379,11 @@
 -         if (var4 && this.getBiome(var18).getPrecipitation() == Biome.Precipitation.RAIN) {
 -            this.getBlockState(var18).getBlock().handleRain(this, var18);
 +            BlockState var23 = this.getBlockState(var18);
-+            Biome.Precipitation var12 = this.getBiome(var18).getPrecipitation();
++            Biome.Precipitation var12 = this.getBiome(var8).getPrecipitation();
++            if (var12 == Biome.Precipitation.RAIN && var20.isColdEnoughToSnow(var18)) {
++               var12 = Biome.Precipitation.SNOW;
++            }
++
 +            var23.getBlock().handlePrecipitation(var23, this, var18, var12);
           }
        }
@@ -408,7 +412,7 @@
                    }
  
                    FluidState var16 = var15.getFluidState();
-@@ -527,50 +513,138 @@
+@@ -527,50 +517,138 @@
        }
  
        var7.pop();
@@ -570,7 +574,7 @@
     public ServerScoreboard getScoreboard() {
        return this.server.getScoreboard();
     }
-@@ -601,99 +675,53 @@
+@@ -601,99 +679,53 @@
        }
  
     }
@@ -700,7 +704,7 @@
     }
  
     public void save(@Nullable ProgressListener var1, boolean var2, boolean var3) {
-@@ -707,10 +735,16 @@
+@@ -707,10 +739,16 @@
           if (var1 != null) {
              var1.progressStage(new TranslatableComponent("menu.savingChunks"));
           }
@@ -717,7 +721,7 @@
  
     private void saveLevelData() {
        if (this.dragonFight != null) {
-@@ -718,43 +752,23 @@
+@@ -718,43 +756,23 @@
        }
  
        this.getChunkSource().getDataStorage().save();
@@ -770,7 +774,7 @@
     public List<ServerPlayer> getPlayers(Predicate<? super ServerPlayer> var1) {
        ArrayList var2 = Lists.newArrayList();
        Iterator var3 = this.players.iterator();
-@@ -781,26 +795,20 @@
+@@ -781,26 +799,20 @@
  
     public boolean addWithUUID(Entity var1) {
        return this.addEntity(var1);
@@ -799,7 +803,7 @@
     public void addNewPlayer(ServerPlayer var1) {
        this.addPlayer(var1);
     }
-@@ -808,192 +816,49 @@
+@@ -808,192 +820,49 @@
     public void addRespawnedPlayer(ServerPlayer var1) {
        this.addPlayer(var1);
     }
@@ -1004,7 +1008,7 @@
  
        while(var4.hasNext()) {
           ServerPlayer var5 = (ServerPlayer)var4.next();
-@@ -1023,21 +888,30 @@
+@@ -1023,21 +892,30 @@
  
     public void levelEvent(@Nullable Player var1, int var2, BlockPos var3, int var4) {
        this.server.getPlayerList().broadcast(var1, (double)var3.getX(), (double)var3.getY(), (double)var3.getZ(), 64.0D, this.dimension(), new ClientboundLevelEventPacket(var2, var3, var4, false));
@@ -1039,7 +1043,7 @@
  
        }
     }
-@@ -1108,10 +982,18 @@
+@@ -1108,10 +986,18 @@
  
     public StructureManager getStructureManager() {
        return this.server.getStructureManager();
@@ -1058,7 +1062,7 @@
        int var18 = 0;
  
        for(int var19 = 0; var19 < this.players.size(); ++var19) {
-@@ -1143,16 +1025,23 @@
+@@ -1143,16 +1029,23 @@
        }
     }
  
@@ -1084,7 +1088,7 @@
     @Nullable
     public BlockPos findNearestMapFeature(StructureFeature<?> var1, BlockPos var2, int var3, boolean var4) {
        return !this.server.getWorldData().worldGenSettings().generateFeatures() ? null : this.getChunkSource().getGenerator().findNearestMapFeature(this, var1, var2, var3, var4);
-@@ -1185,21 +1074,19 @@
+@@ -1185,21 +1078,19 @@
        return this.getChunkSource().getDataStorage();
     }
  
@@ -1110,7 +1114,7 @@
     public void setDefaultSpawnPos(BlockPos var1, float var2) {
        ChunkPos var3 = new ChunkPos(new BlockPos(this.levelData.getXSpawn(), 0, this.levelData.getZSpawn()));
        this.levelData.setSpawn(var1, var2);
-@@ -1220,16 +1107,16 @@
+@@ -1220,16 +1111,16 @@
     public float getSharedSpawnAngle() {
        return this.levelData.getSpawnAngle();
     }
@@ -1129,7 +1133,7 @@
        boolean var8;
        if (var3) {
           var8 = var4.getChunks().add(var6);
-@@ -1323,136 +1210,160 @@
+@@ -1323,136 +1214,160 @@
           NaturalSpawner.SpawnState var5 = this.getChunkSource().getLastSpawnState();
           if (var5 != null) {
              ObjectIterator var6 = var5.getMobCategoryCounts().object2IntEntrySet().iterator();
@@ -1162,8 +1166,8 @@
                    var3.close();
 -               } catch (Throwable var110) {
 -                  var4.addSuppressed(var110);
-+               } catch (Throwable var153) {
-+                  var4.addSuppressed(var153);
++               } catch (Throwable var154) {
++                  var4.addSuppressed(var154);
                 }
              } else {
                 var3.close();
@@ -1200,8 +1204,8 @@
 -               } catch (Throwable var111) {
 -                  var125.addSuppressed(var111);
 +                  var168.close();
-+               } catch (Throwable var154) {
-+                  var169.addSuppressed(var154);
++               } catch (Throwable var152) {
++                  var169.addSuppressed(var152);
                 }
              } else {
 -               var124.close();
@@ -1237,8 +1241,8 @@
 -               } catch (Throwable var112) {
 -                  var128.addSuppressed(var112);
 +                  var171.close();
-+               } catch (Throwable var152) {
-+                  var172.addSuppressed(var152);
++               } catch (Throwable var151) {
++                  var172.addSuppressed(var151);
                 }
              } else {
 -               var127.close();
@@ -1274,8 +1278,8 @@
 -               } catch (Throwable var109) {
 -                  var131.addSuppressed(var109);
 +                  var174.close();
-+               } catch (Throwable var151) {
-+                  var175.addSuppressed(var151);
++               } catch (Throwable var153) {
++                  var175.addSuppressed(var153);
                 }
              } else {
 -               var130.close();
@@ -1349,7 +1353,7 @@
     private static void dumpEntities(Writer var0, Iterable<Entity> var1) throws IOException {
        CsvOutput var2 = CsvOutput.builder().addColumn("x").addColumn("y").addColumn("z").addColumn("uuid").addColumn("type").addColumn("alive").addColumn("display_name").addColumn("custom_name").build(var0);
        Iterator var3 = var1.iterator();
-@@ -1464,18 +1375,18 @@
+@@ -1464,18 +1379,18 @@
           var2.writeRow(var4.getX(), var4.getY(), var4.getZ(), var4.getUUID(), Registry.ENTITY_TYPE.getKey(var4.getType()), var4.isAlive(), var6.getString(), var5 != null ? var5.getString() : null);
        }
  
@@ -1373,7 +1377,7 @@
     }
  
     @VisibleForTesting
-@@ -1495,11 +1406,11 @@
+@@ -1495,11 +1410,11 @@
     public float getShade(Direction var1, boolean var2) {
        return 1.0F;
     }
@@ -1386,7 +1390,7 @@
     public String toString() {
        return "ServerLevel[" + this.serverLevelData.getLevelName() + "]";
     }
-@@ -1525,30 +1436,28 @@
+@@ -1525,30 +1440,28 @@
        return this;
     }
  
@@ -1424,7 +1428,7 @@
           return "";
        }
     }
-@@ -1563,6 +1472,99 @@
+@@ -1563,6 +1476,99 @@
        });
        BlockPos.betweenClosed(var2 - 2, var3, var4 - 2, var2 + 2, var3, var4 + 2).forEach((var1x) -> {
           var0.setBlockAndUpdate(var1x, Blocks.OBSIDIAN.defaultBlockState());

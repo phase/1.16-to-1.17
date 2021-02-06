@@ -40,7 +40,19 @@
  
  public interface DispenseItemBehavior {
     DispenseItemBehavior NOOP = (var0, var1) -> {
-@@ -232,11 +233,11 @@
+@@ -171,10 +172,11 @@
+          public ItemStack execute(BlockSource var1, ItemStack var2) {
+             Direction var3 = (Direction)var1.getBlockState().getValue(DispenserBlock.FACING);
+             EntityType var4 = ((SpawnEggItem)var2.getItem()).getType(var2.getTag());
+             var4.spawn(var1.getLevel(), var2, (Player)null, var1.getPos().relative(var3), MobSpawnType.DISPENSER, var3 != Direction.UP, false);
+             var2.shrink(1);
++            var1.getLevel().gameEvent(GameEvent.ENTITY_PLACE, var1.getPos());
+             return var2;
+          }
+       };
+       Iterator var1 = SpawnEggItem.eggs().iterator();
+ 
+@@ -232,11 +234,11 @@
                 }
  
                 var6 = (AbstractHorse)var5.next();
@@ -53,7 +65,7 @@
           }
        };
        DispenserBlock.registerBehavior(Items.LEATHER_HORSE_ARMOR, var8);
-@@ -272,11 +273,11 @@
+@@ -272,11 +274,11 @@
                 if (!var5.hasNext()) {
                    return super.execute(var1, var2);
                 }
@@ -66,7 +78,21 @@
              this.setSuccess(true);
              return var2;
           }
-@@ -327,41 +328,44 @@
+@@ -306,11 +308,12 @@
+             ServerLevel var11 = var1.getLevel();
+             Random var12 = var11.random;
+             double var13 = var12.nextGaussian() * 0.05D + (double)var3.getStepX();
+             double var15 = var12.nextGaussian() * 0.05D + (double)var3.getStepY();
+             double var17 = var12.nextGaussian() * 0.05D + (double)var3.getStepZ();
+-            var11.addFreshEntity((Entity)Util.make(new SmallFireball(var11, var5, var7, var9, var13, var15, var17), (var1x) -> {
++            SmallFireball var19 = new SmallFireball(var11, var5, var7, var9, var13, var15, var17);
++            var11.addFreshEntity((Entity)Util.make(var19, (var1x) -> {
+                var1x.setItem(var2);
+             }));
+             var2.shrink(1);
+             return var2;
+          }
+@@ -327,41 +330,44 @@
        DispenserBlock.registerBehavior(Items.ACACIA_BOAT, new BoatDispenseItemBehavior(Boat.Type.ACACIA));
        DefaultDispenseItemBehavior var9 = new DefaultDispenseItemBehavior() {
           private final DefaultDispenseItemBehavior defaultDispenseItemBehavior = new DefaultDispenseItemBehavior();
@@ -77,8 +103,9 @@
              BlockPos var4 = var1.getPos().relative((Direction)var1.getBlockState().getValue(DispenserBlock.FACING));
              ServerLevel var5 = var1.getLevel();
 -            if (var3.emptyBucket((Player)null, var5, var4, (BlockHitResult)null)) {
+-               var3.checkExtraContent(var5, var2, var4);
 +            if (var3.emptyContents((Player)null, var5, var4, (BlockHitResult)null)) {
-                var3.checkExtraContent(var5, var2, var4);
++               var3.checkExtraContent((Player)null, var5, var2, var4);
                 return new ItemStack(Items.BUCKET);
              } else {
                 return this.defaultDispenseItemBehavior.dispense(var1, var2);
@@ -116,7 +143,7 @@
                       return new ItemStack(var7);
                    } else {
                       if (((DispenserBlockEntity)var1.getEntity()).addItem(new ItemStack(var7)) < 0) {
-@@ -383,21 +387,26 @@
+@@ -383,17 +389,21 @@
              Direction var4 = (Direction)var1.getBlockState().getValue(DispenserBlock.FACING);
              BlockPos var5 = var1.getPos().relative(var4);
              BlockState var6 = var3.getBlockState(var5);
@@ -127,6 +154,7 @@
 -            } else if (var6.getBlock() instanceof TntBlock) {
 -               TntBlock.explode(var3, var5);
 -               var3.removeBlock(var5, false);
++               var3.gameEvent((Entity)null, GameEvent.BLOCK_PLACE, var5);
 +            } else if (!CampfireBlock.canLight(var6) && !CandleBlock.canLight(var6) && !CandleCakeBlock.canLight(var6)) {
 +               if (var6.getBlock() instanceof TntBlock) {
 +                  TntBlock.explode(var3, var5);
@@ -137,17 +165,57 @@
              } else {
 -               this.setSuccess(false);
 +               var3.setBlockAndUpdate(var5, (BlockState)var6.setValue(BlockStateProperties.LIT, true));
++               var3.gameEvent((Entity)null, GameEvent.BLOCK_CHANGE, var5);
              }
  
--            if (this.isSuccess() && var2.hurt(1, var3.random, (ServerPlayer)null)) {
--               var2.setCount(0);
-+            if (this.isSuccess()) {
-+               var3.gameEvent((Entity)null, GameEvent.FLINT_AND_STEEL_USE, var5);
-+               if (var2.hurt(1, var3.random, (ServerPlayer)null)) {
-+                  var2.setCount(0);
-+               }
+             if (this.isSuccess() && var2.hurt(1, var3.random, (ServerPlayer)null)) {
+                var2.setCount(0);
              }
- 
+@@ -420,10 +430,11 @@
+             ServerLevel var3 = var1.getLevel();
+             BlockPos var4 = var1.getPos().relative((Direction)var1.getBlockState().getValue(DispenserBlock.FACING));
+             PrimedTnt var5 = new PrimedTnt(var3, (double)var4.getX() + 0.5D, (double)var4.getY(), (double)var4.getZ() + 0.5D, (LivingEntity)null);
+             var3.addFreshEntity(var5);
+             var3.playSound((Player)null, var5.getX(), var5.getY(), var5.getZ(), SoundEvents.TNT_PRIMED, SoundSource.BLOCKS, 1.0F, 1.0F);
++            var3.gameEvent((Entity)null, GameEvent.ENTITY_PLACE, var4);
+             var2.shrink(1);
              return var2;
           }
        });
+       OptionalDispenseItemBehavior var3 = new OptionalDispenseItemBehavior() {
+@@ -442,10 +453,11 @@
+             ServerLevel var3 = var1.getLevel();
+             Direction var4 = (Direction)var1.getBlockState().getValue(DispenserBlock.FACING);
+             BlockPos var5 = var1.getPos().relative(var4);
+             if (var3.isEmptyBlock(var5) && WitherSkullBlock.canSpawnMob(var3, var5, var2)) {
+                var3.setBlock(var5, (BlockState)Blocks.WITHER_SKELETON_SKULL.defaultBlockState().setValue(SkullBlock.ROTATION, var4.getAxis() == Direction.Axis.Y ? 0 : var4.getOpposite().get2DDataValue() * 4), 3);
++               var3.gameEvent((Entity)null, GameEvent.BLOCK_PLACE, var5);
+                BlockEntity var6 = var3.getBlockEntity(var5);
+                if (var6 instanceof SkullBlockEntity) {
+                   WitherSkullBlock.checkSpawn(var3, var5, (SkullBlockEntity)var6);
+                }
+ 
+@@ -464,10 +476,11 @@
+             BlockPos var4 = var1.getPos().relative((Direction)var1.getBlockState().getValue(DispenserBlock.FACING));
+             CarvedPumpkinBlock var5 = (CarvedPumpkinBlock)Blocks.CARVED_PUMPKIN;
+             if (var3.isEmptyBlock(var4) && var5.canSpawnGolem(var3, var4)) {
+                if (!var3.isClientSide) {
+                   var3.setBlock(var4, var5.defaultBlockState(), 3);
++                  var3.gameEvent((Entity)null, GameEvent.BLOCK_PLACE, var4);
+                }
+ 
+                var2.shrink(1);
+                this.setSuccess(true);
+             } else {
+@@ -490,10 +503,11 @@
+          private final DefaultDispenseItemBehavior defaultDispenseItemBehavior = new DefaultDispenseItemBehavior();
+ 
+          private ItemStack takeLiquid(BlockSource var1, ItemStack var2, ItemStack var3) {
+             var2.shrink(1);
+             if (var2.isEmpty()) {
++               var1.getLevel().gameEvent((Entity)null, GameEvent.FLUID_PICKUP, var1.getPos());
+                return var3.copy();
+             } else {
+                if (((DispenserBlockEntity)var1.getEntity()).addItem(var3.copy()) < 0) {
+                   this.defaultDispenseItemBehavior.dispense(var1, var3.copy());
+                }

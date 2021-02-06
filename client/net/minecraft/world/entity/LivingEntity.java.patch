@@ -90,7 +90,7 @@
        }
  
 -      if (this.isAlive() && this.isInWaterRainOrBubble()) {
-+      if (this.isAlive() && (this.isInWaterRainOrBubble() || this.bodyIsInPowderSnow)) {
++      if (this.isAlive() && (this.isInWaterRainOrBubble() || this.isInPowderSnow)) {
           this.clearFire();
        }
  
@@ -146,12 +146,13 @@
              double var2 = this.random.nextGaussian() * 0.02D;
              double var4 = this.random.nextGaussian() * 0.02D;
              double var6 = this.random.nextGaussian() * 0.02D;
-@@ -564,19 +596,12 @@
+@@ -563,20 +595,14 @@
+ 
     public void setNoActionTime(int var1) {
        this.noActionTime = var1;
     }
  
-    protected void playEquipSound(ItemStack var1) {
+-   protected void playEquipSound(ItemStack var1) {
 -      if (!var1.isEmpty()) {
 -         SoundEvent var2 = SoundEvents.ARMOR_EQUIP_GENERIC;
 -         Item var3 = var1.getItem();
@@ -161,14 +162,16 @@
 -            var2 = SoundEvents.ARMOR_EQUIP_ELYTRA;
 -         }
 -
++   protected void equipEventAndSound(ItemStack var1) {
 +      SoundEvent var2 = var1.getEquipSound();
 +      if (!var1.isEmpty() && var2 != null && !this.isSpectator()) {
++         this.gameEvent(GameEvent.EQUIP);
           this.playSound(var2, 1.0F, 1.0F);
        }
     }
  
     public void addAdditionalSaveData(CompoundTag var1) {
-@@ -745,14 +770,13 @@
+@@ -745,14 +771,13 @@
  
           var2 *= 0.7D * (double)var4;
        }
@@ -186,7 +189,7 @@
        }
  
        return var2;
-@@ -764,10 +788,14 @@
+@@ -764,10 +789,14 @@
  
     public boolean canAttack(LivingEntity var1, TargetingConditions var2) {
        return var2.test(this, var1);
@@ -201,7 +204,7 @@
  
        MobEffectInstance var2;
        do {
-@@ -939,11 +967,11 @@
+@@ -939,11 +968,11 @@
              this.stopSleeping();
           }
  
@@ -214,7 +217,7 @@
              });
              var2 *= 0.75F;
           }
-@@ -1017,10 +1045,12 @@
+@@ -1017,10 +1046,12 @@
                    var13 = 36;
                 } else if (var1.isFire()) {
                    var13 = 37;
@@ -227,18 +230,6 @@
                 }
  
                 this.level.broadcastEntityEvent(this, var13);
-@@ -1073,10 +1103,11 @@
- 
-          if (var7 instanceof ServerPlayer) {
-             CriteriaTriggers.PLAYER_HURT_ENTITY.trigger((ServerPlayer)var7, this, var1, var3, var2, var4);
-          }
- 
-+         this.gameEvent(var1.getEntity(), GameEvent.ENTITY_HIT);
-          return var16;
-       }
-    }
- 
-    protected void blockUsingShield(LivingEntity var1) {
 @@ -1096,11 +1127,11 @@
           int var5 = var4.length;
  
@@ -336,7 +327,19 @@
  
     protected int calculateFallDamage(float var1, float var2) {
        MobEffectInstance var3 = this.getEffect(MobEffects.JUMP);
-@@ -1544,47 +1568,47 @@
+@@ -1474,10 +1498,11 @@
+          if (var2 != 0.0F) {
+             float var5 = this.getHealth();
+             this.setHealth(var5 - var2);
+             this.getCombatTracker().recordDamage(var1, var5, var2);
+             this.setAbsorptionAmount(this.getAbsorptionAmount() - var2);
++            this.gameEvent(GameEvent.ENTITY_DAMAGED, var1.getEntity());
+          }
+       }
+    }
+ 
+    public CombatTracker getCombatTracker() {
+@@ -1544,47 +1569,47 @@
        }
  
     }
@@ -401,7 +404,7 @@
           SoundEvent var15 = this.getDeathSound();
           if (var15 != null) {
              this.playSound(var15, this.getSoundVolume(), (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F);
-@@ -1630,21 +1654,22 @@
+@@ -1630,21 +1655,22 @@
        case 41:
        case 42:
        case 43:
@@ -425,7 +428,7 @@
              double var4 = (double)var3 / 127.0D;
              float var6 = (this.random.nextFloat() - 0.5F) * 0.2F;
              float var7 = (this.random.nextFloat() - 0.5F) * 0.2F;
-@@ -1737,16 +1762,16 @@
+@@ -1737,16 +1763,16 @@
        return this.getItemBySlot(EquipmentSlot.OFFHAND);
     }
  
@@ -445,7 +448,7 @@
     public ItemStack getItemInHand(InteractionHand var1) {
        if (var1 == InteractionHand.MAIN_HAND) {
           return this.getItemBySlot(EquipmentSlot.MAINHAND);
-@@ -1827,11 +1852,11 @@
+@@ -1827,17 +1853,17 @@
  
     }
  
@@ -458,7 +461,14 @@
           var2 = new Vec3(var1.getX(), var1.getY() + (double)var1.getBbHeight(), var1.getZ());
        }
  
-@@ -1998,11 +2023,11 @@
+-      this.teleportTo(var2.x, var2.y, var2.z);
++      this.dismountTo(var2.x, var2.y, var2.z);
+    }
+ 
+    public boolean shouldShowName() {
+       return this.isCustomNameVisible();
+    }
+@@ -1998,11 +2024,11 @@
              double var10 = var25.y;
              if (this.hasEffect(MobEffects.LEVITATION)) {
                 var10 += (0.05D * (double)(this.getEffect(MobEffects.LEVITATION).getAmplifier() + 1) - var25.y) * 0.2D;
@@ -471,7 +481,7 @@
                    var10 = 0.0D;
                 }
              } else if (!this.isNoGravity()) {
-@@ -2033,11 +2058,11 @@
+@@ -2033,11 +2059,11 @@
     public Vec3 handleRelativeFrictionAndCalculateMovement(Vec3 var1, float var2) {
        this.moveRelative(this.getFrictionInfluencedSpeed(var2), var1);
        this.setDeltaMovement(this.handleOnClimbable(this.getDeltaMovement()));
@@ -484,7 +494,7 @@
  
        return var3;
     }
-@@ -2430,10 +2455,25 @@
+@@ -2430,10 +2456,25 @@
        this.zza *= 0.98F;
        this.updateFallFlying();
        AABB var14 = this.getBoundingBox();
@@ -492,7 +502,7 @@
        this.level.getProfiler().pop();
 +      this.level.getProfiler().push("freezing");
 +      int var9 = this.getTicksFrozen();
-+      if (this.bodyIsInPowderSnow && this.canFreeze()) {
++      if (this.isInPowderSnow && this.canFreeze()) {
 +         this.setTicksFrozen(Math.min(this.getTicksRequiredToFreeze(), var9 + 1));
 +      } else {
 +         this.setTicksFrozen(Math.max(0, var9 - 2));
@@ -510,7 +520,7 @@
           --this.autoSpinAttackTicks;
           this.checkAutoSpinAttack(var14, this.getBoundingBox());
        }
-@@ -2452,16 +2492,22 @@
+@@ -2452,16 +2493,22 @@
  
     private void updateFallFlying() {
        boolean var1 = this.getSharedFlag(7);
@@ -538,7 +548,7 @@
              var1 = false;
           }
        } else {
-@@ -2587,11 +2633,11 @@
+@@ -2587,11 +2634,11 @@
        }
  
     }
@@ -551,7 +561,7 @@
  
     }
  
-@@ -2617,11 +2663,11 @@
+@@ -2617,11 +2664,11 @@
     public boolean isEffectiveAi() {
        return !this.level.isClientSide;
     }
@@ -564,7 +574,7 @@
     public boolean isPushable() {
        return this.isAlive() && !this.isSpectator() && !this.onClimbable();
     }
-@@ -2888,11 +2934,11 @@
+@@ -2888,11 +2935,11 @@
        BlockPos var17 = new BlockPos(var1, var3, var5);
        Level var18 = this.level;
        if (var18.hasChunkAt(var17)) {
@@ -577,10 +587,13 @@
              if (var21.getMaterial().blocksMotion()) {
                 var19 = true;
              } else {
-@@ -3050,13 +3096,15 @@
+@@ -3048,15 +3095,18 @@
+       return ItemStack.EMPTY;
+    }
  
     public ItemStack eat(Level var1, ItemStack var2) {
        if (var2.isEdible()) {
++         var1.gameEvent(this, GameEvent.EAT, this.eyeBlockPosition());
           var1.playSound((Player)null, this.getX(), this.getY(), this.getZ(), this.getEatingSound(var2), SoundSource.NEUTRAL, 1.0F, 1.0F + (var1.random.nextFloat() - var1.random.nextFloat()) * 0.4F);
           this.addEatEffect(var2, var1, this);
 -         if (!(this instanceof Player) || !((Player)this).abilities.instabuild) {
@@ -588,13 +601,13 @@
              var2.shrink(1);
           }
 +
-+         this.gameEvent(GameEvent.EATING_FINISH);
++         this.gameEvent(GameEvent.EAT);
        }
  
        return var2;
     }
  
-@@ -3102,18 +3150,69 @@
+@@ -3102,18 +3152,84 @@
     public void broadcastBreakEvent(InteractionHand var1) {
        this.broadcastBreakEvent(var1 == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
     }
@@ -658,6 +671,21 @@
 +      } else {
 +         return !this.getItemBySlot(EquipmentSlot.HEAD).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.CHEST).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.LEGS).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.FEET).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES);
 +      }
++   }
++
++   public void recreateFromPacket(ClientboundAddMobPacket var1) {
++      double var2 = var1.getX();
++      double var4 = var1.getY();
++      double var6 = var1.getZ();
++      float var8 = (float)(var1.getyRot() * 360) / 256.0F;
++      float var9 = (float)(var1.getxRot() * 360) / 256.0F;
++      this.setPacketCoordinates(var2, var4, var6);
++      this.yBodyRot = (float)(var1.getyHeadRot() * 360) / 256.0F;
++      this.yHeadRot = (float)(var1.getyHeadRot() * 360) / 256.0F;
++      this.setId(var1.getId());
++      this.setUUID(var1.getUUID());
++      this.absMoveTo(var2, var4, var6, var8, var9);
++      this.setDeltaMovement((double)((float)var1.getXd() / 8000.0F), (double)((float)var1.getYd() / 8000.0F), (double)((float)var1.getZd() / 8000.0F));
 +   }
 +
     static {

@@ -1,0 +1,50 @@
+--- net/minecraft/client/particle/Particle.java
++++ net/minecraft/client/particle/Particle.java
+@@ -41,10 +41,12 @@
+    protected float gCol;
+    protected float bCol;
+    protected float alpha;
+    protected float roll;
+    protected float oRoll;
++   protected float friction;
++   protected boolean speedUpWhenYMotionIsBlocked;
+ 
+    protected Particle(ClientLevel var1, double var2, double var4, double var6) {
+       this.bb = INITIAL_AABB;
+       this.hasPhysics = true;
+       this.bbWidth = 0.6F;
+@@ -52,10 +54,12 @@
+       this.random = new Random();
+       this.rCol = 1.0F;
+       this.gCol = 1.0F;
+       this.bCol = 1.0F;
+       this.alpha = 1.0F;
++      this.friction = 0.98F;
++      this.speedUpWhenYMotionIsBlocked = false;
+       this.level = var1;
+       this.setSize(0.2F, 0.2F);
+       this.setPos(var2, var4, var6);
+       this.xo = var2;
+       this.yo = var4;
+@@ -112,13 +116,18 @@
+       if (this.age++ >= this.lifetime) {
+          this.remove();
+       } else {
+          this.yd -= 0.04D * (double)this.gravity;
+          this.move(this.xd, this.yd, this.zd);
+-         this.xd *= 0.9800000190734863D;
+-         this.yd *= 0.9800000190734863D;
+-         this.zd *= 0.9800000190734863D;
++         if (this.speedUpWhenYMotionIsBlocked && this.y == this.yo) {
++            this.xd *= 1.1D;
++            this.zd *= 1.1D;
++         }
++
++         this.xd *= (double)this.friction;
++         this.yd *= (double)this.friction;
++         this.zd *= (double)this.friction;
+          if (this.onGround) {
+             this.xd *= 0.699999988079071D;
+             this.zd *= 0.699999988079071D;
+          }
+ 

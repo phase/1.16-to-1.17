@@ -1,6 +1,43 @@
 --- net/minecraft/client/renderer/block/model/ItemOverride.java
 +++ net/minecraft/client/renderer/block/model/ItemOverride.java
-@@ -32,24 +32,24 @@
+@@ -1,79 +1,80 @@
+ package net.minecraft.client.renderer.block.model;
+ 
++import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.Maps;
+ import com.google.gson.JsonDeserializationContext;
+ import com.google.gson.JsonDeserializer;
+ import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
+ import com.google.gson.JsonParseException;
+ import java.lang.reflect.Type;
+ import java.util.Iterator;
+ import java.util.LinkedHashMap;
+-import java.util.Map;
++import java.util.List;
+ import java.util.Map.Entry;
+-import javax.annotation.Nullable;
+-import net.minecraft.client.multiplayer.ClientLevel;
+-import net.minecraft.client.renderer.item.ItemProperties;
+-import net.minecraft.client.renderer.item.ItemPropertyFunction;
++import java.util.stream.Stream;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.GsonHelper;
+-import net.minecraft.world.entity.LivingEntity;
+-import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.ItemStack;
+ 
+ public class ItemOverride {
+    private final ResourceLocation model;
+-   private final Map<ResourceLocation, Float> predicates;
++   private final List<ItemOverride.Predicate> predicates;
+ 
+-   public ItemOverride(ResourceLocation var1, Map<ResourceLocation, Float> var2) {
++   public ItemOverride(ResourceLocation var1, List<ItemOverride.Predicate> var2) {
+       this.model = var1;
+-      this.predicates = var2;
++      this.predicates = ImmutableList.copyOf(var2);
+    }
  
     public ResourceLocation getModel() {
        return this.model;
@@ -9,28 +46,65 @@
 -   boolean test(ItemStack var1, @Nullable ClientLevel var2, @Nullable LivingEntity var3) {
 -      Item var4 = var1.getItem();
 -      Iterator var5 = this.predicates.entrySet().iterator();
-+   boolean test(ItemStack var1, @Nullable ClientLevel var2, @Nullable LivingEntity var3, int var4) {
-+      Item var5 = var1.getItem();
-+      Iterator var6 = this.predicates.entrySet().iterator();
++   public Stream<ItemOverride.Predicate> getPredicates() {
++      return this.predicates.stream();
++   }
  
 -      Entry var6;
 -      ItemPropertyFunction var7;
-+      Entry var7;
-+      ItemPropertyFunction var8;
-       do {
+-      do {
 -         if (!var5.hasNext()) {
-+         if (!var6.hasNext()) {
-             return true;
-          }
+-            return true;
+-         }
++   public static class Predicate {
++      private final ResourceLocation property;
++      private final float value;
  
 -         var6 = (Entry)var5.next();
 -         var7 = ItemProperties.getProperty(var4, (ResourceLocation)var6.getKey());
 -      } while(var7 != null && var7.call(var1, var2, var3) >= (Float)var6.getValue());
-+         var7 = (Entry)var6.next();
-+         var8 = ItemProperties.getProperty(var5, (ResourceLocation)var7.getKey());
-+      } while(var8 != null && var8.call(var1, var2, var3, var4) >= (Float)var7.getValue());
++      public Predicate(ResourceLocation var1, float var2) {
++         this.property = var1;
++         this.value = var2;
++      }
  
-       return false;
+-      return false;
++      public ResourceLocation getProperty() {
++         return this.property;
++      }
++
++      public float getValue() {
++         return this.value;
++      }
     }
  
     public static class Deserializer implements JsonDeserializer<ItemOverride> {
+       protected Deserializer() {
+       }
+ 
+       public ItemOverride deserialize(JsonElement var1, Type var2, JsonDeserializationContext var3) throws JsonParseException {
+          JsonObject var4 = var1.getAsJsonObject();
+          ResourceLocation var5 = new ResourceLocation(GsonHelper.getAsString(var4, "model"));
+-         Map var6 = this.getPredicates(var4);
++         List var6 = this.getPredicates(var4);
+          return new ItemOverride(var5, var6);
+       }
+ 
+-      protected Map<ResourceLocation, Float> getPredicates(JsonObject var1) {
++      protected List<ItemOverride.Predicate> getPredicates(JsonObject var1) {
+          LinkedHashMap var2 = Maps.newLinkedHashMap();
+          JsonObject var3 = GsonHelper.getAsJsonObject(var1, "predicate");
+          Iterator var4 = var3.entrySet().iterator();
+ 
+          while(var4.hasNext()) {
+             Entry var5 = (Entry)var4.next();
+             var2.put(new ResourceLocation((String)var5.getKey()), GsonHelper.convertToFloat((JsonElement)var5.getValue(), (String)var5.getKey()));
+          }
+ 
+-         return var2;
++         return (List)var2.entrySet().stream().map((var0) -> {
++            return new ItemOverride.Predicate((ResourceLocation)var0.getKey(), (Float)var0.getValue());
++         }).collect(ImmutableList.toImmutableList());
+       }
+    }
+ }

@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/feature/StrongholdFeature.java
 +++ net/minecraft/world/level/levelgen/feature/StrongholdFeature.java
-@@ -1,10 +1,11 @@
+@@ -1,11 +1,13 @@
  package net.minecraft.world.level.levelgen.feature;
  
  import com.mojang.serialization.Codec;
@@ -8,20 +8,68 @@
  import net.minecraft.core.RegistryAccess;
 +import net.minecraft.core.SectionPos;
  import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.LevelHeightAccessor;
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeSource;
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.WorldgenRandom;
-@@ -43,11 +44,11 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+@@ -22,11 +24,11 @@
+ 
+    public StructureFeature.StructureStartFactory<NoneFeatureConfiguration> getStartFactory() {
+       return StrongholdFeature.StrongholdStart::new;
+    }
+ 
+-   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, int var6, int var7, Biome var8, ChunkPos var9, NoneFeatureConfiguration var10) {
++   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, int var6, int var7, Biome var8, ChunkPos var9, NoneFeatureConfiguration var10, LevelHeightAccessor var11) {
+       return var1.hasStronghold(new ChunkPos(var6, var7));
+    }
+ 
+    public static class StrongholdStart extends StructureStart<NoneFeatureConfiguration> {
+       private final long seed;
+@@ -34,32 +36,32 @@
+       public StrongholdStart(StructureFeature<NoneFeatureConfiguration> var1, int var2, int var3, BoundingBox var4, int var5, long var6) {
+          super(var1, var2, var3, var4, var5, var6);
+          this.seed = var6;
+       }
+ 
+-      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, NoneFeatureConfiguration var7) {
+-         int var8 = 0;
++      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, NoneFeatureConfiguration var7, LevelHeightAccessor var8) {
++         int var9 = 0;
+ 
+-         StrongholdPieces.StartPiece var9;
++         StrongholdPieces.StartPiece var10;
           do {
              this.pieces.clear();
              this.boundingBox = BoundingBox.getUnknownBox();
-             this.random.setLargeFeatureSeed(this.seed + (long)(var8++), var4, var5);
+-            this.random.setLargeFeatureSeed(this.seed + (long)(var8++), var4, var5);
++            this.random.setLargeFeatureSeed(this.seed + (long)(var9++), var4, var5);
              StrongholdPieces.resetPieces();
 -            var9 = new StrongholdPieces.StartPiece(this.random, (var4 << 4) + 2, (var5 << 4) + 2);
-+            var9 = new StrongholdPieces.StartPiece(this.random, SectionPos.sectionToBlockCoord(var4, 2), SectionPos.sectionToBlockCoord(var5, 2));
-             this.pieces.add(var9);
-             var9.addChildren(var9, this.pieces, this.random);
-             List var10 = var9.pendingChildren;
+-            this.pieces.add(var9);
+-            var9.addChildren(var9, this.pieces, this.random);
+-            List var10 = var9.pendingChildren;
++            var10 = new StrongholdPieces.StartPiece(this.random, SectionPos.sectionToBlockCoord(var4, 2), SectionPos.sectionToBlockCoord(var5, 2));
++            this.pieces.add(var10);
++            var10.addChildren(var10, this.pieces, this.random);
++            List var11 = var10.pendingChildren;
  
-             while(!var10.isEmpty()) {
+-            while(!var10.isEmpty()) {
+-               int var11 = this.random.nextInt(var10.size());
+-               StructurePiece var12 = (StructurePiece)var10.remove(var11);
+-               var12.addChildren(var9, this.pieces, this.random);
++            while(!var11.isEmpty()) {
++               int var12 = this.random.nextInt(var11.size());
++               StructurePiece var13 = (StructurePiece)var11.remove(var12);
++               var13.addChildren(var10, this.pieces, this.random);
+             }
+ 
+             this.calculateBoundingBox();
+             this.moveBelowSeaLevel(var2.getSeaLevel(), this.random, 10);
+-         } while(this.pieces.isEmpty() || var9.portalRoomPiece == null);
++         } while(this.pieces.isEmpty() || var10.portalRoomPiece == null);
+ 
+       }
+    }
+ }

@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/feature/WoodlandMansionFeature.java
 +++ net/minecraft/world/level/levelgen/feature/WoodlandMansionFeature.java
-@@ -6,10 +6,11 @@
+@@ -6,11 +6,13 @@
  import java.util.LinkedList;
  import java.util.Random;
  import java.util.Set;
@@ -8,43 +8,95 @@
  import net.minecraft.core.RegistryAccess;
 +import net.minecraft.core.SectionPos;
  import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.LevelHeightAccessor;
  import net.minecraft.world.level.StructureFeatureManager;
  import net.minecraft.world.level.WorldGenLevel;
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeSource;
-@@ -33,11 +34,11 @@
+ import net.minecraft.world.level.block.Blocks;
+@@ -32,22 +34,22 @@
+ 
     protected boolean linearSeparation() {
        return false;
     }
  
-    protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, int var6, int var7, Biome var8, ChunkPos var9, NoneFeatureConfiguration var10) {
+-   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, int var6, int var7, Biome var8, ChunkPos var9, NoneFeatureConfiguration var10) {
 -      Set var11 = var2.getBiomesWithin(var6 * 16 + 9, var1.getSeaLevel(), var7 * 16 + 9, 32);
-+      Set var11 = var2.getBiomesWithin(SectionPos.sectionToBlockCoord(var6, 9), var1.getSeaLevel(), SectionPos.sectionToBlockCoord(var7, 9), 32);
-       Iterator var12 = var11.iterator();
+-      Iterator var12 = var11.iterator();
++   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, int var6, int var7, Biome var8, ChunkPos var9, NoneFeatureConfiguration var10, LevelHeightAccessor var11) {
++      Set var12 = var2.getBiomesWithin(SectionPos.sectionToBlockCoord(var6, 9), var1.getSeaLevel(), SectionPos.sectionToBlockCoord(var7, 9), 32);
++      Iterator var13 = var12.iterator();
  
-       Biome var13;
+-      Biome var13;
++      Biome var14;
        do {
-          if (!var12.hasNext()) {
-@@ -70,19 +71,19 @@
+-         if (!var12.hasNext()) {
++         if (!var13.hasNext()) {
+             return true;
+          }
+ 
+-         var13 = (Biome)var12.next();
+-      } while(var13.getGenerationSettings().isValidStart(this));
++         var14 = (Biome)var13.next();
++      } while(var14.getGenerationSettings().isValidStart(this));
+ 
+       return false;
+    }
+ 
+    public StructureFeature.StructureStartFactory<NoneFeatureConfiguration> getStartFactory() {
+@@ -57,35 +59,35 @@
+    public static class WoodlandMansionStart extends StructureStart<NoneFeatureConfiguration> {
+       public WoodlandMansionStart(StructureFeature<NoneFeatureConfiguration> var1, int var2, int var3, BoundingBox var4, int var5, long var6) {
+          super(var1, var2, var3, var4, var5, var6);
+       }
+ 
+-      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, NoneFeatureConfiguration var7) {
+-         Rotation var8 = Rotation.getRandom(this.random);
+-         byte var9 = 5;
++      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, NoneFeatureConfiguration var7, LevelHeightAccessor var8) {
++         Rotation var9 = Rotation.getRandom(this.random);
+          byte var10 = 5;
+-         if (var8 == Rotation.CLOCKWISE_90) {
+-            var9 = -5;
+-         } else if (var8 == Rotation.CLOCKWISE_180) {
+-            var9 = -5;
++         byte var11 = 5;
++         if (var9 == Rotation.CLOCKWISE_90) {
              var10 = -5;
-          } else if (var8 == Rotation.COUNTERCLOCKWISE_90) {
+-         } else if (var8 == Rotation.COUNTERCLOCKWISE_90) {
++         } else if (var9 == Rotation.CLOCKWISE_180) {
              var10 = -5;
++            var11 = -5;
++         } else if (var9 == Rotation.COUNTERCLOCKWISE_90) {
++            var11 = -5;
           }
  
 -         int var11 = (var4 << 4) + 7;
 -         int var12 = (var5 << 4) + 7;
-+         int var11 = SectionPos.sectionToBlockCoord(var4, 7);
-+         int var12 = SectionPos.sectionToBlockCoord(var5, 7);
-          int var13 = var2.getFirstOccupiedHeight(var11, var12, Heightmap.Types.WORLD_SURFACE_WG);
-          int var14 = var2.getFirstOccupiedHeight(var11, var12 + var10, Heightmap.Types.WORLD_SURFACE_WG);
-          int var15 = var2.getFirstOccupiedHeight(var11 + var9, var12, Heightmap.Types.WORLD_SURFACE_WG);
-          int var16 = var2.getFirstOccupiedHeight(var11 + var9, var12 + var10, Heightmap.Types.WORLD_SURFACE_WG);
-          int var17 = Math.min(Math.min(var13, var14), Math.min(var15, var16));
-          if (var17 >= 60) {
+-         int var13 = var2.getFirstOccupiedHeight(var11, var12, Heightmap.Types.WORLD_SURFACE_WG);
+-         int var14 = var2.getFirstOccupiedHeight(var11, var12 + var10, Heightmap.Types.WORLD_SURFACE_WG);
+-         int var15 = var2.getFirstOccupiedHeight(var11 + var9, var12, Heightmap.Types.WORLD_SURFACE_WG);
+-         int var16 = var2.getFirstOccupiedHeight(var11 + var9, var12 + var10, Heightmap.Types.WORLD_SURFACE_WG);
+-         int var17 = Math.min(Math.min(var13, var14), Math.min(var15, var16));
+-         if (var17 >= 60) {
 -            BlockPos var18 = new BlockPos(var4 * 16 + 8, var17 + 1, var5 * 16 + 8);
-+            BlockPos var18 = new BlockPos(SectionPos.sectionToBlockCoord(var4, 8), var17 + 1, SectionPos.sectionToBlockCoord(var5, 8));
-             LinkedList var19 = Lists.newLinkedList();
-             WoodlandMansionPieces.generateMansion(var3, var18, var8, var19, this.random);
-             this.pieces.addAll(var19);
+-            LinkedList var19 = Lists.newLinkedList();
+-            WoodlandMansionPieces.generateMansion(var3, var18, var8, var19, this.random);
+-            this.pieces.addAll(var19);
++         int var12 = SectionPos.sectionToBlockCoord(var4, 7);
++         int var13 = SectionPos.sectionToBlockCoord(var5, 7);
++         int var14 = var2.getFirstOccupiedHeight(var12, var13, Heightmap.Types.WORLD_SURFACE_WG, var8);
++         int var15 = var2.getFirstOccupiedHeight(var12, var13 + var11, Heightmap.Types.WORLD_SURFACE_WG, var8);
++         int var16 = var2.getFirstOccupiedHeight(var12 + var10, var13, Heightmap.Types.WORLD_SURFACE_WG, var8);
++         int var17 = var2.getFirstOccupiedHeight(var12 + var10, var13 + var11, Heightmap.Types.WORLD_SURFACE_WG, var8);
++         int var18 = Math.min(Math.min(var14, var15), Math.min(var16, var17));
++         if (var18 >= 60) {
++            BlockPos var19 = new BlockPos(SectionPos.sectionToBlockCoord(var4, 8), var18 + 1, SectionPos.sectionToBlockCoord(var5, 8));
++            LinkedList var20 = Lists.newLinkedList();
++            WoodlandMansionPieces.generateMansion(var3, var19, var9, var20, this.random);
++            this.pieces.addAll(var20);
              this.calculateBoundingBox();
           }
+       }
+ 
+       public void placeInChunk(WorldGenLevel var1, StructureFeatureManager var2, ChunkGenerator var3, Random var4, BoundingBox var5, ChunkPos var6) {

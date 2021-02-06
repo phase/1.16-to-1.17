@@ -1,9 +1,16 @@
 --- net/minecraft/world/level/block/Block.java
 +++ net/minecraft/world/level/block/Block.java
-@@ -6,20 +6,21 @@
+@@ -1,25 +1,28 @@
+ package net.minecraft.world.level.block;
+ 
+ import com.google.common.cache.CacheBuilder;
+ import com.google.common.cache.CacheLoader;
+ import com.google.common.cache.LoadingCache;
++import com.google.common.collect.ImmutableMap;
  import it.unimi.dsi.fastutil.objects.Object2ByteLinkedOpenHashMap;
  import java.util.Iterator;
  import java.util.List;
++import java.util.function.Function;
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
 +import net.minecraft.SharedConstants;
@@ -23,7 +30,7 @@
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.entity.monster.piglin.PiglinAi;
-@@ -34,14 +35,16 @@
+@@ -34,14 +37,16 @@
  import net.minecraft.world.level.GameRules;
  import net.minecraft.world.level.ItemLike;
  import net.minecraft.world.level.Level;
@@ -40,7 +47,35 @@
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
-@@ -106,18 +109,10 @@
+@@ -90,34 +95,30 @@
+       return var0 instanceof BlockItem ? ((BlockItem)var0).getBlock() : Blocks.AIR;
+    }
+ 
+    public static BlockState pushEntitiesUp(BlockState var0, BlockState var1, Level var2, BlockPos var3) {
+       VoxelShape var4 = Shapes.joinUnoptimized(var0.getCollisionShape(var2, var3), var1.getCollisionShape(var2, var3), BooleanOp.ONLY_SECOND).move((double)var3.getX(), (double)var3.getY(), (double)var3.getZ());
+-      List var5 = var2.getEntities((Entity)null, var4.bounds());
+-      Iterator var6 = var5.iterator();
++      if (var4.isEmpty()) {
++         return var1;
++      } else {
++         List var5 = var2.getEntities((Entity)null, var4.bounds());
++         Iterator var6 = var5.iterator();
+ 
+-      while(var6.hasNext()) {
+-         Entity var7 = (Entity)var6.next();
+-         double var8 = Shapes.collide(Direction.Axis.Y, var7.getBoundingBox().move(0.0D, 1.0D, 0.0D), Stream.of(var4), -1.0D);
+-         var7.teleportTo(var7.getX(), var7.getY() + 1.0D + var8, var7.getZ());
+-      }
++         while(var6.hasNext()) {
++            Entity var7 = (Entity)var6.next();
++            double var8 = Shapes.collide(Direction.Axis.Y, var7.getBoundingBox().move(0.0D, 1.0D, 0.0D), Stream.of(var4), -1.0D);
++            var7.teleportTo(var7.getX(), var7.getY() + 1.0D + var8, var7.getZ());
++         }
+ 
+-      return var1;
++         return var1;
++      }
+    }
  
     public static VoxelShape box(double var0, double var2, double var4, double var6, double var8, double var10) {
        return Shapes.box(var0 / 16.0D, var2 / 16.0D, var4 / 16.0D, var6 / 16.0D, var8 / 16.0D, var10 / 16.0D);
@@ -59,7 +94,7 @@
        BlockPos.MutableBlockPos var4 = new BlockPos.MutableBlockPos();
        Direction[] var5 = UPDATE_SHAPE_ORDER;
        int var6 = var5.length;
-@@ -152,14 +147,21 @@
+@@ -152,14 +153,21 @@
        super(var1);
        StateDefinition.Builder var2 = new StateDefinition.Builder(this);
        this.createBlockStateDefinition(var2);
@@ -83,7 +118,7 @@
     public boolean isRandomlyTicking(BlockState var1) {
        return this.isRandomlyTicking;
     }
-@@ -241,15 +243,11 @@
+@@ -241,15 +249,11 @@
        }
     }
  
@@ -100,7 +135,7 @@
     }
  
     public float getExplosionResistance() {
-@@ -287,11 +285,11 @@
+@@ -287,11 +291,11 @@
  
        return this.descriptionId;
     }
@@ -113,13 +148,20 @@
     public void updateEntityAfterFallOn(BlockGetter var1, Entity var2) {
        var2.setDeltaMovement(var2.getDeltaMovement().multiply(1.0D, 0.0D, 1.0D));
     }
-@@ -312,17 +310,18 @@
+@@ -310,19 +314,24 @@
+ 
+    public float getJumpFactor() {
        return this.jumpFactor;
     }
  
++   protected void spawnDestroyParticles(Level var1, Player var2, BlockPos var3, BlockState var4) {
++      var1.levelEvent(var2, 2001, var3, getId(var4));
++   }
++
     public void playerWillDestroy(Level var1, BlockPos var2, BlockState var3, Player var4) {
-       var1.levelEvent(var4, 2001, var2, getId(var3));
+-      var1.levelEvent(var4, 2001, var2, getId(var3));
 -      if (this.is((Tag)BlockTags.GUARDED_BY_PIGLINS)) {
++      this.spawnDestroyParticles(var1, var4, var2, var3);
 +      if (var3.is(BlockTags.GUARDED_BY_PIGLINS)) {
           PiglinAi.angerNearbyPiglins(var4, false);
        }
@@ -134,3 +176,18 @@
     public boolean dropFromExplosion(Explosion var1) {
        return true;
     }
+@@ -364,10 +373,14 @@
+ 
+    protected Block asBlock() {
+       return this;
+    }
+ 
++   protected ImmutableMap<BlockState, VoxelShape> getShapeForEachState(Function<BlockState, VoxelShape> var1) {
++      return (ImmutableMap)this.stateDefinition.getPossibleStates().stream().collect(ImmutableMap.toImmutableMap(Function.identity(), var1));
++   }
++
+    public static final class BlockStatePairKey {
+       private final BlockState first;
+       private final BlockState second;
+       private final Direction direction;
+ 

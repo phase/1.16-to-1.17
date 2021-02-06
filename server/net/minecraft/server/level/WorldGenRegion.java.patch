@@ -13,7 +13,56 @@
  import net.minecraft.world.level.levelgen.structure.StructureStart;
  import net.minecraft.world.level.lighting.LevelLightEngine;
  import net.minecraft.world.level.material.Fluid;
-@@ -132,11 +134,11 @@
+@@ -47,12 +49,11 @@
+ import org.apache.logging.log4j.Logger;
+ 
+ public class WorldGenRegion implements WorldGenLevel {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private final List<ChunkAccess> cache;
+-   private final int x;
+-   private final int z;
++   private final ChunkPos center;
+    private final int size;
+    private final ServerLevel level;
+    private final long seed;
+    private final LevelData levelData;
+    private final Random random;
+@@ -73,12 +74,11 @@
+       if (var3 * var3 != var2.size()) {
+          throw (IllegalStateException)Util.pauseInIde(new IllegalStateException("Cache size is not a square."));
+       } else {
+          ChunkPos var4 = ((ChunkAccess)var2.get(var2.size() / 2)).getPos();
+          this.cache = var2;
+-         this.x = var4.x;
+-         this.z = var4.z;
++         this.center = var4;
+          this.size = var3;
+          this.level = var1;
+          this.seed = var1.getSeed();
+          this.levelData = var1.getLevelData();
+          this.random = var1.getRandom();
+@@ -88,18 +88,14 @@
+          this.lastPos = ((ChunkAccess)var2.get(var2.size() - 1)).getPos();
+          this.structureFeatureManager = var1.structureFeatureManager().forWorldGenRegion(this);
+       }
+    }
+ 
+-   public int getCenterX() {
+-      return this.x;
++   public ChunkPos getCenter() {
++      return this.center;
+    }
+ 
+-   public int getCenterZ() {
+-      return this.z;
+-   }
+-
+    public ChunkAccess getChunk(int var1, int var2) {
+       return this.getChunk(var1, var2, ChunkStatus.EMPTY);
+    }
+ 
+    @Nullable
+@@ -132,11 +128,11 @@
     public boolean hasChunk(int var1, int var2) {
        return var1 >= this.firstPos.x && var1 <= this.lastPos.x && var2 >= this.firstPos.z && var2 <= this.lastPos.z;
     }
@@ -26,7 +75,7 @@
     public FluidState getFluidState(BlockPos var1) {
        return this.getChunk(var1).getFluidState(var1);
     }
-@@ -166,11 +168,11 @@
+@@ -166,11 +162,11 @@
        BlockState var5 = this.getBlockState(var1);
        if (var5.isAir()) {
           return false;
@@ -39,7 +88,7 @@
  
           return this.setBlock(var1, Blocks.AIR.defaultBlockState(), 3, var4);
        }
-@@ -185,27 +187,26 @@
+@@ -185,27 +181,26 @@
        } else {
           CompoundTag var4 = var2.getBlockEntityNbt(var1);
           BlockState var5 = var2.getBlockState(var1);
@@ -72,7 +121,7 @@
  
           return null;
        }
-@@ -216,23 +217,27 @@
+@@ -216,23 +211,27 @@
        BlockState var6 = var5.setBlockState(var1, var2, false);
        if (var6 != null) {
           this.level.onBlockStateChange(var1, var6, var2);
@@ -104,7 +153,7 @@
  
        if (var2.hasPostProcess(this, var1)) {
           this.markPosForPostprocessing(var1);
-@@ -244,12 +249,12 @@
+@@ -244,12 +243,12 @@
     private void markPosForPostprocessing(BlockPos var1) {
        this.getChunk(var1).markPosForPostprocessing(var1);
     }
@@ -119,7 +168,7 @@
     }
  
     public boolean removeBlock(BlockPos var1, boolean var2) {
-@@ -276,11 +281,11 @@
+@@ -276,11 +275,11 @@
     public LevelData getLevelData() {
        return this.levelData;
     }
@@ -132,7 +181,7 @@
           return new DifficultyInstance(this.level.getDifficulty(), this.level.getDayTime(), 0L, this.level.getMoonBrightness());
        }
     }
-@@ -308,11 +313,11 @@
+@@ -308,11 +307,11 @@
     public Random getRandom() {
        return this.random;
     }
@@ -145,7 +194,7 @@
     public void playSound(@Nullable Player var1, BlockPos var2, SoundEvent var3, SoundSource var4, float var5, float var6) {
     }
  
-@@ -320,19 +325,22 @@
+@@ -320,19 +319,22 @@
     }
  
     public void levelEvent(@Nullable Player var1, int var2, BlockPos var3, int var4) {
@@ -169,7 +218,7 @@
  
     public List<Entity> getEntities(@Nullable Entity var1, AABB var2, @Nullable Predicate<? super Entity> var3) {
        return Collections.emptyList();
-@@ -343,6 +351,14 @@
+@@ -343,6 +345,14 @@
     }
  
     public Stream<? extends StructureStart<?>> startsForFeature(SectionPos var1, StructureFeature<?> var2) {

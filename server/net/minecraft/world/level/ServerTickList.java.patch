@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/ServerTickList.java
 +++ net/minecraft/world/level/ServerTickList.java
-@@ -7,19 +7,19 @@
+@@ -7,11 +7,10 @@
  import java.util.Collections;
  import java.util.Iterator;
  import java.util.List;
@@ -12,16 +12,7 @@
  import java.util.function.Predicate;
  import javax.annotation.Nullable;
  import net.minecraft.CrashReport;
- import net.minecraft.CrashReportCategory;
- import net.minecraft.ReportedException;
- import net.minecraft.core.BlockPos;
-+import net.minecraft.core.SectionPos;
- import net.minecraft.nbt.CompoundTag;
- import net.minecraft.nbt.ListTag;
- import net.minecraft.resources.ResourceLocation;
- import net.minecraft.server.level.ServerChunkCache;
- import net.minecraft.server.level.ServerLevel;
-@@ -28,11 +28,11 @@
+@@ -28,11 +27,11 @@
  
  public class ServerTickList<T> implements TickList<T> {
     protected final Predicate<T> ignore;
@@ -34,7 +25,7 @@
     private final List<TickNextTickData<T>> alreadyTicked = Lists.newArrayList();
     private final Consumer<TickNextTickData<T>> ticker;
  
-@@ -79,11 +79,11 @@
+@@ -79,11 +78,11 @@
                    this.alreadyTicked.add(var4);
                    this.ticker.accept(var4);
                 } catch (Throwable var8) {
@@ -47,17 +38,17 @@
              } else {
                 this.scheduleTick(var4.pos, var4.getType(), 0);
              }
-@@ -98,15 +98,15 @@
+@@ -98,15 +97,15 @@
     public boolean willTickThisTick(BlockPos var1, T var2) {
        return this.currentlyTicking.contains(new TickNextTickData(var1, var2));
     }
  
     public List<TickNextTickData<T>> fetchTicksInChunk(ChunkPos var1, boolean var2, boolean var3) {
 -      int var4 = (var1.x << 4) - 2;
-+      int var4 = SectionPos.sectionToBlockCoord(var1.x) - 2;
++      int var4 = var1.getMinBlockX() - 2;
        int var5 = var4 + 16 + 2;
 -      int var6 = (var1.z << 4) - 2;
-+      int var6 = SectionPos.sectionToBlockCoord(var1.z) - 2;
++      int var6 = var1.getMinBlockZ() - 2;
        int var7 = var6 + 16 + 2;
 -      return this.fetchTicksInArea(new BoundingBox(var4, 0, var6, var5, 256, var7), var2, var3);
 +      return this.fetchTicksInArea(new BoundingBox(var4, this.level.getMinBuildHeight(), var6, var5, this.level.getMaxBuildHeight(), var7), var2, var3);

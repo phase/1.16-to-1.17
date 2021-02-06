@@ -1,6 +1,45 @@
 --- net/minecraft/util/datafix/schemas/V1460.java
 +++ net/minecraft/util/datafix/schemas/V1460.java
-@@ -258,7 +258,10 @@
+@@ -1,19 +1,25 @@
+ package net.minecraft.util.datafix.schemas;
+ 
++import com.google.common.collect.ImmutableMap;
+ import com.google.common.collect.Maps;
+ import com.mojang.datafixers.DSL;
+ import com.mojang.datafixers.schemas.Schema;
+ import com.mojang.datafixers.types.templates.Hook;
+ import com.mojang.datafixers.types.templates.TypeTemplate;
++import com.mojang.serialization.Dynamic;
++import com.mojang.serialization.DynamicOps;
+ import java.util.HashMap;
+ import java.util.Map;
+ import java.util.function.Function;
+ import java.util.function.Supplier;
+ import net.minecraft.util.datafix.fixes.References;
+ 
+ public class V1460 extends NamespacedSchema {
++   protected static final Map<String, String> ITEM_TO_BLOCKENTITY;
++   protected static final Hook.HookFunction ADD_NAMES;
++
+    public V1460(int var1, Schema var2) {
+       super(var1, var2);
+    }
+ 
+    protected static void registerMob(Schema var0, Map<String, Supplier<TypeTemplate>> var1, String var2) {
+@@ -214,11 +220,11 @@
+       });
+       var1.registerType(true, References.ENTITY, () -> {
+          return DSL.taggedChoiceLazy("id", namespacedString(), var2);
+       });
+       var1.registerType(true, References.ITEM_STACK, () -> {
+-         return DSL.hook(DSL.optionalFields("id", References.ITEM_NAME.in(var1), "tag", DSL.optionalFields("EntityTag", References.ENTITY_TREE.in(var1), "BlockEntityTag", References.BLOCK_ENTITY.in(var1), "CanDestroy", DSL.list(References.BLOCK_NAME.in(var1)), "CanPlaceOn", DSL.list(References.BLOCK_NAME.in(var1)))), V705.ADD_NAMES, Hook.HookFunction.IDENTITY);
++         return DSL.hook(DSL.optionalFields("id", References.ITEM_NAME.in(var1), "tag", DSL.optionalFields("EntityTag", References.ENTITY_TREE.in(var1), "BlockEntityTag", References.BLOCK_ENTITY.in(var1), "CanDestroy", DSL.list(References.BLOCK_NAME.in(var1)), "CanPlaceOn", DSL.list(References.BLOCK_NAME.in(var1)))), ADD_NAMES, Hook.HookFunction.IDENTITY);
+       });
+       var1.registerType(false, References.HOTBAR, () -> {
+          return DSL.compoundList(DSL.list(References.ITEM_STACK.in(var1)));
+       });
+       var1.registerType(false, References.OPTIONS, DSL::remainder);
+@@ -258,7 +264,19 @@
        var1.registerType(false, References.ENTITY_NAME, () -> {
           return DSL.constType(namespacedString());
        });
@@ -10,4 +49,13 @@
 +         return DSL.optionalFields("Entities", DSL.list(References.ENTITY_TREE.in(var1)));
 +      });
     }
++
++   static {
++      ITEM_TO_BLOCKENTITY = ImmutableMap.builder().putAll(V704.ITEM_TO_BLOCKENTITY).put("minecraft:white_bed", "minecraft:bed").put("minecraft:orange_bed", "minecraft:bed").put("minecraft:magenta_bed", "minecraft:bed").put("minecraft:light_blue_bed", "minecraft:bed").put("minecraft:yellow_bed", "minecraft:bed").put("minecraft:lime_bed", "minecraft:bed").put("minecraft:pink_bed", "minecraft:bed").put("minecraft:gray_bed", "minecraft:bed").put("minecraft:silver_bed", "minecraft:bed").put("minecraft:cyan_bed", "minecraft:bed").put("minecraft:purple_bed", "minecraft:bed").put("minecraft:blue_bed", "minecraft:bed").put("minecraft:brown_bed", "minecraft:bed").put("minecraft:green_bed", "minecraft:bed").put("minecraft:red_bed", "minecraft:bed").put("minecraft:black_bed", "minecraft:bed").put("minecraft:oak_sign", "minecraft:sign").put("minecraft:spruce_sign", "minecraft:sign").put("minecraft:birch_sign", "minecraft:sign").put("minecraft:jungle_sign", "minecraft:sign").put("minecraft:acacia_sign", "minecraft:sign").put("minecraft:dark_oak_sign", "minecraft:sign").put("minecraft:crimson_sign", "minecraft:sign").put("minecraft:warped_sign", "minecraft:sign").put("minecraft:skeleton_skull", "minecraft:skull").put("minecraft:wither_skeleton_skull", "minecraft:skull").put("minecraft:zombie_head", "minecraft:skull").put("minecraft:player_head", "minecraft:skull").put("minecraft:creeper_head", "minecraft:skull").put("minecraft:dragon_head", "minecraft:skull").put("minecraft:barrel", "minecraft:barrel").put("minecraft:conduit", "minecraft:conduit").put("minecraft:smoker", "minecraft:smoker").put("minecraft:blast_furnace", "minecraft:blast_furnace").put("minecraft:lectern", "minecraft:lectern").put("minecraft:bell", "minecraft:bell").put("minecraft:jigsaw", "minecraft:jigsaw").put("minecraft:campfire", "minecraft:campfire").put("minecraft:bee_nest", "minecraft:beehive").put("minecraft:beehive", "minecraft:beehive").put("minecraft:sculk_sensor", "minecraft:sculk_sensor").build();
++      ADD_NAMES = new Hook.HookFunction() {
++         public <T> T apply(DynamicOps<T> var1, T var2) {
++            return V99.addNames(new Dynamic(var1, var2), V1460.ITEM_TO_BLOCKENTITY, "minecraft:armor_stand");
++         }
++      };
++   }
  }

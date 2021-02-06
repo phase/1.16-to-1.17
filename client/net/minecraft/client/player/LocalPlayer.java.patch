@@ -1,10 +1,12 @@
 --- net/minecraft/client/player/LocalPlayer.java
 +++ net/minecraft/client/player/LocalPlayer.java
-@@ -60,11 +60,10 @@
+@@ -59,12 +59,12 @@
+ import net.minecraft.world.entity.MoverType;
  import net.minecraft.world.entity.PlayerRideableJumping;
  import net.minecraft.world.entity.Pose;
  import net.minecraft.world.entity.vehicle.AbstractMinecart;
  import net.minecraft.world.entity.vehicle.Boat;
++import net.minecraft.world.inventory.ClickAction;
  import net.minecraft.world.item.ElytraItem;
 -import net.minecraft.world.item.Item;
  import net.minecraft.world.item.ItemStack;
@@ -12,7 +14,7 @@
  import net.minecraft.world.item.crafting.Recipe;
  import net.minecraft.world.level.BaseCommandBlock;
  import net.minecraft.world.level.block.entity.CommandBlockEntity;
-@@ -140,11 +139,12 @@
+@@ -140,11 +140,12 @@
     public boolean startRiding(Entity var1, boolean var2) {
        if (!super.startRiding(var1, var2)) {
           return false;
@@ -26,7 +28,20 @@
           if (var1 instanceof Boat) {
              this.yRotO = var1.yRot;
              this.yRot = var1.yRot;
-@@ -264,11 +264,11 @@
+@@ -167,11 +168,11 @@
+    public float getViewYRot(float var1) {
+       return this.isPassenger() ? super.getViewYRot(var1) : this.yRot;
+    }
+ 
+    public void tick() {
+-      if (this.level.hasChunkAt(new BlockPos(this.getX(), 0.0D, this.getZ()))) {
++      if (this.level.hasChunkAt(this.getBlockX(), this.getBlockZ())) {
+          super.tick();
+          if (this.isPassenger()) {
+             this.connection.send((Packet)(new ServerboundMovePlayerPacket.Rot(this.yRot, this.xRot, this.onGround)));
+             this.connection.send((Packet)(new ServerboundPlayerInputPacket(this.xxa, this.zza, this.input.jumping, this.input.shiftKeyDown)));
+             Entity var1 = this.getRootVehicle();
+@@ -264,11 +265,11 @@
     }
  
     public boolean drop(boolean var1) {
@@ -39,7 +54,7 @@
     public void chat(String var1) {
        this.connection.send((Packet)(new ServerboundChatPacket(var1)));
     }
-@@ -292,11 +292,11 @@
+@@ -292,11 +293,11 @@
        this.connection.send((Packet)(new ServerboundContainerClosePacket(this.containerMenu.containerId)));
        this.clientSideCloseContainer();
     }
@@ -52,7 +67,7 @@
     }
  
     public void hurtTo(float var1) {
-@@ -321,27 +321,27 @@
+@@ -321,27 +322,27 @@
        }
  
     }
@@ -84,7 +99,20 @@
     protected void sendRidingJump() {
        this.connection.send((Packet)(new ServerboundPlayerCommandPacket(this, ServerboundPlayerCommandPacket.Action.START_RIDING_JUMP, Mth.floor(this.getJumpRidingScale() * 100.0F))));
     }
-@@ -544,12 +544,11 @@
+@@ -425,11 +426,11 @@
+    }
+ 
+    private boolean suffocatesAt(BlockPos var1) {
+       AABB var2 = this.getBoundingBox();
+       AABB var3 = (new AABB((double)var1.getX(), var2.minY, (double)var1.getZ(), (double)var1.getX() + 1.0D, var2.maxY, (double)var1.getZ() + 1.0D)).deflate(1.0E-7D);
+-      return !this.level.noBlockCollision(this, var3, (var1x, var2x) -> {
++      return this.level.hasBlockCollision(this, var3, (var1x, var2x) -> {
+          return var1x.isSuffocating(this.level, var2x);
+       });
+    }
+ 
+    public void setSprinting(boolean var1) {
+@@ -544,12 +545,11 @@
     public void openJigsawBlock(JigsawBlockEntity var1) {
        this.minecraft.setScreen(new JigsawBlockEditScreen(var1));
     }
@@ -98,7 +126,35 @@
  
     }
  
-@@ -599,11 +598,11 @@
+@@ -589,21 +589,39 @@
+ 
+    protected boolean isControlledCamera() {
+       return this.minecraft.getCameraEntity() == this;
+    }
+ 
++   public void resetPos() {
++      this.setPose(Pose.STANDING);
++      if (this.level != null) {
++         for(double var1 = this.getY(); var1 > (double)this.level.getMinBuildHeight() && var1 < (double)this.level.getMaxBuildHeight(); ++var1) {
++            this.setPos(this.getX(), var1, this.getZ());
++            if (this.level.noCollision(this)) {
++               break;
++            }
++         }
++
++         this.setDeltaMovement(Vec3.ZERO);
++         this.xRot = 0.0F;
++      }
++
++      this.setHealth(this.getMaxHealth());
++      this.deathTime = 0;
++   }
++
+    public void aiStep() {
+       ++this.sprintTime;
+       if (this.sprintTriggerTime > 0) {
+          --this.sprintTriggerTime;
+       }
  
        this.handleNetherPortalClient();
        boolean var1 = this.input.jumping;
@@ -111,7 +167,7 @@
        if (this.isUsingItem() && !this.isPassenger()) {
           Input var10000 = this.input;
           var10000.leftImpulse *= 0.2F;
-@@ -628,11 +627,11 @@
+@@ -628,11 +646,11 @@
  
        if (var2) {
           this.sprintTriggerTime = 0;
@@ -124,7 +180,7 @@
              this.sprintTriggerTime = 7;
           } else {
              this.setSprinting(true);
-@@ -655,32 +654,32 @@
+@@ -655,32 +673,32 @@
              this.setSprinting(false);
           }
        }
@@ -163,7 +219,7 @@
        }
  
        this.wasFallFlying = this.isFallFlying();
-@@ -695,22 +694,22 @@
+@@ -695,22 +713,22 @@
        } else if (this.waterVisionTime > 0) {
           this.isEyeInFluid(FluidTags.WATER);
           this.waterVisionTime = Mth.clamp(this.waterVisionTime - 10, 0, 600);
@@ -188,7 +244,7 @@
  
        if (this.isRidingJumpable()) {
           PlayerRideableJumping var10 = (PlayerRideableJumping)this.getVehicle();
-@@ -739,12 +738,12 @@
+@@ -739,12 +757,12 @@
        } else {
           this.jumpRidingScale = 0.0F;
        }
@@ -203,3 +259,14 @@
  
     }
  
+@@ -993,6 +1011,10 @@
+          return var6.xRot(-var3).yRot(-var2).add(this.getEyePosition(var1));
+       } else {
+          return super.getRopeHoldPosition(var1);
+       }
+    }
++
++   public void updateTutorialInventoryAction(ItemStack var1, ItemStack var2, ClickAction var3) {
++      this.minecraft.getTutorial().onInventoryAction(var1, var2, var3);
++   }
+ }

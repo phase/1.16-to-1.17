@@ -1,0 +1,77 @@
+--- net/minecraft/world/level/levelgen/synth/PerlinNoise.java
++++ net/minecraft/world/level/levelgen/synth/PerlinNoise.java
+@@ -9,27 +9,28 @@
+ import it.unimi.dsi.fastutil.ints.IntSortedSet;
+ import java.util.List;
+ import java.util.stream.IntStream;
+ import javax.annotation.Nullable;
+ import net.minecraft.util.Mth;
++import net.minecraft.world.level.levelgen.RandomSource;
+ import net.minecraft.world.level.levelgen.WorldgenRandom;
+ 
+ public class PerlinNoise implements SurfaceNoise {
+    private final ImprovedNoise[] noiseLevels;
+    private final DoubleList amplitudes;
+    private final double lowestFreqValueFactor;
+    private final double lowestFreqInputFactor;
+ 
+-   public PerlinNoise(WorldgenRandom var1, IntStream var2) {
++   public PerlinNoise(RandomSource var1, IntStream var2) {
+       this(var1, (List)var2.boxed().collect(ImmutableList.toImmutableList()));
+    }
+ 
+-   public PerlinNoise(WorldgenRandom var1, List<Integer> var2) {
++   public PerlinNoise(RandomSource var1, List<Integer> var2) {
+       this(var1, (IntSortedSet)(new IntRBTreeSet(var2)));
+    }
+ 
+-   public static PerlinNoise create(WorldgenRandom var0, int var1, DoubleList var2) {
++   public static PerlinNoise create(RandomSource var0, int var1, DoubleList var2) {
+       return new PerlinNoise(var0, Pair.of(var1, var2));
+    }
+ 
+    private static Pair<Integer, DoubleList> makeAmplitudes(IntSortedSet var0) {
+       if (var0.isEmpty()) {
+@@ -52,15 +53,15 @@
+             return Pair.of(-var1, var4);
+          }
+       }
+    }
+ 
+-   private PerlinNoise(WorldgenRandom var1, IntSortedSet var2) {
++   private PerlinNoise(RandomSource var1, IntSortedSet var2) {
+       this(var1, makeAmplitudes(var2));
+    }
+ 
+-   private PerlinNoise(WorldgenRandom var1, Pair<Integer, DoubleList> var2) {
++   private PerlinNoise(RandomSource var1, Pair<Integer, DoubleList> var2) {
+       int var3 = (Integer)var2.getFirst();
+       this.amplitudes = (DoubleList)var2.getSecond();
+       ImprovedNoise var4 = new ImprovedNoise(var1);
+       int var5 = this.amplitudes.size();
+       int var6 = -var3;
+@@ -84,11 +85,11 @@
+             var1.consumeCount(262);
+          }
+       }
+ 
+       if (var6 < var5 - 1) {
+-         long var14 = (long)(var4.noise(0.0D, 0.0D, 0.0D, 0.0D, 0.0D) * 9.223372036854776E18D);
++         long var14 = (long)(var4.noise(0.0D, 0.0D, 0.0D) * 9.223372036854776E18D);
+          WorldgenRandom var9 = new WorldgenRandom(var14);
+ 
+          for(int var10 = var6 + 1; var10 < var5; ++var10) {
+             if (var10 >= 0) {
+                double var11 = this.amplitudes.getDouble(var10);
+@@ -109,10 +110,11 @@
+ 
+    public double getValue(double var1, double var3, double var5) {
+       return this.getValue(var1, var3, var5, 0.0D, 0.0D, false);
+    }
+ 
++   @Deprecated
+    public double getValue(double var1, double var3, double var5, double var7, double var9, boolean var11) {
+       double var12 = 0.0D;
+       double var14 = this.lowestFreqInputFactor;
+       double var16 = this.lowestFreqValueFactor;
+ 

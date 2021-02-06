@@ -36,7 +36,7 @@
  import net.minecraft.world.entity.ai.attributes.Attributes;
  import net.minecraft.world.entity.ai.control.BodyRotationControl;
  import net.minecraft.world.entity.ai.goal.Goal;
-@@ -37,28 +39,29 @@
+@@ -37,28 +39,30 @@
  import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
  import net.minecraft.world.entity.animal.AbstractGolem;
  import net.minecraft.world.entity.player.Player;
@@ -50,6 +50,7 @@
 -import net.minecraft.world.level.block.piston.PistonHeadBlock;
  import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.entity.EntityTypeTest;
++import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.Vec3;
  
@@ -70,7 +71,7 @@
     public Shulker(EntityType<? extends Shulker> var1, Level var2) {
        super(var1, var2);
        this.xpReward = 5;
-@@ -67,11 +70,11 @@
+@@ -67,17 +71,17 @@
     protected void registerGoals() {
        this.goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 8.0F));
        this.goalSelector.addGoal(4, new Shulker.ShulkerAttackGoal());
@@ -82,8 +83,16 @@
        this.targetSelector.addGoal(3, new Shulker.ShulkerDefenseAttackGoal(this));
     }
  
-    protected boolean isMovementNoisy() {
-@@ -102,11 +105,10 @@
+-   protected boolean isMovementNoisy() {
+-      return false;
++   protected Entity.MovementEmission getMovementEmission() {
++      return Entity.MovementEmission.NONE;
+    }
+ 
+    public SoundSource getSoundSource() {
+       return SoundSource.HOSTILE;
+    }
+@@ -102,11 +106,10 @@
     }
  
     protected void defineSynchedData() {
@@ -95,7 +104,7 @@
     }
  
     public static AttributeSupplier.Builder createAttributes() {
-@@ -119,267 +121,311 @@
+@@ -119,274 +122,320 @@
  
     public void readAdditionalSaveData(CompoundTag var1) {
        super.readAdditionalSaveData(var1);
@@ -266,7 +275,7 @@
 +      Direction var3 = this.getAttachFace().getOpposite();
 +      float var4 = var1 - var2;
 +      if (var4 > 0.0F) {
-+         List var5 = this.level.getEntities((Entity)this, getProgressDeltaAabb(var3, var2, var1).move(this.getX(), this.getY(), this.getZ()), EntitySelector.NO_SPECTATORS.and((var1x) -> {
++         List var5 = this.level.getEntities((Entity)this, getProgressDeltaAabb(var3, var2, var1).move(this.getX() - 0.5D, this.getY(), this.getZ() - 0.5D), EntitySelector.NO_SPECTATORS.and((var1x) -> {
 +            return !var1x.isPassengerOfSameVehicle(this);
 +         }));
 +         Iterator var6 = var5.iterator();
@@ -551,7 +560,16 @@
           if (var1 == 0) {
              this.getAttribute(Attributes.ARMOR).addPermanentModifier(COVERED_ARMOR_MODIFIER);
              this.playSound(SoundEvents.SHULKER_CLOSE, 1.0F, 1.0F);
-@@ -408,14 +454,23 @@
++            this.gameEvent(GameEvent.SHULKER_CLOSE);
+          } else {
+             this.playSound(SoundEvents.SHULKER_OPEN, 1.0F, 1.0F);
++            this.gameEvent(GameEvent.SHULKER_OPEN);
+          }
+       }
+ 
+       this.entityData.set(DATA_PEEK_ID, (byte)var1);
+    }
+@@ -408,14 +457,23 @@
  
     public float getPickRadius() {
        return 0.0F;
@@ -576,7 +594,7 @@
     }
  
     static class ShulkerDefenseAttackGoal extends NearestAttackableTargetGoal<LivingEntity> {
-@@ -509,11 +564,11 @@
+@@ -509,11 +567,11 @@
  
        private ShulkerPeekGoal() {
        }
@@ -589,7 +607,7 @@
        public boolean canContinueToUse() {
           return Shulker.this.getTarget() == null && this.peekTime > 0;
        }
-@@ -533,13 +588,13 @@
+@@ -533,13 +591,13 @@
        public void tick() {
           --this.peekTime;
        }

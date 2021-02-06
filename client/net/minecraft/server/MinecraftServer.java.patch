@@ -17,7 +17,13 @@
  import net.minecraft.server.level.progress.ChunkProgressListenerFactory;
  import net.minecraft.server.network.ServerConnectionListener;
  import net.minecraft.server.network.TextFilter;
-@@ -132,25 +134,24 @@
+@@ -127,30 +129,30 @@
+ import net.minecraft.world.level.border.BorderChangeListener;
+ import net.minecraft.world.level.border.WorldBorder;
+ import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.dimension.DimensionType;
+ import net.minecraft.world.level.dimension.LevelStem;
++import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.PatrolSpawner;
  import net.minecraft.world.level.levelgen.PhantomSpawner;
  import net.minecraft.world.level.levelgen.WorldGenSettings;
@@ -44,7 +50,7 @@
  import org.apache.logging.log4j.Logger;
  
  public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTask> implements SnooperPopulator, CommandSource, AutoCloseable {
-@@ -181,11 +182,10 @@
+@@ -181,11 +183,10 @@
     private boolean preventProxyConnections;
     private boolean pvp;
     private boolean allowFlight;
@@ -56,7 +62,7 @@
     @Nullable
     private KeyPair keyPair;
     @Nullable
-@@ -194,11 +194,10 @@
+@@ -194,11 +195,10 @@
     private String resourcePack;
     private String resourcePackHash;
     private volatile boolean isReady;
@@ -68,7 +74,7 @@
     private final GameProfileCache profileCache;
     private long lastServerStatus;
     private final Thread serverThread;
-@@ -270,13 +269,11 @@
+@@ -270,13 +270,11 @@
        this.serverThread = var1;
        this.executor = Util.backgroundExecutor();
     }
@@ -83,7 +89,7 @@
     protected abstract boolean initServer() throws IOException;
  
     public static void convertFromRegionFormatIfNeeded(LevelStorageSource.LevelStorageAccess var0) {
-@@ -331,11 +328,11 @@
+@@ -331,11 +329,11 @@
        MappedRegistry var10 = var3.dimensions();
        LevelStem var12 = (LevelStem)var10.get(LevelStem.OVERWORLD);
        Object var11;
@@ -96,7 +102,122 @@
           var13 = var12.type();
           var11 = var12.generator();
        }
-@@ -495,11 +492,11 @@
+@@ -347,11 +345,11 @@
+       this.commandStorage = new CommandStorage(var15);
+       WorldBorder var16 = var14.getWorldBorder();
+       var16.applySettings(var2.getWorldBorder());
+       if (!var2.isInitialized()) {
+          try {
+-            setInitialSpawn(var14, var2, var3.generateBonusChest(), var4, true);
++            setInitialSpawn(var14, var2, var3.generateBonusChest(), var4);
+             var2.setInitialized(true);
+             if (var4) {
+                this.setupDebugLevel(this.worldData);
+             }
+          } catch (Throwable var26) {
+@@ -389,67 +387,71 @@
+          }
+       }
+ 
+    }
+ 
+-   private static void setInitialSpawn(ServerLevel var0, ServerLevelData var1, boolean var2, boolean var3, boolean var4) {
+-      ChunkGenerator var5 = var0.getChunkSource().getGenerator();
+-      if (!var4) {
+-         var1.setSpawn(BlockPos.ZERO.above(var5.getSpawnHeight()), 0.0F);
+-      } else if (var3) {
+-         var1.setSpawn(BlockPos.ZERO.above(), 0.0F);
++   private static void setInitialSpawn(ServerLevel var0, ServerLevelData var1, boolean var2, boolean var3) {
++      if (var3) {
++         var1.setSpawn(BlockPos.ZERO.above(80), 0.0F);
+       } else {
+-         BiomeSource var6 = var5.getBiomeSource();
+-         Random var7 = new Random(var0.getSeed());
+-         BlockPos var8 = var6.findBiomeHorizontal(0, var0.getSeaLevel(), 0, 256, (var0x) -> {
++         ChunkGenerator var4 = var0.getChunkSource().getGenerator();
++         BiomeSource var5 = var4.getBiomeSource();
++         Random var6 = new Random(var0.getSeed());
++         BlockPos var7 = var5.findBiomeHorizontal(0, var0.getSeaLevel(), 0, 256, (var0x) -> {
+             return var0x.getMobSettings().playerSpawnFriendly();
+-         }, var7);
+-         ChunkPos var9 = var8 == null ? new ChunkPos(0, 0) : new ChunkPos(var8);
+-         if (var8 == null) {
++         }, var6);
++         ChunkPos var8 = var7 == null ? new ChunkPos(0, 0) : new ChunkPos(var7);
++         if (var7 == null) {
+             LOGGER.warn("Unable to find spawn biome");
+          }
+ 
+-         boolean var10 = false;
+-         Iterator var11 = BlockTags.VALID_SPAWN.getValues().iterator();
++         boolean var9 = false;
++         Iterator var10 = BlockTags.VALID_SPAWN.getValues().iterator();
+ 
+-         while(var11.hasNext()) {
+-            Block var12 = (Block)var11.next();
+-            if (var6.getSurfaceBlocks().contains(var12.defaultBlockState())) {
+-               var10 = true;
++         while(var10.hasNext()) {
++            Block var11 = (Block)var10.next();
++            if (var5.getSurfaceBlocks().contains(var11.defaultBlockState())) {
++               var9 = true;
+                break;
+             }
+          }
+ 
+-         var1.setSpawn(var9.getWorldPosition().offset(8, var5.getSpawnHeight(), 8), 0.0F);
+-         int var18 = 0;
+-         int var19 = 0;
++         int var18 = var4.getSpawnHeight();
++         if (var18 < var0.getMinBuildHeight()) {
++            BlockPos var19 = var8.getWorldPosition();
++            var18 = var0.getHeight(Heightmap.Types.WORLD_SURFACE, var19.getX() + 8, var19.getZ() + 8);
++         }
++
++         var1.setSpawn(var8.getWorldPosition().offset(8, var18, 8), 0.0F);
++         int var20 = 0;
++         int var12 = 0;
+          int var13 = 0;
+          int var14 = -1;
+          boolean var15 = true;
+ 
+          for(int var16 = 0; var16 < 1024; ++var16) {
+-            if (var18 > -16 && var18 <= 16 && var19 > -16 && var19 <= 16) {
+-               BlockPos var17 = PlayerRespawnLogic.getSpawnPosInChunk(var0, new ChunkPos(var9.x + var18, var9.z + var19), var10);
++            if (var20 > -16 && var20 <= 16 && var12 > -16 && var12 <= 16) {
++               BlockPos var17 = PlayerRespawnLogic.getSpawnPosInChunk(var0, new ChunkPos(var8.x + var20, var8.z + var12), var9);
+                if (var17 != null) {
+                   var1.setSpawn(var17, 0.0F);
+                   break;
+                }
+             }
+ 
+-            if (var18 == var19 || var18 < 0 && var18 == -var19 || var18 > 0 && var18 == 1 - var19) {
+-               int var21 = var13;
++            if (var20 == var12 || var20 < 0 && var20 == -var12 || var20 > 0 && var20 == 1 - var12) {
++               int var22 = var13;
+                var13 = -var14;
+-               var14 = var21;
++               var14 = var22;
+             }
+ 
+-            var18 += var13;
+-            var19 += var14;
++            var20 += var13;
++            var12 += var14;
+          }
+ 
+          if (var2) {
+-            ConfiguredFeature var20 = Features.BONUS_CHEST;
+-            var20.place(var0, var5, var0.random, new BlockPos(var1.getXSpawn(), var1.getYSpawn(), var1.getZSpawn()));
++            ConfiguredFeature var21 = Features.BONUS_CHEST;
++            var21.place(var0, var4, var0.random, new BlockPos(var1.getXSpawn(), var1.getYSpawn(), var1.getZSpawn()));
+          }
+ 
+       }
+    }
+ 
+@@ -495,11 +497,11 @@
                 this.updateMobSpawningFlags();
                 return;
              }
@@ -109,7 +230,7 @@
           LongIterator var8 = var7.getChunks().iterator();
  
           while(var8.hasNext()) {
-@@ -875,11 +872,11 @@
+@@ -875,11 +877,11 @@
        this.profiler.popPush("connection");
        this.getConnection().tick();
        this.profiler.popPush("players");
@@ -122,7 +243,7 @@
        this.profiler.popPush("server gui refresh");
  
        for(int var7 = 0; var7 < this.tickables.size(); ++var7) {
-@@ -1098,11 +1095,11 @@
+@@ -1098,11 +1100,11 @@
           if (var4 != null) {
              var1.setDynamicData("world[" + var2 + "][dimension]", var4.dimension().location());
              var1.setDynamicData("world[" + var2 + "][mode]", this.worldData.getGameType());
@@ -135,7 +256,7 @@
           }
        }
  
-@@ -1163,18 +1160,10 @@
+@@ -1163,18 +1165,10 @@
  
     public void setMotd(String var1) {
        this.motd = var1;
@@ -154,7 +275,7 @@
     }
  
     public PlayerList getPlayerList() {
-@@ -1202,11 +1191,13 @@
+@@ -1202,11 +1196,13 @@
  
     public boolean hasGui() {
        return false;
@@ -169,7 +290,7 @@
        return this.tickCount;
     }
  
-@@ -1220,18 +1211,10 @@
+@@ -1220,18 +1216,10 @@
  
     public boolean isUnderSpawnProtection(ServerLevel var1, BlockPos var2, Player var3) {
        return false;
@@ -188,7 +309,7 @@
     }
  
     public int getPlayerIdleTimeout() {
-@@ -1303,11 +1286,11 @@
+@@ -1303,11 +1291,11 @@
           Stream var10000 = var1.stream();
           PackRepository var10001 = this.packRepository;
           var10001.getClass();
@@ -201,7 +322,7 @@
           this.resources = var2x;
           this.packRepository.setSelected(var1);
           this.worldData.setDataPackConfig(getSelectedPacks(this.packRepository));
-@@ -1436,10 +1419,14 @@
+@@ -1436,10 +1424,14 @@
  
     public PredicateManager getPredicateManager() {
        return this.resources.getPredicateManager();
@@ -216,7 +337,7 @@
     }
  
     public CustomBossEvents getCustomBossEvents() {
-@@ -1568,11 +1555,11 @@
+@@ -1568,11 +1560,11 @@
        try {
           final ArrayList var4 = Lists.newArrayList();
           final GameRules var5 = this.getGameRules();
@@ -229,7 +350,7 @@
           Iterator var6 = var4.iterator();
  
           while(var6.hasNext()) {
-@@ -1723,9 +1710,22 @@
+@@ -1723,9 +1715,22 @@
     @Nullable
     public TextFilter createTextFilterForPlayer(ServerPlayer var1) {
        return null;

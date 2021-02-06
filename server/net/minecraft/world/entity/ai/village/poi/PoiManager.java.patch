@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/ai/village/poi/PoiManager.java
 +++ net/minecraft/world/entity/ai/village/poi/PoiManager.java
-@@ -23,22 +23,23 @@
+@@ -23,39 +23,42 @@
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.SectionPos;
  import net.minecraft.server.level.SectionTracker;
@@ -24,9 +24,32 @@
     }
  
     public void add(BlockPos var1, PoiType var2) {
-       ((PoiSection)this.getOrCreate(SectionPos.of(var1).asLong())).add(var1, var2);
+-      ((PoiSection)this.getOrCreate(SectionPos.of(var1).asLong())).add(var1, var2);
++      ((PoiSection)this.getOrCreate(SectionPos.asLong(var1))).add(var1, var2);
     }
-@@ -72,11 +73,11 @@
+ 
+    public void remove(BlockPos var1) {
+-      ((PoiSection)this.getOrCreate(SectionPos.of(var1).asLong())).remove(var1);
++      this.getOrLoad(SectionPos.asLong(var1)).ifPresent((var1x) -> {
++         var1x.remove(var1);
++      });
+    }
+ 
+    public long getCountInRange(Predicate<PoiType> var1, BlockPos var2, int var3, PoiManager.Occupancy var4) {
+       return this.getInRange(var1, var2, var3, var4).count();
+    }
+ 
+    public boolean existsAtPosition(PoiType var1, BlockPos var2) {
+-      Optional var3 = ((PoiSection)this.getOrCreate(SectionPos.of(var2).asLong())).getType(var2);
+-      return var3.isPresent() && ((PoiType)var3.get()).equals(var1);
++      var1.getClass();
++      return this.exists(var2, var1::equals);
+    }
+ 
+    public Stream<PoiRecord> getInSquare(Predicate<PoiType> var1, BlockPos var2, int var3, PoiManager.Occupancy var4) {
+       int var5 = Math.floorDiv(var3, 16) + 1;
+       return ChunkPos.rangeClosed(new ChunkPos(var2), var5).flatMap((var3x) -> {
+@@ -72,11 +75,11 @@
           return var2x.getPos().distSqr(var2) <= (double)var5;
        });
     }
@@ -39,7 +62,39 @@
           return ((PoiSection)var2x.get()).getRecords(var1, var3);
        });
     }
-@@ -158,11 +159,11 @@
+@@ -117,22 +120,27 @@
+          return var2.test(var1x.getPos());
+       }).findFirst().map(PoiRecord::getPos);
+    }
+ 
+    public boolean release(BlockPos var1) {
+-      return ((PoiSection)this.getOrCreate(SectionPos.of(var1).asLong())).release(var1);
++      return (Boolean)this.getOrLoad(SectionPos.asLong(var1)).map((var1x) -> {
++         return var1x.release(var1);
++      }).orElseThrow(() -> {
++         return (IllegalStateException)Util.pauseInIde(new IllegalStateException("POI never registered at " + var1));
++      });
+    }
+ 
+    public boolean exists(BlockPos var1, Predicate<PoiType> var2) {
+-      return (Boolean)this.getOrLoad(SectionPos.of(var1).asLong()).map((var2x) -> {
++      return (Boolean)this.getOrLoad(SectionPos.asLong(var1)).map((var2x) -> {
+          return var2x.exists(var1, var2);
+       }).orElse(false);
+    }
+ 
+    public Optional<PoiType> getType(BlockPos var1) {
+-      PoiSection var2 = (PoiSection)this.getOrCreate(SectionPos.of(var1).asLong());
+-      return var2.getType(var1);
++      return this.getOrLoad(SectionPos.asLong(var1)).flatMap((var1x) -> {
++         return var1x.getType(var1);
++      });
+    }
+ 
+    public int sectionsToVillage(SectionPos var1) {
+       this.distanceTracker.runAllUpdates();
+       return this.distanceTracker.getLevel(var1.asLong());
+@@ -158,11 +166,11 @@
     protected void onSectionLoad(long var1) {
        this.distanceTracker.update(var1, this.distanceTracker.getLevelFromSource(var1), false);
     }
@@ -52,7 +107,7 @@
              if (mayHavePoi(var2)) {
                 this.updateFromSection(var2, var3, var3xx);
              }
-@@ -191,11 +192,11 @@
+@@ -191,11 +199,11 @@
           });
        });
     }

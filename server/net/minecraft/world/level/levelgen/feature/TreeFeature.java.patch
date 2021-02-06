@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/feature/TreeFeature.java
 +++ net/minecraft/world/level/levelgen/feature/TreeFeature.java
-@@ -14,15 +14,13 @@
+@@ -14,19 +14,16 @@
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.core.Vec3i;
@@ -14,9 +14,13 @@
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.properties.BlockStateProperties;
- import net.minecraft.world.level.chunk.ChunkGenerator;
+-import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.Heightmap;
-@@ -62,12 +60,11 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
+ import net.minecraft.world.level.levelgen.structure.BoundingBox;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+ import net.minecraft.world.level.material.Material;
+@@ -62,12 +59,11 @@
        });
     }
  
@@ -30,7 +34,7 @@
  
     private static boolean isReplaceablePlant(LevelSimulatedReader var0, BlockPos var1) {
        return var0.isStateAtPosition(var1, (var0x) -> {
-@@ -82,11 +79,11 @@
+@@ -82,11 +78,11 @@
  
     public static boolean validTreePos(LevelSimulatedReader var0, BlockPos var1) {
        return isAirOrLeaves(var0, var1) || isReplaceablePlant(var0, var1) || isBlockWater(var0, var1);
@@ -43,7 +47,7 @@
        int var10 = var8 - var9;
        int var11 = var7.foliagePlacer.foliageRadius(var2, var10);
        BlockPos var12;
-@@ -110,11 +107,11 @@
+@@ -110,11 +106,11 @@
           var12 = new BlockPos(var3.getX(), var15, var3.getZ());
        } else {
           var12 = var3;
@@ -56,7 +60,46 @@
           } else {
              OptionalInt var16 = var7.minimumSize.minClippedHeight();
              var14 = this.getMaxFreeTreeHeight(var1, var8, var12, var7);
-@@ -195,20 +192,20 @@
+@@ -154,29 +150,33 @@
+ 
+    protected void setBlock(LevelWriter var1, BlockPos var2, BlockState var3) {
+       setBlockKnownShape(var1, var2, var3);
+    }
+ 
+-   public final boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, TreeConfiguration var5) {
++   public final boolean place(FeaturePlaceContext<TreeConfiguration> var1) {
++      WorldGenLevel var2 = var1.level();
++      Random var3 = var1.random();
++      BlockPos var4 = var1.origin();
++      TreeConfiguration var5 = (TreeConfiguration)var1.config();
+       HashSet var6 = Sets.newHashSet();
+       HashSet var7 = Sets.newHashSet();
+       HashSet var8 = Sets.newHashSet();
+       BoundingBox var9 = BoundingBox.getUnknownBox();
+-      boolean var10 = this.doPlace(var1, var3, var4, var6, var7, var9, var5);
++      boolean var10 = this.doPlace(var2, var3, var4, var6, var7, var9, var5);
+       if (var9.x0 <= var9.x1 && var10 && !var6.isEmpty()) {
+          if (!var5.decorators.isEmpty()) {
+             ArrayList var11 = Lists.newArrayList((Iterable)var6);
+             ArrayList var12 = Lists.newArrayList((Iterable)var7);
+             var11.sort(Comparator.comparingInt(Vec3i::getY));
+             var12.sort(Comparator.comparingInt(Vec3i::getY));
+             var5.decorators.forEach((var6x) -> {
+-               var6x.place(var1, var3, var11, var12, var8, var9);
++               var6x.place(var2, var3, var11, var12, var8, var9);
+             });
+          }
+ 
+-         DiscreteVoxelShape var13 = this.updateLeaves(var1, var9, var6, var8);
+-         StructureTemplate.updateShapeAtEdge(var1, 3, var13, var9.x0, var9.y0, var9.z0);
++         DiscreteVoxelShape var13 = this.updateLeaves(var2, var9, var6, var8);
++         StructureTemplate.updateShapeAtEdge(var2, 3, var13, var9.x0, var9.y0, var9.z0);
+          return true;
+       } else {
+          return false;
+       }
+    }
+@@ -195,20 +195,20 @@
  
        BlockPos var10;
        while(var9.hasNext()) {
@@ -79,7 +122,7 @@
           Direction[] var11 = Direction.values();
           int var12 = var11.length;
  
-@@ -219,11 +216,11 @@
+@@ -219,11 +219,11 @@
                 BlockState var15 = var1.getBlockState(var21);
                 if (var15.hasProperty(BlockStateProperties.DISTANCE)) {
                    ((Set)var5.get(0)).add(var21.immutable());
@@ -92,7 +135,7 @@
              }
           }
        }
-@@ -234,11 +231,11 @@
+@@ -234,11 +234,11 @@
           Iterator var25 = var23.iterator();
  
           while(var25.hasNext()) {
@@ -105,7 +148,7 @@
              Direction[] var27 = Direction.values();
              int var28 = var27.length;
  
-@@ -251,11 +248,11 @@
+@@ -251,11 +251,11 @@
                       int var19 = (Integer)var18.getValue(BlockStateProperties.DISTANCE);
                       if (var19 > var22 + 1) {
                          BlockState var20 = (BlockState)var18.setValue(BlockStateProperties.DISTANCE, var22 + 1);

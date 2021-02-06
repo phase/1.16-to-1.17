@@ -43,3 +43,31 @@
           LOGGER.debug("Removed POI of type {} @ {}", new Supplier[]{var2::getPoiType, var2::getPos});
           this.setDirty.run();
        }
+@@ -123,21 +117,21 @@
+          return var3;
+       }
+    }
+ 
+    public boolean exists(BlockPos var1, Predicate<PoiType> var2) {
+-      short var3 = SectionPos.sectionRelativePos(var1);
+-      PoiRecord var4 = (PoiRecord)this.records.get(var3);
+-      return var4 != null && var2.test(var4.getPoiType());
++      return this.getType(var1).filter(var2).isPresent();
+    }
+ 
+    public Optional<PoiType> getType(BlockPos var1) {
+-      short var2 = SectionPos.sectionRelativePos(var1);
+-      PoiRecord var3 = (PoiRecord)this.records.get(var2);
+-      return var3 != null ? Optional.of(var3.getPoiType()) : Optional.empty();
++      return this.getPoiRecord(var1).map(PoiRecord::getPoiType);
+    }
+ 
++   private Optional<PoiRecord> getPoiRecord(BlockPos var1) {
++      return Optional.ofNullable(this.records.get(SectionPos.sectionRelativePos(var1)));
++   }
++
+    public void refresh(Consumer<BiConsumer<BlockPos, PoiType>> var1) {
+       if (!this.isValid) {
+          Short2ObjectOpenHashMap var2 = new Short2ObjectOpenHashMap(this.records);
+          this.clear();
+          var1.accept((var2x, var3) -> {

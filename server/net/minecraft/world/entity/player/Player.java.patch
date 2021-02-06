@@ -35,10 +35,13 @@
  import net.minecraft.world.entity.ai.attributes.Attributes;
  import net.minecraft.world.entity.animal.Parrot;
  import net.minecraft.world.entity.animal.Pig;
-@@ -76,11 +79,10 @@
+@@ -74,13 +77,13 @@
+ import net.minecraft.world.entity.projectile.FishingHook;
+ import net.minecraft.world.entity.vehicle.AbstractMinecart;
  import net.minecraft.world.entity.vehicle.Boat;
  import net.minecraft.world.food.FoodData;
  import net.minecraft.world.inventory.AbstractContainerMenu;
++import net.minecraft.world.inventory.ClickAction;
  import net.minecraft.world.inventory.InventoryMenu;
  import net.minecraft.world.inventory.PlayerEnderChestContainer;
 -import net.minecraft.world.item.ArmorItem;
@@ -47,7 +50,7 @@
  import net.minecraft.world.item.ItemCooldowns;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
-@@ -116,11 +118,11 @@
+@@ -116,11 +119,11 @@
     protected static final EntityDataAccessor<Byte> DATA_PLAYER_MODE_CUSTOMISATION;
     protected static final EntityDataAccessor<Byte> DATA_PLAYER_MAIN_HAND;
     protected static final EntityDataAccessor<CompoundTag> DATA_SHOULDER_LEFT;
@@ -60,7 +63,7 @@
     public AbstractContainerMenu containerMenu;
     protected FoodData foodData = new FoodData();
     protected int jumpTriggerTime;
-@@ -133,11 +135,11 @@
+@@ -133,11 +136,11 @@
     public double xCloak;
     public double yCloak;
     public double zCloak;
@@ -73,7 +76,7 @@
     public float experienceProgress;
     protected int enchantmentSeed;
     protected final float defaultFlySpeed = 0.02F;
-@@ -276,11 +278,11 @@
+@@ -276,11 +279,11 @@
        return this.wasUnderwater;
     }
  
@@ -86,7 +89,7 @@
  
     }
  
-@@ -401,11 +403,11 @@
+@@ -401,11 +404,11 @@
     protected void closeContainer() {
        this.containerMenu = this.inventoryMenu;
     }
@@ -99,7 +102,7 @@
        } else {
           double var1 = this.getX();
           double var3 = this.getY();
-@@ -455,24 +457,31 @@
+@@ -455,24 +458,31 @@
        }
  
        this.bob += (var1 - this.bob) * 0.4F;
@@ -136,7 +139,20 @@
        this.playShoulderEntityAmbientSound(this.getShoulderEntityLeft());
        this.playShoulderEntityAmbientSound(this.getShoulderEntityRight());
        if (!this.level.isClientSide && (this.fallDistance > 0.5F || this.isInWater()) || this.abilities.flying || this.isSleeping()) {
-@@ -555,12 +564,14 @@
+@@ -528,11 +538,11 @@
+ 
+       this.awardStat(Stats.DEATHS);
+       this.resetStat(Stats.CUSTOM.get(Stats.TIME_SINCE_DEATH));
+       this.resetStat(Stats.CUSTOM.get(Stats.TIME_SINCE_REST));
+       this.clearFire();
+-      this.setSharedFlag(0, false);
++      this.setSharedFlagOnFire(false);
+    }
+ 
+    protected void dropEquipment() {
+       super.dropEquipment();
+       if (!this.level.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY)) {
+@@ -555,12 +565,14 @@
     protected SoundEvent getHurtSound(DamageSource var1) {
        if (var1 == DamageSource.ON_FIRE) {
           return SoundEvents.PLAYER_HURT_ON_FIRE;
@@ -152,7 +168,7 @@
  
     protected SoundEvent getDeathSound() {
        return SoundEvents.PLAYER_DEATH;
-@@ -721,14 +732,16 @@
+@@ -721,14 +733,16 @@
     public boolean isInvulnerableTo(DamageSource var1) {
        if (super.isInvulnerableTo(var1)) {
           return true;
@@ -170,7 +186,7 @@
        }
     }
  
-@@ -768,10 +781,14 @@
+@@ -768,10 +782,14 @@
           this.disableShield(true);
        }
  
@@ -185,7 +201,7 @@
        Team var3 = var1.getTeam();
        if (var2 == null) {
           return true;
-@@ -783,11 +800,11 @@
+@@ -783,11 +801,11 @@
     protected void hurtArmor(DamageSource var1, float var2) {
        this.inventory.hurtArmor(var1, var2);
     }
@@ -198,7 +214,7 @@
           }
  
           if (var1 >= 3.0F) {
-@@ -1181,12 +1198,12 @@
+@@ -1181,12 +1199,12 @@
           ((ServerLevel)this.level).sendParticles(ParticleTypes.SWEEP_ATTACK, this.getX() + var1, this.getY(0.5D), this.getZ() + var3, 0, var1, 0.0D, var3, 0.0D);
        }
  
@@ -213,7 +229,7 @@
           this.containerMenu.removed(this);
        }
  
-@@ -1198,10 +1215,18 @@
+@@ -1198,10 +1216,21 @@
  
     public GameProfile getGameProfile() {
        return this.gameProfile;
@@ -227,12 +243,15 @@
 +      return this.abilities;
 +   }
 +
++   public void updateTutorialInventoryAction(ItemStack var1, ItemStack var2, ClickAction var3) {
++   }
++
     public Either<Player.BedSleepingProblem, Unit> startSleepInBed(BlockPos var1) {
        this.startSleeping(var1);
        this.sleepCounter = 0;
        return Either.right(Unit.INSTANCE);
     }
-@@ -1410,26 +1435,26 @@
+@@ -1410,26 +1439,26 @@
           }
        }
  
@@ -262,7 +281,16 @@
           }
        }
  
-@@ -1583,13 +1608,10 @@
+@@ -1576,20 +1605,17 @@
+ 
+    protected boolean isAlwaysExperienceDropper() {
+       return true;
+    }
+ 
+-   protected boolean isMovementNoisy() {
+-      return !this.abilities.flying && (!this.onGround || !this.isDiscrete());
++   protected Entity.MovementEmission getMovementEmission() {
++      return this.abilities.flying || this.onGround && this.isDiscrete() ? Entity.MovementEmission.NONE : Entity.MovementEmission.ALL;
     }
  
     public void onUpdateAbilities() {
@@ -276,7 +304,36 @@
     }
  
     public PlayerEnderChestContainer getEnderChestInventory() {
-@@ -1743,56 +1765,16 @@
+@@ -1606,24 +1632,24 @@
+       }
+    }
+ 
+    public void setItemSlot(EquipmentSlot var1, ItemStack var2) {
+       if (var1 == EquipmentSlot.MAINHAND) {
+-         this.playEquipSound(var2);
++         this.equipEventAndSound(var2);
+          this.inventory.items.set(this.inventory.selected, var2);
+       } else if (var1 == EquipmentSlot.OFFHAND) {
+-         this.playEquipSound(var2);
++         this.equipEventAndSound(var2);
+          this.inventory.offhand.set(0, var2);
+       } else if (var1.getType() == EquipmentSlot.Type.ARMOR) {
+-         this.playEquipSound(var2);
++         this.equipEventAndSound(var2);
+          this.inventory.armor.set(var1.getIndex(), var2);
+       }
+ 
+    }
+ 
+    public boolean addItem(ItemStack var1) {
+-      this.playEquipSound(var1);
++      this.equipEventAndSound(var1);
+       return this.inventory.add(var1);
+    }
+ 
+    public Iterable<ItemStack> getHandSlots() {
+       return Lists.newArrayList((Object[])(this.getMainHandItem(), this.getOffhandItem()));
+@@ -1743,56 +1769,16 @@
  
     public static UUID createPlayerUUID(String var0) {
        return UUID.nameUUIDFromBytes(("OfflinePlayer:" + var0).getBytes(StandardCharsets.UTF_8));
@@ -337,7 +394,7 @@
  
     public void setRemainingFireTicks(int var1) {
        super.setRemainingFireTicks(this.abilities.invulnerable ? Math.min(var1, 1) : var1);
-@@ -1899,10 +1881,14 @@
+@@ -1899,10 +1885,14 @@
  
     protected boolean shouldRemoveSoulSpeed(BlockState var1) {
        return this.abilities.flying || super.shouldRemoveSoulSpeed(var1);

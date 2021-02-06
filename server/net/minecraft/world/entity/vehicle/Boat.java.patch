@@ -24,7 +24,7 @@
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
-@@ -86,11 +90,10 @@
+@@ -86,22 +90,21 @@
     }
  
     public Boat(Level var1, double var2, double var4, double var6) {
@@ -36,6 +36,19 @@
        this.zo = var6;
     }
  
+    protected float getEyeHeight(Pose var1, EntityDimensions var2) {
+       return var2.height;
+    }
+ 
+-   protected boolean isMovementNoisy() {
+-      return false;
++   protected Entity.MovementEmission getMovementEmission() {
++      return Entity.MovementEmission.NONE;
+    }
+ 
+    protected void defineSynchedData() {
+       this.entityData.define(DATA_ID_HURT, 0);
+       this.entityData.define(DATA_ID_HURTDIR, 1);
 @@ -137,22 +140,23 @@
     }
  
@@ -44,12 +57,12 @@
           return false;
 -      } else if (!this.level.isClientSide && !this.removed) {
 +      } else if (!this.level.isClientSide && !this.isRemoved()) {
-+         this.gameEvent(var1.getEntity(), GameEvent.ENTITY_HIT);
           this.setHurtDir(-this.getHurtDir());
           this.setHurtTime(10);
           this.setDamage(this.getDamage() + var2 * 10.0F);
           this.markHurt();
 -         boolean var3 = var1.getEntity() instanceof Player && ((Player)var1.getEntity()).abilities.instabuild;
++         this.gameEvent(GameEvent.ENTITY_DAMAGED, var1.getEntity());
 +         boolean var3 = var1.getEntity() instanceof Player && ((Player)var1.getEntity()).getAbilities().instabuild;
           if (var3 || this.getDamage() > 40.0F) {
              if (!var3 && this.level.getGameRules().getBoolean(GameRules.RULE_DOENTITYDROPS)) {
@@ -69,7 +82,7 @@
           this.level.playLocalSound(this.getX(), this.getY(), this.getZ(), this.getSwimSplashSound(), this.getSoundSource(), 1.0F, 0.8F + 0.4F * this.random.nextFloat(), false);
        }
  
-+      this.gameEvent(this.getControllingPassenger(), GameEvent.SPLASH);
++      this.gameEvent(GameEvent.SPLASH, this.getControllingPassenger());
     }
  
     public void push(Entity var1) {
@@ -141,7 +154,14 @@
              if (var4 == 0) {
                 var2 = 0.2F;
              } else {
-@@ -626,26 +634,33 @@
+@@ -620,32 +628,39 @@
+ 
+       }
+    }
+ 
+    public Vec3 getDismountLocationForPassenger(LivingEntity var1) {
+-      Vec3 var2 = getCollisionHorizontalEscapeVector((double)(this.getBbWidth() * Mth.SQRT_OF_TWO), (double)var1.getBbWidth(), this.yRot);
++      Vec3 var2 = getCollisionHorizontalEscapeVector((double)(this.getBbWidth() * Mth.SQRT_OF_TWO), (double)var1.getBbWidth(), var1.yRot);
        double var3 = this.getX() + var2.x;
        double var5 = this.getZ() + var2.z;
        BlockPos var7 = new BlockPos(var3, this.getBoundingBox().maxY, var5);

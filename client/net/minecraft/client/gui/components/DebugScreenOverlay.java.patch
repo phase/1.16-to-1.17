@@ -24,7 +24,19 @@
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.util.FrameTimer;
  import net.minecraft.util.Mth;
-@@ -206,11 +208,11 @@
+@@ -56,11 +58,10 @@
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.properties.Property;
+ import net.minecraft.world.level.chunk.ChunkStatus;
+ import net.minecraft.world.level.chunk.LevelChunk;
+ import net.minecraft.world.level.levelgen.Heightmap;
+-import net.minecraft.world.level.lighting.LevelLightEngine;
+ import net.minecraft.world.level.material.FluidState;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.HitResult;
+ 
+ public class DebugScreenOverlay extends GuiComponent {
+@@ -206,90 +207,74 @@
  
           var13.add(this.minecraft.level.dimension().location() + " FC: " + ((LongSet)var12).size());
           var13.add("");
@@ -33,24 +45,138 @@
 -         var13.add(String.format("Chunk: %d %d %d in %d %d %d", var6.getX() & 15, var6.getY() & 15, var6.getZ() & 15, var6.getX() >> 4, var6.getY() >> 4, var6.getZ() >> 4));
 +         var13.add(String.format("Chunk: %d %d %d in %d %d %d", var6.getX() & 15, var6.getY() & 15, var6.getZ() & 15, SectionPos.blockToSectionCoord(var6.getX()), SectionPos.blockToSectionCoord(var6.getY()), SectionPos.blockToSectionCoord(var6.getZ())));
           var13.add(String.format(Locale.ROOT, "Facing: %s (%s) (%.1f / %.1f)", var8, var9, Mth.wrapDegrees(var7.yRot), Mth.wrapDegrees(var7.xRot)));
-          int var18;
-          if (this.minecraft.level != null) {
-             if (this.minecraft.level.hasChunkAt(var6)) {
-                LevelChunk var15 = this.getClientChunk();
-@@ -259,11 +261,11 @@
-                         }
-                      }
-                   }
+-         int var18;
+-         if (this.minecraft.level != null) {
+-            if (this.minecraft.level.hasChunkAt(var6)) {
+-               LevelChunk var15 = this.getClientChunk();
+-               if (var15.isEmpty()) {
+-                  var13.add("Waiting for chunk...");
+-               } else {
+-                  int var16 = this.minecraft.level.getChunkSource().getLightEngine().getRawBrightness(var6, 0);
+-                  int var17 = this.minecraft.level.getBrightness(LightLayer.SKY, var6);
+-                  var18 = this.minecraft.level.getBrightness(LightLayer.BLOCK, var6);
+-                  var13.add("Client Light: " + var16 + " (" + var17 + " sky, " + var18 + " block)");
+-                  LevelChunk var19 = this.getServerChunk();
+-                  if (var19 != null) {
+-                     LevelLightEngine var20 = var11.getChunkSource().getLightEngine();
+-                     var13.add("Server Light: (" + var20.getLayerListener(LightLayer.SKY).getLightValue(var6) + " sky, " + var20.getLayerListener(LightLayer.BLOCK).getLightValue(var6) + " block)");
+-                  } else {
+-                     var13.add("Server Light: (?? sky, ?? block)");
+-                  }
++         LevelChunk var15 = this.getClientChunk();
++         if (var15.isEmpty()) {
++            var13.add("Waiting for chunk...");
++         } else {
++            int var16 = this.minecraft.level.getChunkSource().getLightEngine().getRawBrightness(var6, 0);
++            int var17 = this.minecraft.level.getBrightness(LightLayer.SKY, var6);
++            int var18 = this.minecraft.level.getBrightness(LightLayer.BLOCK, var6);
++            var13.add("Client Light: " + var16 + " (" + var17 + " sky, " + var18 + " block)");
++            LevelChunk var19 = this.getServerChunk();
++            StringBuilder var20 = new StringBuilder("CH");
++            Heightmap.Types[] var21 = Heightmap.Types.values();
++            int var22 = var21.length;
  
-                   var13.add(var29.toString());
+-                  StringBuilder var29 = new StringBuilder("CH");
+-                  Heightmap.Types[] var21 = Heightmap.Types.values();
+-                  int var22 = var21.length;
++            int var23;
++            Heightmap.Types var24;
++            for(var23 = 0; var23 < var22; ++var23) {
++               var24 = var21[var23];
++               if (var24.sendToClient()) {
++                  var20.append(" ").append((String)HEIGHTMAP_NAMES.get(var24)).append(": ").append(var15.getHeight(var24, var6.getX(), var6.getZ()));
++               }
++            }
+ 
+-                  int var23;
+-                  Heightmap.Types var24;
+-                  for(var23 = 0; var23 < var22; ++var23) {
+-                     var24 = var21[var23];
+-                     if (var24.sendToClient()) {
+-                        var29.append(" ").append((String)HEIGHTMAP_NAMES.get(var24)).append(": ").append(var15.getHeight(var24, var6.getX(), var6.getZ()));
+-                     }
+-                  }
++            var13.add(var20.toString());
++            var20.setLength(0);
++            var20.append("SH");
++            var21 = Heightmap.Types.values();
++            var22 = var21.length;
+ 
+-                  var13.add(var29.toString());
+-                  var29.setLength(0);
+-                  var29.append("SH");
+-                  var21 = Heightmap.Types.values();
+-                  var22 = var21.length;
+-
+-                  for(var23 = 0; var23 < var22; ++var23) {
+-                     var24 = var21[var23];
+-                     if (var24.keepAfterWorldgen()) {
+-                        var29.append(" ").append((String)HEIGHTMAP_NAMES.get(var24)).append(": ");
+-                        if (var19 != null) {
+-                           var29.append(var19.getHeight(var24, var6.getX(), var6.getZ()));
+-                        } else {
+-                           var29.append("??");
+-                        }
+-                     }
++            for(var23 = 0; var23 < var22; ++var23) {
++               var24 = var21[var23];
++               if (var24.keepAfterWorldgen()) {
++                  var20.append(" ").append((String)HEIGHTMAP_NAMES.get(var24)).append(": ");
++                  if (var19 != null) {
++                     var20.append(var19.getHeight(var24, var6.getX(), var6.getZ()));
++                  } else {
++                     var20.append("??");
+                   }
++               }
++            }
+ 
+-                  var13.add(var29.toString());
 -                  if (var6.getY() >= 0 && var6.getY() < 256) {
-+                  if (var6.getY() >= this.minecraft.level.getMinBuildHeight() && var6.getY() < this.minecraft.level.getMaxBuildHeight()) {
-                      var13.add("Biome: " + this.minecraft.level.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY).getKey(this.minecraft.level.getBiome(var6)));
-                      long var30 = 0L;
-                      float var31 = 0.0F;
-                      if (var19 != null) {
-                         var31 = var11.getMoonBrightness();
-@@ -378,11 +380,11 @@
+-                     var13.add("Biome: " + this.minecraft.level.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY).getKey(this.minecraft.level.getBiome(var6)));
+-                     long var30 = 0L;
+-                     float var31 = 0.0F;
+-                     if (var19 != null) {
+-                        var31 = var11.getMoonBrightness();
+-                        var30 = var19.getInhabitedTime();
+-                     }
+-
+-                     DifficultyInstance var32 = new DifficultyInstance(var11.getDifficulty(), var11.getDayTime(), var30, var31);
+-                     var13.add(String.format(Locale.ROOT, "Local Difficulty: %.2f // %.2f (Day %d)", var32.getEffectiveDifficulty(), var32.getSpecialMultiplier(), this.minecraft.level.getDayTime() / 24000L));
+-                  }
++            var13.add(var20.toString());
++            if (var6.getY() >= this.minecraft.level.getMinBuildHeight() && var6.getY() < this.minecraft.level.getMaxBuildHeight()) {
++               var13.add("Biome: " + this.minecraft.level.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY).getKey(this.minecraft.level.getBiome(var6)));
++               long var30 = 0L;
++               float var31 = 0.0F;
++               if (var19 != null) {
++                  var31 = var11.getMoonBrightness();
++                  var30 = var19.getInhabitedTime();
+                }
+-            } else {
+-               var13.add("Outside of world...");
++
++               DifficultyInstance var32 = new DifficultyInstance(var11.getDifficulty(), var11.getDayTime(), var30, var31);
++               var13.add(String.format(Locale.ROOT, "Local Difficulty: %.2f // %.2f (Day %d)", var32.getEffectiveDifficulty(), var32.getSpecialMultiplier(), this.minecraft.level.getDayTime() / 24000L));
+             }
+-         } else {
+-            var13.add("Outside of world...");
+          }
+ 
+          ServerLevel var25 = this.getServerLevel();
+          if (var25 != null) {
+             NaturalSpawner.SpawnState var26 = var25.getChunkSource().getLastSpawnState();
+             if (var26 != null) {
+                Object2IntMap var28 = var26.getMobCategoryCounts();
+-               var18 = var26.getSpawnableChunkCount();
+-               var13.add("SC: " + var18 + ", " + (String)Stream.of(MobCategory.values()).map((var1x) -> {
++               int var29 = var26.getSpawnableChunkCount();
++               var13.add("SC: " + var29 + ", " + (String)Stream.of(MobCategory.values()).map((var1x) -> {
+                   return Character.toUpperCase(var1x.getName().charAt(0)) + ": " + var28.getInt(var1x);
+                }).collect(Collectors.joining(", ")));
+             } else {
+                var13.add("SC: N/A");
+             }
+@@ -378,11 +363,11 @@
              while(var12.hasNext()) {
                 var13 = (Entry)var12.next();
                 var9.add(this.getPropertyValueString(var13));
@@ -63,7 +189,7 @@
                 var17 = (ResourceLocation)var16.next();
                 var9.add("#" + var17);
              }
-@@ -399,11 +401,11 @@
+@@ -399,11 +384,11 @@
              while(var12.hasNext()) {
                 var13 = (Entry)var12.next();
                 var9.add(this.getPropertyValueString(var13));
@@ -76,7 +202,7 @@
                 var17 = (ResourceLocation)var16.next();
                 var9.add("#" + var17);
              }
-@@ -458,11 +460,11 @@
+@@ -458,11 +443,11 @@
        fill(var1, var3, var17 - 60, var3 + var12, var17, -1873784752);
        BufferBuilder var27 = Tesselator.getInstance().getBuilder();
        RenderSystem.enableBlend();

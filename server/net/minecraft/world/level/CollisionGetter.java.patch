@@ -1,16 +1,45 @@
 --- net/minecraft/world/level/CollisionGetter.java
 +++ net/minecraft/world/level/CollisionGetter.java
-@@ -63,9 +63,13 @@
+@@ -1,17 +1,20 @@
+ package net.minecraft.world.level;
  
-    default Stream<VoxelShape> getBlockCollisions(@Nullable Entity var1, AABB var2) {
-       return StreamSupport.stream(new CollisionSpliterator(this, var1, var2), false);
++import java.util.Optional;
+ import java.util.function.BiPredicate;
+ import java.util.function.Predicate;
+ import java.util.stream.Stream;
+ import java.util.stream.StreamSupport;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.border.WorldBorder;
+ import net.minecraft.world.phys.AABB;
++import net.minecraft.world.phys.Vec3;
++import net.minecraft.world.phys.shapes.BooleanOp;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+ public interface CollisionGetter extends BlockGetter {
+@@ -66,6 +69,21 @@
     }
  
-+   default boolean noBlockCollision(@Nullable Entity var1, AABB var2, BiPredicate<BlockState, BlockPos> var3) {
-+      return this.getBlockCollisions(var1, var2, var3).allMatch(VoxelShape::isEmpty);
-+   }
-+
     default Stream<VoxelShape> getBlockCollisions(@Nullable Entity var1, AABB var2, BiPredicate<BlockState, BlockPos> var3) {
        return StreamSupport.stream(new CollisionSpliterator(this, var1, var2, var3), false);
     }
++
++   default Optional<Vec3> findFreePosition(@Nullable Entity var1, VoxelShape var2, Vec3 var3, double var4, double var6, double var8) {
++      if (var2.isEmpty()) {
++         return Optional.empty();
++      } else {
++         AABB var10 = var2.bounds().inflate(var4, var6, var8);
++         VoxelShape var11 = (VoxelShape)this.getBlockCollisions(var1, var10).flatMap((var0) -> {
++            return var0.toAabbs().stream();
++         }).map((var6x) -> {
++            return var6x.inflate(var4 / 2.0D, var6 / 2.0D, var8 / 2.0D);
++         }).map(Shapes::create).reduce(Shapes.empty(), Shapes::or);
++         VoxelShape var12 = Shapes.join(var2, var11, BooleanOp.ONLY_FIRST);
++         return var12.closestPointTo(var3);
++      }
++   }
  }

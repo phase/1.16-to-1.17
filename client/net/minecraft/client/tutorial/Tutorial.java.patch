@@ -1,6 +1,42 @@
 --- net/minecraft/client/tutorial/Tutorial.java
 +++ net/minecraft/client/tutorial/Tutorial.java
-@@ -123,12 +123,16 @@
+@@ -3,29 +3,33 @@
+ import com.google.common.collect.Lists;
+ import java.util.List;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.client.Minecraft;
++import net.minecraft.client.Options;
+ import net.minecraft.client.gui.components.toasts.TutorialToast;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.player.Input;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.KeybindComponent;
++import net.minecraft.world.inventory.ClickAction;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.HitResult;
+ 
+ public class Tutorial {
+    private final Minecraft minecraft;
+    @Nullable
+    private TutorialStepInstance instance;
+-   private List<Tutorial.TimedToast> timedToasts = Lists.newArrayList();
++   private final List<Tutorial.TimedToast> timedToasts = Lists.newArrayList();
++   private final BundleTutorial bundleTutorial;
+ 
+-   public Tutorial(Minecraft var1) {
++   public Tutorial(Minecraft var1, Options var2) {
+       this.minecraft = var1;
++      this.bundleTutorial = new BundleTutorial(this, var2);
+    }
+ 
+    public void onInput(Input var1) {
+       if (this.instance != null) {
+          this.instance.onInput(var1);
+@@ -123,18 +127,26 @@
  
     public Minecraft getMinecraft() {
        return this.minecraft;
@@ -19,3 +55,13 @@
     public static Component key(String var0) {
        return (new KeybindComponent("key." + var0)).withStyle(ChatFormatting.BOLD);
     }
+ 
++   public void onInventoryAction(ItemStack var1, ItemStack var2, ClickAction var3) {
++      this.bundleTutorial.onInventoryAction(var1, var2, var3);
++   }
++
+    static final class TimedToast {
+       private final TutorialToast toast;
+       private final int durationTicks;
+       private int progress;
+ 

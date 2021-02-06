@@ -1,31 +1,48 @@
 --- net/minecraft/world/level/levelgen/feature/ReplaceBlobsFeature.java
 +++ net/minecraft/world/level/levelgen/feature/ReplaceBlobsFeature.java
-@@ -18,38 +18,41 @@
+@@ -8,48 +8,53 @@
+ import net.minecraft.core.Direction;
+ import net.minecraft.world.level.LevelAccessor;
+ import net.minecraft.world.level.WorldGenLevel;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
+-import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.levelgen.feature.configurations.ReplaceSphereConfiguration;
+ 
+ public class ReplaceBlobsFeature extends Feature<ReplaceSphereConfiguration> {
+    public ReplaceBlobsFeature(Codec<ReplaceSphereConfiguration> var1) {
        super(var1);
     }
  
-    public boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, ReplaceSphereConfiguration var5) {
-       Block var6 = var5.targetState.getBlock();
+-   public boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, ReplaceSphereConfiguration var5) {
+-      Block var6 = var5.targetState.getBlock();
 -      BlockPos var7 = findTarget(var1, var4.mutable().clamp(Direction.Axis.Y, 1, var1.getMaxBuildHeight() - 1), var6);
-+      BlockPos var7 = findTarget(var1, var4.mutable().clamp(Direction.Axis.Y, var1.getMinBuildHeight() + 1, var1.getMaxBuildHeight() - 1), var6);
-       if (var7 == null) {
+-      if (var7 == null) {
++   public boolean place(FeaturePlaceContext<ReplaceSphereConfiguration> var1) {
++      ReplaceSphereConfiguration var2 = (ReplaceSphereConfiguration)var1.config();
++      WorldGenLevel var3 = var1.level();
++      Random var4 = var1.random();
++      Block var5 = var2.targetState.getBlock();
++      BlockPos var6 = findTarget(var3, var1.origin().mutable().clamp(Direction.Axis.Y, var3.getMinBuildHeight() + 1, var3.getMaxBuildHeight() - 1), var5);
++      if (var6 == null) {
           return false;
        } else {
-          int var8 = var5.radius().sample(var3);
+-         int var8 = var5.radius().sample(var3);
 -         boolean var9 = false;
 -         Iterator var10 = BlockPos.withinManhattan(var7, var8, var8, var8).iterator();
-+         int var9 = var5.radius().sample(var3);
-+         int var10 = var5.radius().sample(var3);
-+         int var11 = Math.max(var8, Math.max(var9, var10));
-+         boolean var12 = false;
-+         Iterator var13 = BlockPos.withinManhattan(var7, var8, var9, var10).iterator();
++         int var7 = var2.radius().sample(var4);
++         int var8 = var2.radius().sample(var4);
++         int var9 = var2.radius().sample(var4);
++         int var10 = Math.max(var7, Math.max(var8, var9));
++         boolean var11 = false;
++         Iterator var12 = BlockPos.withinManhattan(var6, var7, var8, var9).iterator();
  
 -         while(var10.hasNext()) {
 -            BlockPos var11 = (BlockPos)var10.next();
 -            if (var11.distManhattan(var7) > var8) {
-+         while(var13.hasNext()) {
-+            BlockPos var14 = (BlockPos)var13.next();
-+            if (var14.distManhattan(var7) > var11) {
++         while(var12.hasNext()) {
++            BlockPos var13 = (BlockPos)var12.next();
++            if (var13.distManhattan(var6) > var10) {
                 break;
              }
  
@@ -33,15 +50,15 @@
 -            if (var12.is(var6)) {
 -               this.setBlock(var1, var11, var5.replaceState);
 -               var9 = true;
-+            BlockState var15 = var1.getBlockState(var14);
-+            if (var15.is(var6)) {
-+               this.setBlock(var1, var14, var5.replaceState);
-+               var12 = true;
++            BlockState var14 = var3.getBlockState(var13);
++            if (var14.is(var5)) {
++               this.setBlock(var3, var13, var2.replaceState);
++               var11 = true;
              }
           }
  
 -         return var9;
-+         return var12;
++         return var11;
        }
     }
  

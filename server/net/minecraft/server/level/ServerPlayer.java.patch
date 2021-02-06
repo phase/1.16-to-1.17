@@ -178,7 +178,14 @@
                 if (var6 != null) {
                    this.connection.send(var6);
                 }
-@@ -540,11 +523,11 @@
+@@ -534,17 +517,17 @@
+       this.level.broadcastEntityEvent(this, (byte)3);
+       this.awardStat(Stats.DEATHS);
+       this.resetStat(Stats.CUSTOM.get(Stats.TIME_SINCE_DEATH));
+       this.resetStat(Stats.CUSTOM.get(Stats.TIME_SINCE_REST));
+       this.clearFire();
+-      this.setSharedFlag(0, false);
++      this.setSharedFlagOnFire(false);
        this.getCombatTracker().recheckStatus();
     }
  
@@ -248,11 +255,26 @@
              }
           }
        } else {
-@@ -847,11 +833,11 @@
+@@ -841,17 +827,25 @@
+    public void stopRiding() {
+       Entity var1 = this.getVehicle();
+       super.stopRiding();
+       Entity var2 = this.getVehicle();
+       if (var2 != var1 && this.connection != null) {
+-         this.connection.teleport(this.getX(), this.getY(), this.getZ(), this.yRot, this.xRot);
++         this.connection.dismount(this.getX(), this.getY(), this.getZ(), this.yRot, this.xRot);
        }
  
     }
  
++   public void dismountTo(double var1, double var3, double var5) {
++      this.removeVehicle();
++      if (this.connection != null) {
++         this.connection.dismount(var1, var3, var5, this.yRot, this.xRot);
++      }
++
++   }
++
     public boolean isInvulnerableTo(DamageSource var1) {
 -      return super.isInvulnerableTo(var1) || this.isChangingDimension() || this.abilities.invulnerable && var1 == DamageSource.WITHER;
 +      return super.isInvulnerableTo(var1) || this.isChangingDimension() || this.getAbilities().invulnerable && var1 == DamageSource.WITHER;
@@ -261,7 +283,7 @@
     protected void checkFallDamage(double var1, boolean var3, BlockState var4, BlockPos var5) {
     }
  
-@@ -885,11 +871,11 @@
+@@ -885,11 +879,11 @@
           if (this.containerMenu != this.inventoryMenu) {
              this.closeContainer();
           }
@@ -274,7 +296,7 @@
                 this.displayClientMessage((new TranslatableComponent("container.spectatorCantOpen")).withStyle(ChatFormatting.RED), true);
              }
  
-@@ -912,17 +898,16 @@
+@@ -912,17 +906,16 @@
           this.closeContainer();
        }
  
@@ -294,7 +316,7 @@
           }
  
           this.connection.send(new ClientboundOpenBookPacket(var2));
-@@ -936,11 +921,11 @@
+@@ -936,11 +929,11 @@
     }
  
     public void slotChanged(AbstractContainerMenu var1, int var2, ItemStack var3) {
@@ -307,7 +329,7 @@
           if (!this.ignoreSlotUpdateHack) {
              this.connection.send(new ClientboundContainerSetSlotPacket(var1.containerId, var2, var3));
           }
-@@ -951,11 +936,11 @@
+@@ -951,11 +944,11 @@
        this.refreshContainer(var1, var1.getItems());
     }
  
@@ -320,7 +342,7 @@
     public void setContainerData(AbstractContainerMenu var1, int var2, int var3) {
        this.connection.send(new ClientboundContainerSetDataPacket(var1.containerId, var2, var3));
     }
-@@ -965,11 +950,11 @@
+@@ -965,11 +958,11 @@
        this.doCloseContainer();
     }
  
@@ -333,7 +355,7 @@
  
     public void doCloseContainer() {
        this.containerMenu.removed(this);
-@@ -1069,21 +1054,22 @@
+@@ -1069,21 +1062,22 @@
        super.lookAt(var1, var4);
        this.connection.send(new ClientboundPlayerLookAtPacket(var1, var2, var3));
     }
@@ -358,7 +380,7 @@
           this.experienceProgress = var1.experienceProgress;
           this.setScore(var1.getScore());
        }
-@@ -1146,31 +1132,35 @@
+@@ -1146,31 +1140,35 @@
        this.getLevel().getChunkSource().broadcastAndSend(this, new ClientboundAnimatePacket(var1, 5));
     }
  
@@ -405,7 +427,7 @@
     public boolean isSpectator() {
        return this.gameMode.getGameModeForPlayer() == GameType.SPECTATOR;
     }
-@@ -1211,12 +1201,12 @@
+@@ -1211,12 +1209,12 @@
  
     public ChatVisiblity getChatVisibility() {
        return this.chatVisibility;
@@ -420,7 +442,7 @@
     protected int getPermissionLevel() {
        return this.server.getProfilePermissions(this.getGameProfile());
     }
-@@ -1241,11 +1231,11 @@
+@@ -1241,11 +1239,11 @@
        }
  
     }
@@ -433,7 +455,7 @@
     protected void updateInvisibilityStatus() {
        if (this.isSpectator()) {
           this.removeEffectParticles();
-@@ -1321,18 +1311,17 @@
+@@ -1321,18 +1319,17 @@
           ServerLevel var10 = this.getLevel();
           LevelData var11 = var1.getLevelData();
           this.connection.send(new ClientboundRespawnPacket(var1.dimensionType(), var1.dimension(), BiomeManager.obfuscateSeed(var1.getSeed()), this.gameMode.getGameModeForPlayer(), this.gameMode.getPreviousGameModeForPlayer(), var1.isDebug(), var1.isFlat(), true));
@@ -454,7 +476,7 @@
        }
  
     }
-@@ -1423,6 +1412,38 @@
+@@ -1423,6 +1420,38 @@
  
     @Nullable
     public TextFilter getTextFilter() {

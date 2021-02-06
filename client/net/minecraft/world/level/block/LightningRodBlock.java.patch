@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/LightningRodBlock.java
 +++ net/minecraft/world/level/block/LightningRodBlock.java
-@@ -1,0 +1,78 @@
+@@ -1,0 +1,98 @@
 +package net.minecraft.world.level.block;
 +
 +import java.util.Random;
@@ -43,13 +43,33 @@
 +      return (Boolean)var1.getValue(POWERED) ? 15 : 0;
 +   }
 +
++   public int getDirectSignal(BlockState var1, BlockGetter var2, BlockPos var3, Direction var4) {
++      return (Boolean)var1.getValue(POWERED) && var1.getValue(FACING) == var4 ? 15 : 0;
++   }
++
 +   public void onLightningStrike(BlockState var1, Level var2, BlockPos var3) {
 +      var2.setBlock(var3, (BlockState)var1.setValue(POWERED, true), 3);
++      this.updateNeighbours(var1, var2, var3);
 +      var2.getBlockTicks().scheduleTick(var3, this, 8);
++   }
++
++   private void updateNeighbours(BlockState var1, Level var2, BlockPos var3) {
++      var2.updateNeighborsAt(var3.relative(((Direction)var1.getValue(FACING)).getOpposite()), this);
 +   }
 +
 +   public void tick(BlockState var1, ServerLevel var2, BlockPos var3, Random var4) {
 +      var2.setBlock(var3, (BlockState)var1.setValue(POWERED, false), 3);
++      this.updateNeighbours(var1, var2, var3);
++   }
++
++   public void onRemove(BlockState var1, Level var2, BlockPos var3, BlockState var4, boolean var5) {
++      if (!var5 && !var1.is(var4.getBlock())) {
++         if ((Boolean)var1.getValue(POWERED)) {
++            this.updateNeighbours(var1, var2, var3);
++         }
++
++         super.onRemove(var1, var2, var3, var4, var5);
++      }
 +   }
 +
 +   public void onProjectileHit(Level var1, BlockState var2, BlockHitResult var3, Projectile var4) {
@@ -57,7 +77,7 @@
 +         BlockPos var5 = var3.getBlockPos();
 +         if (var1.canSeeSky(var5)) {
 +            LightningBolt var6 = (LightningBolt)EntityType.LIGHTNING_BOLT.create(var1);
-+            var6.moveTo(Vec3.atBottomCenterOf(var5));
++            var6.moveTo(Vec3.atBottomCenterOf(var5.above()));
 +            Entity var7 = var4.getOwner();
 +            var6.setCause(var7 instanceof ServerPlayer ? (ServerPlayer)var7 : null);
 +            var1.addFreshEntity(var6);

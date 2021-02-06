@@ -1,17 +1,74 @@
 --- net/minecraft/client/Options.java
 +++ net/minecraft/client/Options.java
-@@ -1,10 +1,9 @@
+@@ -1,29 +1,33 @@
  package net.minecraft.client;
  
  import com.google.common.base.Charsets;
++import com.google.common.base.MoreObjects;
  import com.google.common.base.Splitter;
 -import com.google.common.collect.ImmutableSet;
  import com.google.common.collect.Lists;
- import com.google.common.collect.Maps;
+-import com.google.common.collect.Maps;
  import com.google.common.collect.Sets;
  import com.google.common.io.Files;
  import com.google.gson.Gson;
-@@ -162,21 +161,19 @@
+ import com.google.gson.reflect.TypeToken;
+ import com.mojang.blaze3d.platform.InputConstants;
+ import com.mojang.blaze3d.platform.VideoMode;
++import it.unimi.dsi.fastutil.objects.Object2FloatMap;
++import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap;
+ import java.io.BufferedReader;
+ import java.io.File;
+ import java.io.FileOutputStream;
+ import java.io.OutputStreamWriter;
+ import java.io.PrintWriter;
+ import java.nio.charset.StandardCharsets;
++import java.util.EnumSet;
+ import java.util.Iterator;
+ import java.util.LinkedHashSet;
+ import java.util.List;
+-import java.util.Map;
+ import java.util.Set;
++import java.util.function.Function;
++import java.util.function.IntFunction;
++import java.util.function.ToIntFunction;
+ import javax.annotation.Nullable;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
+ import net.minecraft.client.tutorial.TutorialSteps;
+ import net.minecraft.nbt.CompoundTag;
+@@ -48,11 +52,11 @@
+    private static final Gson GSON = new Gson();
+    private static final TypeToken<List<String>> RESOURCE_PACK_TYPE = new TypeToken<List<String>>() {
+    };
+    private static final Splitter OPTION_SPLITTER = Splitter.on(':').limit(2);
+    public double sensitivity = 0.5D;
+-   public int renderDistance = -1;
++   public int renderDistance;
+    public float entityDistanceScaling = 1.0F;
+    public int framerateLimit = 120;
+    public CloudStatus renderClouds;
+    public GraphicsStatus graphicsMode;
+    public AmbientOcclusionStatus ambientOcclusion;
+@@ -76,15 +80,16 @@
+    public double chatWidth;
+    public double chatHeightUnfocused;
+    public double chatHeightFocused;
+    public double chatDelay;
+    public int mipmapLevels;
+-   private final Map<SoundSource, Float> sourceVolumes;
++   private final Object2FloatMap<SoundSource> sourceVolumes;
+    public boolean useNativeTransport;
+    public AttackIndicatorStatus attackIndicator;
+    public TutorialSteps tutorialStep;
+    public boolean joinedFirstServer;
++   public boolean hideBundleTutorial;
+    public int biomeBlendRadius;
+    public double mouseWheelSensitivity;
+    public boolean rawMouseInput;
+    public int glDebugVerbosity;
+    public boolean autoJump;
+@@ -162,27 +167,28 @@
        this.ambientOcclusion = AmbientOcclusionStatus.MAX;
        this.resourcePacks = Lists.newArrayList();
        this.incompatibleResourcePacks = Lists.newArrayList();
@@ -20,7 +77,8 @@
 -      this.chatLineSpacing = 0.0D;
        this.textBackgroundOpacity = 0.5D;
        this.pauseOnLostFocus = true;
-       this.modelParts = Sets.newHashSet(PlayerModelPart.values());
+-      this.modelParts = Sets.newHashSet(PlayerModelPart.values());
++      this.modelParts = EnumSet.allOf(PlayerModelPart.class);
        this.mainHand = HumanoidArm.RIGHT;
        this.heldItemTooltips = true;
        this.chatScale = 1.0D;
@@ -29,262 +87,596 @@
        this.chatHeightFocused = 1.0D;
 -      this.chatDelay = 0.0D;
        this.mipmapLevels = 4;
-       this.sourceVolumes = Maps.newEnumMap(SoundSource.class);
+-      this.sourceVolumes = Maps.newEnumMap(SoundSource.class);
++      this.sourceVolumes = (Object2FloatMap)Util.make(new Object2FloatOpenHashMap(), (var0) -> {
++         var0.defaultReturnValue(1.0F);
++      });
        this.useNativeTransport = true;
        this.attackIndicator = AttackIndicatorStatus.CROSSHAIR;
        this.tutorialStep = TutorialSteps.MOVEMENT;
-@@ -306,11 +303,11 @@
+       this.joinedFirstServer = false;
++      this.hideBundleTutorial = false;
+       this.biomeBlendRadius = 2;
+       this.mouseWheelSensitivity = 1.0D;
+       this.rawMouseInput = true;
+       this.glDebugVerbosity = 1;
+       this.autoJump = true;
+@@ -265,10 +271,126 @@
+    public void setKey(KeyMapping var1, InputConstants.Key var2) {
+       var1.setKey(var2);
+       this.save();
+    }
+ 
++   private void processOptions(Options.FieldAccess var1) {
++      this.autoJump = var1.process("autoJump", this.autoJump);
++      this.autoSuggestions = var1.process("autoSuggestions", this.autoSuggestions);
++      this.chatColors = var1.process("chatColors", this.chatColors);
++      this.chatLinks = var1.process("chatLinks", this.chatLinks);
++      this.chatLinksPrompt = var1.process("chatLinksPrompt", this.chatLinksPrompt);
++      this.enableVsync = var1.process("enableVsync", this.enableVsync);
++      this.entityShadows = var1.process("entityShadows", this.entityShadows);
++      this.forceUnicodeFont = var1.process("forceUnicodeFont", this.forceUnicodeFont);
++      this.discreteMouseScroll = var1.process("discrete_mouse_scroll", this.discreteMouseScroll);
++      this.invertYMouse = var1.process("invertYMouse", this.invertYMouse);
++      this.realmsNotifications = var1.process("realmsNotifications", this.realmsNotifications);
++      this.reducedDebugInfo = var1.process("reducedDebugInfo", this.reducedDebugInfo);
++      this.snooperEnabled = var1.process("snooperEnabled", this.snooperEnabled);
++      this.showSubtitles = var1.process("showSubtitles", this.showSubtitles);
++      this.touchscreen = var1.process("touchscreen", this.touchscreen);
++      this.fullscreen = var1.process("fullscreen", this.fullscreen);
++      this.bobView = var1.process("bobView", this.bobView);
++      this.toggleCrouch = var1.process("toggleCrouch", this.toggleCrouch);
++      this.toggleSprint = var1.process("toggleSprint", this.toggleSprint);
++      this.sensitivity = var1.process("mouseSensitivity", this.sensitivity);
++      this.fov = var1.process("fov", (this.fov - 70.0D) / 40.0D) * 40.0D + 70.0D;
++      this.screenEffectScale = var1.process("screenEffectScale", this.screenEffectScale);
++      this.fovEffectScale = var1.process("fovEffectScale", this.fovEffectScale);
++      this.gamma = var1.process("gamma", this.gamma);
++      this.renderDistance = var1.process("renderDistance", this.renderDistance);
++      this.entityDistanceScaling = var1.process("entityDistanceScaling", this.entityDistanceScaling);
++      this.guiScale = var1.process("guiScale", this.guiScale);
++      this.particles = (ParticleStatus)var1.process("particles", this.particles, (IntFunction)(ParticleStatus::byId), (ToIntFunction)(ParticleStatus::getId));
++      this.framerateLimit = var1.process("maxFps", this.framerateLimit);
++      this.difficulty = (Difficulty)var1.process("difficulty", this.difficulty, (IntFunction)(Difficulty::byId), (ToIntFunction)(Difficulty::getId));
++      this.graphicsMode = (GraphicsStatus)var1.process("graphicsMode", this.graphicsMode, (IntFunction)(GraphicsStatus::byId), (ToIntFunction)(GraphicsStatus::getId));
++      this.ambientOcclusion = (AmbientOcclusionStatus)var1.process("ao", this.ambientOcclusion, (Function)(Options::readAmbientOcclusion), (Function)((var0) -> {
++         return Integer.toString(var0.getId());
++      }));
++      this.biomeBlendRadius = var1.process("biomeBlendRadius", this.biomeBlendRadius);
++      this.renderClouds = (CloudStatus)var1.process("renderClouds", this.renderClouds, (Function)(Options::readCloudStatus), (Function)(Options::writeCloudStatus));
++      List var10003 = this.resourcePacks;
++      Function var10004 = Options::readPackList;
++      Gson var10005 = GSON;
++      var10005.getClass();
++      this.resourcePacks = (List)var1.process("resourcePacks", var10003, (Function)var10004, (Function)(var10005::toJson));
++      var10003 = this.incompatibleResourcePacks;
++      var10004 = Options::readPackList;
++      var10005 = GSON;
++      var10005.getClass();
++      this.incompatibleResourcePacks = (List)var1.process("incompatibleResourcePacks", var10003, (Function)var10004, (Function)(var10005::toJson));
++      this.lastMpIp = var1.process("lastServer", this.lastMpIp);
++      this.languageCode = var1.process("lang", this.languageCode);
++      this.chatVisibility = (ChatVisiblity)var1.process("chatVisibility", this.chatVisibility, (IntFunction)(ChatVisiblity::byId), (ToIntFunction)(ChatVisiblity::getId));
++      this.chatOpacity = var1.process("chatOpacity", this.chatOpacity);
++      this.chatLineSpacing = var1.process("chatLineSpacing", this.chatLineSpacing);
++      this.textBackgroundOpacity = var1.process("textBackgroundOpacity", this.textBackgroundOpacity);
++      this.backgroundForChatOnly = var1.process("backgroundForChatOnly", this.backgroundForChatOnly);
++      this.hideServerAddress = var1.process("hideServerAddress", this.hideServerAddress);
++      this.advancedItemTooltips = var1.process("advancedItemTooltips", this.advancedItemTooltips);
++      this.pauseOnLostFocus = var1.process("pauseOnLostFocus", this.pauseOnLostFocus);
++      this.overrideWidth = var1.process("overrideWidth", this.overrideWidth);
++      this.overrideHeight = var1.process("overrideHeight", this.overrideHeight);
++      this.heldItemTooltips = var1.process("heldItemTooltips", this.heldItemTooltips);
++      this.chatHeightFocused = var1.process("chatHeightFocused", this.chatHeightFocused);
++      this.chatDelay = var1.process("chatDelay", this.chatDelay);
++      this.chatHeightUnfocused = var1.process("chatHeightUnfocused", this.chatHeightUnfocused);
++      this.chatScale = var1.process("chatScale", this.chatScale);
++      this.chatWidth = var1.process("chatWidth", this.chatWidth);
++      this.mipmapLevels = var1.process("mipmapLevels", this.mipmapLevels);
++      this.useNativeTransport = var1.process("useNativeTransport", this.useNativeTransport);
++      this.mainHand = (HumanoidArm)var1.process("mainHand", this.mainHand, (Function)(Options::readMainHand), (Function)(Options::writeMainHand));
++      this.attackIndicator = (AttackIndicatorStatus)var1.process("attackIndicator", this.attackIndicator, (IntFunction)(AttackIndicatorStatus::byId), (ToIntFunction)(AttackIndicatorStatus::getId));
++      this.narratorStatus = (NarratorStatus)var1.process("narrator", this.narratorStatus, (IntFunction)(NarratorStatus::byId), (ToIntFunction)(NarratorStatus::getId));
++      this.tutorialStep = (TutorialSteps)var1.process("tutorialStep", this.tutorialStep, (Function)(TutorialSteps::getByName), (Function)(TutorialSteps::getName));
++      this.mouseWheelSensitivity = var1.process("mouseWheelSensitivity", this.mouseWheelSensitivity);
++      this.rawMouseInput = var1.process("rawMouseInput", this.rawMouseInput);
++      this.glDebugVerbosity = var1.process("glDebugVerbosity", this.glDebugVerbosity);
++      this.skipMultiplayerWarning = var1.process("skipMultiplayerWarning", this.skipMultiplayerWarning);
++      this.hideMatchedNames = var1.process("hideMatchedNames", this.hideMatchedNames);
++      this.joinedFirstServer = var1.process("joinedFirstServer", this.joinedFirstServer);
++      this.hideBundleTutorial = var1.process("hideBundleTutorial", this.hideBundleTutorial);
++      this.syncWrites = var1.process("syncChunkWrites", this.syncWrites);
++      KeyMapping[] var2 = this.keyMappings;
++      int var3 = var2.length;
++
++      int var4;
++      for(var4 = 0; var4 < var3; ++var4) {
++         KeyMapping var5 = var2[var4];
++         String var6 = var5.saveString();
++         String var7 = var1.process("key_" + var5.getName(), var6);
++         if (!var6.equals(var7)) {
++            var5.setKey(InputConstants.getKey(var7));
++         }
++      }
++
++      SoundSource[] var8 = SoundSource.values();
++      var3 = var8.length;
++
++      for(var4 = 0; var4 < var3; ++var4) {
++         SoundSource var10 = var8[var4];
++         this.sourceVolumes.computeFloat(var10, (var1x, var2x) -> {
++            return var1.process("soundCategory_" + var1x.getName(), var2x != null ? var2x : 1.0F);
++         });
++      }
++
++      PlayerModelPart[] var9 = PlayerModelPart.values();
++      var3 = var9.length;
++
++      for(var4 = 0; var4 < var3; ++var4) {
++         PlayerModelPart var11 = var9[var4];
++         boolean var12 = this.modelParts.contains(var11);
++         boolean var13 = var1.process("modelPart_" + var11.getId(), var12);
++         if (var13 != var12) {
++            this.setModelPart(var11, var13);
++         }
++      }
++
++   }
++
+    public void load() {
+       try {
+          if (!this.optionsFile.exists()) {
+             return;
+          }
+@@ -286,379 +408,148 @@
+                } catch (Exception var3) {
+                   LOGGER.warn("Skipping bad option: {}", var1x);
+                }
+ 
+             });
+-         } catch (Throwable var17) {
+-            var3 = var17;
+-            throw var17;
++         } catch (Throwable var13) {
++            var3 = var13;
++            throw var13;
+          } finally {
+             if (var2 != null) {
+                if (var3 != null) {
+                   try {
+                      var2.close();
+-                  } catch (Throwable var16) {
+-                     var3.addSuppressed(var16);
++                  } catch (Throwable var12) {
++                     var3.addSuppressed(var12);
+                   }
+                } else {
+                   var2.close();
+                }
+             }
  
           }
  
-          CompoundTag var21 = this.dataFix(var1);
-          if (!var21.contains("graphicsMode") && var21.contains("fancyGraphics")) {
+-         CompoundTag var21 = this.dataFix(var1);
+-         if (!var21.contains("graphicsMode") && var21.contains("fancyGraphics")) {
 -            if ("true".equals(var21.getString("fancyGraphics"))) {
-+            if (isTrue(var21.getString("fancyGraphics"))) {
++         final CompoundTag var16 = this.dataFix(var1);
++         if (!var16.contains("graphicsMode") && var16.contains("fancyGraphics")) {
++            if (isTrue(var16.getString("fancyGraphics"))) {
                 this.graphicsMode = GraphicsStatus.FANCY;
              } else {
                 this.graphicsMode = GraphicsStatus.FAST;
              }
           }
-@@ -321,83 +318,83 @@
-             String var4 = (String)var22.next();
-             String var5 = var21.getString(var4);
  
-             try {
-                if ("autoJump".equals(var4)) {
+-         Iterator var22 = var21.getAllKeys().iterator();
++         this.processOptions(new Options.FieldAccess() {
++            @Nullable
++            private String getValueOrNull(String var1) {
++               return var16.contains(var1) ? var16.getString(var1) : null;
++            }
+ 
+-         while(var22.hasNext()) {
+-            String var4 = (String)var22.next();
+-            String var5 = var21.getString(var4);
+-
+-            try {
+-               if ("autoJump".equals(var4)) {
 -                  Option.AUTO_JUMP.set(this, var5);
-+                  this.autoJump = isTrue(var5);
++            public int process(String var1, int var2) {
++               String var3 = this.getValueOrNull(var1);
++               if (var3 != null) {
++                  try {
++                     return Integer.parseInt(var3);
++                  } catch (NumberFormatException var5) {
++                     Options.LOGGER.warn("Invalid integer value for option {} = {}", var1, var3, var5);
++                  }
                 }
  
-                if ("autoSuggestions".equals(var4)) {
+-               if ("autoSuggestions".equals(var4)) {
 -                  Option.AUTO_SUGGESTIONS.set(this, var5);
-+                  this.autoSuggestions = isTrue(var5);
-                }
+-               }
++               return var2;
++            }
  
-                if ("chatColors".equals(var4)) {
+-               if ("chatColors".equals(var4)) {
 -                  Option.CHAT_COLOR.set(this, var5);
-+                  this.chatColors = isTrue(var5);
-                }
+-               }
++            public boolean process(String var1, boolean var2) {
++               String var3 = this.getValueOrNull(var1);
++               return var3 != null ? Options.isTrue(var3) : var2;
++            }
  
-                if ("chatLinks".equals(var4)) {
+-               if ("chatLinks".equals(var4)) {
 -                  Option.CHAT_LINKS.set(this, var5);
-+                  this.chatLinks = isTrue(var5);
-                }
+-               }
++            public String process(String var1, String var2) {
++               return (String)MoreObjects.firstNonNull(this.getValueOrNull(var1), var2);
++            }
  
-                if ("chatLinksPrompt".equals(var4)) {
+-               if ("chatLinksPrompt".equals(var4)) {
 -                  Option.CHAT_LINKS_PROMPT.set(this, var5);
-+                  this.chatLinksPrompt = isTrue(var5);
-                }
- 
-                if ("enableVsync".equals(var4)) {
+-               }
+-
+-               if ("enableVsync".equals(var4)) {
 -                  Option.ENABLE_VSYNC.set(this, var5);
-+                  this.enableVsync = isTrue(var5);
-                }
- 
-                if ("entityShadows".equals(var4)) {
+-               }
+-
+-               if ("entityShadows".equals(var4)) {
 -                  Option.ENTITY_SHADOWS.set(this, var5);
-+                  this.entityShadows = isTrue(var5);
-                }
- 
-                if ("forceUnicodeFont".equals(var4)) {
+-               }
+-
+-               if ("forceUnicodeFont".equals(var4)) {
 -                  Option.FORCE_UNICODE_FONT.set(this, var5);
-+                  this.forceUnicodeFont = isTrue(var5);
-                }
- 
-                if ("discrete_mouse_scroll".equals(var4)) {
+-               }
+-
+-               if ("discrete_mouse_scroll".equals(var4)) {
 -                  Option.DISCRETE_MOUSE_SCROLL.set(this, var5);
-+                  this.discreteMouseScroll = isTrue(var5);
-                }
- 
-                if ("invertYMouse".equals(var4)) {
+-               }
+-
+-               if ("invertYMouse".equals(var4)) {
 -                  Option.INVERT_MOUSE.set(this, var5);
-+                  this.invertYMouse = isTrue(var5);
-                }
- 
-                if ("realmsNotifications".equals(var4)) {
+-               }
+-
+-               if ("realmsNotifications".equals(var4)) {
 -                  Option.REALMS_NOTIFICATIONS.set(this, var5);
-+                  this.realmsNotifications = isTrue(var5);
-                }
- 
-                if ("reducedDebugInfo".equals(var4)) {
+-               }
+-
+-               if ("reducedDebugInfo".equals(var4)) {
 -                  Option.REDUCED_DEBUG_INFO.set(this, var5);
-+                  this.reducedDebugInfo = isTrue(var5);
-                }
- 
-                if ("showSubtitles".equals(var4)) {
+-               }
+-
+-               if ("showSubtitles".equals(var4)) {
 -                  Option.SHOW_SUBTITLES.set(this, var5);
-+                  this.showSubtitles = isTrue(var5);
-                }
- 
-                if ("snooperEnabled".equals(var4)) {
+-               }
+-
+-               if ("snooperEnabled".equals(var4)) {
 -                  Option.SNOOPER_ENABLED.set(this, var5);
-+                  this.snooperEnabled = isTrue(var5);
-                }
- 
-                if ("touchscreen".equals(var4)) {
+-               }
+-
+-               if ("touchscreen".equals(var4)) {
 -                  Option.TOUCHSCREEN.set(this, var5);
-+                  this.touchscreen = isTrue(var5);
-                }
- 
-                if ("fullscreen".equals(var4)) {
+-               }
+-
+-               if ("fullscreen".equals(var4)) {
 -                  Option.USE_FULLSCREEN.set(this, var5);
-+                  this.fullscreen = isTrue(var5);
-                }
- 
-                if ("bobView".equals(var4)) {
+-               }
+-
+-               if ("bobView".equals(var4)) {
 -                  Option.VIEW_BOBBING.set(this, var5);
-+                  this.bobView = isTrue(var5);
-                }
- 
-                if ("toggleCrouch".equals(var4)) {
+-               }
+-
+-               if ("toggleCrouch".equals(var4)) {
 -                  this.toggleCrouch = "true".equals(var5);
-+                  this.toggleCrouch = isTrue(var5);
-                }
- 
-                if ("toggleSprint".equals(var4)) {
+-               }
+-
+-               if ("toggleSprint".equals(var4)) {
 -                  this.toggleSprint = "true".equals(var5);
-+                  this.toggleSprint = isTrue(var5);
-                }
+-               }
+-
+-               if ("mouseSensitivity".equals(var4)) {
+-                  this.sensitivity = (double)readFloat(var5);
+-               }
+-
+-               if ("fov".equals(var4)) {
+-                  this.fov = (double)(readFloat(var5) * 40.0F + 70.0F);
+-               }
+-
+-               if ("screenEffectScale".equals(var4)) {
+-                  this.screenEffectScale = readFloat(var5);
+-               }
+-
+-               if ("fovEffectScale".equals(var4)) {
+-                  this.fovEffectScale = readFloat(var5);
+-               }
+-
+-               if ("gamma".equals(var4)) {
+-                  this.gamma = (double)readFloat(var5);
+-               }
+-
+-               if ("renderDistance".equals(var4)) {
+-                  this.renderDistance = Integer.parseInt(var5);
+-               }
+-
+-               if ("entityDistanceScaling".equals(var4)) {
+-                  this.entityDistanceScaling = Float.parseFloat(var5);
+-               }
+-
+-               if ("guiScale".equals(var4)) {
+-                  this.guiScale = Integer.parseInt(var5);
+-               }
+-
+-               if ("particles".equals(var4)) {
+-                  this.particles = ParticleStatus.byId(Integer.parseInt(var5));
+-               }
+-
+-               if ("maxFps".equals(var4)) {
+-                  this.framerateLimit = Integer.parseInt(var5);
+-                  if (this.minecraft.getWindow() != null) {
+-                     this.minecraft.getWindow().setFramerateLimit(this.framerateLimit);
++            public double process(String var1, double var2) {
++               String var4 = this.getValueOrNull(var1);
++               if (var4 != null) {
++                  if (Options.isTrue(var4)) {
++                     return 1.0D;
+                   }
+-               }
  
-                if ("mouseSensitivity".equals(var4)) {
-                   this.sensitivity = (double)readFloat(var5);
-                }
-@@ -452,23 +449,23 @@
-                if ("tutorialStep".equals(var4)) {
-                   this.tutorialStep = TutorialSteps.getByName(var5);
-                }
- 
-                if ("ao".equals(var4)) {
+-               if ("difficulty".equals(var4)) {
+-                  this.difficulty = Difficulty.byId(Integer.parseInt(var5));
+-               }
+-
+-               if ("graphicsMode".equals(var4)) {
+-                  this.graphicsMode = GraphicsStatus.byId(Integer.parseInt(var5));
+-               }
+-
+-               if ("tutorialStep".equals(var4)) {
+-                  this.tutorialStep = TutorialSteps.getByName(var5);
+-               }
+-
+-               if ("ao".equals(var4)) {
 -                  if ("true".equals(var5)) {
-+                  if (isTrue(var5)) {
-                      this.ambientOcclusion = AmbientOcclusionStatus.MAX;
+-                     this.ambientOcclusion = AmbientOcclusionStatus.MAX;
 -                  } else if ("false".equals(var5)) {
-+                  } else if (isFalse(var5)) {
-                      this.ambientOcclusion = AmbientOcclusionStatus.OFF;
-                   } else {
-                      this.ambientOcclusion = AmbientOcclusionStatus.byId(Integer.parseInt(var5));
+-                     this.ambientOcclusion = AmbientOcclusionStatus.OFF;
+-                  } else {
+-                     this.ambientOcclusion = AmbientOcclusionStatus.byId(Integer.parseInt(var5));
++                  if (Options.isFalse(var4)) {
++                     return 0.0D;
+                   }
+-               }
+ 
+-               if ("renderClouds".equals(var4)) {
+-                  if ("true".equals(var5)) {
+-                     this.renderClouds = CloudStatus.FANCY;
+-                  } else if ("false".equals(var5)) {
+-                     this.renderClouds = CloudStatus.OFF;
+-                  } else if ("fast".equals(var5)) {
+-                     this.renderClouds = CloudStatus.FAST;
++                  try {
++                     return Double.parseDouble(var4);
++                  } catch (NumberFormatException var6) {
++                     Options.LOGGER.warn("Invalid floating point value for option {} = {}", var1, var4, var6);
                    }
                 }
  
-                if ("renderClouds".equals(var4)) {
--                  if ("true".equals(var5)) {
-+                  if (isTrue(var5)) {
-                      this.renderClouds = CloudStatus.FANCY;
--                  } else if ("false".equals(var5)) {
-+                  } else if (isFalse(var5)) {
-                      this.renderClouds = CloudStatus.OFF;
-                   } else if ("fast".equals(var5)) {
-                      this.renderClouds = CloudStatus.FAST;
-                   }
-                }
-@@ -514,27 +511,27 @@
-                if ("textBackgroundOpacity".equals(var4)) {
-                   this.textBackgroundOpacity = (double)readFloat(var5);
-                }
+-               if ("attackIndicator".equals(var4)) {
+-                  this.attackIndicator = AttackIndicatorStatus.byId(Integer.parseInt(var5));
+-               }
++               return var2;
++            }
  
-                if ("backgroundForChatOnly".equals(var4)) {
+-               if ("resourcePacks".equals(var4)) {
+-                  this.resourcePacks = (List)GsonHelper.fromJson(GSON, var5, RESOURCE_PACK_TYPE);
+-                  if (this.resourcePacks == null) {
+-                     this.resourcePacks = Lists.newArrayList();
++            public float process(String var1, float var2) {
++               String var3 = this.getValueOrNull(var1);
++               if (var3 != null) {
++                  if (Options.isTrue(var3)) {
++                     return 1.0F;
+                   }
+-               }
+ 
+-               if ("incompatibleResourcePacks".equals(var4)) {
+-                  this.incompatibleResourcePacks = (List)GsonHelper.fromJson(GSON, var5, RESOURCE_PACK_TYPE);
+-                  if (this.incompatibleResourcePacks == null) {
+-                     this.incompatibleResourcePacks = Lists.newArrayList();
++                  if (Options.isFalse(var3)) {
++                     return 0.0F;
+                   }
+-               }
+ 
+-               if ("lastServer".equals(var4)) {
+-                  this.lastMpIp = var5;
+-               }
+-
+-               if ("lang".equals(var4)) {
+-                  this.languageCode = var5;
+-               }
+-
+-               if ("chatVisibility".equals(var4)) {
+-                  this.chatVisibility = ChatVisiblity.byId(Integer.parseInt(var5));
+-               }
+-
+-               if ("chatOpacity".equals(var4)) {
+-                  this.chatOpacity = (double)readFloat(var5);
+-               }
+-
+-               if ("chatLineSpacing".equals(var4)) {
+-                  this.chatLineSpacing = (double)readFloat(var5);
+-               }
+-
+-               if ("textBackgroundOpacity".equals(var4)) {
+-                  this.textBackgroundOpacity = (double)readFloat(var5);
+-               }
+-
+-               if ("backgroundForChatOnly".equals(var4)) {
 -                  this.backgroundForChatOnly = "true".equals(var5);
-+                  this.backgroundForChatOnly = isTrue(var5);
-                }
- 
-                if ("fullscreenResolution".equals(var4)) {
-                   this.fullscreenVideoModeString = var5;
-                }
- 
-                if ("hideServerAddress".equals(var4)) {
+-               }
+-
+-               if ("fullscreenResolution".equals(var4)) {
+-                  this.fullscreenVideoModeString = var5;
+-               }
+-
+-               if ("hideServerAddress".equals(var4)) {
 -                  this.hideServerAddress = "true".equals(var5);
-+                  this.hideServerAddress = isTrue(var5);
-                }
- 
-                if ("advancedItemTooltips".equals(var4)) {
+-               }
+-
+-               if ("advancedItemTooltips".equals(var4)) {
 -                  this.advancedItemTooltips = "true".equals(var5);
-+                  this.advancedItemTooltips = isTrue(var5);
-                }
- 
-                if ("pauseOnLostFocus".equals(var4)) {
+-               }
+-
+-               if ("pauseOnLostFocus".equals(var4)) {
 -                  this.pauseOnLostFocus = "true".equals(var5);
-+                  this.pauseOnLostFocus = isTrue(var5);
-                }
- 
-                if ("overrideHeight".equals(var4)) {
-                   this.overrideHeight = Integer.parseInt(var5);
-                }
-@@ -542,11 +539,11 @@
-                if ("overrideWidth".equals(var4)) {
-                   this.overrideWidth = Integer.parseInt(var5);
-                }
- 
-                if ("heldItemTooltips".equals(var4)) {
+-               }
+-
+-               if ("overrideHeight".equals(var4)) {
+-                  this.overrideHeight = Integer.parseInt(var5);
+-               }
+-
+-               if ("overrideWidth".equals(var4)) {
+-                  this.overrideWidth = Integer.parseInt(var5);
+-               }
+-
+-               if ("heldItemTooltips".equals(var4)) {
 -                  this.heldItemTooltips = "true".equals(var5);
-+                  this.heldItemTooltips = isTrue(var5);
-                }
- 
-                if ("chatHeightFocused".equals(var4)) {
-                   this.chatHeightFocused = (double)readFloat(var5);
-                }
-@@ -570,11 +567,11 @@
-                if ("mipmapLevels".equals(var4)) {
-                   this.mipmapLevels = Integer.parseInt(var5);
-                }
- 
-                if ("useNativeTransport".equals(var4)) {
+-               }
+-
+-               if ("chatHeightFocused".equals(var4)) {
+-                  this.chatHeightFocused = (double)readFloat(var5);
+-               }
+-
+-               if ("chatDelay".equals(var4)) {
+-                  this.chatDelay = (double)readFloat(var5);
+-               }
+-
+-               if ("chatHeightUnfocused".equals(var4)) {
+-                  this.chatHeightUnfocused = (double)readFloat(var5);
+-               }
+-
+-               if ("chatScale".equals(var4)) {
+-                  this.chatScale = (double)readFloat(var5);
+-               }
+-
+-               if ("chatWidth".equals(var4)) {
+-                  this.chatWidth = (double)readFloat(var5);
+-               }
+-
+-               if ("mipmapLevels".equals(var4)) {
+-                  this.mipmapLevels = Integer.parseInt(var5);
+-               }
+-
+-               if ("useNativeTransport".equals(var4)) {
 -                  this.useNativeTransport = "true".equals(var5);
-+                  this.useNativeTransport = isTrue(var5);
-                }
- 
-                if ("mainHand".equals(var4)) {
-                   this.mainHand = "left".equals(var5) ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-                }
-@@ -590,19 +587,19 @@
-                if ("mouseWheelSensitivity".equals(var4)) {
-                   this.mouseWheelSensitivity = (double)readFloat(var5);
-                }
- 
-                if ("rawMouseInput".equals(var4)) {
+-               }
+-
+-               if ("mainHand".equals(var4)) {
+-                  this.mainHand = "left".equals(var5) ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
+-               }
+-
+-               if ("narrator".equals(var4)) {
+-                  this.narratorStatus = NarratorStatus.byId(Integer.parseInt(var5));
+-               }
+-
+-               if ("biomeBlendRadius".equals(var4)) {
+-                  this.biomeBlendRadius = Integer.parseInt(var5);
+-               }
+-
+-               if ("mouseWheelSensitivity".equals(var4)) {
+-                  this.mouseWheelSensitivity = (double)readFloat(var5);
+-               }
+-
+-               if ("rawMouseInput".equals(var4)) {
 -                  this.rawMouseInput = "true".equals(var5);
-+                  this.rawMouseInput = isTrue(var5);
-                }
- 
-                if ("glDebugVerbosity".equals(var4)) {
-                   this.glDebugVerbosity = Integer.parseInt(var5);
-                }
- 
-                if ("skipMultiplayerWarning".equals(var4)) {
+-               }
+-
+-               if ("glDebugVerbosity".equals(var4)) {
+-                  this.glDebugVerbosity = Integer.parseInt(var5);
+-               }
+-
+-               if ("skipMultiplayerWarning".equals(var4)) {
 -                  this.skipMultiplayerWarning = "true".equals(var5);
-+                  this.skipMultiplayerWarning = isTrue(var5);
-                }
- 
-                if ("hideMatchedNames".equals(var4)) {
-                   this.hideMatchedNames = "true".equals(var5);
-                }
-@@ -610,11 +607,11 @@
-                if ("joinedFirstServer".equals(var4)) {
-                   this.joinedFirstServer = "true".equals(var5);
-                }
- 
-                if ("syncChunkWrites".equals(var4)) {
+-               }
+-
+-               if ("hideMatchedNames".equals(var4)) {
+-                  this.hideMatchedNames = "true".equals(var5);
+-               }
+-
+-               if ("joinedFirstServer".equals(var4)) {
+-                  this.joinedFirstServer = "true".equals(var5);
+-               }
+-
+-               if ("syncChunkWrites".equals(var4)) {
 -                  this.syncWrites = "true".equals(var5);
-+                  this.syncWrites = isTrue(var5);
-                }
- 
-                KeyMapping[] var6 = this.keyMappings;
-                int var7 = var6.length;
- 
-@@ -640,11 +637,11 @@
-                var7 = var24.length;
- 
-                for(var8 = 0; var8 < var7; ++var8) {
-                   PlayerModelPart var26 = var24[var8];
-                   if (var4.equals("modelPart_" + var26.getId())) {
--                     this.setModelPart(var26, "true".equals(var5));
-+                     this.setModelPart(var26, isTrue(var5));
+-               }
+-
+-               KeyMapping[] var6 = this.keyMappings;
+-               int var7 = var6.length;
+-
+-               int var8;
+-               for(var8 = 0; var8 < var7; ++var8) {
+-                  KeyMapping var9 = var6[var8];
+-                  if (var4.equals("key_" + var9.getName())) {
+-                     var9.setKey(InputConstants.getKey(var5));
++                  try {
++                     return Float.parseFloat(var3);
++                  } catch (NumberFormatException var5) {
++                     Options.LOGGER.warn("Invalid floating point value for option {} = {}", var1, var3, var5);
                    }
                 }
-             } catch (Exception var19) {
-                LOGGER.warn("Skipping bad option: {}:{}", var4, var5);
+ 
+-               SoundSource[] var23 = SoundSource.values();
+-               var7 = var23.length;
++               return var2;
++            }
+ 
+-               for(var8 = 0; var8 < var7; ++var8) {
+-                  SoundSource var25 = var23[var8];
+-                  if (var4.equals("soundCategory_" + var25.getName())) {
+-                     this.sourceVolumes.put(var25, readFloat(var5));
+-                  }
+-               }
++            public <T> T process(String var1, T var2, Function<String, T> var3, Function<T, String> var4) {
++               String var5 = this.getValueOrNull(var1);
++               return var5 == null ? var2 : var3.apply(var5);
++            }
+ 
+-               PlayerModelPart[] var24 = PlayerModelPart.values();
+-               var7 = var24.length;
+-
+-               for(var8 = 0; var8 < var7; ++var8) {
+-                  PlayerModelPart var26 = var24[var8];
+-                  if (var4.equals("modelPart_" + var26.getId())) {
+-                     this.setModelPart(var26, "true".equals(var5));
++            public <T> T process(String var1, T var2, IntFunction<T> var3, ToIntFunction<T> var4) {
++               String var5 = this.getValueOrNull(var1);
++               if (var5 != null) {
++                  try {
++                     return var3.apply(Integer.parseInt(var5));
++                  } catch (Exception var7) {
++                     Options.LOGGER.warn("Invalid integer value for option {} = {}", var1, var5, var7);
+                   }
+                }
+-            } catch (Exception var19) {
+-               LOGGER.warn("Skipping bad option: {}:{}", var4, var5);
++
++               return var2;
              }
-@@ -655,10 +652,18 @@
-          LOGGER.error("Failed to load options", var20);
++         });
++         if (var16.contains("fullscreenResolution")) {
++            this.fullscreenVideoModeString = var16.getString("fullscreenResolution");
+          }
+ 
++         if (this.minecraft.getWindow() != null) {
++            this.minecraft.getWindow().setFramerateLimit(this.framerateLimit);
++         }
++
+          KeyMapping.resetMapping();
+-      } catch (Exception var20) {
+-         LOGGER.error("Failed to load options", var20);
++      } catch (Exception var15) {
++         LOGGER.error("Failed to load options", var15);
        }
  
     }
@@ -302,24 +694,24 @@
  
        try {
           var2 = Integer.parseInt(var1.getString("version"));
-@@ -667,41 +672,41 @@
+@@ -666,156 +557,94 @@
+       }
  
        return NbtUtils.update(this.minecraft.getFixerUpper(), DataFixTypes.OPTIONS, var1, var2);
     }
  
-    private static float readFloat(String var0) {
+-   private static float readFloat(String var0) {
 -      if ("true".equals(var0)) {
-+      if (isTrue(var0)) {
-          return 1.0F;
-       } else {
+-         return 1.0F;
+-      } else {
 -         return "false".equals(var0) ? 0.0F : Float.parseFloat(var0);
-+         return isFalse(var0) ? 0.0F : Float.parseFloat(var0);
-       }
-    }
- 
+-      }
+-   }
+-
     public void save() {
        try {
-          PrintWriter var1 = new PrintWriter(new OutputStreamWriter(new FileOutputStream(this.optionsFile), StandardCharsets.UTF_8));
+-         PrintWriter var1 = new PrintWriter(new OutputStreamWriter(new FileOutputStream(this.optionsFile), StandardCharsets.UTF_8));
++         final PrintWriter var1 = new PrintWriter(new OutputStreamWriter(new FileOutputStream(this.optionsFile), StandardCharsets.UTF_8));
           Throwable var2 = null;
  
           try {
@@ -341,42 +733,177 @@
 -            var1.println("touchscreen:" + Option.TOUCHSCREEN.get(this));
 -            var1.println("fullscreen:" + Option.USE_FULLSCREEN.get(this));
 -            var1.println("bobView:" + Option.VIEW_BOBBING.get(this));
-+            var1.println("autoJump:" + this.autoJump);
-+            var1.println("autoSuggestions:" + this.autoSuggestions);
-+            var1.println("chatColors:" + this.chatColors);
-+            var1.println("chatLinks:" + this.chatLinks);
-+            var1.println("chatLinksPrompt:" + this.chatLinksPrompt);
-+            var1.println("enableVsync:" + this.enableVsync);
-+            var1.println("entityShadows:" + this.entityShadows);
-+            var1.println("forceUnicodeFont:" + this.forceUnicodeFont);
-+            var1.println("discrete_mouse_scroll:" + this.discreteMouseScroll);
-+            var1.println("invertYMouse:" + this.invertYMouse);
-+            var1.println("realmsNotifications:" + this.realmsNotifications);
-+            var1.println("reducedDebugInfo:" + this.reducedDebugInfo);
-+            var1.println("snooperEnabled:" + this.snooperEnabled);
-+            var1.println("showSubtitles:" + this.showSubtitles);
-+            var1.println("touchscreen:" + this.touchscreen);
-+            var1.println("fullscreen:" + this.fullscreen);
-+            var1.println("bobView:" + this.bobView);
-             var1.println("toggleCrouch:" + this.toggleCrouch);
-             var1.println("toggleSprint:" + this.toggleSprint);
-             var1.println("mouseSensitivity:" + this.sensitivity);
-             var1.println("fov:" + (this.fov - 70.0D) / 40.0D);
-             var1.println("screenEffectScale:" + this.screenEffectScale);
-@@ -756,11 +761,11 @@
-             var1.println("mainHand:" + (this.mainHand == HumanoidArm.LEFT ? "left" : "right"));
-             var1.println("attackIndicator:" + this.attackIndicator.getId());
-             var1.println("narrator:" + this.narratorStatus.getId());
-             var1.println("tutorialStep:" + this.tutorialStep.getName());
-             var1.println("mouseWheelSensitivity:" + this.mouseWheelSensitivity);
+-            var1.println("toggleCrouch:" + this.toggleCrouch);
+-            var1.println("toggleSprint:" + this.toggleSprint);
+-            var1.println("mouseSensitivity:" + this.sensitivity);
+-            var1.println("fov:" + (this.fov - 70.0D) / 40.0D);
+-            var1.println("screenEffectScale:" + this.screenEffectScale);
+-            var1.println("fovEffectScale:" + this.fovEffectScale);
+-            var1.println("gamma:" + this.gamma);
+-            var1.println("renderDistance:" + this.renderDistance);
+-            var1.println("entityDistanceScaling:" + this.entityDistanceScaling);
+-            var1.println("guiScale:" + this.guiScale);
+-            var1.println("particles:" + this.particles.getId());
+-            var1.println("maxFps:" + this.framerateLimit);
+-            var1.println("difficulty:" + this.difficulty.getId());
+-            var1.println("graphicsMode:" + this.graphicsMode.getId());
+-            var1.println("ao:" + this.ambientOcclusion.getId());
+-            var1.println("biomeBlendRadius:" + this.biomeBlendRadius);
+-            switch(this.renderClouds) {
+-            case FANCY:
+-               var1.println("renderClouds:true");
+-               break;
+-            case FAST:
+-               var1.println("renderClouds:fast");
+-               break;
+-            case OFF:
+-               var1.println("renderClouds:false");
+-            }
++            this.processOptions(new Options.FieldAccess() {
++               public void writePrefix(String var1x) {
++                  var1.print(var1x);
++                  var1.print(':');
++               }
+ 
+-            var1.println("resourcePacks:" + GSON.toJson(this.resourcePacks));
+-            var1.println("incompatibleResourcePacks:" + GSON.toJson(this.incompatibleResourcePacks));
+-            var1.println("lastServer:" + this.lastMpIp);
+-            var1.println("lang:" + this.languageCode);
+-            var1.println("chatVisibility:" + this.chatVisibility.getId());
+-            var1.println("chatOpacity:" + this.chatOpacity);
+-            var1.println("chatLineSpacing:" + this.chatLineSpacing);
+-            var1.println("textBackgroundOpacity:" + this.textBackgroundOpacity);
+-            var1.println("backgroundForChatOnly:" + this.backgroundForChatOnly);
+-            if (this.minecraft.getWindow().getPreferredFullscreenVideoMode().isPresent()) {
+-               var1.println("fullscreenResolution:" + ((VideoMode)this.minecraft.getWindow().getPreferredFullscreenVideoMode().get()).write());
+-            }
++               public int process(String var1x, int var2) {
++                  this.writePrefix(var1x);
++                  var1.println(var2);
++                  return var2;
++               }
+ 
+-            var1.println("hideServerAddress:" + this.hideServerAddress);
+-            var1.println("advancedItemTooltips:" + this.advancedItemTooltips);
+-            var1.println("pauseOnLostFocus:" + this.pauseOnLostFocus);
+-            var1.println("overrideWidth:" + this.overrideWidth);
+-            var1.println("overrideHeight:" + this.overrideHeight);
+-            var1.println("heldItemTooltips:" + this.heldItemTooltips);
+-            var1.println("chatHeightFocused:" + this.chatHeightFocused);
+-            var1.println("chatDelay: " + this.chatDelay);
+-            var1.println("chatHeightUnfocused:" + this.chatHeightUnfocused);
+-            var1.println("chatScale:" + this.chatScale);
+-            var1.println("chatWidth:" + this.chatWidth);
+-            var1.println("mipmapLevels:" + this.mipmapLevels);
+-            var1.println("useNativeTransport:" + this.useNativeTransport);
+-            var1.println("mainHand:" + (this.mainHand == HumanoidArm.LEFT ? "left" : "right"));
+-            var1.println("attackIndicator:" + this.attackIndicator.getId());
+-            var1.println("narrator:" + this.narratorStatus.getId());
+-            var1.println("tutorialStep:" + this.tutorialStep.getName());
+-            var1.println("mouseWheelSensitivity:" + this.mouseWheelSensitivity);
 -            var1.println("rawMouseInput:" + Option.RAW_MOUSE_INPUT.get(this));
-+            var1.println("rawMouseInput:" + this.rawMouseInput);
-             var1.println("glDebugVerbosity:" + this.glDebugVerbosity);
-             var1.println("skipMultiplayerWarning:" + this.skipMultiplayerWarning);
-             var1.println("hideMatchedNames:" + this.hideMatchedNames);
-             var1.println("joinedFirstServer:" + this.joinedFirstServer);
-             var1.println("syncChunkWrites:" + this.syncWrites);
-@@ -833,26 +838,26 @@
+-            var1.println("glDebugVerbosity:" + this.glDebugVerbosity);
+-            var1.println("skipMultiplayerWarning:" + this.skipMultiplayerWarning);
+-            var1.println("hideMatchedNames:" + this.hideMatchedNames);
+-            var1.println("joinedFirstServer:" + this.joinedFirstServer);
+-            var1.println("syncChunkWrites:" + this.syncWrites);
+-            KeyMapping[] var3 = this.keyMappings;
+-            int var4 = var3.length;
++               public boolean process(String var1x, boolean var2) {
++                  this.writePrefix(var1x);
++                  var1.println(var2);
++                  return var2;
++               }
+ 
+-            int var5;
+-            for(var5 = 0; var5 < var4; ++var5) {
+-               KeyMapping var6 = var3[var5];
+-               var1.println("key_" + var6.getName() + ":" + var6.saveString());
+-            }
++               public String process(String var1x, String var2) {
++                  this.writePrefix(var1x);
++                  var1.println(var2);
++                  return var2;
++               }
+ 
+-            SoundSource[] var18 = SoundSource.values();
+-            var4 = var18.length;
++               public double process(String var1x, double var2) {
++                  this.writePrefix(var1x);
++                  var1.println(var2);
++                  return var2;
++               }
+ 
+-            for(var5 = 0; var5 < var4; ++var5) {
+-               SoundSource var20 = var18[var5];
+-               var1.println("soundCategory_" + var20.getName() + ":" + this.getSoundSourceVolume(var20));
+-            }
++               public float process(String var1x, float var2) {
++                  this.writePrefix(var1x);
++                  var1.println(var2);
++                  return var2;
++               }
+ 
+-            PlayerModelPart[] var19 = PlayerModelPart.values();
+-            var4 = var19.length;
++               public <T> T process(String var1x, T var2, Function<String, T> var3, Function<T, String> var4) {
++                  this.writePrefix(var1x);
++                  var1.println((String)var4.apply(var2));
++                  return var2;
++               }
+ 
+-            for(var5 = 0; var5 < var4; ++var5) {
+-               PlayerModelPart var21 = var19[var5];
+-               var1.println("modelPart_" + var21.getId() + ":" + this.modelParts.contains(var21));
++               public <T> T process(String var1x, T var2, IntFunction<T> var3, ToIntFunction<T> var4) {
++                  this.writePrefix(var1x);
++                  var1.println(var4.applyAsInt(var2));
++                  return var2;
++               }
++            });
++            if (this.minecraft.getWindow().getPreferredFullscreenVideoMode().isPresent()) {
++               var1.println("fullscreenResolution:" + ((VideoMode)this.minecraft.getWindow().getPreferredFullscreenVideoMode().get()).write());
+             }
+-         } catch (Throwable var15) {
+-            var2 = var15;
+-            throw var15;
++         } catch (Throwable var12) {
++            var2 = var12;
++            throw var12;
+          } finally {
+             if (var1 != null) {
+                if (var2 != null) {
+                   try {
+                      var1.close();
+-                  } catch (Throwable var14) {
+-                     var2.addSuppressed(var14);
++                  } catch (Throwable var11) {
++                     var2.addSuppressed(var11);
+                   }
+                } else {
+                   var1.close();
+                }
+             }
+ 
+          }
+-      } catch (Exception var17) {
+-         LOGGER.error("Failed to save options", var17);
++      } catch (Exception var14) {
++         LOGGER.error("Failed to save options", var14);
+       }
+ 
+       this.broadcastOptions();
+    }
+ 
+    public float getSoundSourceVolume(SoundSource var1) {
+-      return this.sourceVolumes.containsKey(var1) ? (Float)this.sourceVolumes.get(var1) : 1.0F;
++      return this.sourceVolumes.getFloat(var1);
+    }
+ 
+    public void setSoundCategoryVolume(SoundSource var1, float var2) {
+       this.sourceVolumes.put(var1, var2);
+       this.minecraft.getSoundManager().updateSourceVolume(var1, var2);
+@@ -833,31 +662,25 @@
           this.minecraft.player.connection.send((Packet)(new ServerboundClientInformationPacket(this.languageCode, this.renderDistance, this.chatVisibility, this.chatColors, var1, this.mainHand)));
        }
  
@@ -386,26 +913,117 @@
 -      return ImmutableSet.copyOf(this.modelParts);
 -   }
 -
-    public void setModelPart(PlayerModelPart var1, boolean var2) {
+-   public void setModelPart(PlayerModelPart var1, boolean var2) {
++   private void setModelPart(PlayerModelPart var1, boolean var2) {
        if (var2) {
           this.modelParts.add(var1);
        } else {
           this.modelParts.remove(var1);
        }
  
-       this.broadcastOptions();
+-      this.broadcastOptions();
     }
  
 -   public void toggleModelPart(PlayerModelPart var1) {
 -      if (this.getModelParts().contains(var1)) {
+-         this.modelParts.remove(var1);
+-      } else {
+-         this.modelParts.add(var1);
+-      }
 +   public boolean isModelPartEnabled(PlayerModelPart var1) {
 +      return this.modelParts.contains(var1);
 +   }
-+
-+   public void toggleModelPart(PlayerModelPart var1, boolean var2) {
-+      if (!var2) {
-          this.modelParts.remove(var1);
-       } else {
-          this.modelParts.add(var1);
-       }
  
++   public void toggleModelPart(PlayerModelPart var1, boolean var2) {
++      this.setModelPart(var1, var2);
+       this.broadcastOptions();
+    }
+ 
+    public CloudStatus getCloudsType() {
+       return this.renderDistance >= 4 ? this.renderClouds : CloudStatus.OFF;
+@@ -903,6 +726,85 @@
+    }
+ 
+    public void setCameraType(CameraType var1) {
+       this.cameraType = var1;
+    }
++
++   private static List<String> readPackList(String var0) {
++      List var1 = (List)GsonHelper.fromJson(GSON, var0, RESOURCE_PACK_TYPE);
++      return (List)(var1 != null ? var1 : Lists.newArrayList());
++   }
++
++   private static CloudStatus readCloudStatus(String var0) {
++      byte var2 = -1;
++      switch(var0.hashCode()) {
++      case 3135580:
++         if (var0.equals("fast")) {
++            var2 = 1;
++         }
++         break;
++      case 3569038:
++         if (var0.equals("true")) {
++            var2 = 0;
++         }
++         break;
++      case 97196323:
++         if (var0.equals("false")) {
++            var2 = 2;
++         }
++      }
++
++      switch(var2) {
++      case 0:
++         return CloudStatus.FANCY;
++      case 1:
++         return CloudStatus.FAST;
++      case 2:
++      default:
++         return CloudStatus.OFF;
++      }
++   }
++
++   private static String writeCloudStatus(CloudStatus var0) {
++      switch(var0) {
++      case FANCY:
++         return "true";
++      case FAST:
++         return "fast";
++      case OFF:
++      default:
++         return "false";
++      }
++   }
++
++   private static AmbientOcclusionStatus readAmbientOcclusion(String var0) {
++      if (isTrue(var0)) {
++         return AmbientOcclusionStatus.MAX;
++      } else {
++         return isFalse(var0) ? AmbientOcclusionStatus.OFF : AmbientOcclusionStatus.byId(Integer.parseInt(var0));
++      }
++   }
++
++   private static HumanoidArm readMainHand(String var0) {
++      return "left".equals(var0) ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
++   }
++
++   private static String writeMainHand(HumanoidArm var0) {
++      return var0 == HumanoidArm.LEFT ? "left" : "right";
++   }
++
++   interface FieldAccess {
++      int process(String var1, int var2);
++
++      boolean process(String var1, boolean var2);
++
++      String process(String var1, String var2);
++
++      double process(String var1, double var2);
++
++      float process(String var1, float var2);
++
++      <T> T process(String var1, T var2, Function<String, T> var3, Function<T, String> var4);
++
++      <T> T process(String var1, T var2, IntFunction<T> var3, ToIntFunction<T> var4);
++   }
+ }

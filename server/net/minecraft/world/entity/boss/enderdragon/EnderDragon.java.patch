@@ -12,7 +12,81 @@
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
  import net.minecraft.world.level.material.Material;
-@@ -332,11 +331,11 @@
+@@ -100,10 +99,23 @@
+ 
+    public static AttributeSupplier.Builder createAttributes() {
+       return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 200.0D);
+    }
+ 
++   public boolean isFlapping() {
++      float var1 = Mth.cos(this.flapTime * 6.2831855F);
++      float var2 = Mth.cos(this.oFlapTime * 6.2831855F);
++      return var2 <= -0.3F && var1 >= -0.3F;
++   }
++
++   public void onFlap() {
++      if (this.level.isClientSide && !this.isSilent()) {
++         this.level.playLocalSound(this.getX(), this.getY(), this.getZ(), SoundEvents.ENDER_DRAGON_FLAP, this.getSoundSource(), 5.0F, 0.8F + this.random.nextFloat() * 0.3F, false);
++      }
++
++   }
++
+    protected void defineSynchedData() {
+       super.defineSynchedData();
+       this.getEntityData().define(DATA_PHASE, EnderDragonPhase.HOVERING.getId());
+    }
+ 
+@@ -125,39 +137,31 @@
+       var5[2] = Mth.lerp((double)var2, this.positions[var3][2], this.positions[var4][2]);
+       return var5;
+    }
+ 
+    public void aiStep() {
+-      float var1;
+-      float var2;
++      this.processFlappingMovement();
+       if (this.level.isClientSide) {
+          this.setHealth(this.getHealth());
+-         if (!this.isSilent()) {
+-            var1 = Mth.cos(this.flapTime * 6.2831855F);
+-            var2 = Mth.cos(this.oFlapTime * 6.2831855F);
+-            if (var2 <= -0.3F && var1 >= -0.3F) {
+-               this.level.playLocalSound(this.getX(), this.getY(), this.getZ(), SoundEvents.ENDER_DRAGON_FLAP, this.getSoundSource(), 5.0F, 0.8F + this.random.nextFloat() * 0.3F, false);
+-            }
+-
+-            if (!this.phaseManager.getCurrentPhase().isSitting() && --this.growlTime < 0) {
+-               this.level.playLocalSound(this.getX(), this.getY(), this.getZ(), SoundEvents.ENDER_DRAGON_GROWL, this.getSoundSource(), 2.5F, 0.8F + this.random.nextFloat() * 0.3F, false);
+-               this.growlTime = 200 + this.random.nextInt(200);
+-            }
++         if (!this.isSilent() && !this.phaseManager.getCurrentPhase().isSitting() && --this.growlTime < 0) {
++            this.level.playLocalSound(this.getX(), this.getY(), this.getZ(), SoundEvents.ENDER_DRAGON_GROWL, this.getSoundSource(), 2.5F, 0.8F + this.random.nextFloat() * 0.3F, false);
++            this.growlTime = 200 + this.random.nextInt(200);
+          }
+       }
+ 
+       this.oFlapTime = this.flapTime;
++      float var2;
+       if (this.isDeadOrDying()) {
+-         var1 = (this.random.nextFloat() - 0.5F) * 8.0F;
++         float var26 = (this.random.nextFloat() - 0.5F) * 8.0F;
+          var2 = (this.random.nextFloat() - 0.5F) * 4.0F;
+          float var32 = (this.random.nextFloat() - 0.5F) * 8.0F;
+-         this.level.addParticle(ParticleTypes.EXPLOSION, this.getX() + (double)var1, this.getY() + 2.0D + (double)var2, this.getZ() + (double)var32, 0.0D, 0.0D, 0.0D);
++         this.level.addParticle(ParticleTypes.EXPLOSION, this.getX() + (double)var26, this.getY() + 2.0D + (double)var2, this.getZ() + (double)var32, 0.0D, 0.0D, 0.0D);
+       } else {
+          this.checkCrystals();
+-         Vec3 var26 = this.getDeltaMovement();
+-         var2 = 0.2F / (Mth.sqrt(getHorizontalDistanceSqr(var26)) * 10.0F + 1.0F);
+-         var2 *= (float)Math.pow(2.0D, var26.y);
++         Vec3 var1 = this.getDeltaMovement();
++         var2 = 0.2F / (Mth.sqrt(getHorizontalDistanceSqr(var1)) * 10.0F + 1.0F);
++         var2 *= (float)Math.pow(2.0D, var1.y);
+          if (this.phaseManager.getCurrentPhase().isSitting()) {
+             this.flapTime += 0.1F;
+          } else if (this.inWall) {
+             this.flapTime += var2 * 0.5F;
+          } else {
+@@ -332,11 +336,11 @@
        }
     }
  
@@ -25,7 +99,7 @@
              this.setHealth(this.getHealth() + 1.0F);
           }
        }
-@@ -412,25 +411,24 @@
+@@ -412,25 +416,24 @@
        for(int var10 = var2; var10 <= var5; ++var10) {
           for(int var11 = var3; var11 <= var6; ++var11) {
              for(int var12 = var4; var12 <= var7; ++var12) {
@@ -54,7 +128,7 @@
        return var8;
     }
  
-@@ -479,11 +477,11 @@
+@@ -479,11 +482,11 @@
     protected boolean reallyHurt(DamageSource var1, float var2) {
        return super.hurt(var1, var2);
     }
@@ -67,7 +141,7 @@
           this.dragonFight.setDragonKilled(this);
        }
  
-@@ -506,46 +504,37 @@
+@@ -506,46 +509,37 @@
        short var5 = 500;
        if (this.dragonFight != null && !this.dragonFight.hasPreviouslyKilledDragon()) {
           var5 = 12000;

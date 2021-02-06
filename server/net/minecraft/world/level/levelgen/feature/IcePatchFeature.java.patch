@@ -1,15 +1,29 @@
 --- net/minecraft/world/level/levelgen/feature/IcePatchFeature.java
 +++ net/minecraft/world/level/levelgen/feature/IcePatchFeature.java
-@@ -12,11 +12,11 @@
+@@ -11,17 +11,18 @@
+ public class IcePatchFeature extends BaseDiskFeature {
     public IcePatchFeature(Codec<DiskConfiguration> var1) {
        super(var1);
     }
  
-    public boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, DiskConfiguration var5) {
+-   public boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, DiskConfiguration var5) {
 -      while(var1.isEmptyBlock(var4) && var4.getY() > 2) {
-+      while(var1.isEmptyBlock(var4) && var4.getY() > var1.getMinBuildHeight() + 2) {
-          var4 = var4.below();
-       }
+-         var4 = var4.below();
+-      }
++   public boolean place(FeaturePlaceContext<DiskConfiguration> var1) {
++      WorldGenLevel var2 = var1.level();
++      ChunkGenerator var3 = var1.chunkGenerator();
++      Random var4 = var1.random();
++      DiskConfiguration var5 = (DiskConfiguration)var1.config();
  
-       if (!var1.getBlockState(var4).is(Blocks.SNOW_BLOCK)) {
-          return false;
+-      if (!var1.getBlockState(var4).is(Blocks.SNOW_BLOCK)) {
+-         return false;
+-      } else {
+-         return super.place(var1, var2, var3, var4, var5);
++      BlockPos var6;
++      for(var6 = var1.origin(); var2.isEmptyBlock(var6) && var6.getY() > var2.getMinBuildHeight() + 2; var6 = var6.below()) {
+       }
++
++      return !var2.getBlockState(var6).is(Blocks.SNOW_BLOCK) ? false : super.place(new FeaturePlaceContext(var2, var3, var4, var6, var5));
+    }
+ }

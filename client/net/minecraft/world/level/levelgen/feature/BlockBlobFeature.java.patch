@@ -1,14 +1,14 @@
 --- net/minecraft/world/level/levelgen/feature/BlockBlobFeature.java
 +++ net/minecraft/world/level/levelgen/feature/BlockBlobFeature.java
-@@ -3,30 +3,30 @@
+@@ -3,47 +3,51 @@
  import com.mojang.serialization.Codec;
  import java.util.Iterator;
  import java.util.Random;
  import net.minecraft.core.BlockPos;
  import net.minecraft.world.level.WorldGenLevel;
 -import net.minecraft.world.level.block.Block;
+-import net.minecraft.world.level.chunk.ChunkGenerator;
 +import net.minecraft.world.level.block.state.BlockState;
- import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.feature.configurations.BlockStateConfiguration;
  
  public class BlockBlobFeature extends Feature<BlockStateConfiguration> {
@@ -16,12 +16,19 @@
        super(var1);
     }
  
-    public boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, BlockStateConfiguration var5) {
+-   public boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, BlockStateConfiguration var5) {
 -      for(; var4.getY() > 3; var4 = var4.below()) {
-+      for(; var4.getY() > var1.getMinBuildHeight() + 3; var4 = var4.below()) {
-          if (!var1.isEmptyBlock(var4.below())) {
+-         if (!var1.isEmptyBlock(var4.below())) {
 -            Block var6 = var1.getBlockState(var4.below()).getBlock();
-+            BlockState var6 = var1.getBlockState(var4.below());
++   public boolean place(FeaturePlaceContext<BlockStateConfiguration> var1) {
++      BlockPos var2 = var1.origin();
++      WorldGenLevel var3 = var1.level();
++      Random var4 = var1.random();
++
++      BlockStateConfiguration var5;
++      for(var5 = (BlockStateConfiguration)var1.config(); var2.getY() > var3.getMinBuildHeight() + 3; var2 = var2.below()) {
++         if (!var3.isEmptyBlock(var2.below())) {
++            BlockState var6 = var3.getBlockState(var2.below());
              if (isDirt(var6) || isStone(var6)) {
                 break;
              }
@@ -29,9 +36,33 @@
        }
  
 -      if (var4.getY() <= 3) {
-+      if (var4.getY() <= var1.getMinBuildHeight() + 3) {
++      if (var2.getY() <= var3.getMinBuildHeight() + 3) {
           return false;
        } else {
           for(int var13 = 0; var13 < 3; ++var13) {
-             int var7 = var3.nextInt(2);
-             int var8 = var3.nextInt(2);
+-            int var7 = var3.nextInt(2);
+-            int var8 = var3.nextInt(2);
+-            int var9 = var3.nextInt(2);
++            int var7 = var4.nextInt(2);
++            int var8 = var4.nextInt(2);
++            int var9 = var4.nextInt(2);
+             float var10 = (float)(var7 + var8 + var9) * 0.333F + 0.5F;
+-            Iterator var11 = BlockPos.betweenClosed(var4.offset(-var7, -var8, -var9), var4.offset(var7, var8, var9)).iterator();
++            Iterator var11 = BlockPos.betweenClosed(var2.offset(-var7, -var8, -var9), var2.offset(var7, var8, var9)).iterator();
+ 
+             while(var11.hasNext()) {
+                BlockPos var12 = (BlockPos)var11.next();
+-               if (var12.distSqr(var4) <= (double)(var10 * var10)) {
+-                  var1.setBlock(var12, var5.state, 4);
++               if (var12.distSqr(var2) <= (double)(var10 * var10)) {
++                  var3.setBlock(var12, var5.state, 4);
+                }
+             }
+ 
+-            var4 = var4.offset(-1 + var3.nextInt(2), -var3.nextInt(2), -1 + var3.nextInt(2));
++            var2 = var2.offset(-1 + var4.nextInt(2), -var4.nextInt(2), -1 + var4.nextInt(2));
+          }
+ 
+          return true;
+       }
+    }

@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/BellBlock.java
 +++ net/minecraft/world/level/block/BellBlock.java
-@@ -16,10 +16,12 @@
+@@ -16,18 +16,21 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.LevelReader;
@@ -13,7 +13,59 @@
  import net.minecraft.world.level.block.state.StateDefinition;
  import net.minecraft.world.level.block.state.properties.BellAttachType;
  import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-@@ -230,14 +232,19 @@
+ import net.minecraft.world.level.block.state.properties.BooleanProperty;
+ import net.minecraft.world.level.block.state.properties.DirectionProperty;
+ import net.minecraft.world.level.block.state.properties.EnumProperty;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.material.PushReaction;
+ import net.minecraft.world.level.pathfinder.PathComputationType;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.Shapes;
+@@ -80,11 +83,11 @@
+    public boolean onHit(Level var1, BlockState var2, BlockHitResult var3, @Nullable Player var4, boolean var5) {
+       Direction var6 = var3.getDirection();
+       BlockPos var7 = var3.getBlockPos();
+       boolean var8 = !var5 || this.isProperHit(var2, var6, var3.getLocation().y - (double)var7.getY());
+       if (var8) {
+-         boolean var9 = this.attemptToRing(var1, var7, var6);
++         boolean var9 = this.attemptToRing(var4, var1, var7, var6);
+          if (var9 && var4 != null) {
+             var4.awardStat(Stats.BELL_RING);
+          }
+ 
+          return true;
+@@ -112,18 +115,23 @@
+          return false;
+       }
+    }
+ 
+    public boolean attemptToRing(Level var1, BlockPos var2, @Nullable Direction var3) {
+-      BlockEntity var4 = var1.getBlockEntity(var2);
+-      if (!var1.isClientSide && var4 instanceof BellBlockEntity) {
+-         if (var3 == null) {
+-            var3 = (Direction)var1.getBlockState(var2).getValue(FACING);
++      return this.attemptToRing((Entity)null, var1, var2, var3);
++   }
++
++   public boolean attemptToRing(@Nullable Entity var1, Level var2, BlockPos var3, @Nullable Direction var4) {
++      BlockEntity var5 = var2.getBlockEntity(var3);
++      if (!var2.isClientSide && var5 instanceof BellBlockEntity) {
++         if (var4 == null) {
++            var4 = (Direction)var2.getBlockState(var3).getValue(FACING);
+          }
+ 
+-         ((BellBlockEntity)var4).onHit(var3);
+-         var1.playSound((Player)null, (BlockPos)var2, SoundEvents.BELL_BLOCK, SoundSource.BLOCKS, 2.0F, 1.0F);
++         ((BellBlockEntity)var5).onHit(var4);
++         var2.playSound((Player)null, (BlockPos)var3, SoundEvents.BELL_BLOCK, SoundSource.BLOCKS, 2.0F, 1.0F);
++         var2.gameEvent(var1, GameEvent.RING_BELL, var3);
+          return true;
+       } else {
+          return false;
+       }
+    }
+@@ -230,14 +238,19 @@
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
        var1.add(FACING, ATTACHMENT, POWERED);
     }

@@ -12,7 +12,19 @@
  import net.minecraft.util.TimeUtil;
  import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.damagesource.IndirectEntityDamageSource;
-@@ -62,11 +61,10 @@
+@@ -51,10 +50,11 @@
+ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.pathfinder.BlockPathTypes;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.Vec3;
+ 
+@@ -62,11 +62,10 @@
     private static final UUID SPEED_MODIFIER_ATTACKING_UUID = UUID.fromString("020E0DFB-87AE-4653-9556-831010E291A0");
     private static final AttributeModifier SPEED_MODIFIER_ATTACKING;
     private static final EntityDataAccessor<Optional<BlockState>> DATA_CARRY_STATE;
@@ -24,7 +36,7 @@
     private static final IntRange PERSISTENT_ANGER_TIME;
     private int remainingPersistentAngerTime;
     private UUID persistentAngerTarget;
-@@ -86,11 +84,11 @@
+@@ -86,11 +85,11 @@
        this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
        this.goalSelector.addGoal(10, new EnderMan.EndermanLeaveBlockGoal(this));
        this.goalSelector.addGoal(11, new EnderMan.EndermanTakeBlockGoal(this));
@@ -37,7 +49,7 @@
  
     public static AttributeSupplier.Builder createAttributes() {
        return Monster.createMonsterAttributes().add(Attributes.MAX_HEALTH, 40.0D).add(Attributes.MOVEMENT_SPEED, 0.30000001192092896D).add(Attributes.ATTACK_DAMAGE, 7.0D).add(Attributes.FOLLOW_RANGE, 64.0D);
-@@ -178,16 +176,16 @@
+@@ -178,16 +177,16 @@
              var2 = null;
           }
        }
@@ -57,7 +69,7 @@
           Vec3 var3 = var1.getViewVector(1.0F).normalize();
           Vec3 var4 = new Vec3(this.getX() - var1.getX(), this.getEyeY() - var1.getEyeY(), this.getZ() - var1.getZ());
           double var5 = var4.length();
-@@ -254,11 +252,11 @@
+@@ -254,11 +253,11 @@
     }
  
     private boolean teleport(double var1, double var3, double var5) {
@@ -70,7 +82,7 @@
  
        BlockState var8 = this.level.getBlockState(var7);
        boolean var9 = var8.getMaterial().blocksMotion();
-@@ -346,13 +344,10 @@
+@@ -346,13 +345,10 @@
     static {
        SPEED_MODIFIER_ATTACKING = new AttributeModifier(SPEED_MODIFIER_ATTACKING_UUID, "Attacking speed boost", 0.15000000596046448D, AttributeModifier.Operation.ADDITION);
        DATA_CARRY_STATE = SynchedEntityData.defineId(EnderMan.class, EntityDataSerializers.BLOCK_STATE);
@@ -84,7 +96,7 @@
  
     static class EndermanTakeBlockGoal extends Goal {
        private final EnderMan enderman;
-@@ -377,16 +372,15 @@
+@@ -377,17 +373,17 @@
           int var3 = Mth.floor(this.enderman.getX() - 2.0D + var1.nextDouble() * 4.0D);
           int var4 = Mth.floor(this.enderman.getY() + var1.nextDouble() * 3.0D);
           int var5 = Mth.floor(this.enderman.getZ() - 2.0D + var1.nextDouble() * 4.0D);
@@ -102,7 +114,21 @@
 +         boolean var11 = var10.getBlockPos().equals(var6);
 +         if (var7.is(BlockTags.ENDERMAN_HOLDABLE) && var11) {
              var2.removeBlock(var6, false);
++            var2.gameEvent(this.enderman, GameEvent.BLOCK_DESTROY, var6);
              this.enderman.setCarriedBlock(var7.getBlock().defaultBlockState());
           }
  
+       }
+    }
+@@ -422,10 +418,11 @@
+          BlockState var10 = this.enderman.getCarriedBlock();
+          if (var10 != null) {
+             var10 = Block.updateFromNeighbourShapes(var10, this.enderman.level, var6);
+             if (this.canPlaceBlock(var2, var6, var10, var7, var9, var8)) {
+                var2.setBlock(var6, var10, 3);
++               var2.gameEvent(this.enderman, GameEvent.BLOCK_PLACE, var6);
+                this.enderman.setCarriedBlock((BlockState)null);
+             }
+ 
+          }
        }

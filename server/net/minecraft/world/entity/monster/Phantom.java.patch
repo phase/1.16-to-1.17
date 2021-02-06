@@ -1,0 +1,55 @@
+--- net/minecraft/world/entity/monster/Phantom.java
++++ net/minecraft/world/entity/monster/Phantom.java
+@@ -40,10 +40,11 @@
+ import net.minecraft.world.level.ServerLevelAccessor;
+ import net.minecraft.world.level.levelgen.Heightmap;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class Phantom extends FlyingMob implements Enemy {
++   public static final int TICKS_PER_FLAP = Mth.ceil(24.166098F);
+    private static final EntityDataAccessor<Integer> ID_SIZE;
+    private Vec3 moveTargetPoint;
+    private BlockPos anchorPoint;
+    private Phantom.AttackPhase attackPhase;
+ 
+@@ -55,10 +56,14 @@
+       this.xpReward = 5;
+       this.moveControl = new Phantom.PhantomMoveControl(this);
+       this.lookControl = new Phantom.PhantomLookControl(this);
+    }
+ 
++   public boolean isFlapping() {
++      return (this.getUniqueFlapTickOffset() + this.tickCount) % TICKS_PER_FLAP == 0;
++   }
++
+    protected BodyRotationControl createBodyControl() {
+       return new Phantom.PhantomBodyRotationControl(this);
+    }
+ 
+    protected void registerGoals() {
+@@ -96,19 +101,23 @@
+       }
+ 
+       super.onSyncedDataUpdated(var1);
+    }
+ 
++   public int getUniqueFlapTickOffset() {
++      return this.getId() * 3;
++   }
++
+    protected boolean shouldDespawnInPeaceful() {
+       return true;
+    }
+ 
+    public void tick() {
+       super.tick();
+       if (this.level.isClientSide) {
+-         float var1 = Mth.cos((float)(this.getId() * 3 + this.tickCount) * 0.13F + 3.1415927F);
+-         float var2 = Mth.cos((float)(this.getId() * 3 + this.tickCount + 1) * 0.13F + 3.1415927F);
++         float var1 = Mth.cos((float)(this.getUniqueFlapTickOffset() + this.tickCount) * 7.448451F + 3.1415927F);
++         float var2 = Mth.cos((float)(this.getUniqueFlapTickOffset() + this.tickCount + 1) * 7.448451F + 3.1415927F);
+          if (var1 > 0.0F && var2 <= 0.0F) {
+             this.level.playLocalSound(this.getX(), this.getY(), this.getZ(), SoundEvents.PHANTOM_FLAP, this.getSoundSource(), 0.95F + this.random.nextFloat() * 0.05F, 0.95F + this.random.nextFloat() * 0.05F, false);
+          }
+ 
+          int var3 = this.getPhantomSize();

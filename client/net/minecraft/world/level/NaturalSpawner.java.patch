@@ -130,107 +130,95 @@
        int var4 = var2.getMinBlockZ() + var0.random.nextInt(16);
        int var5 = var1.getHeight(Heightmap.Types.WORLD_SURFACE, var3, var4) + 1;
 -      int var6 = var0.random.nextInt(var5 + 1);
-+      int var6 = var0.random.nextInt(var5 - var0.getMinBuildHeight() + 1) + var0.getMinBuildHeight();
++      int var6 = Mth.randomBetweenInclusive(var0.random, var0.getMinBuildHeight(), var5);
        return new BlockPos(var3, var6, var4);
     }
  
     public static boolean isValidEmptySpawnBlock(BlockGetter var0, BlockPos var1, BlockState var2, FluidState var3, EntityType<?> var4) {
        if (var2.isCollisionShapeFullBlock(var0, var1)) {
-@@ -312,63 +314,71 @@
+@@ -308,35 +310,44 @@
+       } else {
+          return false;
+       }
+    }
  
-    public static void spawnMobsForChunkGeneration(ServerLevelAccessor var0, Biome var1, int var2, int var3, Random var4) {
-       MobSpawnSettings var5 = var1.getMobSettings();
-       List var6 = var5.getMobs(MobCategory.CREATURE);
-       if (!var6.isEmpty()) {
+-   public static void spawnMobsForChunkGeneration(ServerLevelAccessor var0, Biome var1, int var2, int var3, Random var4) {
+-      MobSpawnSettings var5 = var1.getMobSettings();
+-      List var6 = var5.getMobs(MobCategory.CREATURE);
+-      if (!var6.isEmpty()) {
 -         int var7 = var2 << 4;
 -         int var8 = var3 << 4;
-+         int var7 = SectionPos.sectionToBlockCoord(var2);
-+         int var8 = SectionPos.sectionToBlockCoord(var3);
++   public static void spawnMobsForChunkGeneration(ServerLevelAccessor var0, Biome var1, ChunkPos var2, Random var3) {
++      MobSpawnSettings var4 = var1.getMobSettings();
++      List var5 = var4.getMobs(MobCategory.CREATURE);
++      if (!var5.isEmpty()) {
++         int var6 = var2.getMinBlockX();
++         int var7 = var2.getMinBlockZ();
  
 -         while(var4.nextFloat() < var5.getCreatureProbability()) {
 -            MobSpawnSettings.SpawnerData var9 = (MobSpawnSettings.SpawnerData)WeighedRandom.getRandomItem(var4, var6);
 -            int var10 = var9.minCount + var4.nextInt(1 + var9.maxCount - var9.minCount);
--            SpawnGroupData var11 = null;
--            int var12 = var7 + var4.nextInt(16);
--            int var13 = var8 + var4.nextInt(16);
--            int var14 = var12;
 +         while(true) {
-+            Optional var9;
++            Optional var8;
 +            do {
-+               if (var4.nextFloat() >= var5.getCreatureProbability()) {
++               if (var3.nextFloat() >= var4.getCreatureProbability()) {
 +                  return;
 +               }
 +
-+               var9 = WeighedRandom.getRandomItem(var4, var6);
-+            } while(!var9.isPresent());
++               var8 = WeighedRandom.getRandomItem(var3, var5);
++            } while(!var8.isPresent());
 +
-+            MobSpawnSettings.SpawnerData var10 = (MobSpawnSettings.SpawnerData)var9.get();
-+            int var11 = var10.minCount + var4.nextInt(1 + var10.maxCount - var10.minCount);
-+            SpawnGroupData var12 = null;
-+            int var13 = var7 + var4.nextInt(16);
-+            int var14 = var8 + var4.nextInt(16);
++            MobSpawnSettings.SpawnerData var9 = (MobSpawnSettings.SpawnerData)var8.get();
++            int var10 = var9.minCount + var3.nextInt(1 + var9.maxCount - var9.minCount);
+             SpawnGroupData var11 = null;
+-            int var12 = var7 + var4.nextInt(16);
+-            int var13 = var8 + var4.nextInt(16);
++            int var12 = var6 + var3.nextInt(16);
++            int var13 = var7 + var3.nextInt(16);
+             int var14 = var12;
              int var15 = var13;
-+            int var16 = var14;
  
--            for(int var16 = 0; var16 < var10; ++var16) {
--               boolean var17 = false;
-+            for(int var17 = 0; var17 < var11; ++var17) {
-+               boolean var18 = false;
+             for(int var16 = 0; var16 < var10; ++var16) {
+                boolean var17 = false;
  
--               for(int var18 = 0; !var17 && var18 < 4; ++var18) {
--                  BlockPos var19 = getTopNonCollidingPos(var0, var9.type, var12, var13);
--                  if (var9.type.canSummon() && isSpawnPositionOk(SpawnPlacements.getPlacementType(var9.type), var0, var19, var9.type)) {
--                     float var20 = var9.type.getWidth();
+                for(int var18 = 0; !var17 && var18 < 4; ++var18) {
+                   BlockPos var19 = getTopNonCollidingPos(var0, var9.type, var12, var13);
+                   if (var9.type.canSummon() && isSpawnPositionOk(SpawnPlacements.getPlacementType(var9.type), var0, var19, var9.type)) {
+                      float var20 = var9.type.getWidth();
 -                     double var21 = Mth.clamp((double)var12, (double)var7 + (double)var20, (double)var7 + 16.0D - (double)var20);
 -                     double var23 = Mth.clamp((double)var13, (double)var8 + (double)var20, (double)var8 + 16.0D - (double)var20);
--                     if (!var0.noCollision(var9.type.getAABB(var21, (double)var19.getY(), var23)) || !SpawnPlacements.checkSpawnRules(var9.type, var0, MobSpawnType.CHUNK_GENERATION, new BlockPos(var21, (double)var19.getY(), var23), var0.getRandom())) {
-+               for(int var19 = 0; !var18 && var19 < 4; ++var19) {
-+                  BlockPos var20 = getTopNonCollidingPos(var0, var10.type, var13, var14);
-+                  if (var10.type.canSummon() && isSpawnPositionOk(SpawnPlacements.getPlacementType(var10.type), var0, var20, var10.type)) {
-+                     float var21 = var10.type.getWidth();
-+                     double var22 = Mth.clamp((double)var13, (double)var7 + (double)var21, (double)var7 + 16.0D - (double)var21);
-+                     double var24 = Mth.clamp((double)var14, (double)var8 + (double)var21, (double)var8 + 16.0D - (double)var21);
-+                     if (!var0.noCollision(var10.type.getAABB(var22, (double)var20.getY(), var24)) || !SpawnPlacements.checkSpawnRules(var10.type, var0, MobSpawnType.CHUNK_GENERATION, new BlockPos(var22, (double)var20.getY(), var24), var0.getRandom())) {
++                     double var21 = Mth.clamp((double)var12, (double)var6 + (double)var20, (double)var6 + 16.0D - (double)var20);
++                     double var23 = Mth.clamp((double)var13, (double)var7 + (double)var20, (double)var7 + 16.0D - (double)var20);
+                      if (!var0.noCollision(var9.type.getAABB(var21, (double)var19.getY(), var23)) || !SpawnPlacements.checkSpawnRules(var9.type, var0, MobSpawnType.CHUNK_GENERATION, new BlockPos(var21, (double)var19.getY(), var23), var0.getRandom())) {
                          continue;
                       }
  
--                     Entity var25;
-+                     Entity var26;
-                      try {
--                        var25 = var9.type.create(var0.getLevel());
--                     } catch (Exception var27) {
--                        LOGGER.warn("Failed to create mob", var27);
-+                        var26 = var10.type.create(var0.getLevel());
-+                     } catch (Exception var28) {
-+                        LOGGER.warn("Failed to create mob", var28);
+                      Entity var25;
+@@ -345,30 +356,29 @@
+                      } catch (Exception var27) {
+                         LOGGER.warn("Failed to create mob", var27);
                          continue;
                       }
  
 -                     var25.moveTo(var21, (double)var19.getY(), var23, var4.nextFloat() * 360.0F, 0.0F);
--                     if (var25 instanceof Mob) {
--                        Mob var26 = (Mob)var25;
--                        if (var26.checkSpawnRules(var0, MobSpawnType.CHUNK_GENERATION) && var26.checkSpawnObstruction(var0)) {
--                           var11 = var26.finalizeSpawn(var0, var0.getCurrentDifficultyAt(var26.blockPosition()), MobSpawnType.CHUNK_GENERATION, var11, (CompoundTag)null);
--                           var0.addFreshEntityWithPassengers(var26);
--                           var17 = true;
-+                     var26.moveTo(var22, (double)var20.getY(), var24, var4.nextFloat() * 360.0F, 0.0F);
-+                     if (var26 instanceof Mob) {
-+                        Mob var27 = (Mob)var26;
-+                        if (var27.checkSpawnRules(var0, MobSpawnType.CHUNK_GENERATION) && var27.checkSpawnObstruction(var0)) {
-+                           var12 = var27.finalizeSpawn(var0, var0.getCurrentDifficultyAt(var27.blockPosition()), MobSpawnType.CHUNK_GENERATION, var12, (CompoundTag)null);
-+                           var0.addFreshEntityWithPassengers(var27);
-+                           var18 = true;
++                     var25.moveTo(var21, (double)var19.getY(), var23, var3.nextFloat() * 360.0F, 0.0F);
+                      if (var25 instanceof Mob) {
+                         Mob var26 = (Mob)var25;
+                         if (var26.checkSpawnRules(var0, MobSpawnType.CHUNK_GENERATION) && var26.checkSpawnObstruction(var0)) {
+                            var11 = var26.finalizeSpawn(var0, var0.getCurrentDifficultyAt(var26.blockPosition()), MobSpawnType.CHUNK_GENERATION, var11, (CompoundTag)null);
+                            var0.addFreshEntityWithPassengers(var26);
+                            var17 = true;
                          }
                       }
                    }
  
 -                  var12 += var4.nextInt(5) - var4.nextInt(5);
-+                  var13 += var4.nextInt(5) - var4.nextInt(5);
++                  var12 += var3.nextInt(5) - var3.nextInt(5);
  
 -                  for(var13 += var4.nextInt(5) - var4.nextInt(5); var12 < var7 || var12 >= var7 + 16 || var13 < var8 || var13 >= var8 + 16; var13 = var15 + var4.nextInt(5) - var4.nextInt(5)) {
 -                     var12 = var14 + var4.nextInt(5) - var4.nextInt(5);
-+                  for(var14 += var4.nextInt(5) - var4.nextInt(5); var13 < var7 || var13 >= var7 + 16 || var14 < var8 || var14 >= var8 + 16; var14 = var16 + var4.nextInt(5) - var4.nextInt(5)) {
-+                     var13 = var15 + var4.nextInt(5) - var4.nextInt(5);
++                  for(var13 += var3.nextInt(5) - var3.nextInt(5); var12 < var6 || var12 >= var6 + 16 || var13 < var7 || var13 >= var7 + 16; var13 = var15 + var3.nextInt(5) - var3.nextInt(5)) {
++                     var12 = var14 + var3.nextInt(5) - var3.nextInt(5);
                    }
                 }
              }

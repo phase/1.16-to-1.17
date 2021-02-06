@@ -28,7 +28,18 @@
  import net.minecraft.world.entity.ai.village.poi.PoiType;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.ItemStack;
-@@ -93,23 +95,24 @@
+@@ -83,33 +85,35 @@
+ import net.minecraft.world.level.pathfinder.BlockPathTypes;
+ import net.minecraft.world.level.pathfinder.Path;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class Bee extends Animal implements NeutralMob, FlyingAnimal {
++   public static final int TICKS_PER_FLAP = Mth.ceil(1.4959966F);
+    private static final EntityDataAccessor<Byte> DATA_FLAGS_ID;
+    private static final EntityDataAccessor<Integer> DATA_REMAINING_ANGER_TIME;
+    private static final IntRange PERSISTENT_ANGER_TIME;
+    private UUID persistentAngerTarget;
+    private float rollAmount;
     private float rollAmountO;
     private int timeSinceSting;
     private int ticksWithoutNectarSinceExitingHive;
@@ -57,7 +68,7 @@
        this.setPathfindingMalus(BlockPathTypes.DANGER_FIRE, -1.0F);
        this.setPathfindingMalus(BlockPathTypes.WATER, -1.0F);
        this.setPathfindingMalus(BlockPathTypes.WATER_BORDER, 16.0F);
-@@ -181,11 +184,11 @@
+@@ -181,11 +185,11 @@
        this.setHasNectar(var1.getBoolean("HasNectar"));
        this.setHasStung(var1.getBoolean("HasStung"));
        this.ticksWithoutNectarSinceExitingHive = var1.getInt("TicksSincePollination");
@@ -70,7 +81,7 @@
     public boolean doHurtTarget(Entity var1) {
        boolean var2 = var1.hurt(DamageSource.sting(this), (float)((int)this.getAttributeValue(Attributes.ATTACK_DAMAGE)));
        if (var2) {
-@@ -244,11 +247,11 @@
+@@ -244,11 +248,11 @@
        if (var8 < 15) {
           var6 = var8 / 2;
           var7 = var8 / 2;
@@ -83,7 +94,7 @@
           this.navigation.moveTo(var9.x, var9.y, var9.z, 1.0D);
        }
     }
-@@ -493,15 +496,15 @@
+@@ -493,15 +497,15 @@
        var2.setCanPassDoors(true);
        return var2;
     }
@@ -101,7 +112,7 @@
     protected void playStepSound(BlockPos var1, BlockState var2) {
     }
  
-@@ -519,19 +522,19 @@
+@@ -519,39 +523,42 @@
  
     protected float getSoundVolume() {
        return 0.4F;
@@ -123,7 +134,21 @@
  
     protected void checkFallDamage(double var1, boolean var3, BlockState var4, BlockPos var5) {
     }
-@@ -547,11 +550,10 @@
+ 
+-   protected boolean makeFlySound() {
+-      return true;
++   public boolean isFlapping() {
++      return this.isFlying() && this.tickCount % TICKS_PER_FLAP == 0;
+    }
+ 
++   public boolean isFlying() {
++      return !this.onGround;
++   }
++
+    public void dropOffNectar() {
+       this.setHasNectar(false);
+       this.resetNumCropsGrownSincePollination();
+    }
  
     public boolean hurt(DamageSource var1, float var2) {
        if (this.isInvulnerableTo(var1)) {
@@ -135,7 +160,7 @@
           }
  
           return super.hurt(var1, var2);
-@@ -654,11 +656,11 @@
+@@ -654,11 +661,11 @@
                 BlockPos var2 = Bee.this.blockPosition().below(var1);
                 BlockState var3 = Bee.this.level.getBlockState(var2);
                 Block var4 = var3.getBlock();
@@ -148,7 +173,7 @@
                       if (!var7.isMaxAge(var3)) {
                          var5 = true;
                          var6 = var7.getAgeProperty();
-@@ -669,11 +671,11 @@
+@@ -669,11 +676,11 @@
                          var8 = (Integer)var3.getValue(StemBlock.AGE);
                          if (var8 < 7) {
                             var5 = true;
@@ -161,7 +186,7 @@
                             var5 = true;
                             var6 = SweetBerryBushBlock.AGE;
                          }
-@@ -750,15 +752,15 @@
+@@ -750,15 +757,15 @@
              }
           } else {
              return var0.is(BlockTags.SMALL_FLOWERS);
@@ -180,7 +205,7 @@
           super(null);
           this.setFlags(EnumSet.of(Goal.Flag.MOVE));
        }
-@@ -768,19 +770,18 @@
+@@ -768,19 +775,18 @@
              return false;
           } else if (Bee.this.hasNectar()) {
              return false;
@@ -201,7 +226,7 @@
           }
        }
  
-@@ -974,20 +975,19 @@
+@@ -974,20 +980,19 @@
        }
     }
  
@@ -223,7 +248,7 @@
  
        public boolean canBeeUse() {
           return Bee.this.hivePos != null && !Bee.this.hasRestriction() && Bee.this.wantsToEnterHive() && !this.hasReachedTarget(Bee.this.hivePos) && Bee.this.level.getBlockState(Bee.this.hivePos).is(BlockTags.BEEHIVES);
-@@ -1117,12 +1117,12 @@
+@@ -1117,12 +1122,12 @@
           } else {
              var1 = Bee.this.getViewVector(0.0F);
           }

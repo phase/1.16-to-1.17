@@ -1,0 +1,65 @@
+--- net/minecraft/network/protocol/game/ClientboundPlayerPositionPacket.java
++++ net/minecraft/network/protocol/game/ClientboundPlayerPositionPacket.java
+@@ -13,42 +13,46 @@
+    private double z;
+    private float yRot;
+    private float xRot;
+    private Set<ClientboundPlayerPositionPacket.RelativeArgument> relativeArguments;
+    private int id;
++   private boolean dismountVehicle;
+ 
+    public ClientboundPlayerPositionPacket() {
+    }
+ 
+-   public ClientboundPlayerPositionPacket(double var1, double var3, double var5, float var7, float var8, Set<ClientboundPlayerPositionPacket.RelativeArgument> var9, int var10) {
++   public ClientboundPlayerPositionPacket(double var1, double var3, double var5, float var7, float var8, Set<ClientboundPlayerPositionPacket.RelativeArgument> var9, int var10, boolean var11) {
+       this.x = var1;
+       this.y = var3;
+       this.z = var5;
+       this.yRot = var7;
+       this.xRot = var8;
+       this.relativeArguments = var9;
+       this.id = var10;
++      this.dismountVehicle = var11;
+    }
+ 
+    public void read(FriendlyByteBuf var1) throws IOException {
+       this.x = var1.readDouble();
+       this.y = var1.readDouble();
+       this.z = var1.readDouble();
+       this.yRot = var1.readFloat();
+       this.xRot = var1.readFloat();
+       this.relativeArguments = ClientboundPlayerPositionPacket.RelativeArgument.unpack(var1.readUnsignedByte());
+       this.id = var1.readVarInt();
++      this.dismountVehicle = var1.readBoolean();
+    }
+ 
+    public void write(FriendlyByteBuf var1) throws IOException {
+       var1.writeDouble(this.x);
+       var1.writeDouble(this.y);
+       var1.writeDouble(this.z);
+       var1.writeFloat(this.yRot);
+       var1.writeFloat(this.xRot);
+       var1.writeByte(ClientboundPlayerPositionPacket.RelativeArgument.pack(this.relativeArguments));
+       var1.writeVarInt(this.id);
++      var1.writeBoolean(this.dismountVehicle);
+    }
+ 
+    public void handle(ClientGamePacketListener var1) {
+       var1.handleMovePlayer(this);
+    }
+@@ -75,10 +79,14 @@
+ 
+    public int getId() {
+       return this.id;
+    }
+ 
++   public boolean requestDismountVehicle() {
++      return this.dismountVehicle;
++   }
++
+    public Set<ClientboundPlayerPositionPacket.RelativeArgument> getRelativeArguments() {
+       return this.relativeArguments;
+    }
+ 
+    public static enum RelativeArgument {

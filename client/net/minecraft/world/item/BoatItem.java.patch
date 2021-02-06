@@ -1,12 +1,48 @@
 --- net/minecraft/world/item/BoatItem.java
 +++ net/minecraft/world/item/BoatItem.java
-@@ -55,11 +55,11 @@
+@@ -1,19 +1,21 @@
+ package net.minecraft.world.item;
+ 
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.function.Predicate;
++import net.minecraft.core.BlockPos;
+ import net.minecraft.stats.Stats;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResultHolder;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntitySelector;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.entity.vehicle.Boat;
+ import net.minecraft.world.level.ClipContext;
+ import net.minecraft.world.level.Level;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+ 
+@@ -34,11 +36,11 @@
+       } else {
+          Vec3 var6 = var2.getViewVector(1.0F);
+          double var7 = 5.0D;
+          List var9 = var1.getEntities((Entity)var2, var2.getBoundingBox().expandTowards(var6.scale(5.0D)).inflate(1.0D), ENTITY_PREDICATE);
+          if (!var9.isEmpty()) {
+-            Vec3 var10 = var2.getEyePosition(1.0F);
++            Vec3 var10 = var2.getEyePosition();
+             Iterator var11 = var9.iterator();
+ 
+             while(var11.hasNext()) {
+                Entity var12 = (Entity)var11.next();
+                AABB var13 = var12.getBoundingBox().inflate((double)var12.getPickRadius());
+@@ -55,11 +57,12 @@
              if (!var1.noCollision(var14, var14.getBoundingBox().inflate(-0.1D))) {
                 return InteractionResultHolder.fail(var4);
              } else {
                 if (!var1.isClientSide) {
                    var1.addFreshEntity(var14);
 -                  if (!var2.abilities.instabuild) {
++                  var1.gameEvent(var2, GameEvent.ENTITY_PLACE, new BlockPos(var5.getLocation()));
 +                  if (!var2.getAbilities().instabuild) {
                       var4.shrink(1);
                    }

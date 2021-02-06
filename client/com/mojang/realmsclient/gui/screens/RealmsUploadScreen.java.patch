@@ -35,85 +35,51 @@
 -               if (!UPLOAD_LOCK.tryLock(1L, TimeUnit.SECONDS)) {
 -                  this.status = new TranslatableComponent("mco.upload.close.failure");
 -                  return;
--               }
 +            if (!UPLOAD_LOCK.tryLock(1L, TimeUnit.SECONDS)) {
 +               this.status = new TranslatableComponent("mco.upload.close.failure");
 +               return;
 +            }
- 
--               UploadInfo var5 = null;
++
 +            UploadInfo var5 = null;
- 
--               for(int var6 = 0; var6 < 20; ++var6) {
--                  try {
--                     if (this.cancelled) {
--                        this.uploadCancelled();
--                        return;
--                     }
++
 +            for(int var6 = 0; var6 < 20; ++var6) {
 +               try {
 +                  if (this.cancelled) {
 +                     this.uploadCancelled();
 +                     return;
 +                  }
- 
--                     var5 = var2.requestUploadInfo(var3, UploadTokenCache.get(var3));
--                     if (var5 != null) {
--                        break;
--                     }
--                  } catch (RetryCallException var20) {
--                     Thread.sleep((long)(var20.delaySeconds * 1000));
++
 +                  var5 = var2.requestUploadInfo(var3, UploadTokenCache.get(var3));
 +                  if (var5 != null) {
 +                     break;
-                   }
++                  }
 +               } catch (RetryCallException var20) {
 +                  Thread.sleep((long)(var20.delaySeconds * 1000));
                 }
 +            }
  
--               if (var5 == null) {
--                  this.status = new TranslatableComponent("mco.upload.close.failure");
--                  return;
--               }
+-               UploadInfo var5 = null;
 +            if (var5 == null) {
 +               this.status = new TranslatableComponent("mco.upload.close.failure");
 +               return;
 +            }
  
--               UploadTokenCache.put(var3, var5.getToken());
--               if (!var5.isWorldClosed()) {
--                  this.status = new TranslatableComponent("mco.upload.close.failure");
--                  return;
--               }
+-               for(int var6 = 0; var6 < 20; ++var6) {
+-                  try {
 +            UploadTokenCache.put(var3, var5.getToken());
 +            if (!var5.isWorldClosed()) {
 +               this.status = new TranslatableComponent("mco.upload.close.failure");
 +               return;
 +            }
- 
--               if (this.cancelled) {
--                  this.uploadCancelled();
--                  return;
--               }
--
++
++            if (this.cancelled) {
++               this.uploadCancelled();
++               return;
++            }
++
++            File var25 = new File(this.minecraft.gameDirectory.getAbsolutePath(), "saves");
++            var1 = this.tarGzipArchive(new File(var25, this.selectedLevel.getLevelId()));
 +            if (!this.cancelled) {
-                File var25 = new File(this.minecraft.gameDirectory.getAbsolutePath(), "saves");
-                var1 = this.tarGzipArchive(new File(var25, this.selectedLevel.getLevelId()));
-                if (this.cancelled) {
-                   this.uploadCancelled();
-                   return;
-                }
- 
--               if (!this.verify(var1)) {
--                  long var26 = var1.length();
--                  Unit var9 = Unit.getLargest(var26);
--                  Unit var10 = Unit.getLargest(5368709120L);
--                  if (Unit.humanReadable(var26, var9).equals(Unit.humanReadable(5368709120L, var10)) && var9 != Unit.B) {
--                     Unit var11 = Unit.values()[var9.ordinal() - 1];
--                     this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var11), Unit.humanReadable(5368709120L, var11)}));
--                     return;
--                  }
 +               if (this.verify(var1)) {
 +                  this.status = new TranslatableComponent("mco.upload.uploading", new Object[]{this.selectedLevel.getLevelName()});
 +                  FileUpload var26 = new FileUpload(var1, this.worldId, this.slotId, var5, this.minecraft.getUser(), SharedConstants.getCurrentVersion().getName(), this.uploadStatus);
@@ -128,12 +94,72 @@
 +                     } else {
 +                        this.setErrorMessage(new TranslatableComponent("mco.upload.failed", new Object[]{var3x.statusCode}));
 +                     }
++
++                  });
++
++                  while(!var26.isFinished()) {
+                      if (this.cancelled) {
++                        var26.cancel();
+                         this.uploadCancelled();
+                         return;
+                      }
  
+-                     var5 = var2.requestUploadInfo(var3, UploadTokenCache.get(var3));
+-                     if (var5 != null) {
+-                        break;
++                     try {
++                        Thread.sleep(500L);
++                     } catch (InterruptedException var19) {
++                        LOGGER.error("Failed to check Realms file upload status");
+                      }
+-                  } catch (RetryCallException var20) {
+-                     Thread.sleep((long)(var20.delaySeconds * 1000));
+                   }
+-               }
+ 
+-               if (var5 == null) {
+-                  this.status = new TranslatableComponent("mco.upload.close.failure");
+                   return;
+                }
+ 
+-               UploadTokenCache.put(var3, var5.getToken());
+-               if (!var5.isWorldClosed()) {
+-                  this.status = new TranslatableComponent("mco.upload.close.failure");
++               long var7 = var1.length();
++               Unit var9 = Unit.getLargest(var7);
++               Unit var10 = Unit.getLargest(5368709120L);
++               if (Unit.humanReadable(var7, var9).equals(Unit.humanReadable(5368709120L, var10)) && var9 != Unit.B) {
++                  Unit var11 = Unit.values()[var9.ordinal() - 1];
++                  this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var7, var11), Unit.humanReadable(5368709120L, var11)}));
+                   return;
+                }
+ 
+-               if (this.cancelled) {
+-                  this.uploadCancelled();
+-                  return;
+-               }
+-
+-               File var25 = new File(this.minecraft.gameDirectory.getAbsolutePath(), "saves");
+-               var1 = this.tarGzipArchive(new File(var25, this.selectedLevel.getLevelId()));
+-               if (this.cancelled) {
+-                  this.uploadCancelled();
+-                  return;
+-               }
+-
+-               if (!this.verify(var1)) {
+-                  long var26 = var1.length();
+-                  Unit var9 = Unit.getLargest(var26);
+-                  Unit var10 = Unit.getLargest(5368709120L);
+-                  if (Unit.humanReadable(var26, var9).equals(Unit.humanReadable(5368709120L, var10)) && var9 != Unit.B) {
+-                     Unit var11 = Unit.values()[var9.ordinal() - 1];
+-                     this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var11), Unit.humanReadable(5368709120L, var11)}));
+-                     return;
+-                  }
+-
 -                  this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var9), Unit.humanReadable(5368709120L, var10)}));
 -                  return;
 -               }
-+                  });
- 
+-
 -               this.status = new TranslatableComponent("mco.upload.uploading", new Object[]{this.selectedLevel.getLevelName()});
 -               FileUpload var7 = new FileUpload(var1, this.worldId, this.slotId, var5, this.minecraft.getUser(), SharedConstants.getCurrentVersion().getName(), this.uploadStatus);
 -               var7.upload((var3x) -> {
@@ -147,13 +173,7 @@
 -                  } else {
 -                     this.setErrorMessage(new TranslatableComponent("mco.upload.failed", new Object[]{var3x.statusCode}));
 -                  }
-+                  while(!var26.isFinished()) {
-+                     if (this.cancelled) {
-+                        var26.cancel();
-+                        this.uploadCancelled();
-+                        return;
-+                     }
- 
+-
 -               });
 -
 -               while(!var7.isFinished()) {
@@ -161,30 +181,15 @@
 -                     var7.cancel();
 -                     this.uploadCancelled();
 -                     return;
-+                     try {
-+                        Thread.sleep(500L);
-+                     } catch (InterruptedException var19) {
-+                        LOGGER.error("Failed to check Realms file upload status");
-+                     }
-                   }
- 
+-                  }
+-
 -                  try {
 -                     Thread.sleep(500L);
 -                  } catch (InterruptedException var19) {
 -                     LOGGER.error("Failed to check Realms file upload status");
 -                  }
-+                  return;
-                }
- 
-+               long var7 = var1.length();
-+               Unit var9 = Unit.getLargest(var7);
-+               Unit var10 = Unit.getLargest(5368709120L);
-+               if (Unit.humanReadable(var7, var9).equals(Unit.humanReadable(5368709120L, var10)) && var9 != Unit.B) {
-+                  Unit var11 = Unit.values()[var9.ordinal() - 1];
-+                  this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var7, var11), Unit.humanReadable(5368709120L, var11)}));
-+                  return;
-+               }
-+
+-               }
+-
 +               this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var7, var9), Unit.humanReadable(5368709120L, var10)}));
                 return;
 -            } catch (IOException var21) {

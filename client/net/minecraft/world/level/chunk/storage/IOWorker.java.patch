@@ -61,7 +61,7 @@
     public CompletableFuture<Void> synchronize() {
        CompletableFuture var1 = this.submitTask(() -> {
           return Either.left(CompletableFuture.allOf((CompletableFuture[])this.pendingWrites.values().stream().map((var0) -> {
-@@ -93,11 +97,11 @@
+@@ -93,32 +97,32 @@
        });
     }
  
@@ -74,7 +74,18 @@
              }
  
              this.tellStorePending();
-@@ -114,11 +118,11 @@
+          });
+       });
+    }
+ 
+    private void storePendingChunk() {
+-      Iterator var1 = this.pendingWrites.entrySet().iterator();
+-      if (var1.hasNext()) {
++      if (!this.pendingWrites.isEmpty()) {
++         Iterator var1 = this.pendingWrites.entrySet().iterator();
+          Entry var2 = (Entry)var1.next();
+          var1.remove();
+          this.runStore((ChunkPos)var2.getKey(), (IOWorker.PendingStore)var2.getValue());
           this.tellStorePending();
        }
     }

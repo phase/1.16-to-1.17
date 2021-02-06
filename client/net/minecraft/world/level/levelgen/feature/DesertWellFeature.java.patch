@@ -1,15 +1,130 @@
 --- net/minecraft/world/level/levelgen/feature/DesertWellFeature.java
 +++ net/minecraft/world/level/levelgen/feature/DesertWellFeature.java
-@@ -24,11 +24,11 @@
+@@ -1,17 +1,15 @@
+ package net.minecraft.world.level.levelgen.feature;
+ 
+ import com.mojang.serialization.Codec;
+ import java.util.Iterator;
+-import java.util.Random;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.world.level.WorldGenLevel;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.predicate.BlockStatePredicate;
+-import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+ 
+ public class DesertWellFeature extends Feature<NoneFeatureConfiguration> {
+    private static final BlockStatePredicate IS_SAND;
+    private final BlockState sandSlab;
+@@ -23,71 +21,74 @@
+       this.sandSlab = Blocks.SANDSTONE_SLAB.defaultBlockState();
        this.sandstone = Blocks.SANDSTONE.defaultBlockState();
        this.water = Blocks.WATER.defaultBlockState();
     }
  
-    public boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, NoneFeatureConfiguration var5) {
+-   public boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, NoneFeatureConfiguration var5) {
 -      for(var4 = var4.above(); var1.isEmptyBlock(var4) && var4.getY() > 2; var4 = var4.below()) {
-+      for(var4 = var4.above(); var1.isEmptyBlock(var4) && var4.getY() > var1.getMinBuildHeight() + 2; var4 = var4.below()) {
++   public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> var1) {
++      WorldGenLevel var2 = var1.level();
++      BlockPos var3 = var1.origin();
++
++      for(var3 = var3.above(); var2.isEmptyBlock(var3) && var3.getY() > var2.getMinBuildHeight() + 2; var3 = var3.below()) {
        }
  
-       if (!IS_SAND.test(var1.getBlockState(var4))) {
+-      if (!IS_SAND.test(var1.getBlockState(var4))) {
++      if (!IS_SAND.test(var2.getBlockState(var3))) {
           return false;
        } else {
+-         int var6;
+-         int var7;
+-         for(var6 = -2; var6 <= 2; ++var6) {
+-            for(var7 = -2; var7 <= 2; ++var7) {
+-               if (var1.isEmptyBlock(var4.offset(var6, -1, var7)) && var1.isEmptyBlock(var4.offset(var6, -2, var7))) {
++         int var4;
++         int var5;
++         for(var4 = -2; var4 <= 2; ++var4) {
++            for(var5 = -2; var5 <= 2; ++var5) {
++               if (var2.isEmptyBlock(var3.offset(var4, -1, var5)) && var2.isEmptyBlock(var3.offset(var4, -2, var5))) {
+                   return false;
+                }
+             }
+          }
+ 
+-         for(var6 = -1; var6 <= 0; ++var6) {
+-            for(var7 = -2; var7 <= 2; ++var7) {
+-               for(int var8 = -2; var8 <= 2; ++var8) {
+-                  var1.setBlock(var4.offset(var7, var6, var8), this.sandstone, 2);
++         for(var4 = -1; var4 <= 0; ++var4) {
++            for(var5 = -2; var5 <= 2; ++var5) {
++               for(int var6 = -2; var6 <= 2; ++var6) {
++                  var2.setBlock(var3.offset(var5, var4, var6), this.sandstone, 2);
+                }
+             }
+          }
+ 
+-         var1.setBlock(var4, this.water, 2);
+-         Iterator var9 = Direction.Plane.HORIZONTAL.iterator();
++         var2.setBlock(var3, this.water, 2);
++         Iterator var7 = Direction.Plane.HORIZONTAL.iterator();
+ 
+-         while(var9.hasNext()) {
+-            Direction var10 = (Direction)var9.next();
+-            var1.setBlock(var4.relative(var10), this.water, 2);
++         while(var7.hasNext()) {
++            Direction var8 = (Direction)var7.next();
++            var2.setBlock(var3.relative(var8), this.water, 2);
+          }
+ 
+-         for(var6 = -2; var6 <= 2; ++var6) {
+-            for(var7 = -2; var7 <= 2; ++var7) {
+-               if (var6 == -2 || var6 == 2 || var7 == -2 || var7 == 2) {
+-                  var1.setBlock(var4.offset(var6, 1, var7), this.sandstone, 2);
++         for(var4 = -2; var4 <= 2; ++var4) {
++            for(var5 = -2; var5 <= 2; ++var5) {
++               if (var4 == -2 || var4 == 2 || var5 == -2 || var5 == 2) {
++                  var2.setBlock(var3.offset(var4, 1, var5), this.sandstone, 2);
+                }
+             }
+          }
+ 
+-         var1.setBlock(var4.offset(2, 1, 0), this.sandSlab, 2);
+-         var1.setBlock(var4.offset(-2, 1, 0), this.sandSlab, 2);
+-         var1.setBlock(var4.offset(0, 1, 2), this.sandSlab, 2);
+-         var1.setBlock(var4.offset(0, 1, -2), this.sandSlab, 2);
++         var2.setBlock(var3.offset(2, 1, 0), this.sandSlab, 2);
++         var2.setBlock(var3.offset(-2, 1, 0), this.sandSlab, 2);
++         var2.setBlock(var3.offset(0, 1, 2), this.sandSlab, 2);
++         var2.setBlock(var3.offset(0, 1, -2), this.sandSlab, 2);
+ 
+-         for(var6 = -1; var6 <= 1; ++var6) {
+-            for(var7 = -1; var7 <= 1; ++var7) {
+-               if (var6 == 0 && var7 == 0) {
+-                  var1.setBlock(var4.offset(var6, 4, var7), this.sandstone, 2);
++         for(var4 = -1; var4 <= 1; ++var4) {
++            for(var5 = -1; var5 <= 1; ++var5) {
++               if (var4 == 0 && var5 == 0) {
++                  var2.setBlock(var3.offset(var4, 4, var5), this.sandstone, 2);
+                } else {
+-                  var1.setBlock(var4.offset(var6, 4, var7), this.sandSlab, 2);
++                  var2.setBlock(var3.offset(var4, 4, var5), this.sandSlab, 2);
+                }
+             }
+          }
+ 
+-         for(var6 = 1; var6 <= 3; ++var6) {
+-            var1.setBlock(var4.offset(-1, var6, -1), this.sandstone, 2);
+-            var1.setBlock(var4.offset(-1, var6, 1), this.sandstone, 2);
+-            var1.setBlock(var4.offset(1, var6, -1), this.sandstone, 2);
+-            var1.setBlock(var4.offset(1, var6, 1), this.sandstone, 2);
++         for(var4 = 1; var4 <= 3; ++var4) {
++            var2.setBlock(var3.offset(-1, var4, -1), this.sandstone, 2);
++            var2.setBlock(var3.offset(-1, var4, 1), this.sandstone, 2);
++            var2.setBlock(var3.offset(1, var4, -1), this.sandstone, 2);
++            var2.setBlock(var3.offset(1, var4, 1), this.sandstone, 2);
+          }
+ 
+          return true;
+       }
+    }

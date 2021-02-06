@@ -1,6 +1,15 @@
 --- net/minecraft/world/entity/monster/Shulker.java
 +++ net/minecraft/world/entity/monster/Shulker.java
-@@ -15,19 +15,22 @@
+@@ -7,27 +7,31 @@
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.protocol.game.ClientboundAddMobPacket;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
  import net.minecraft.sounds.SoundEvent;
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.sounds.SoundSource;
@@ -24,7 +33,7 @@
  import net.minecraft.world.entity.ai.attributes.Attributes;
  import net.minecraft.world.entity.ai.control.BodyRotationControl;
  import net.minecraft.world.entity.ai.goal.Goal;
-@@ -39,27 +42,27 @@
+@@ -39,27 +43,28 @@
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.entity.projectile.AbstractArrow;
  import net.minecraft.world.entity.projectile.ShulkerBullet;
@@ -36,6 +45,7 @@
 -import net.minecraft.world.level.block.piston.PistonHeadBlock;
  import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.entity.EntityTypeTest;
++import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.Vec3;
  
@@ -56,7 +66,7 @@
     public Shulker(EntityType<? extends Shulker> var1, Level var2) {
        super(var1, var2);
        this.xpReward = 5;
-@@ -68,11 +71,11 @@
+@@ -68,17 +73,17 @@
     protected void registerGoals() {
        this.goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 8.0F));
        this.goalSelector.addGoal(4, new Shulker.ShulkerAttackGoal());
@@ -68,8 +78,16 @@
        this.targetSelector.addGoal(3, new Shulker.ShulkerDefenseAttackGoal(this));
     }
  
-    protected boolean isMovementNoisy() {
-@@ -103,11 +106,10 @@
+-   protected boolean isMovementNoisy() {
+-      return false;
++   protected Entity.MovementEmission getMovementEmission() {
++      return Entity.MovementEmission.NONE;
+    }
+ 
+    public SoundSource getSoundSource() {
+       return SoundSource.HOSTILE;
+    }
+@@ -103,11 +108,10 @@
     }
  
     protected void defineSynchedData() {
@@ -81,7 +99,7 @@
     }
  
     public static AttributeSupplier.Builder createAttributes() {
-@@ -120,271 +122,317 @@
+@@ -120,300 +124,345 @@
  
     public void readAdditionalSaveData(CompoundTag var1) {
        super.readAdditionalSaveData(var1);
@@ -252,7 +270,7 @@
 +      Direction var3 = this.getAttachFace().getOpposite();
 +      float var4 = var1 - var2;
 +      if (var4 > 0.0F) {
-+         List var5 = this.level.getEntities((Entity)this, getProgressDeltaAabb(var3, var2, var1).move(this.getX(), this.getY(), this.getZ()), EntitySelector.NO_SPECTATORS.and((var1x) -> {
++         List var5 = this.level.getEntities((Entity)this, getProgressDeltaAabb(var3, var2, var1).move(this.getX() - 0.5D, this.getY(), this.getZ() - 0.5D), EntitySelector.NO_SPECTATORS.and((var1x) -> {
 +            return !var1x.isPassengerOfSameVehicle(this);
 +         }));
 +         Iterator var6 = var5.iterator();
@@ -543,7 +561,15 @@
           if (var1 == 0) {
              this.getAttribute(Attributes.ARMOR).addPermanentModifier(COVERED_ARMOR_MODIFIER);
              this.playSound(SoundEvents.SHULKER_CLOSE, 1.0F, 1.0F);
-@@ -398,18 +446,10 @@
++            this.gameEvent(GameEvent.SHULKER_CLOSE);
+          } else {
+             this.playSound(SoundEvents.SHULKER_OPEN, 1.0F, 1.0F);
++            this.gameEvent(GameEvent.SHULKER_OPEN);
+          }
+       }
+ 
+       this.entityData.set(DATA_PEEK_ID, (byte)var1);
+    }
  
     public float getClientPeekAmount(float var1) {
        return Mth.lerp(var1, this.currentPeekAmountO, this.currentPeekAmount);
@@ -561,8 +587,17 @@
        return 0.5F;
     }
  
++   public void recreateFromPacket(ClientboundAddMobPacket var1) {
++      super.recreateFromPacket(var1);
++      this.yBodyRot = 0.0F;
++   }
++
     public int getMaxHeadXRot() {
-@@ -425,24 +465,37 @@
+       return 180;
+    }
+ 
+    public int getMaxHeadYRot() {
+@@ -425,24 +474,37 @@
  
     public float getPickRadius() {
        return 0.0F;
@@ -604,7 +639,7 @@
     }
  
     static class ShulkerDefenseAttackGoal extends NearestAttackableTargetGoal<LivingEntity> {
-@@ -536,11 +589,11 @@
+@@ -536,11 +598,11 @@
  
        private ShulkerPeekGoal() {
        }
@@ -617,7 +652,7 @@
        public boolean canContinueToUse() {
           return Shulker.this.getTarget() == null && this.peekTime > 0;
        }
-@@ -560,13 +613,13 @@
+@@ -560,13 +622,13 @@
        public void tick() {
           --this.peekTime;
        }

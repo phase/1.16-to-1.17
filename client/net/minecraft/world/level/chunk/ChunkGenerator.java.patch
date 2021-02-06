@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/chunk/ChunkGenerator.java
 +++ net/minecraft/world/level/chunk/ChunkGenerator.java
-@@ -13,21 +13,22 @@
+@@ -13,21 +13,23 @@
  import javax.annotation.Nullable;
  import net.minecraft.CrashReport;
  import net.minecraft.CrashReportCategory;
@@ -18,13 +18,14 @@
 -import net.minecraft.world.level.BlockGetter;
  import net.minecraft.world.level.ChunkPos;
  import net.minecraft.world.level.LevelAccessor;
++import net.minecraft.world.level.LevelHeightAccessor;
 +import net.minecraft.world.level.NoiseColumn;
  import net.minecraft.world.level.StructureFeatureManager;
  import net.minecraft.world.level.WorldGenLevel;
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeGenerationSettings;
  import net.minecraft.world.level.biome.BiomeManager;
-@@ -93,14 +94,14 @@
+@@ -93,14 +95,14 @@
  
              for(int var11 = 0; var11 < var18; ++var11) {
                 double var12 = (double)(4 * var17 + var17 * var10 * 6) + (var6.nextDouble() - 0.5D) * (double)var17 * 2.5D;
@@ -42,7 +43,7 @@
                 this.strongholdPositions.add(new ChunkPos(var14, var15));
                 var7 += 6.283185307179586D / (double)var5;
                 ++var9;
-@@ -121,21 +122,21 @@
+@@ -121,21 +123,21 @@
  
     public abstract ChunkGenerator withSeed(long var1);
  
@@ -66,7 +67,7 @@
        for(int var14 = var10 - 8; var14 <= var10 + 8; ++var14) {
           for(int var15 = var11 - 8; var15 <= var11 + 8; ++var15) {
              List var16 = var12.getCarvers(var5);
-@@ -165,11 +166,11 @@
+@@ -165,11 +167,11 @@
           BlockPos.MutableBlockPos var9 = new BlockPos.MutableBlockPos();
           Iterator var10 = this.strongholdPositions.iterator();
  
@@ -79,62 +80,176 @@
                 var14 = new BlockPos(var9);
                 var7 = var12;
              } else if (var12 < var7) {
-@@ -186,14 +187,14 @@
+@@ -184,25 +186,24 @@
+          return var6 == null ? null : var2.getNearestGeneratedFeature(var1, var1.structureFeatureManager(), var3, var4, var5, var1.getSeed(), var6);
+       }
     }
  
     public void applyBiomeDecoration(WorldGenRegion var1, StructureFeatureManager var2) {
-       int var3 = var1.getCenterX();
-       int var4 = var1.getCenterZ();
+-      int var3 = var1.getCenterX();
+-      int var4 = var1.getCenterZ();
 -      int var5 = var3 * 16;
 -      int var6 = var4 * 16;
-+      int var5 = SectionPos.sectionToBlockCoord(var3);
-+      int var6 = SectionPos.sectionToBlockCoord(var4);
-       BlockPos var7 = new BlockPos(var5, 0, var6);
+-      BlockPos var7 = new BlockPos(var5, 0, var6);
 -      Biome var8 = this.biomeSource.getNoiseBiome((var3 << 2) + 2, 2, (var4 << 2) + 2);
-+      Biome var8 = this.biomeSource.getPrimaryBiome(var3, var4);
-       WorldgenRandom var9 = new WorldgenRandom();
-       long var10 = var9.setDecorationSeed(var1.getSeed(), var5, var6);
+-      WorldgenRandom var9 = new WorldgenRandom();
+-      long var10 = var9.setDecorationSeed(var1.getSeed(), var5, var6);
++      ChunkPos var3 = var1.getCenter();
++      int var4 = var3.getMinBlockX();
++      int var5 = var3.getMinBlockZ();
++      BlockPos var6 = new BlockPos(var4, var1.getMinBuildHeight(), var5);
++      Biome var7 = this.biomeSource.getPrimaryBiome(var3);
++      WorldgenRandom var8 = new WorldgenRandom();
++      long var9 = var8.setDecorationSeed(var1.getSeed(), var4, var5);
  
        try {
-          var8.generate(var2, this, var1, var10, var9, var7);
-@@ -229,11 +230,11 @@
+-         var8.generate(var2, this, var1, var10, var9, var7);
+-      } catch (Exception var14) {
+-         CrashReport var13 = CrashReport.forThrowable(var14, "Biome decoration");
+-         var13.addCategory("Generation").setDetail("CenterX", (Object)var3).setDetail("CenterZ", (Object)var4).setDetail("Seed", (Object)var10).setDetail("Biome", (Object)var8);
+-         throw new ReportedException(var13);
++         var7.generate(var2, this, var1, var9, var8, var6);
++      } catch (Exception var13) {
++         CrashReport var12 = CrashReport.forThrowable(var13, "Biome decoration");
++         var12.addCategory("Generation").setDetail("CenterX", (Object)var3.x).setDetail("CenterZ", (Object)var3.z).setDetail("Seed", (Object)var9).setDetail("Biome", (Object)var7);
++         throw new ReportedException(var12);
+       }
+    }
+ 
+    public abstract void buildSurfaceAndBedrock(WorldGenRegion var1, ChunkAccess var2);
+ 
+@@ -228,67 +229,69 @@
+    public List<MobSpawnSettings.SpawnerData> getMobsAt(Biome var1, StructureFeatureManager var2, MobCategory var3, BlockPos var4) {
        return var1.getMobSettings().getMobs(var3);
     }
  
     public void createStructures(RegistryAccess var1, StructureFeatureManager var2, ChunkAccess var3, StructureManager var4, long var5) {
-       ChunkPos var7 = var3.getPos();
+-      ChunkPos var7 = var3.getPos();
 -      Biome var8 = this.biomeSource.getNoiseBiome((var7.x << 2) + 2, 0, (var7.z << 2) + 2);
-+      Biome var8 = this.biomeSource.getPrimaryBiome(var7.x, var7.z);
-       this.createStructure(StructureFeatures.STRONGHOLD, var1, var2, var3, var4, var5, var7, var8);
-       Iterator var9 = var8.getGenerationSettings().structures().iterator();
+-      this.createStructure(StructureFeatures.STRONGHOLD, var1, var2, var3, var4, var5, var7, var8);
+-      Iterator var9 = var8.getGenerationSettings().structures().iterator();
++      Biome var7 = this.biomeSource.getPrimaryBiome(var3.getPos());
++      this.createStructure(StructureFeatures.STRONGHOLD, var1, var2, var3, var4, var5, var7);
++      Iterator var8 = var7.getGenerationSettings().structures().iterator();
  
-       while(var9.hasNext()) {
-          Supplier var10 = (Supplier)var9.next();
-@@ -255,12 +256,12 @@
+-      while(var9.hasNext()) {
+-         Supplier var10 = (Supplier)var9.next();
+-         this.createStructure((ConfiguredStructureFeature)var10.get(), var1, var2, var3, var4, var5, var7, var8);
++      while(var8.hasNext()) {
++         Supplier var9 = (Supplier)var8.next();
++         this.createStructure((ConfiguredStructureFeature)var9.get(), var1, var2, var3, var4, var5, var7);
+       }
+ 
+    }
+ 
+-   private void createStructure(ConfiguredStructureFeature<?, ?> var1, RegistryAccess var2, StructureFeatureManager var3, ChunkAccess var4, StructureManager var5, long var6, ChunkPos var8, Biome var9) {
+-      StructureStart var10 = var3.getStartForFeature(SectionPos.of(var4.getPos(), 0), var1.feature, var4);
+-      int var11 = var10 != null ? var10.getReferences() : 0;
+-      StructureFeatureConfiguration var12 = this.settings.getConfig(var1.feature);
+-      if (var12 != null) {
+-         StructureStart var13 = var1.generate(var2, this, this.biomeSource, var5, var6, var8, var9, var11, var12);
+-         var3.setStartForFeature(SectionPos.of(var4.getPos(), 0), var1.feature, var13, var4);
++   private void createStructure(ConfiguredStructureFeature<?, ?> var1, RegistryAccess var2, StructureFeatureManager var3, ChunkAccess var4, StructureManager var5, long var6, Biome var8) {
++      ChunkPos var9 = var4.getPos();
++      SectionPos var10 = SectionPos.bottomOf(var4);
++      StructureStart var11 = var3.getStartForFeature(var10, var1.feature, var4);
++      int var12 = var11 != null ? var11.getReferences() : 0;
++      StructureFeatureConfiguration var13 = this.settings.getConfig(var1.feature);
++      if (var13 != null) {
++         StructureStart var14 = var1.generate(var2, this, this.biomeSource, var5, var6, var9, var8, var12, var13, var4);
++         var3.setStartForFeature(var10, var1.feature, var14, var4);
+       }
+ 
+    }
  
     public void createReferences(WorldGenLevel var1, StructureFeatureManager var2, ChunkAccess var3) {
        boolean var4 = true;
-       int var5 = var3.getPos().x;
-       int var6 = var3.getPos().z;
+-      int var5 = var3.getPos().x;
+-      int var6 = var3.getPos().z;
 -      int var7 = var5 << 4;
 -      int var8 = var6 << 4;
-+      int var7 = SectionPos.sectionToBlockCoord(var5);
-+      int var8 = SectionPos.sectionToBlockCoord(var6);
-       SectionPos var9 = SectionPos.of(var3.getPos(), 0);
+-      SectionPos var9 = SectionPos.of(var3.getPos(), 0);
++      ChunkPos var5 = var3.getPos();
++      int var6 = var5.x;
++      int var7 = var5.z;
++      int var8 = var5.getMinBlockX();
++      int var9 = var5.getMinBlockZ();
++      SectionPos var10 = SectionPos.bottomOf(var3);
  
-       for(int var10 = var5 - 8; var10 <= var5 + 8; ++var10) {
-          for(int var11 = var6 - 8; var11 <= var6 + 8; ++var11) {
-             long var12 = ChunkPos.asLong(var10, var11);
-@@ -300,11 +301,11 @@
+-      for(int var10 = var5 - 8; var10 <= var5 + 8; ++var10) {
+-         for(int var11 = var6 - 8; var11 <= var6 + 8; ++var11) {
+-            long var12 = ChunkPos.asLong(var10, var11);
+-            Iterator var14 = var1.getChunk(var10, var11).getAllStarts().values().iterator();
++      for(int var11 = var6 - 8; var11 <= var6 + 8; ++var11) {
++         for(int var12 = var7 - 8; var12 <= var7 + 8; ++var12) {
++            long var13 = ChunkPos.asLong(var11, var12);
++            Iterator var15 = var1.getChunk(var11, var12).getAllStarts().values().iterator();
+ 
+-            while(var14.hasNext()) {
+-               StructureStart var15 = (StructureStart)var14.next();
++            while(var15.hasNext()) {
++               StructureStart var16 = (StructureStart)var15.next();
+ 
+                try {
+-                  if (var15 != StructureStart.INVALID_START && var15.getBoundingBox().intersects(var7, var8, var7 + 15, var8 + 15)) {
+-                     var2.addReferenceForFeature(var9, var15.getFeature(), var12, var3);
+-                     DebugPackets.sendStructurePacket(var1, var15);
++                  if (var16 != StructureStart.INVALID_START && var16.getBoundingBox().intersects(var8, var9, var8 + 15, var9 + 15)) {
++                     var2.addReferenceForFeature(var10, var16.getFeature(), var13, var3);
++                     DebugPackets.sendStructurePacket(var1, var16);
+                   }
+-               } catch (Exception var19) {
+-                  CrashReport var17 = CrashReport.forThrowable(var19, "Generating structure reference");
+-                  CrashReportCategory var18 = var17.addCategory("Structure");
+-                  var18.setDetail("Id", () -> {
+-                     return Registry.STRUCTURE_FEATURE.getKey(var15.getFeature()).toString();
++               } catch (Exception var20) {
++                  CrashReport var18 = CrashReport.forThrowable(var20, "Generating structure reference");
++                  CrashReportCategory var19 = var18.addCategory("Structure");
++                  var19.setDetail("Id", () -> {
++                     return Registry.STRUCTURE_FEATURE.getKey(var16.getFeature()).toString();
+                   });
+-                  var18.setDetail("Name", () -> {
+-                     return var15.getFeature().getFeatureName();
++                  var19.setDetail("Name", () -> {
++                     return var16.getFeature().getFeatureName();
+                   });
+-                  var18.setDetail("Class", () -> {
+-                     return var15.getFeature().getClass().getCanonicalName();
++                  var19.setDetail("Class", () -> {
++                     return var16.getFeature().getClass().getCanonicalName();
+                   });
+-                  throw new ReportedException(var17);
++                  throw new ReportedException(var18);
+                }
+             }
+          }
+       }
+ 
+@@ -298,20 +301,20 @@
+ 
+    public int getSeaLevel() {
        return 63;
     }
  
-    public abstract int getBaseHeight(int var1, int var2, Heightmap.Types var3);
+-   public abstract int getBaseHeight(int var1, int var2, Heightmap.Types var3);
++   public abstract int getBaseHeight(int var1, int var2, Heightmap.Types var3, LevelHeightAccessor var4);
  
 -   public abstract BlockGetter getBaseColumn(int var1, int var2);
-+   public abstract NoiseColumn getBaseColumn(int var1, int var2);
++   public abstract NoiseColumn getBaseColumn(int var1, int var2, LevelHeightAccessor var3);
  
-    public int getFirstFreeHeight(int var1, int var2, Heightmap.Types var3) {
-       return this.getBaseHeight(var1, var2, var3);
+-   public int getFirstFreeHeight(int var1, int var2, Heightmap.Types var3) {
+-      return this.getBaseHeight(var1, var2, var3);
++   public int getFirstFreeHeight(int var1, int var2, Heightmap.Types var3, LevelHeightAccessor var4) {
++      return this.getBaseHeight(var1, var2, var3, var4);
     }
  
+-   public int getFirstOccupiedHeight(int var1, int var2, Heightmap.Types var3) {
+-      return this.getBaseHeight(var1, var2, var3) - 1;
++   public int getFirstOccupiedHeight(int var1, int var2, Heightmap.Types var3, LevelHeightAccessor var4) {
++      return this.getBaseHeight(var1, var2, var3, var4) - 1;
+    }
+ 
+    public boolean hasStronghold(ChunkPos var1) {
+       this.generateStrongholds();
+       return this.strongholdPositions.contains(var1);

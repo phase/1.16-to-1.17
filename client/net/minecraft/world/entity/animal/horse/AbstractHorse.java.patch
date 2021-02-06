@@ -25,7 +25,7 @@
  import net.minecraft.world.entity.ai.attributes.Attributes;
  import net.minecraft.world.entity.ai.goal.BreedGoal;
  import net.minecraft.world.entity.ai.goal.FloatGoal;
-@@ -54,11 +55,10 @@
+@@ -54,20 +55,20 @@
  import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
  import net.minecraft.world.entity.ai.targeting.TargetingConditions;
  import net.minecraft.world.entity.animal.Animal;
@@ -37,7 +37,17 @@
  import net.minecraft.world.item.crafting.Ingredient;
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.level.Level;
-@@ -228,26 +228,26 @@
+ import net.minecraft.world.level.ServerLevelAccessor;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.SoundType;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public abstract class AbstractHorse extends Animal implements ContainerListener, PlayerRideableJumping, Saddleable {
+    private static final Predicate<LivingEntity> PARENT_HORSE_SELECTOR = (var0) -> {
+@@ -228,26 +229,26 @@
           }
        }
  
@@ -72,7 +82,7 @@
  
           this.playBlockFallSound();
           return true;
-@@ -389,11 +389,11 @@
+@@ -389,11 +390,11 @@
  
     }
  
@@ -85,7 +95,7 @@
  
        if (this.level.isClientSide) {
           return InteractionResult.CONSUME;
-@@ -405,35 +405,34 @@
+@@ -405,35 +406,34 @@
     protected boolean handleEating(Player var1, ItemStack var2) {
        boolean var3 = false;
        float var4 = 0.0F;
@@ -127,7 +137,19 @@
           var6 = 10;
           if (!this.level.isClientSide && this.isTamed() && this.getAge() == 0 && !this.isInLove()) {
              var3 = true;
-@@ -765,11 +764,11 @@
+@@ -462,10 +462,11 @@
+          }
+       }
+ 
+       if (var3) {
+          this.eating();
++         this.gameEvent(GameEvent.EAT, this.eyeBlockPosition());
+       }
+ 
+       return var3;
+    }
+ 
+@@ -765,11 +766,11 @@
           this.setOwnerUUID(var2);
        }
  
@@ -140,7 +162,7 @@
        }
  
        this.updateContainerEquipment();
-@@ -782,15 +781,15 @@
+@@ -782,15 +783,15 @@
     protected boolean canParent() {
        return !this.isVehicle() && !this.isPassenger() && this.isTamed() && !this.isBaby() && this.getHealth() >= this.getMaxHealth() && this.isInLove();
     }
@@ -158,7 +180,7 @@
        double var5 = this.getAttributeBaseValue(Attributes.JUMP_STRENGTH) + var1.getAttributeBaseValue(Attributes.JUMP_STRENGTH) + this.generateRandomJumpStrength();
        var2.getAttribute(Attributes.JUMP_STRENGTH).setBaseValue(var5 / 3.0D);
        double var7 = this.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) + var1.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) + this.generateRandomSpeed();
-@@ -917,36 +916,55 @@
+@@ -917,36 +918,55 @@
  
     public boolean isArmor(ItemStack var1) {
        return false;
@@ -233,7 +255,7 @@
     @Nullable
     private Vec3 getDismountLocationInDirection(Vec3 var1, LivingEntity var2) {
        double var3 = this.getX() + var1.x;
-@@ -1001,17 +1019,21 @@
+@@ -1001,17 +1021,21 @@
     }
  
     @Nullable
