@@ -1,6 +1,30 @@
 --- net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -153,11 +153,11 @@
+@@ -16,10 +16,11 @@
+ import java.util.Optional;
+ import java.util.Set;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.function.BiFunction;
+ import java.util.function.Consumer;
++import java.util.function.UnaryOperator;
+ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.CrashReport;
+@@ -115,10 +116,11 @@
+ import net.minecraft.world.entity.PlayerRideableJumping;
+ import net.minecraft.world.entity.animal.horse.AbstractHorse;
+ import net.minecraft.world.entity.item.ItemEntity;
+ import net.minecraft.world.entity.player.ChatVisiblity;
+ import net.minecraft.world.entity.player.Inventory;
++import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.entity.projectile.AbstractArrow;
+ import net.minecraft.world.entity.vehicle.Boat;
+ import net.minecraft.world.inventory.AbstractContainerMenu;
+ import net.minecraft.world.inventory.AnvilMenu;
+ import net.minecraft.world.inventory.BeaconMenu;
+@@ -153,11 +155,11 @@
  import net.minecraft.world.phys.shapes.VoxelShape;
  import org.apache.commons.lang3.StringUtils;
  import org.apache.logging.log4j.LogManager;
@@ -13,7 +37,87 @@
     private final MinecraftServer server;
     public ServerPlayer player;
     private int tickCount;
-@@ -490,29 +490,32 @@
+@@ -171,17 +173,19 @@
+    private double firstGoodY;
+    private double firstGoodZ;
+    private double lastGoodX;
+    private double lastGoodY;
+    private double lastGoodZ;
++   @Nullable
+    private Entity lastVehicle;
+    private double vehicleFirstGoodX;
+    private double vehicleFirstGoodY;
+    private double vehicleFirstGoodZ;
+    private double vehicleLastGoodX;
+    private double vehicleLastGoodY;
+    private double vehicleLastGoodZ;
++   @Nullable
+    private Vec3 awaitingPositionFromClient;
+    private int awaitingTeleport;
+    private int awaitingTeleportTime;
+    private boolean clientIsFloating;
+    private int aboveGroundTickCount;
+@@ -194,15 +198,11 @@
+       this.server = var1;
+       this.connection = var2;
+       var2.setListener(this);
+       this.player = var3;
+       var3.connection = this;
+-      TextFilter var4 = var3.getTextFilter();
+-      if (var4 != null) {
+-         var4.join();
+-      }
+-
++      var3.getTextFilter().join();
+    }
+ 
+    public void tick() {
+       this.resetPosition();
+       this.player.xo = this.player.getX();
+@@ -299,38 +299,28 @@
+       this.connection.setReadOnly();
+       Connection var10001 = this.connection;
+       this.server.executeBlocking(var10001::handleDisconnection);
+    }
+ 
+-   private <T> void filterTextPacket(T var1, Consumer<T> var2, BiFunction<TextFilter, T, CompletableFuture<Optional<T>>> var3) {
++   private <T, R> void filterTextPacket(T var1, Consumer<R> var2, BiFunction<TextFilter, T, CompletableFuture<R>> var3) {
+       MinecraftServer var4 = this.player.getLevel().getServer();
+       Consumer var5 = (var2x) -> {
+          if (this.getConnection().isConnected()) {
+             var2.accept(var2x);
+          } else {
+             LOGGER.debug("Ignoring packet due to disconnection");
+          }
+ 
+       };
+-      TextFilter var6 = this.player.getTextFilter();
+-      if (var6 != null) {
+-         ((CompletableFuture)var3.apply(var6, var1)).thenAcceptAsync((var1x) -> {
+-            var1x.ifPresent(var5);
+-         }, var4);
+-      } else {
+-         var4.execute(() -> {
+-            var5.accept(var1);
+-         });
+-      }
+-
++      ((CompletableFuture)var3.apply(this.player.getTextFilter(), var1)).thenAcceptAsync(var5, var4);
+    }
+ 
+-   private void filterTextPacket(String var1, Consumer<String> var2) {
++   private void filterTextPacket(String var1, Consumer<TextFilter.FilteredText> var2) {
+       this.filterTextPacket(var1, var2, TextFilter::processStreamMessage);
+    }
+ 
+-   private void filterTextPacket(List<String> var1, Consumer<List<String>> var2) {
++   private void filterTextPacket(List<String> var1, Consumer<List<TextFilter.FilteredText>> var2) {
+       this.filterTextPacket(var1, var2, TextFilter::processMessageBundle);
+    }
+ 
+    public void handlePlayerInput(ServerboundPlayerInputPacket var1) {
+       PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+@@ -490,29 +480,32 @@
  
           String var6 = var1.getCommand();
           boolean var7 = var1.isTrackOutput();
@@ -56,7 +160,7 @@
              if (!var7) {
                 var2.setLastOutput((Component)null);
              }
-@@ -553,14 +556,14 @@
+@@ -553,14 +546,14 @@
        }
     }
  
@@ -75,38 +179,76 @@
     public void handleRenameItem(ServerboundRenameItemPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        if (this.player.containerMenu instanceof AnvilMenu) {
-@@ -680,11 +683,11 @@
+@@ -679,72 +672,95 @@
+       }
  
     }
  
     public void handleEditBook(ServerboundEditBookPacket var1) {
-       ItemStack var2 = var1.getBook();
+-      ItemStack var2 = var1.getBook();
 -      if (var2.getItem() == Items.WRITABLE_BOOK) {
-+      if (var2.is(Items.WRITABLE_BOOK)) {
-          CompoundTag var3 = var2.getTag();
-          if (WritableBookItem.makeSureTagIsValid(var3)) {
-             ArrayList var4 = Lists.newArrayList();
-             boolean var5 = var1.isSigning();
-             if (var5) {
-@@ -709,21 +712,21 @@
+-         CompoundTag var3 = var2.getTag();
+-         if (WritableBookItem.makeSureTagIsValid(var3)) {
+-            ArrayList var4 = Lists.newArrayList();
+-            boolean var5 = var1.isSigning();
+-            if (var5) {
+-               var4.add(var3.getString("title"));
+-            }
++      int var2 = var1.getSlot();
++      if (Inventory.isHotbarSlot(var2) || var2 == 40) {
++         ItemStack var3 = var1.getBook();
++         if (var3.is(Items.WRITABLE_BOOK)) {
++            CompoundTag var4 = var3.getTag();
++            if (WritableBookItem.makeSureTagIsValid(var4)) {
++               ArrayList var5 = Lists.newArrayList();
++               boolean var6 = var1.isSigning();
++               if (var6) {
++                  var5.add(var4.getString("title"));
++               }
+ 
+-            ListTag var6 = var3.getList("pages", 8);
++               ListTag var7 = var4.getList("pages", 8);
+ 
+-            int var7;
+-            for(var7 = 0; var7 < var6.size(); ++var7) {
+-               var4.add(var6.getString(var7));
+-            }
++               for(int var8 = 0; var8 < var7.size(); ++var8) {
++                  var5.add(var7.getString(var8));
++               }
+ 
+-            var7 = var1.getSlot();
+-            if (Inventory.isHotbarSlot(var7) || var7 == 40) {
+-               this.filterTextPacket((List)var4, var5 ? (var2x) -> {
+-                  this.signBook((String)var2x.get(0), var2x.subList(1, var2x.size()), var7);
++               this.filterTextPacket((List)var5, var6 ? (var2x) -> {
++                  this.signBook((TextFilter.FilteredText)var2x.get(0), var2x.subList(1, var2x.size()), var2);
+                } : (var2x) -> {
+-                  this.updateBookContents(var2x, var7);
++                  this.updateBookContents(var2x, var2);
+                });
+             }
           }
        }
     }
  
-    private void updateBookContents(List<String> var1, int var2) {
+-   private void updateBookContents(List<String> var1, int var2) {
 -      ItemStack var3 = this.player.inventory.getItem(var2);
 -      if (var3.getItem() == Items.WRITABLE_BOOK) {
+-         ListTag var4 = new ListTag();
+-         var1.stream().map(StringTag::valueOf).forEach(var4::add);
+-         var3.addTagElement("pages", var4);
++   private void updateBookContents(List<TextFilter.FilteredText> var1, int var2) {
 +      ItemStack var3 = this.player.getInventory().getItem(var2);
 +      if (var3.is(Items.WRITABLE_BOOK)) {
-          ListTag var4 = new ListTag();
-          var1.stream().map(StringTag::valueOf).forEach(var4::add);
-          var3.addTagElement("pages", var4);
++         this.updateBookPages(var1, UnaryOperator.identity(), var3);
        }
     }
  
-    private void signBook(String var1, List<String> var2, int var3) {
+-   private void signBook(String var1, List<String> var2, int var3) {
 -      ItemStack var4 = this.player.inventory.getItem(var3);
 -      if (var4.getItem() == Items.WRITABLE_BOOK) {
++   private void signBook(TextFilter.FilteredText var1, List<TextFilter.FilteredText> var2, int var3) {
 +      ItemStack var4 = this.player.getInventory().getItem(var3);
 +      if (var4.is(Items.WRITABLE_BOOK)) {
           ItemStack var5 = new ItemStack(Items.WRITTEN_BOOK);
@@ -114,20 +256,64 @@
           if (var6 != null) {
              var5.setTag(var6.copy());
           }
-@@ -739,11 +742,11 @@
-             String var11 = Component.Serializer.toJson(var10);
-             var7.add(StringTag.valueOf(var11));
+ 
+          var5.addTagElement("author", StringTag.valueOf(this.player.getName().getString()));
+-         var5.addTagElement("title", StringTag.valueOf(var1));
+-         ListTag var7 = new ListTag();
+-         Iterator var8 = var2.iterator();
++         if (this.player.isTextFilteringEnabled()) {
++            var5.addTagElement("title", StringTag.valueOf(var1.getFiltered()));
++         } else {
++            var5.addTagElement("filtered_title", StringTag.valueOf(var1.getFiltered()));
++            var5.addTagElement("title", StringTag.valueOf(var1.getRaw()));
++         }
+ 
+-         while(var8.hasNext()) {
+-            String var9 = (String)var8.next();
+-            TextComponent var10 = new TextComponent(var9);
+-            String var11 = Component.Serializer.toJson(var10);
+-            var7.add(StringTag.valueOf(var11));
++         this.updateBookPages(var2, (var0) -> {
++            return Component.Serializer.toJson(new TextComponent(var0));
++         }, var5);
++         this.player.getInventory().setItem(var3, var5);
++      }
++   }
++
++   private void updateBookPages(List<TextFilter.FilteredText> var1, UnaryOperator<String> var2, ItemStack var3) {
++      ListTag var4 = new ListTag();
++      if (this.player.isTextFilteringEnabled()) {
++         var1.stream().map((var1x) -> {
++            return StringTag.valueOf((String)var2.apply(var1x.getFiltered()));
++         }).forEach(var4::add);
++      } else {
++         CompoundTag var5 = new CompoundTag();
++         int var6 = 0;
++
++         for(int var7 = var1.size(); var6 < var7; ++var6) {
++            TextFilter.FilteredText var8 = (TextFilter.FilteredText)var1.get(var6);
++            String var9 = var8.getRaw();
++            var4.add(StringTag.valueOf((String)var2.apply(var9)));
++            String var10 = var8.getFiltered();
++            if (!var9.equals(var10)) {
++               var5.putString(String.valueOf(var6), (String)var2.apply(var10));
++            }
           }
  
-          var5.addTagElement("pages", var7);
+-         var5.addTagElement("pages", var7);
 -         this.player.inventory.setItem(var3, var5);
-+         this.player.getInventory().setItem(var3, var5);
++         if (!var5.isEmpty()) {
++            var3.addTagElement("filtered_pages", var5);
++         }
        }
++
++      var3.addTagElement("pages", var4);
     }
  
     public void handleEntityTagQuery(ServerboundEntityTagQuery var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
-@@ -850,11 +853,11 @@
+       if (this.player.hasPermissions(2)) {
+@@ -850,11 +866,11 @@
                          LOGGER.warn((String)"{} moved wrongly!", (Object)this.player.getName().getString());
                       }
  
@@ -140,7 +326,7 @@
                          this.player.setOnGround(var1.isOnGround());
                          if (var31) {
                             this.player.fallDistance = 0.0F;
-@@ -882,28 +885,36 @@
+@@ -882,28 +898,36 @@
        return var3.anyMatch((var1x) -> {
           return !Shapes.joinIsNotEmpty(var1x, var4, BooleanOp.AND);
        });
@@ -184,7 +370,7 @@
     public void handlePlayerAction(ServerboundPlayerActionPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        BlockPos var2 = var1.getPos();
-@@ -935,11 +946,11 @@
+@@ -935,11 +959,11 @@
           this.player.releaseUsingItem();
           return;
        case START_DESTROY_BLOCK:
@@ -197,7 +383,7 @@
           throw new IllegalArgumentException("Invalid player action");
        }
     }
-@@ -960,23 +971,24 @@
+@@ -960,23 +984,24 @@
        ItemStack var4 = this.player.getItemInHand(var3);
        BlockHitResult var5 = var1.getHitResult();
        BlockPos var6 = var5.getBlockPos();
@@ -215,7 +401,7 @@
 +            InteractionResult var9 = this.player.gameMode.useItemOn(this.player, var2, var4, var3, var5);
 +            if (var7 == Direction.UP && !var9.consumesAction() && var6.getY() >= var8 - 1 && wasBlockPlacementAttempt(this.player, var4)) {
 +               MutableComponent var10 = (new TranslatableComponent("build.tooHigh", new Object[]{var8})).withStyle(ChatFormatting.RED);
-+               this.player.connection.send(new ClientboundChatPacket(var10, ChatType.GAME_INFO, Util.NIL_UUID));
++               this.player.sendMessage(var10, ChatType.GAME_INFO, Util.NIL_UUID);
 +            } else if (var9.shouldSwing()) {
                 this.player.swing(var3, true);
              }
@@ -224,13 +410,13 @@
 -         MutableComponent var10 = (new TranslatableComponent("build.tooHigh", new Object[]{this.server.getMaxBuildHeight()})).withStyle(ChatFormatting.RED);
 -         this.player.connection.send(new ClientboundChatPacket(var10, ChatType.GAME_INFO, Util.NIL_UUID));
 +         MutableComponent var11 = (new TranslatableComponent("build.tooHigh", new Object[]{var8})).withStyle(ChatFormatting.RED);
-+         this.player.connection.send(new ClientboundChatPacket(var11, ChatType.GAME_INFO, Util.NIL_UUID));
++         this.player.sendMessage(var11, ChatType.GAME_INFO, Util.NIL_UUID);
        }
  
        this.player.connection.send(new ClientboundBlockUpdatePacket(var2, var6));
        this.player.connection.send(new ClientboundBlockUpdatePacket(var2, var6.relative(var7)));
     }
-@@ -1012,10 +1024,16 @@
+@@ -1012,10 +1037,16 @@
        }
  
     }
@@ -247,7 +433,54 @@
     public void handlePaddleBoat(ServerboundPaddleBoatPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        Entity var2 = this.player.getVehicle();
-@@ -1073,15 +1091,15 @@
+@@ -1029,15 +1060,11 @@
+       LOGGER.info((String)"{} lost connection: {}", (Object)this.player.getName().getString(), (Object)var1.getString());
+       this.server.invalidateStatus();
+       this.server.getPlayerList().broadcastMessage((new TranslatableComponent("multiplayer.player.left", new Object[]{this.player.getDisplayName()})).withStyle(ChatFormatting.YELLOW), ChatType.SYSTEM, Util.NIL_UUID);
+       this.player.disconnect();
+       this.server.getPlayerList().remove(this.player);
+-      TextFilter var2 = this.player.getTextFilter();
+-      if (var2 != null) {
+-         var2.leave();
+-      }
+-
++      this.player.getTextFilter().leave();
+       if (this.isSingleplayerOwner()) {
+          LOGGER.info("Stopping singleplayer server as player logged out");
+          this.server.halt(false);
+       }
+ 
+@@ -1046,77 +1073,70 @@
+    public void send(Packet<?> var1) {
+       this.send(var1, (GenericFutureListener)null);
+    }
+ 
+    public void send(Packet<?> var1, @Nullable GenericFutureListener<? extends Future<? super Void>> var2) {
+-      if (var1 instanceof ClientboundChatPacket) {
+-         ClientboundChatPacket var3 = (ClientboundChatPacket)var1;
+-         ChatVisiblity var4 = this.player.getChatVisibility();
+-         if (var4 == ChatVisiblity.HIDDEN && var3.getType() != ChatType.GAME_INFO) {
+-            return;
+-         }
+-
+-         if (var4 == ChatVisiblity.SYSTEM && !var3.isSystem()) {
+-            return;
+-         }
+-      }
+-
+       try {
+          this.connection.send(var1, var2);
+       } catch (Throwable var6) {
+-         CrashReport var7 = CrashReport.forThrowable(var6, "Sending packet");
+-         CrashReportCategory var5 = var7.addCategory("Packet being sent");
++         CrashReport var4 = CrashReport.forThrowable(var6, "Sending packet");
++         CrashReportCategory var5 = var4.addCategory("Packet being sent");
+          var5.setDetail("Packet class", () -> {
+             return var1.getClass().getCanonicalName();
+          });
+-         throw new ReportedException(var7);
++         throw new ReportedException(var4);
+       }
     }
  
     public void handleSetCarriedItem(ServerboundSetCarriedItemPacket var1) {
@@ -265,7 +498,162 @@
           LOGGER.warn((String)"{} tried to set an invalid carried item", (Object)this.player.getName().getString());
        }
     }
-@@ -1408,11 +1426,11 @@
+ 
+    public void handleChat(ServerboundChatPacket var1) {
+       String var2 = StringUtils.normalizeSpace(var1.getMessage());
++
++      for(int var3 = 0; var3 < var2.length(); ++var3) {
++         if (!SharedConstants.isAllowedChatCharacter(var2.charAt(var3))) {
++            this.disconnect(new TranslatableComponent("multiplayer.disconnect.illegal_characters"));
++            return;
++         }
++      }
++
+       if (var2.startsWith("/")) {
+          PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+-         this.handleChat(var2);
++         this.handleChat(TextFilter.FilteredText.passThrough(var2));
+       } else {
+          this.filterTextPacket(var2, this::handleChat);
+       }
+ 
+    }
+ 
+-   private void handleChat(String var1) {
++   private void handleChat(TextFilter.FilteredText var1) {
+       if (this.player.getChatVisibility() == ChatVisiblity.HIDDEN) {
+-         this.send(new ClientboundChatPacket((new TranslatableComponent("chat.cannotSend")).withStyle(ChatFormatting.RED), ChatType.SYSTEM, Util.NIL_UUID));
++         this.send(new ClientboundChatPacket((new TranslatableComponent("chat.disabled.options")).withStyle(ChatFormatting.RED), ChatType.SYSTEM, Util.NIL_UUID));
+       } else {
+          this.player.resetLastActionTime();
+-
+-         for(int var2 = 0; var2 < var1.length(); ++var2) {
+-            if (!SharedConstants.isAllowedChatCharacter(var1.charAt(var2))) {
+-               this.disconnect(new TranslatableComponent("multiplayer.disconnect.illegal_characters"));
+-               return;
+-            }
+-         }
+-
+-         if (var1.startsWith("/")) {
+-            this.handleCommand(var1);
++         String var2 = var1.getRaw();
++         if (var2.startsWith("/")) {
++            this.handleCommand(var2);
+          } else {
+-            TranslatableComponent var3 = new TranslatableComponent("chat.type.text", new Object[]{this.player.getDisplayName(), var1});
+-            this.server.getPlayerList().broadcastMessage(var3, ChatType.CHAT, this.player.getUUID());
++            String var3 = var1.getFiltered();
++            TranslatableComponent var4 = var3.isEmpty() ? null : new TranslatableComponent("chat.type.text", new Object[]{this.player.getDisplayName(), var3});
++            TranslatableComponent var5 = new TranslatableComponent("chat.type.text", new Object[]{this.player.getDisplayName(), var2});
++            this.server.getPlayerList().broadcastMessage(var5, (var3x) -> {
++               return this.player.shouldFilterMessageTo(var3x) ? var4 : var5;
++            }, ChatType.CHAT, this.player.getUUID());
+          }
+ 
+          this.chatSpamTickCount += 20;
+          if (this.chatSpamTickCount > 200 && !this.server.getPlayerList().isOp(this.player.getGameProfile())) {
+             this.disconnect(new TranslatableComponent("disconnect.spam"));
+@@ -1190,39 +1210,48 @@
+    }
+ 
+    public void handleInteract(ServerboundInteractPacket var1) {
+       PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+       ServerLevel var2 = this.player.getLevel();
+-      Entity var3 = var1.getTarget(var2);
++      final Entity var3 = var1.getTarget(var2);
+       this.player.resetLastActionTime();
+       this.player.setShiftKeyDown(var1.isUsingSecondaryAction());
+       if (var3 != null) {
+          double var4 = 36.0D;
+          if (this.player.distanceToSqr(var3) < 36.0D) {
+-            InteractionHand var6 = var1.getHand();
+-            ItemStack var7 = var6 != null ? this.player.getItemInHand(var6).copy() : ItemStack.EMPTY;
+-            Optional var8 = Optional.empty();
+-            if (var1.getAction() == ServerboundInteractPacket.Action.INTERACT) {
+-               var8 = Optional.of(this.player.interactOn(var3, var6));
+-            } else if (var1.getAction() == ServerboundInteractPacket.Action.INTERACT_AT) {
+-               var8 = Optional.of(var3.interactAt(this.player, var1.getLocation(), var6));
+-            } else if (var1.getAction() == ServerboundInteractPacket.Action.ATTACK) {
+-               if (var3 instanceof ItemEntity || var3 instanceof ExperienceOrb || var3 instanceof AbstractArrow || var3 == this.player) {
+-                  this.disconnect(new TranslatableComponent("multiplayer.disconnect.invalid_entity_attacked"));
+-                  LOGGER.warn((String)"Player {} tried to attack an invalid entity", (Object)this.player.getName().getString());
+-                  return;
++            var1.dispatch(new ServerboundInteractPacket.Handler() {
++               private void performInteraction(InteractionHand var1, ServerGamePacketListenerImpl.EntityInteraction var2) {
++                  ItemStack var3x = ServerGamePacketListenerImpl.this.player.getItemInHand(var1).copy();
++                  InteractionResult var4 = var2.run(ServerGamePacketListenerImpl.this.player, var3, var1);
++                  if (var4.consumesAction()) {
++                     CriteriaTriggers.PLAYER_INTERACTED_WITH_ENTITY.trigger(ServerGamePacketListenerImpl.this.player, var3x, var3);
++                     if (var4.shouldSwing()) {
++                        ServerGamePacketListenerImpl.this.player.swing(var1, true);
++                     }
++                  }
++
+                }
+ 
+-               this.player.attack(var3);
+-            }
++               public void onInteraction(InteractionHand var1) {
++                  this.performInteraction(var1, Player::interactOn);
++               }
+ 
+-            if (var8.isPresent() && ((InteractionResult)var8.get()).consumesAction()) {
+-               CriteriaTriggers.PLAYER_INTERACTED_WITH_ENTITY.trigger(this.player, var7, var3);
+-               if (((InteractionResult)var8.get()).shouldSwing()) {
+-                  this.player.swing(var6, true);
++               public void onInteraction(InteractionHand var1, Vec3 var2) {
++                  this.performInteraction(var1, (var1x, var2x, var3x) -> {
++                     return var2x.interactAt(var1x, var2, var3x);
++                  });
+                }
+-            }
++
++               public void onAttack() {
++                  if (!(var3 instanceof ItemEntity) && !(var3 instanceof ExperienceOrb) && !(var3 instanceof AbstractArrow) && var3 != ServerGamePacketListenerImpl.this.player) {
++                     ServerGamePacketListenerImpl.this.player.attack(var3);
++                  } else {
++                     ServerGamePacketListenerImpl.this.disconnect(new TranslatableComponent("multiplayer.disconnect.invalid_entity_attacked"));
++                     ServerGamePacketListenerImpl.LOGGER.warn((String)"Player {} tried to attack an invalid entity", (Object)ServerGamePacketListenerImpl.this.player.getName().getString());
++                  }
++               }
++            });
+          }
+       }
+ 
+    }
+ 
+@@ -1368,11 +1397,11 @@
+       this.filterTextPacket(var2, (var2x) -> {
+          this.updateSignText(var1, var2x);
+       });
+    }
+ 
+-   private void updateSignText(ServerboundSignUpdatePacket var1, List<String> var2) {
++   private void updateSignText(ServerboundSignUpdatePacket var1, List<TextFilter.FilteredText> var2) {
+       this.player.resetLastActionTime();
+       ServerLevel var3 = this.player.getLevel();
+       BlockPos var4 = var1.getPos();
+       if (var3.hasChunkAt(var4)) {
+          BlockState var5 = var3.getBlockState(var4);
+@@ -1386,11 +1415,16 @@
+             LOGGER.warn((String)"Player {} just tried to change non-editable sign", (Object)this.player.getName().getString());
+             return;
+          }
+ 
+          for(int var8 = 0; var8 < var2.size(); ++var8) {
+-            var7.setMessage(var8, new TextComponent((String)var2.get(var8)));
++            TextFilter.FilteredText var9 = (TextFilter.FilteredText)var2.get(var8);
++            if (this.player.isTextFilteringEnabled()) {
++               var7.setMessage(var8, new TextComponent(var9.getFiltered()));
++            } else {
++               var7.setMessage(var8, new TextComponent(var9.getRaw()), new TextComponent(var9.getFiltered()));
++            }
+          }
+ 
+          var7.setChanged();
+          var3.sendBlockUpdated(var4, var5, var5, 3);
+       }
+@@ -1408,11 +1442,11 @@
  
     }
  
@@ -278,7 +666,7 @@
     public void handleClientInformation(ServerboundClientInformationPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        this.player.updateOptions(var1);
-@@ -1432,6 +1450,10 @@
+@@ -1432,6 +1466,15 @@
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        if (this.player.hasPermissions(2) || this.isSingleplayerOwner()) {
           this.server.setDifficultyLocked(var1.isLocked());
@@ -287,5 +675,10 @@
 +
 +   public ServerPlayer getPlayer() {
 +      return this.player;
++   }
++
++   @FunctionalInterface
++   interface EntityInteraction {
++      InteractionResult run(ServerPlayer var1, Entity var2, InteractionHand var3);
 +   }
  }

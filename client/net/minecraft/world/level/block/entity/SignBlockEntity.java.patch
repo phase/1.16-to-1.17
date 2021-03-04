@@ -12,10 +12,22 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.ComponentUtils;
  import net.minecraft.network.chat.MutableComponent;
-@@ -28,12 +29,12 @@
+@@ -22,77 +23,121 @@
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.Vec2;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class SignBlockEntity extends BlockEntity {
++   private static final String[] RAW_TEXT_FIELD_NAMES = new String[]{"Text1", "Text2", "Text3", "Text4"};
++   private static final String[] FILTERED_TEXT_FIELD_NAMES = new String[]{"FilteredText1", "FilteredText2", "FilteredText3", "FilteredText4"};
+    private final Component[] messages;
++   private final Component[] filteredMessages;
     private boolean isEditable;
     private Player playerWhoMayEdit;
-    private final FormattedCharSequence[] renderMessages;
+-   private final FormattedCharSequence[] renderMessages;
++   @Nullable
++   private FormattedCharSequence[] renderMessages;
++   private boolean renderMessagedFiltered;
     private DyeColor color;
  
 -   public SignBlockEntity() {
@@ -23,11 +35,26 @@
 +   public SignBlockEntity(BlockPos var1, BlockState var2) {
 +      super(BlockEntityType.SIGN, var1, var2);
        this.messages = new Component[]{TextComponent.EMPTY, TextComponent.EMPTY, TextComponent.EMPTY, TextComponent.EMPTY};
++      this.filteredMessages = new Component[]{TextComponent.EMPTY, TextComponent.EMPTY, TextComponent.EMPTY, TextComponent.EMPTY};
        this.isEditable = true;
-       this.renderMessages = new FormattedCharSequence[4];
+-      this.renderMessages = new FormattedCharSequence[4];
        this.color = DyeColor.BLACK;
     }
-@@ -48,33 +49,45 @@
+ 
+    public CompoundTag save(CompoundTag var1) {
+       super.save(var1);
+ 
+       for(int var2 = 0; var2 < 4; ++var2) {
+-         String var3 = Component.Serializer.toJson(this.messages[var2]);
+-         var1.putString("Text" + (var2 + 1), var3);
++         Component var3 = this.messages[var2];
++         String var4 = Component.Serializer.toJson(var3);
++         var1.putString(RAW_TEXT_FIELD_NAMES[var2], var4);
++         Component var5 = this.filteredMessages[var2];
++         if (!var5.equals(var3)) {
++            var1.putString(FILTERED_TEXT_FIELD_NAMES[var2], Component.Serializer.toJson(var5));
++         }
+       }
  
        var1.putString("Color", this.color.getName());
        return var1;
@@ -44,29 +71,43 @@
 -      for(int var3 = 0; var3 < 4; ++var3) {
 -         String var4 = var2.getString("Text" + (var3 + 1));
 -         MutableComponent var5 = Component.Serializer.fromJson(var4.isEmpty() ? "\"\"" : var4);
-+      for(int var2 = 0; var2 < 4; ++var2) {
-+         String var3 = var1.getString("Text" + (var2 + 1));
-+         Component var4 = this.deserializeTextSafe(var3);
-          if (this.level instanceof ServerLevel) {
-             try {
+-         if (this.level instanceof ServerLevel) {
+-            try {
 -               this.messages[var3] = ComponentUtils.updateForEntity(this.createCommandSourceStack((ServerPlayer)null), var5, (Entity)null, 0);
 -            } catch (CommandSyntaxException var7) {
 -               this.messages[var3] = var5;
-+               this.messages[var2] = ComponentUtils.updateForEntity(this.createCommandSourceStack((ServerPlayer)null), var4, (Entity)null, 0);
-+            } catch (CommandSyntaxException var6) {
-+               this.messages[var2] = var4;
-             }
+-            }
++      for(int var2 = 0; var2 < 4; ++var2) {
++         String var3 = var1.getString(RAW_TEXT_FIELD_NAMES[var2]);
++         Component var4 = this.loadLine(var3);
++         this.messages[var2] = var4;
++         String var5 = FILTERED_TEXT_FIELD_NAMES[var2];
++         if (var1.contains(var5, 8)) {
++            this.filteredMessages[var2] = this.loadLine(var1.getString(var5));
           } else {
 -            this.messages[var3] = var5;
-+            this.messages[var2] = var4;
++            this.filteredMessages[var2] = var4;
           }
++      }
  
 -         this.renderMessages[var3] = null;
-+         this.renderMessages[var2] = null;
++      this.renderMessages = null;
++   }
++
++   private Component loadLine(String var1) {
++      Component var2 = this.deserializeTextSafe(var1);
++      if (this.level instanceof ServerLevel) {
++         try {
++            return ComponentUtils.updateForEntity(this.createCommandSourceStack((ServerPlayer)null), var2, (Entity)null, 0);
++         } catch (CommandSyntaxException var4) {
++         }
        }
  
++      return var2;
     }
  
+-   public Component getMessage(int var1) {
+-      return this.messages[var1];
 +   private Component deserializeTextSafe(String var1) {
 +      try {
 +         MutableComponent var2 = Component.Serializer.fromJson(var1);
@@ -77,10 +118,76 @@
 +      }
 +
 +      return TextComponent.EMPTY;
-+   }
-+
-    public Component getMessage(int var1) {
-       return this.messages[var1];
     }
  
++   public Component getMessage(int var1, boolean var2) {
++      return this.getMessages(var2)[var1];
++   }
++
     public void setMessage(int var1, Component var2) {
++      this.setMessage(var1, var2, var2);
++   }
++
++   public void setMessage(int var1, Component var2, Component var3) {
+       this.messages[var1] = var2;
+-      this.renderMessages[var1] = null;
++      this.filteredMessages[var1] = var3;
++      this.renderMessages = null;
+    }
+ 
+-   @Nullable
+-   public FormattedCharSequence getRenderMessage(int var1, Function<Component, FormattedCharSequence> var2) {
+-      if (this.renderMessages[var1] == null && this.messages[var1] != null) {
+-         this.renderMessages[var1] = (FormattedCharSequence)var2.apply(this.messages[var1]);
++   public FormattedCharSequence[] getRenderMessages(boolean var1, Function<Component, FormattedCharSequence> var2) {
++      if (this.renderMessages == null || this.renderMessagedFiltered != var1) {
++         this.renderMessagedFiltered = var1;
++         this.renderMessages = new FormattedCharSequence[4];
++
++         for(int var3 = 0; var3 < 4; ++var3) {
++            this.renderMessages[var3] = (FormattedCharSequence)var2.apply(this.getMessage(var3, var1));
++         }
+       }
+ 
+-      return this.renderMessages[var1];
++      return this.renderMessages;
+    }
+ 
++   private Component[] getMessages(boolean var1) {
++      return var1 ? this.filteredMessages : this.messages;
++   }
++
+    @Nullable
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+       return new ClientboundBlockEntityDataPacket(this.worldPosition, 9, this.getUpdateTag());
+    }
+ 
+@@ -122,22 +167,20 @@
+ 
+    public Player getPlayerWhoMayEdit() {
+       return this.playerWhoMayEdit;
+    }
+ 
+-   public boolean executeClickCommands(Player var1) {
+-      Component[] var2 = this.messages;
++   public boolean executeClickCommands(ServerPlayer var1) {
++      Component[] var2 = this.getMessages(var1.isTextFilteringEnabled());
+       int var3 = var2.length;
+ 
+       for(int var4 = 0; var4 < var3; ++var4) {
+          Component var5 = var2[var4];
+-         Style var6 = var5 == null ? null : var5.getStyle();
+-         if (var6 != null && var6.getClickEvent() != null) {
+-            ClickEvent var7 = var6.getClickEvent();
+-            if (var7.getAction() == ClickEvent.Action.RUN_COMMAND) {
+-               var1.getServer().getCommands().performCommand(this.createCommandSourceStack((ServerPlayer)var1), var7.getValue());
+-            }
++         Style var6 = var5.getStyle();
++         ClickEvent var7 = var6.getClickEvent();
++         if (var7 != null && var7.getAction() == ClickEvent.Action.RUN_COMMAND) {
++            var1.getServer().getCommands().performCommand(this.createCommandSourceStack(var1), var7.getValue());
+          }
+       }
+ 
+       return true;
+    }

@@ -1,12 +1,7 @@
 --- net/minecraft/world/level/levelgen/structure/StructureStart.java
 +++ net/minecraft/world/level/levelgen/structure/StructureStart.java
-@@ -5,14 +5,16 @@
- import java.util.List;
- import java.util.Random;
- import net.minecraft.core.BlockPos;
- import net.minecraft.core.Registry;
+@@ -9,10 +9,11 @@
  import net.minecraft.core.RegistryAccess;
-+import net.minecraft.core.SectionPos;
  import net.minecraft.core.Vec3i;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.ListTag;
@@ -17,40 +12,156 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.WorldgenRandom;
-@@ -39,11 +41,11 @@
+@@ -24,26 +25,24 @@
+ public abstract class StructureStart<C extends FeatureConfiguration> {
+    public static final StructureStart<?> INVALID_START;
+    private final StructureFeature<C> feature;
+    protected final List<StructurePiece> pieces = Lists.newArrayList();
+    protected BoundingBox boundingBox;
+-   private final int chunkX;
+-   private final int chunkZ;
++   private final ChunkPos chunkPos;
+    private int references;
+    protected final WorldgenRandom random;
+ 
+-   public StructureStart(StructureFeature<C> var1, int var2, int var3, BoundingBox var4, int var5, long var6) {
++   public StructureStart(StructureFeature<C> var1, ChunkPos var2, BoundingBox var3, int var4, long var5) {
+       this.feature = var1;
+-      this.chunkX = var2;
+-      this.chunkZ = var3;
+-      this.references = var5;
++      this.chunkPos = var2;
++      this.references = var4;
        this.random = new WorldgenRandom();
-       this.random.setLargeFeatureSeed(var6, var2, var3);
-       this.boundingBox = var4;
+-      this.random.setLargeFeatureSeed(var6, var2, var3);
+-      this.boundingBox = var4;
++      this.random.setLargeFeatureSeed(var5, var2.x, var2.z);
++      this.boundingBox = var3;
     }
  
 -   public abstract void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, C var7);
-+   public abstract void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, C var7, LevelHeightAccessor var8);
++   public abstract void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, ChunkPos var4, Biome var5, C var6, LevelHeightAccessor var7);
  
     public BoundingBox getBoundingBox() {
        return this.boundingBox;
     }
  
-@@ -161,11 +163,11 @@
-    public int getChunkZ() {
-       return this.chunkZ;
+@@ -80,54 +79,54 @@
+          this.boundingBox.expand(var2.getBoundingBox());
+       }
+ 
     }
  
+-   public CompoundTag createTag(int var1, int var2) {
+-      CompoundTag var3 = new CompoundTag();
++   public CompoundTag createTag(ChunkPos var1) {
++      CompoundTag var2 = new CompoundTag();
+       if (this.isValid()) {
+-         var3.putString("id", Registry.STRUCTURE_FEATURE.getKey(this.getFeature()).toString());
+-         var3.putInt("ChunkX", var1);
+-         var3.putInt("ChunkZ", var2);
+-         var3.putInt("references", this.references);
+-         var3.put("BB", this.boundingBox.createTag());
+-         ListTag var4 = new ListTag();
++         var2.putString("id", Registry.STRUCTURE_FEATURE.getKey(this.getFeature()).toString());
++         var2.putInt("ChunkX", var1.x);
++         var2.putInt("ChunkZ", var1.z);
++         var2.putInt("references", this.references);
++         var2.put("BB", this.boundingBox.createTag());
++         ListTag var3 = new ListTag();
+          synchronized(this.pieces) {
+-            Iterator var6 = this.pieces.iterator();
++            Iterator var5 = this.pieces.iterator();
+ 
+             while(true) {
+-               if (!var6.hasNext()) {
++               if (!var5.hasNext()) {
+                   break;
+                }
+ 
+-               StructurePiece var7 = (StructurePiece)var6.next();
+-               var4.add(var7.createTag());
++               StructurePiece var6 = (StructurePiece)var5.next();
++               var3.add(var6.createTag());
+             }
+          }
+ 
+-         var3.put("Children", var4);
+-         return var3;
++         var2.put("Children", var3);
++         return var2;
+       } else {
+-         var3.putString("id", "INVALID");
+-         return var3;
++         var2.putString("id", "INVALID");
++         return var2;
+       }
+    }
+ 
+-   protected void moveBelowSeaLevel(int var1, Random var2, int var3) {
+-      int var4 = var1 - var3;
+-      int var5 = this.boundingBox.getYSpan() + 1;
+-      if (var5 < var4) {
+-         var5 += var2.nextInt(var4 - var5);
++   protected void moveBelowSeaLevel(int var1, int var2, Random var3, int var4) {
++      int var5 = var1 - var4;
++      int var6 = this.boundingBox.getYSpan() + var2 + 1;
++      if (var6 < var5) {
++         var6 += var3.nextInt(var5 - var6);
+       }
+ 
+-      int var6 = var5 - this.boundingBox.y1;
+-      this.boundingBox.move(0, var6, 0);
+-      Iterator var7 = this.pieces.iterator();
++      int var7 = var6 - this.boundingBox.y1;
++      this.boundingBox.move(0, var7, 0);
++      Iterator var8 = this.pieces.iterator();
+ 
+-      while(var7.hasNext()) {
+-         StructurePiece var8 = (StructurePiece)var7.next();
+-         var8.move(0, var6, 0);
++      while(var8.hasNext()) {
++         StructurePiece var9 = (StructurePiece)var8.next();
++         var9.move(0, var7, 0);
+       }
+ 
+    }
+ 
+    protected void moveInsideHeights(Random var1, int var2, int var3) {
+@@ -152,20 +151,16 @@
+ 
+    public boolean isValid() {
+       return !this.pieces.isEmpty();
+    }
+ 
+-   public int getChunkX() {
+-      return this.chunkX;
++   public ChunkPos getChunkPos() {
++      return this.chunkPos;
+    }
+ 
+-   public int getChunkZ() {
+-      return this.chunkZ;
+-   }
+-
     public BlockPos getLocatePos() {
 -      return new BlockPos(this.chunkX << 4, 0, this.chunkZ << 4);
-+      return new BlockPos(SectionPos.sectionToBlockCoord(this.chunkX), 0, SectionPos.sectionToBlockCoord(this.chunkZ));
++      return new BlockPos(this.chunkPos.getMinBlockX(), 0, this.chunkPos.getMinBlockZ());
     }
  
     public boolean canBeReferenced() {
        return this.references < this.getMaxReferences();
     }
-@@ -186,10 +188,10 @@
+@@ -185,11 +180,11 @@
+    public StructureFeature<?> getFeature() {
        return this.feature;
     }
  
     static {
-       INVALID_START = new StructureStart<MineshaftConfiguration>(StructureFeature.MINESHAFT, 0, 0, BoundingBox.getUnknownBox(), 0, 0L) {
+-      INVALID_START = new StructureStart<MineshaftConfiguration>(StructureFeature.MINESHAFT, 0, 0, BoundingBox.getUnknownBox(), 0, 0L) {
 -         public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, MineshaftConfiguration var7) {
-+         public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, MineshaftConfiguration var7, LevelHeightAccessor var8) {
++      INVALID_START = new StructureStart<MineshaftConfiguration>(StructureFeature.MINESHAFT, new ChunkPos(0, 0), BoundingBox.getUnknownBox(), 0, 0L) {
++         public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, ChunkPos var4, Biome var5, MineshaftConfiguration var6, LevelHeightAccessor var7) {
           }
        };
     }

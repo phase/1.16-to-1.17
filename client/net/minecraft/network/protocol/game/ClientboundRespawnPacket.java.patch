@@ -1,9 +1,9 @@
 --- net/minecraft/network/protocol/game/ClientboundRespawnPacket.java
 +++ net/minecraft/network/protocol/game/ClientboundRespawnPacket.java
-@@ -1,9 +1,10 @@
+@@ -1,69 +1,67 @@
  package net.minecraft.network.protocol.game;
  
- import java.io.IOException;
+-import java.io.IOException;
  import java.util.function.Supplier;
 +import javax.annotation.Nullable;
  import net.minecraft.core.Registry;
@@ -11,21 +11,31 @@
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.resources.ResourceKey;
  import net.minecraft.world.level.GameType;
-@@ -13,19 +14,20 @@
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.dimension.DimensionType;
+ 
  public class ClientboundRespawnPacket implements Packet<ClientGamePacketListener> {
-    private DimensionType dimensionType;
-    private ResourceKey<Level> dimension;
-    private long seed;
-    private GameType playerGameType;
+-   private DimensionType dimensionType;
+-   private ResourceKey<Level> dimension;
+-   private long seed;
+-   private GameType playerGameType;
+-   private GameType previousPlayerGameType;
+-   private boolean isDebug;
+-   private boolean isFlat;
+-   private boolean keepAllPlayerData;
++   private final DimensionType dimensionType;
++   private final ResourceKey<Level> dimension;
++   private final long seed;
++   private final GameType playerGameType;
 +   @Nullable
-    private GameType previousPlayerGameType;
-    private boolean isDebug;
-    private boolean isFlat;
-    private boolean keepAllPlayerData;
++   private final GameType previousPlayerGameType;
++   private final boolean isDebug;
++   private final boolean isFlat;
++   private final boolean keepAllPlayerData;
  
-    public ClientboundRespawnPacket() {
-    }
- 
+-   public ClientboundRespawnPacket() {
+-   }
+-
 -   public ClientboundRespawnPacket(DimensionType var1, ResourceKey<Level> var2, long var3, GameType var5, GameType var6, boolean var7, boolean var8, boolean var9) {
 +   public ClientboundRespawnPacket(DimensionType var1, ResourceKey<Level> var2, long var3, GameType var5, @Nullable GameType var6, boolean var7, boolean var8, boolean var9) {
        this.dimensionType = var1;
@@ -33,8 +43,17 @@
        this.seed = var3;
        this.playerGameType = var5;
        this.previousPlayerGameType = var6;
-@@ -41,11 +43,11 @@
-    public void read(FriendlyByteBuf var1) throws IOException {
+       this.isDebug = var7;
+       this.isFlat = var8;
+       this.keepAllPlayerData = var9;
+    }
+ 
+-   public void handle(ClientGamePacketListener var1) {
+-      var1.handleRespawn(this);
+-   }
+-
+-   public void read(FriendlyByteBuf var1) throws IOException {
++   public ClientboundRespawnPacket(FriendlyByteBuf var1) {
        this.dimensionType = (DimensionType)((Supplier)var1.readWithCodec(DimensionType.CODEC)).get();
        this.dimension = ResourceKey.create(Registry.DIMENSION_REGISTRY, var1.readResourceLocation());
        this.seed = var1.readLong();
@@ -46,7 +65,9 @@
        this.keepAllPlayerData = var1.readBoolean();
     }
  
-@@ -54,11 +56,11 @@
+-   public void write(FriendlyByteBuf var1) throws IOException {
++   public void write(FriendlyByteBuf var1) {
+       var1.writeWithCodec(DimensionType.CODEC, () -> {
           return this.dimensionType;
        });
        var1.writeResourceLocation(this.dimension.location());
@@ -59,7 +80,16 @@
        var1.writeBoolean(this.keepAllPlayerData);
     }
  
-@@ -76,10 +78,11 @@
++   public void handle(ClientGamePacketListener var1) {
++      var1.handleRespawn(this);
++   }
++
+    public DimensionType getDimensionType() {
+       return this.dimensionType;
+    }
+ 
+    public ResourceKey<Level> getDimension() {
+@@ -76,10 +74,11 @@
  
     public GameType getPlayerGameType() {
        return this.playerGameType;

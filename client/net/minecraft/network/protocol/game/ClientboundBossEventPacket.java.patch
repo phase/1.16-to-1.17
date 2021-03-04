@@ -1,54 +1,416 @@
 --- net/minecraft/network/protocol/game/ClientboundBossEventPacket.java
 +++ net/minecraft/network/protocol/game/ClientboundBossEventPacket.java
-@@ -23,11 +23,11 @@
+@@ -1,168 +1,300 @@
+ package net.minecraft.network.protocol.game;
  
-    public ClientboundBossEventPacket(ClientboundBossEventPacket.Operation var1, BossEvent var2) {
-       this.operation = var1;
-       this.id = var2.getId();
-       this.name = var2.getName();
+-import java.io.IOException;
+ import java.util.UUID;
++import java.util.function.Function;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.BossEvent;
+ 
+ public class ClientboundBossEventPacket implements Packet<ClientGamePacketListener> {
+-   private UUID id;
+-   private ClientboundBossEventPacket.Operation operation;
+-   private Component name;
+-   private float pct;
+-   private BossEvent.BossBarColor color;
+-   private BossEvent.BossBarOverlay overlay;
+-   private boolean darkenScreen;
+-   private boolean playMusic;
+-   private boolean createWorldFog;
++   private final UUID id;
++   private final ClientboundBossEventPacket.Operation operation;
++   private static final ClientboundBossEventPacket.Operation REMOVE_OPERATION = new ClientboundBossEventPacket.Operation() {
++      public ClientboundBossEventPacket.OperationType getType() {
++         return ClientboundBossEventPacket.OperationType.REMOVE;
++      }
+ 
+-   public ClientboundBossEventPacket() {
+-   }
++      public void dispatch(UUID var1, ClientboundBossEventPacket.Handler var2) {
++         var2.remove(var1);
++      }
+ 
+-   public ClientboundBossEventPacket(ClientboundBossEventPacket.Operation var1, BossEvent var2) {
+-      this.operation = var1;
+-      this.id = var2.getId();
+-      this.name = var2.getName();
 -      this.pct = var2.getPercent();
-+      this.pct = var2.getProgress();
-       this.color = var2.getColor();
-       this.overlay = var2.getOverlay();
-       this.darkenScreen = var2.shouldDarkenScreen();
-       this.playMusic = var2.shouldPlayBossMusic();
-       this.createWorldFog = var2.shouldCreateWorldFog();
-@@ -44,11 +44,11 @@
-          this.overlay = (BossEvent.BossBarOverlay)var1.readEnum(BossEvent.BossBarOverlay.class);
-          this.decodeProperties(var1.readUnsignedByte());
-       case REMOVE:
-       default:
-          break;
--      case UPDATE_PCT:
-+      case UPDATE_PROGRESS:
-          this.pct = var1.readFloat();
-          break;
-       case UPDATE_NAME:
-          this.name = var1.readComponent();
-          break;
-@@ -79,11 +79,11 @@
-          var1.writeEnum(this.overlay);
-          var1.writeByte(this.encodeProperties());
-       case REMOVE:
-       default:
-          break;
--      case UPDATE_PCT:
-+      case UPDATE_PROGRESS:
-          var1.writeFloat(this.pct);
-          break;
-       case UPDATE_NAME:
-          var1.writeComponent(this.name);
-          break;
-@@ -155,11 +155,11 @@
+-      this.color = var2.getColor();
+-      this.overlay = var2.getOverlay();
+-      this.darkenScreen = var2.shouldDarkenScreen();
+-      this.playMusic = var2.shouldPlayBossMusic();
+-      this.createWorldFog = var2.shouldCreateWorldFog();
++      public void write(FriendlyByteBuf var1) {
++      }
++   };
++
++   private ClientboundBossEventPacket(UUID var1, ClientboundBossEventPacket.Operation var2) {
++      this.id = var1;
++      this.operation = var2;
     }
  
-    public static enum Operation {
-       ADD,
-       REMOVE,
--      UPDATE_PCT,
-+      UPDATE_PROGRESS,
-       UPDATE_NAME,
-       UPDATE_STYLE,
-       UPDATE_PROPERTIES;
+-   public void read(FriendlyByteBuf var1) throws IOException {
++   public ClientboundBossEventPacket(FriendlyByteBuf var1) {
+       this.id = var1.readUUID();
+-      this.operation = (ClientboundBossEventPacket.Operation)var1.readEnum(ClientboundBossEventPacket.Operation.class);
+-      switch(this.operation) {
+-      case ADD:
+-         this.name = var1.readComponent();
+-         this.pct = var1.readFloat();
+-         this.color = (BossEvent.BossBarColor)var1.readEnum(BossEvent.BossBarColor.class);
+-         this.overlay = (BossEvent.BossBarOverlay)var1.readEnum(BossEvent.BossBarOverlay.class);
+-         this.decodeProperties(var1.readUnsignedByte());
+-      case REMOVE:
+-      default:
+-         break;
+-      case UPDATE_PCT:
+-         this.pct = var1.readFloat();
+-         break;
+-      case UPDATE_NAME:
+-         this.name = var1.readComponent();
+-         break;
+-      case UPDATE_STYLE:
+-         this.color = (BossEvent.BossBarColor)var1.readEnum(BossEvent.BossBarColor.class);
+-         this.overlay = (BossEvent.BossBarOverlay)var1.readEnum(BossEvent.BossBarOverlay.class);
+-         break;
+-      case UPDATE_PROPERTIES:
+-         this.decodeProperties(var1.readUnsignedByte());
+-      }
++      ClientboundBossEventPacket.OperationType var2 = (ClientboundBossEventPacket.OperationType)var1.readEnum(ClientboundBossEventPacket.OperationType.class);
++      this.operation = (ClientboundBossEventPacket.Operation)var2.reader.apply(var1);
++   }
  
-       private Operation() {
++   public static ClientboundBossEventPacket createAddPacket(BossEvent var0) {
++      return new ClientboundBossEventPacket(var0.getId(), new ClientboundBossEventPacket.AddOperation(var0));
+    }
+ 
+-   private void decodeProperties(int var1) {
+-      this.darkenScreen = (var1 & 1) > 0;
+-      this.playMusic = (var1 & 2) > 0;
+-      this.createWorldFog = (var1 & 4) > 0;
++   public static ClientboundBossEventPacket createRemovePacket(UUID var0) {
++      return new ClientboundBossEventPacket(var0, REMOVE_OPERATION);
+    }
+ 
+-   public void write(FriendlyByteBuf var1) throws IOException {
+-      var1.writeUUID(this.id);
+-      var1.writeEnum(this.operation);
+-      switch(this.operation) {
+-      case ADD:
+-         var1.writeComponent(this.name);
+-         var1.writeFloat(this.pct);
+-         var1.writeEnum(this.color);
+-         var1.writeEnum(this.overlay);
+-         var1.writeByte(this.encodeProperties());
+-      case REMOVE:
+-      default:
+-         break;
+-      case UPDATE_PCT:
+-         var1.writeFloat(this.pct);
+-         break;
+-      case UPDATE_NAME:
+-         var1.writeComponent(this.name);
+-         break;
+-      case UPDATE_STYLE:
+-         var1.writeEnum(this.color);
+-         var1.writeEnum(this.overlay);
+-         break;
+-      case UPDATE_PROPERTIES:
+-         var1.writeByte(this.encodeProperties());
+-      }
++   public static ClientboundBossEventPacket createUpdateProgressPacket(BossEvent var0) {
++      return new ClientboundBossEventPacket(var0.getId(), new ClientboundBossEventPacket.UpdateProgressOperation(var0.getProgress()));
++   }
+ 
++   public static ClientboundBossEventPacket createUpdateNamePacket(BossEvent var0) {
++      return new ClientboundBossEventPacket(var0.getId(), new ClientboundBossEventPacket.UpdateNameOperation(var0.getName()));
+    }
+ 
+-   private int encodeProperties() {
+-      int var1 = 0;
+-      if (this.darkenScreen) {
+-         var1 |= 1;
++   public static ClientboundBossEventPacket createUpdateStylePacket(BossEvent var0) {
++      return new ClientboundBossEventPacket(var0.getId(), new ClientboundBossEventPacket.UpdateStyleOperation(var0.getColor(), var0.getOverlay()));
++   }
++
++   public static ClientboundBossEventPacket createUpdatePropertiesPacket(BossEvent var0) {
++      return new ClientboundBossEventPacket(var0.getId(), new ClientboundBossEventPacket.UpdatePropertiesOperation(var0.shouldDarkenScreen(), var0.shouldPlayBossMusic(), var0.shouldCreateWorldFog()));
++   }
++
++   public void write(FriendlyByteBuf var1) {
++      var1.writeUUID(this.id);
++      var1.writeEnum(this.operation.getType());
++      this.operation.write(var1);
++   }
++
++   private static int encodeProperties(boolean var0, boolean var1, boolean var2) {
++      int var3 = 0;
++      if (var0) {
++         var3 |= 1;
+       }
+ 
+-      if (this.playMusic) {
+-         var1 |= 2;
++      if (var1) {
++         var3 |= 2;
+       }
+ 
+-      if (this.createWorldFog) {
+-         var1 |= 4;
++      if (var2) {
++         var3 |= 4;
+       }
+ 
+-      return var1;
++      return var3;
+    }
+ 
+    public void handle(ClientGamePacketListener var1) {
+       var1.handleBossUpdate(this);
+    }
+ 
+-   public UUID getId() {
+-      return this.id;
++   public void dispatch(ClientboundBossEventPacket.Handler var1) {
++      this.operation.dispatch(this.id, var1);
+    }
+ 
+-   public ClientboundBossEventPacket.Operation getOperation() {
+-      return this.operation;
+-   }
++   static class UpdatePropertiesOperation implements ClientboundBossEventPacket.Operation {
++      private final boolean darkenScreen;
++      private final boolean playMusic;
++      private final boolean createWorldFog;
+ 
+-   public Component getName() {
+-      return this.name;
++      private UpdatePropertiesOperation(boolean var1, boolean var2, boolean var3) {
++         this.darkenScreen = var1;
++         this.playMusic = var2;
++         this.createWorldFog = var3;
++      }
++
++      private UpdatePropertiesOperation(FriendlyByteBuf var1) {
++         short var2 = var1.readUnsignedByte();
++         this.darkenScreen = (var2 & 1) > 0;
++         this.playMusic = (var2 & 2) > 0;
++         this.createWorldFog = (var2 & 4) > 0;
++      }
++
++      public ClientboundBossEventPacket.OperationType getType() {
++         return ClientboundBossEventPacket.OperationType.UPDATE_PROPERTIES;
++      }
++
++      public void dispatch(UUID var1, ClientboundBossEventPacket.Handler var2) {
++         var2.updateProperties(var1, this.darkenScreen, this.playMusic, this.createWorldFog);
++      }
++
++      public void write(FriendlyByteBuf var1) {
++         var1.writeByte(ClientboundBossEventPacket.encodeProperties(this.darkenScreen, this.playMusic, this.createWorldFog));
++      }
+    }
+ 
+-   public float getPercent() {
+-      return this.pct;
++   static class UpdateStyleOperation implements ClientboundBossEventPacket.Operation {
++      private final BossEvent.BossBarColor color;
++      private final BossEvent.BossBarOverlay overlay;
++
++      private UpdateStyleOperation(BossEvent.BossBarColor var1, BossEvent.BossBarOverlay var2) {
++         this.color = var1;
++         this.overlay = var2;
++      }
++
++      private UpdateStyleOperation(FriendlyByteBuf var1) {
++         this.color = (BossEvent.BossBarColor)var1.readEnum(BossEvent.BossBarColor.class);
++         this.overlay = (BossEvent.BossBarOverlay)var1.readEnum(BossEvent.BossBarOverlay.class);
++      }
++
++      public ClientboundBossEventPacket.OperationType getType() {
++         return ClientboundBossEventPacket.OperationType.UPDATE_STYLE;
++      }
++
++      public void dispatch(UUID var1, ClientboundBossEventPacket.Handler var2) {
++         var2.updateStyle(var1, this.color, this.overlay);
++      }
++
++      public void write(FriendlyByteBuf var1) {
++         var1.writeEnum(this.color);
++         var1.writeEnum(this.overlay);
++      }
+    }
+ 
+-   public BossEvent.BossBarColor getColor() {
+-      return this.color;
++   static class UpdateNameOperation implements ClientboundBossEventPacket.Operation {
++      private final Component name;
++
++      private UpdateNameOperation(Component var1) {
++         this.name = var1;
++      }
++
++      private UpdateNameOperation(FriendlyByteBuf var1) {
++         this.name = var1.readComponent();
++      }
++
++      public ClientboundBossEventPacket.OperationType getType() {
++         return ClientboundBossEventPacket.OperationType.UPDATE_NAME;
++      }
++
++      public void dispatch(UUID var1, ClientboundBossEventPacket.Handler var2) {
++         var2.updateName(var1, this.name);
++      }
++
++      public void write(FriendlyByteBuf var1) {
++         var1.writeComponent(this.name);
++      }
+    }
+ 
+-   public BossEvent.BossBarOverlay getOverlay() {
+-      return this.overlay;
++   static class UpdateProgressOperation implements ClientboundBossEventPacket.Operation {
++      private final float progress;
++
++      private UpdateProgressOperation(float var1) {
++         this.progress = var1;
++      }
++
++      private UpdateProgressOperation(FriendlyByteBuf var1) {
++         this.progress = var1.readFloat();
++      }
++
++      public ClientboundBossEventPacket.OperationType getType() {
++         return ClientboundBossEventPacket.OperationType.UPDATE_PROGRESS;
++      }
++
++      public void dispatch(UUID var1, ClientboundBossEventPacket.Handler var2) {
++         var2.updateProgress(var1, this.progress);
++      }
++
++      public void write(FriendlyByteBuf var1) {
++         var1.writeFloat(this.progress);
++      }
+    }
+ 
+-   public boolean shouldDarkenScreen() {
+-      return this.darkenScreen;
++   static class AddOperation implements ClientboundBossEventPacket.Operation {
++      private final Component name;
++      private final float progress;
++      private final BossEvent.BossBarColor color;
++      private final BossEvent.BossBarOverlay overlay;
++      private final boolean darkenScreen;
++      private final boolean playMusic;
++      private final boolean createWorldFog;
++
++      private AddOperation(BossEvent var1) {
++         this.name = var1.getName();
++         this.progress = var1.getProgress();
++         this.color = var1.getColor();
++         this.overlay = var1.getOverlay();
++         this.darkenScreen = var1.shouldDarkenScreen();
++         this.playMusic = var1.shouldPlayBossMusic();
++         this.createWorldFog = var1.shouldCreateWorldFog();
++      }
++
++      private AddOperation(FriendlyByteBuf var1) {
++         this.name = var1.readComponent();
++         this.progress = var1.readFloat();
++         this.color = (BossEvent.BossBarColor)var1.readEnum(BossEvent.BossBarColor.class);
++         this.overlay = (BossEvent.BossBarOverlay)var1.readEnum(BossEvent.BossBarOverlay.class);
++         short var2 = var1.readUnsignedByte();
++         this.darkenScreen = (var2 & 1) > 0;
++         this.playMusic = (var2 & 2) > 0;
++         this.createWorldFog = (var2 & 4) > 0;
++      }
++
++      public ClientboundBossEventPacket.OperationType getType() {
++         return ClientboundBossEventPacket.OperationType.ADD;
++      }
++
++      public void dispatch(UUID var1, ClientboundBossEventPacket.Handler var2) {
++         var2.add(var1, this.name, this.progress, this.color, this.overlay, this.darkenScreen, this.playMusic, this.createWorldFog);
++      }
++
++      public void write(FriendlyByteBuf var1) {
++         var1.writeComponent(this.name);
++         var1.writeFloat(this.progress);
++         var1.writeEnum(this.color);
++         var1.writeEnum(this.overlay);
++         var1.writeByte(ClientboundBossEventPacket.encodeProperties(this.darkenScreen, this.playMusic, this.createWorldFog));
++      }
+    }
+ 
+-   public boolean shouldPlayMusic() {
+-      return this.playMusic;
++   interface Operation {
++      ClientboundBossEventPacket.OperationType getType();
++
++      void dispatch(UUID var1, ClientboundBossEventPacket.Handler var2);
++
++      void write(FriendlyByteBuf var1);
+    }
+ 
+-   public boolean shouldCreateWorldFog() {
+-      return this.createWorldFog;
++   public interface Handler {
++      default void add(UUID var1, Component var2, float var3, BossEvent.BossBarColor var4, BossEvent.BossBarOverlay var5, boolean var6, boolean var7, boolean var8) {
++      }
++
++      default void remove(UUID var1) {
++      }
++
++      default void updateProgress(UUID var1, float var2) {
++      }
++
++      default void updateName(UUID var1, Component var2) {
++      }
++
++      default void updateStyle(UUID var1, BossEvent.BossBarColor var2, BossEvent.BossBarOverlay var3) {
++      }
++
++      default void updateProperties(UUID var1, boolean var2, boolean var3, boolean var4) {
++      }
+    }
+ 
+-   public static enum Operation {
+-      ADD,
+-      REMOVE,
+-      UPDATE_PCT,
+-      UPDATE_NAME,
+-      UPDATE_STYLE,
+-      UPDATE_PROPERTIES;
++   static enum OperationType {
++      ADD((var0) -> {
++         return new ClientboundBossEventPacket.AddOperation(var0);
++      }),
++      REMOVE((var0) -> {
++         return ClientboundBossEventPacket.REMOVE_OPERATION;
++      }),
++      UPDATE_PROGRESS((var0) -> {
++         return new ClientboundBossEventPacket.UpdateProgressOperation(var0);
++      }),
++      UPDATE_NAME((var0) -> {
++         return new ClientboundBossEventPacket.UpdateNameOperation(var0);
++      }),
++      UPDATE_STYLE((var0) -> {
++         return new ClientboundBossEventPacket.UpdateStyleOperation(var0);
++      }),
++      UPDATE_PROPERTIES((var0) -> {
++         return new ClientboundBossEventPacket.UpdatePropertiesOperation(var0);
++      });
+ 
+-      private Operation() {
++      private final Function<FriendlyByteBuf, ClientboundBossEventPacket.Operation> reader;
++
++      private OperationType(Function<FriendlyByteBuf, ClientboundBossEventPacket.Operation> var3) {
++         this.reader = var3;
+       }
+    }
+ }

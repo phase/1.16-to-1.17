@@ -246,7 +246,58 @@
  
     private void markPositionReplaceable(ChunkPos var1) {
        this.chunkTypeCache.put(var1.toLong(), (byte)-1);
-@@ -562,73 +557,60 @@
+@@ -524,33 +519,35 @@
+          return this.getDependencyStatus(var2, var2x);
+       });
+       this.level.getProfiler().incrementCounter(() -> {
+          return "chunkGenerate " + var2.getName();
+       });
+-      return var4.thenComposeAsync((var4x) -> {
+-         return (CompletableFuture)var4x.map((var4) -> {
++      Executor var5 = (var2x) -> {
++         this.worldgenMailbox.tell(ChunkTaskPriorityQueueSorter.message(var1, var2x));
++      };
++      return var4.thenComposeAsync((var5x) -> {
++         return (CompletableFuture)var5x.map((var5xx) -> {
+             try {
+-               CompletableFuture var5 = var2.generate(this.level, this.generator, this.structureManager, this.lightEngine, (var2x) -> {
++               CompletableFuture var6 = var2.generate(var5, this.level, this.generator, this.structureManager, this.lightEngine, (var2x) -> {
+                   return this.protoChunkToFullChunk(var1);
+-               }, var4);
++               }, var5xx);
+                this.progressListener.onStatusChange(var3, var2);
+-               return var5;
+-            } catch (Exception var8) {
+-               CrashReport var6 = CrashReport.forThrowable(var8, "Exception generating new chunk");
+-               CrashReportCategory var7 = var6.addCategory("Chunk to be generated");
+-               var7.setDetail("Location", (Object)String.format("%d,%d", var3.x, var3.z));
+-               var7.setDetail("Position hash", (Object)ChunkPos.asLong(var3.x, var3.z));
+-               var7.setDetail("Generator", (Object)this.generator);
+-               throw new ReportedException(var6);
++               return var6;
++            } catch (Exception var9) {
++               var9.getStackTrace();
++               CrashReport var7 = CrashReport.forThrowable(var9, "Exception generating new chunk");
++               CrashReportCategory var8 = var7.addCategory("Chunk to be generated");
++               var8.setDetail("Location", (Object)String.format("%d,%d", var3.x, var3.z));
++               var8.setDetail("Position hash", (Object)ChunkPos.asLong(var3.x, var3.z));
++               var8.setDetail("Generator", (Object)this.generator);
++               throw new ReportedException(var7);
+             }
+          }, (var2x) -> {
+             this.releaseLightTicket(var3);
+             return CompletableFuture.completedFuture(Either.right(var2x));
+          });
+-      }, (var2x) -> {
+-         this.worldgenMailbox.tell(ChunkTaskPriorityQueueSorter.message(var1, var2x));
+-      });
++      }, var5);
+    }
+ 
+    protected void releaseLightTicket(ChunkPos var1) {
+       this.mainThreadExecutor.tell(Util.name(() -> {
+          this.distanceManager.removeTicket(TicketType.LIGHT, var1, 33 + ChunkStatus.getDistance(ChunkStatus.FEATURES), var1);
+@@ -562,73 +559,60 @@
     private ChunkStatus getDependencyStatus(ChunkStatus var1, int var2) {
        ChunkStatus var3;
        if (var2 == 0) {
@@ -342,7 +393,7 @@
           return ChunkStatus.FULL;
        });
        CompletableFuture var4 = var3.thenApplyAsync((var0) -> {
-@@ -639,28 +621,27 @@
+@@ -639,28 +623,27 @@
           });
        }, (var2x) -> {
           this.mainThreadMailbox.tell(ChunkTaskPriorityQueueSorter.message(var1, var2x));
@@ -375,7 +426,7 @@
           });
        }, (var2) -> {
           this.mainThreadMailbox.tell(ChunkTaskPriorityQueueSorter.message(var1, var2));
-@@ -674,11 +655,10 @@
+@@ -674,11 +657,10 @@
     private boolean save(ChunkAccess var1) {
        this.poiManager.flush(var1.getPos());
        if (!var1.isUnsaved()) {
@@ -387,7 +438,7 @@
  
           try {
              ChunkStatus var3 = var1.getStatus();
-@@ -773,20 +753,20 @@
+@@ -773,20 +755,20 @@
  
     public int size() {
        return this.visibleChunkMap.size();
@@ -410,7 +461,7 @@
        while(var3.hasNext()) {
           Entry var4 = (Entry)var3.next();
           ChunkPos var5 = new ChunkPos(var4.getLongKey());
-@@ -794,12 +774,10 @@
+@@ -794,12 +776,10 @@
           Optional var7 = Optional.ofNullable(var6.getLastAvailable());
           Optional var8 = var7.flatMap((var0) -> {
              return var0 instanceof LevelChunk ? Optional.of((LevelChunk)var0) : Optional.empty();
@@ -423,7 +474,7 @@
        }
  
     }
-@@ -837,12 +815,12 @@
+@@ -837,12 +817,12 @@
     }
  
     void updatePlayerStatus(ServerPlayer var1, boolean var2) {
@@ -438,7 +489,7 @@
           this.updatePlayerPos(var1);
           if (!var3) {
              this.distanceManager.addPlayer(SectionPos.of((Entity)var1), var1);
-@@ -881,12 +859,12 @@
+@@ -881,12 +861,12 @@
           } else {
              var3.updatePlayer(var1);
           }
@@ -453,7 +504,7 @@
        long var6 = var4.chunk().toLong();
        long var8 = var5.chunk().toLong();
        boolean var10 = this.playerMap.ignored(var1);
-@@ -1064,12 +1042,12 @@
+@@ -1064,12 +1044,12 @@
  
     }
  
@@ -468,7 +519,7 @@
        var1.trackChunk(var3.getPos(), var2[0], var2[1]);
        DebugPackets.sendPoiPacketsForChunk(this.level, var3.getPos());
        ArrayList var4 = Lists.newArrayList();
-@@ -1077,11 +1055,11 @@
+@@ -1077,11 +1057,11 @@
        ObjectIterator var6 = this.entityMap.values().iterator();
  
        while(var6.hasNext()) {
@@ -481,7 +532,7 @@
                 var4.add(var8);
              }
  
-@@ -1121,16 +1099,20 @@
+@@ -1121,16 +1101,20 @@
        return this.mainThreadExecutor.submit(() -> {
           var1.packTicks(this.level);
        });
@@ -503,7 +554,7 @@
           this.serverEntity = new ServerEntity(ChunkMap.this.level, var2, var4, var5, this::broadcast);
           this.entity = var2;
           this.range = var3;
-@@ -1151,12 +1133,12 @@
+@@ -1151,12 +1135,12 @@
  
        public void broadcast(Packet<?> var1) {
           Iterator var2 = this.seenBy.iterator();
@@ -518,7 +569,7 @@
        }
  
        public void broadcastAndSend(Packet<?> var1) {
-@@ -1169,18 +1151,18 @@
+@@ -1169,18 +1153,18 @@
  
        public void broadcastRemoved() {
           Iterator var1 = this.seenBy.iterator();
@@ -540,7 +591,7 @@
  
        }
  
-@@ -1188,23 +1170,14 @@
+@@ -1188,23 +1172,14 @@
           if (var1 != this.entity) {
              Vec3 var2 = var1.position().subtract(this.serverEntity.sentPos());
              int var3 = Math.min(this.getEffectiveRange(), (ChunkMap.this.viewDistance - 1) * 16);
@@ -566,7 +617,7 @@
  
           }
        }
-@@ -1212,23 +1185,22 @@
+@@ -1212,23 +1187,22 @@
        private int scaledRange(int var1) {
           return ChunkMap.this.level.getServer().getScaledTrackingDistance(var1);
        }

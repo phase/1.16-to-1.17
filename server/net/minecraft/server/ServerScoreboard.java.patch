@@ -1,7 +1,12 @@
 --- net/minecraft/server/ServerScoreboard.java
 +++ net/minecraft/server/ServerScoreboard.java
-@@ -6,25 +6,27 @@
- import java.util.Arrays;
+@@ -1,30 +1,31 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
+ import java.util.ArrayList;
+-import java.util.Arrays;
  import java.util.Iterator;
  import java.util.List;
  import java.util.Set;
@@ -29,8 +34,52 @@
        this.server = var1;
     }
  
-@@ -130,21 +132,19 @@
-       this.server.getPlayerList().broadcastAll(new ClientboundSetPlayerTeamPacket(var1, 1));
+@@ -74,21 +75,21 @@
+       this.setDirty();
+    }
+ 
+    public boolean addPlayerToTeam(String var1, PlayerTeam var2) {
+       if (super.addPlayerToTeam(var1, var2)) {
+-         this.server.getPlayerList().broadcastAll(new ClientboundSetPlayerTeamPacket(var2, Arrays.asList(var1), 3));
++         this.server.getPlayerList().broadcastAll(ClientboundSetPlayerTeamPacket.createPlayerPacket(var2, var1, ClientboundSetPlayerTeamPacket.Action.ADD));
+          this.setDirty();
+          return true;
+       } else {
+          return false;
+       }
+    }
+ 
+    public void removePlayerFromTeam(String var1, PlayerTeam var2) {
+       super.removePlayerFromTeam(var1, var2);
+-      this.server.getPlayerList().broadcastAll(new ClientboundSetPlayerTeamPacket(var2, Arrays.asList(var1), 4));
++      this.server.getPlayerList().broadcastAll(ClientboundSetPlayerTeamPacket.createPlayerPacket(var2, var1, ClientboundSetPlayerTeamPacket.Action.REMOVE));
+       this.setDirty();
+    }
+ 
+    public void onObjectiveAdded(Objective var1) {
+       super.onObjectiveAdded(var1);
+@@ -113,38 +114,36 @@
+       this.setDirty();
+    }
+ 
+    public void onTeamAdded(PlayerTeam var1) {
+       super.onTeamAdded(var1);
+-      this.server.getPlayerList().broadcastAll(new ClientboundSetPlayerTeamPacket(var1, 0));
++      this.server.getPlayerList().broadcastAll(ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(var1, true));
+       this.setDirty();
+    }
+ 
+    public void onTeamChanged(PlayerTeam var1) {
+       super.onTeamChanged(var1);
+-      this.server.getPlayerList().broadcastAll(new ClientboundSetPlayerTeamPacket(var1, 2));
++      this.server.getPlayerList().broadcastAll(ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(var1, false));
+       this.setDirty();
+    }
+ 
+    public void onTeamRemoved(PlayerTeam var1) {
+       super.onTeamRemoved(var1);
+-      this.server.getPlayerList().broadcastAll(new ClientboundSetPlayerTeamPacket(var1, 1));
++      this.server.getPlayerList().broadcastAll(ClientboundSetPlayerTeamPacket.createRemovePacket(var1));
        this.setDirty();
     }
  
@@ -56,7 +105,7 @@
     }
  
     public List<Packet<?>> getStartTrackingPackets(Objective var1) {
-@@ -224,10 +224,20 @@
+@@ -224,10 +223,20 @@
        }
  
        return var2;

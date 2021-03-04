@@ -13,7 +13,43 @@
              }
  
              return false;
-@@ -184,16 +184,14 @@
+@@ -93,16 +93,11 @@
+       return this.stackingIds;
+    }
+ 
+    public void toNetwork(FriendlyByteBuf var1) {
+       this.dissolve();
+-      var1.writeVarInt(this.itemStacks.length);
+-
+-      for(int var2 = 0; var2 < this.itemStacks.length; ++var2) {
+-         var1.writeItem(this.itemStacks[var2]);
+-      }
+-
++      var1.writeCollection(Arrays.asList(this.itemStacks), FriendlyByteBuf::writeItem);
+    }
+ 
+    public JsonElement toJson() {
+       if (this.values.length == 1) {
+          return this.values[0].serialize();
+@@ -144,14 +139,13 @@
+    public static Ingredient of(Tag<Item> var0) {
+       return fromValues(Stream.of(new Ingredient.TagValue(var0)));
+    }
+ 
+    public static Ingredient fromNetwork(FriendlyByteBuf var0) {
+-      int var1 = var0.readVarInt();
+-      return fromValues(Stream.generate(() -> {
+-         return new Ingredient.ItemValue(var0.readItem());
+-      }).limit((long)var1));
++      return fromValues(var0.readList(FriendlyByteBuf::readItem).stream().map((var0x) -> {
++         return new Ingredient.ItemValue(var0x);
++      }));
+    }
+ 
+    public static Ingredient fromJson(@Nullable JsonElement var0) {
+       if (var0 != null && !var0.isJsonNull()) {
+          if (var0.isJsonObject()) {
+@@ -184,16 +178,14 @@
                 return new JsonSyntaxException("Unknown item '" + var1 + "'");
              });
              return new Ingredient.ItemValue(new ItemStack(var3));
@@ -34,7 +70,7 @@
           }
        }
     }
-@@ -217,11 +215,13 @@
+@@ -217,11 +209,13 @@
           return var1;
        }
  

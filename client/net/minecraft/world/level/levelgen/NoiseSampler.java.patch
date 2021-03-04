@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/NoiseSampler.java
 +++ net/minecraft/world/level/levelgen/NoiseSampler.java
-@@ -1,0 +1,162 @@
+@@ -1,0 +1,170 @@
 +package net.minecraft.world.level.levelgen;
 +
 +import javax.annotation.Nullable;
@@ -40,8 +40,10 @@
 +   private final double bottomSlideOffset;
 +   private final double dimensionDensityFactor;
 +   private final double dimensionDensityOffset;
++   @Nullable
++   private final Cavifier cavifier;
 +
-+   public NoiseSampler(BiomeSource var1, int var2, int var3, int var4, NoiseSettings var5, BlendedNoise var6, @Nullable SimplexNoise var7, PerlinNoise var8) {
++   public NoiseSampler(BiomeSource var1, int var2, int var3, int var4, NoiseSettings var5, BlendedNoise var6, @Nullable SimplexNoise var7, PerlinNoise var8, @Nullable Cavifier var9) {
 +      this.cellWidth = var2;
 +      this.cellHeight = var3;
 +      this.biomeSource = var1;
@@ -58,6 +60,7 @@
 +      this.bottomSlideOffset = (double)var5.bottomSlideSettings().offset();
 +      this.dimensionDensityFactor = var5.densityFactor();
 +      this.dimensionDensityOffset = var5.densityOffset();
++      this.cavifier = var9;
 +   }
 +
 +   public void fillNoiseColumn(double[] var1, int var2, int var3, NoiseSettings var4, int var5, int var6, int var7) {
@@ -120,10 +123,15 @@
 +         int var37 = var36 + var6;
 +         double var38 = this.blendedNoise.sampleAndClampNoise(var2, var37, var3, var28, var29, var30, var32);
 +         double var39 = this.computeInitialDensity(var37, var8, var10, var34) + var38;
++         var39 = this.cavify(var2 * this.cellWidth, var37 * this.cellHeight, var3 * this.cellWidth, var38, var39);
 +         var39 = this.applySlide(var39, var37);
 +         var1[var36] = var39;
 +      }
 +
++   }
++
++   private double cavify(int var1, int var2, int var3, double var4, double var6) {
++      return this.cavifier != null ? this.cavifier.cavify(var1, var2, var3, var4, var6) : var6;
 +   }
 +
 +   private double computeInitialDensity(int var1, double var2, double var4, double var6) {

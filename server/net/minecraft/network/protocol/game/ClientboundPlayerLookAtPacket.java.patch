@@ -1,0 +1,76 @@
+--- net/minecraft/network/protocol/game/ClientboundPlayerLookAtPacket.java
++++ net/minecraft/network/protocol/game/ClientboundPlayerLookAtPacket.java
+@@ -1,31 +1,30 @@
+ package net.minecraft.network.protocol.game;
+ 
+-import java.io.IOException;
+ import net.minecraft.commands.arguments.EntityAnchorArgument;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class ClientboundPlayerLookAtPacket implements Packet<ClientGamePacketListener> {
+-   private double x;
+-   private double y;
+-   private double z;
+-   private int entity;
+-   private EntityAnchorArgument.Anchor fromAnchor;
+-   private EntityAnchorArgument.Anchor toAnchor;
+-   private boolean atEntity;
++   private final double x;
++   private final double y;
++   private final double z;
++   private final int entity;
++   private final EntityAnchorArgument.Anchor fromAnchor;
++   private final EntityAnchorArgument.Anchor toAnchor;
++   private final boolean atEntity;
+ 
+-   public ClientboundPlayerLookAtPacket() {
+-   }
+-
+    public ClientboundPlayerLookAtPacket(EntityAnchorArgument.Anchor var1, double var2, double var4, double var6) {
+       this.fromAnchor = var1;
+       this.x = var2;
+       this.y = var4;
+       this.z = var6;
++      this.entity = 0;
++      this.atEntity = false;
++      this.toAnchor = null;
+    }
+ 
+    public ClientboundPlayerLookAtPacket(EntityAnchorArgument.Anchor var1, Entity var2, EntityAnchorArgument.Anchor var3) {
+       this.fromAnchor = var1;
+       this.entity = var2.getId();
+@@ -35,24 +34,27 @@
+       this.y = var4.y;
+       this.z = var4.z;
+       this.atEntity = true;
+    }
+ 
+-   public void read(FriendlyByteBuf var1) throws IOException {
++   public ClientboundPlayerLookAtPacket(FriendlyByteBuf var1) {
+       this.fromAnchor = (EntityAnchorArgument.Anchor)var1.readEnum(EntityAnchorArgument.Anchor.class);
+       this.x = var1.readDouble();
+       this.y = var1.readDouble();
+       this.z = var1.readDouble();
+-      if (var1.readBoolean()) {
+-         this.atEntity = true;
++      this.atEntity = var1.readBoolean();
++      if (this.atEntity) {
+          this.entity = var1.readVarInt();
+          this.toAnchor = (EntityAnchorArgument.Anchor)var1.readEnum(EntityAnchorArgument.Anchor.class);
++      } else {
++         this.entity = 0;
++         this.toAnchor = null;
+       }
+ 
+    }
+ 
+-   public void write(FriendlyByteBuf var1) throws IOException {
++   public void write(FriendlyByteBuf var1) {
+       var1.writeEnum(this.fromAnchor);
+       var1.writeDouble(this.x);
+       var1.writeDouble(this.y);
+       var1.writeDouble(this.z);
+       var1.writeBoolean(this.atEntity);

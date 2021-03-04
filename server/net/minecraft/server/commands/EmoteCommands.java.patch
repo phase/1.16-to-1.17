@@ -1,0 +1,43 @@
+--- net/minecraft/server/commands/EmoteCommands.java
++++ net/minecraft/server/commands/EmoteCommands.java
+@@ -10,30 +10,30 @@
+ import net.minecraft.network.chat.ChatType;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.level.ServerPlayer;
+-import net.minecraft.server.network.TextFilter;
+ import net.minecraft.world.entity.Entity;
+ 
+ public class EmoteCommands {
+    public static void register(CommandDispatcher<CommandSourceStack> var0) {
+       var0.register((LiteralArgumentBuilder)Commands.literal("me").then(Commands.argument("action", StringArgumentType.greedyString()).executes((var0x) -> {
+          String var1 = StringArgumentType.getString(var0x, "action");
+          Entity var2 = ((CommandSourceStack)var0x.getSource()).getEntity();
+          MinecraftServer var3 = ((CommandSourceStack)var0x.getSource()).getServer();
+          if (var2 != null) {
+             if (var2 instanceof ServerPlayer) {
+-               TextFilter var4 = ((ServerPlayer)var2).getTextFilter();
+-               if (var4 != null) {
+-                  var4.processStreamMessage(var1).thenAcceptAsync((var3x) -> {
+-                     var3x.ifPresent((var3xx) -> {
+-                        var3.getPlayerList().broadcastMessage(createMessage(var0x, var3xx), ChatType.CHAT, var2.getUUID());
+-                     });
+-                  }, var3);
+-                  return 1;
+-               }
++               ServerPlayer var4 = (ServerPlayer)var2;
++               var4.getTextFilter().processStreamMessage(var1).thenAcceptAsync((var4x) -> {
++                  String var5 = var4x.getFiltered();
++                  Component var6 = var5.isEmpty() ? null : createMessage(var0x, var5);
++                  Component var7 = createMessage(var0x, var4x.getRaw());
++                  var3.getPlayerList().broadcastMessage(var7, (var3x) -> {
++                     return var4.shouldFilterMessageTo(var3x) ? var6 : var7;
++                  }, ChatType.CHAT, var2.getUUID());
++               }, var3);
++               return 1;
+             }
+ 
+             var3.getPlayerList().broadcastMessage(createMessage(var0x, var1), ChatType.CHAT, var2.getUUID());
+          } else {
+             var3.getPlayerList().broadcastMessage(createMessage(var0x, var1), ChatType.SYSTEM, Util.NIL_UUID);

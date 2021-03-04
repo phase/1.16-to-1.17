@@ -1,12 +1,9 @@
 --- net/minecraft/world/level/levelgen/feature/OceanMonumentFeature.java
 +++ net/minecraft/world/level/levelgen/feature/OceanMonumentFeature.java
-@@ -6,12 +6,14 @@
- import java.util.List;
- import java.util.Random;
+@@ -8,10 +8,11 @@
  import java.util.Set;
  import net.minecraft.core.Direction;
  import net.minecraft.core.RegistryAccess;
-+import net.minecraft.core.SectionPos;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.level.ChunkPos;
 +import net.minecraft.world.level.LevelHeightAccessor;
@@ -15,7 +12,7 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeSource;
  import net.minecraft.world.level.biome.MobSpawnSettings;
-@@ -32,34 +34,34 @@
+@@ -32,34 +33,36 @@
  
     protected boolean linearSeparation() {
        return false;
@@ -24,63 +21,86 @@
 -   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, int var6, int var7, Biome var8, ChunkPos var9, NoneFeatureConfiguration var10) {
 -      Set var11 = var2.getBiomesWithin(var6 * 16 + 9, var1.getSeaLevel(), var7 * 16 + 9, 16);
 -      Iterator var12 = var11.iterator();
-+   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, int var6, int var7, Biome var8, ChunkPos var9, NoneFeatureConfiguration var10, LevelHeightAccessor var11) {
-+      Set var12 = var2.getBiomesWithin(SectionPos.sectionToBlockCoord(var6, 9), var1.getSeaLevel(), SectionPos.sectionToBlockCoord(var7, 9), 16);
-+      Iterator var13 = var12.iterator();
++   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, ChunkPos var6, Biome var7, ChunkPos var8, NoneFeatureConfiguration var9, LevelHeightAccessor var10) {
++      int var11 = var6.getBlockX(9);
++      int var12 = var6.getBlockZ(9);
++      Set var13 = var2.getBiomesWithin(var11, var1.getSeaLevel(), var12, 16);
++      Iterator var14 = var13.iterator();
  
 -      Biome var13;
-+      Biome var14;
++      Biome var15;
        do {
 -         if (!var12.hasNext()) {
 -            Set var15 = var2.getBiomesWithin(var6 * 16 + 9, var1.getSeaLevel(), var7 * 16 + 9, 29);
 -            Iterator var16 = var15.iterator();
-+         if (!var13.hasNext()) {
-+            Set var16 = var2.getBiomesWithin(SectionPos.sectionToBlockCoord(var6, 9), var1.getSeaLevel(), SectionPos.sectionToBlockCoord(var7, 9), 29);
-+            Iterator var17 = var16.iterator();
++         if (!var14.hasNext()) {
++            Set var17 = var2.getBiomesWithin(var11, var1.getSeaLevel(), var12, 29);
++            Iterator var18 = var17.iterator();
  
 -            Biome var14;
-+            Biome var15;
++            Biome var16;
              do {
 -               if (!var16.hasNext()) {
-+               if (!var17.hasNext()) {
++               if (!var18.hasNext()) {
                    return true;
                 }
  
 -               var14 = (Biome)var16.next();
 -            } while(var14.getBiomeCategory() == Biome.BiomeCategory.OCEAN || var14.getBiomeCategory() == Biome.BiomeCategory.RIVER);
-+               var15 = (Biome)var17.next();
-+            } while(var15.getBiomeCategory() == Biome.BiomeCategory.OCEAN || var15.getBiomeCategory() == Biome.BiomeCategory.RIVER);
++               var16 = (Biome)var18.next();
++            } while(var16.getBiomeCategory() == Biome.BiomeCategory.OCEAN || var16.getBiomeCategory() == Biome.BiomeCategory.RIVER);
  
              return false;
           }
  
 -         var13 = (Biome)var12.next();
 -      } while(var13.getGenerationSettings().isValidStart(this));
-+         var14 = (Biome)var13.next();
-+      } while(var14.getGenerationSettings().isValidStart(this));
++         var15 = (Biome)var14.next();
++      } while(var15.getGenerationSettings().isValidStart(this));
  
        return false;
     }
  
     public StructureFeature.StructureStartFactory<NoneFeatureConfiguration> getStartFactory() {
-@@ -79,17 +81,17 @@
+@@ -75,31 +78,31 @@
+    }
  
-       public OceanMonumentStart(StructureFeature<NoneFeatureConfiguration> var1, int var2, int var3, BoundingBox var4, int var5, long var6) {
-          super(var1, var2, var3, var4, var5, var6);
+    public static class OceanMonumentStart extends StructureStart<NoneFeatureConfiguration> {
+       private boolean isCreated;
+ 
+-      public OceanMonumentStart(StructureFeature<NoneFeatureConfiguration> var1, int var2, int var3, BoundingBox var4, int var5, long var6) {
+-         super(var1, var2, var3, var4, var5, var6);
++      public OceanMonumentStart(StructureFeature<NoneFeatureConfiguration> var1, ChunkPos var2, BoundingBox var3, int var4, long var5) {
++         super(var1, var2, var3, var4, var5);
        }
  
 -      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, NoneFeatureConfiguration var7) {
-+      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, NoneFeatureConfiguration var7, LevelHeightAccessor var8) {
-          this.generatePieces(var4, var5);
+-         this.generatePieces(var4, var5);
++      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, ChunkPos var4, Biome var5, NoneFeatureConfiguration var6, LevelHeightAccessor var7) {
++         this.generatePieces(var4);
        }
  
-       private void generatePieces(int var1, int var2) {
+-      private void generatePieces(int var1, int var2) {
 -         int var3 = var1 * 16 - 29;
 -         int var4 = var2 * 16 - 29;
-+         int var3 = SectionPos.sectionToBlockCoord(var1) - 29;
-+         int var4 = SectionPos.sectionToBlockCoord(var2) - 29;
-          Direction var5 = Direction.Plane.HORIZONTAL.getRandomDirection(this.random);
-          this.pieces.add(new OceanMonumentPieces.MonumentBuilding(this.random, var3, var4, var5));
+-         Direction var5 = Direction.Plane.HORIZONTAL.getRandomDirection(this.random);
+-         this.pieces.add(new OceanMonumentPieces.MonumentBuilding(this.random, var3, var4, var5));
++      private void generatePieces(ChunkPos var1) {
++         int var2 = var1.getMinBlockX() - 29;
++         int var3 = var1.getMinBlockZ() - 29;
++         Direction var4 = Direction.Plane.HORIZONTAL.getRandomDirection(this.random);
++         this.pieces.add(new OceanMonumentPieces.MonumentBuilding(this.random, var2, var3, var4));
           this.calculateBoundingBox();
           this.isCreated = true;
        }
+ 
+       public void placeInChunk(WorldGenLevel var1, StructureFeatureManager var2, ChunkGenerator var3, Random var4, BoundingBox var5, ChunkPos var6) {
+          if (!this.isCreated) {
+             this.pieces.clear();
+-            this.generatePieces(this.getChunkX(), this.getChunkZ());
++            this.generatePieces(this.getChunkPos());
+          }
+ 
+          super.placeInChunk(var1, var2, var3, var4, var5, var6);
+       }
+    }

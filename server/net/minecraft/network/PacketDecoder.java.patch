@@ -1,0 +1,34 @@
+--- net/minecraft/network/PacketDecoder.java
++++ net/minecraft/network/PacketDecoder.java
+@@ -23,24 +23,21 @@
+ 
+    protected void decode(ChannelHandlerContext var1, ByteBuf var2, List<Object> var3) throws Exception {
+       if (var2.readableBytes() != 0) {
+          FriendlyByteBuf var4 = new FriendlyByteBuf(var2);
+          int var5 = var4.readVarInt();
+-         Packet var6 = ((ConnectionProtocol)var1.channel().attr(Connection.ATTRIBUTE_PROTOCOL).get()).createPacket(this.flow, var5);
++         Packet var6 = ((ConnectionProtocol)var1.channel().attr(Connection.ATTRIBUTE_PROTOCOL).get()).createPacket(this.flow, var5, var4);
+          if (var6 == null) {
+             throw new IOException("Bad packet id " + var5);
++         } else if (var4.readableBytes() > 0) {
++            throw new IOException("Packet " + ((ConnectionProtocol)var1.channel().attr(Connection.ATTRIBUTE_PROTOCOL).get()).getId() + "/" + var5 + " (" + var6.getClass().getSimpleName() + ") was larger than I expected, found " + var4.readableBytes() + " bytes extra whilst reading packet " + var5);
+          } else {
+-            var6.read(var4);
+-            if (var4.readableBytes() > 0) {
+-               throw new IOException("Packet " + ((ConnectionProtocol)var1.channel().attr(Connection.ATTRIBUTE_PROTOCOL).get()).getId() + "/" + var5 + " (" + var6.getClass().getSimpleName() + ") was larger than I expected, found " + var4.readableBytes() + " bytes extra whilst reading packet " + var5);
+-            } else {
+-               var3.add(var6);
+-               if (LOGGER.isDebugEnabled()) {
+-                  LOGGER.debug((Marker)MARKER, (String)" IN: [{}:{}] {}", var1.channel().attr(Connection.ATTRIBUTE_PROTOCOL).get(), var5, var6.getClass().getName());
+-               }
+-
++            var3.add(var6);
++            if (LOGGER.isDebugEnabled()) {
++               LOGGER.debug((Marker)MARKER, (String)" IN: [{}:{}] {}", var1.channel().attr(Connection.ATTRIBUTE_PROTOCOL).get(), var5, var6.getClass().getName());
+             }
++
+          }
+       }
+    }
+ 
+    static {

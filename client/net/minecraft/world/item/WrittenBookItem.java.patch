@@ -1,6 +1,30 @@
 --- net/minecraft/world/item/WrittenBookItem.java
 +++ net/minecraft/world/item/WrittenBookItem.java
-@@ -79,11 +79,11 @@
+@@ -1,7 +1,8 @@
+ package net.minecraft.world.item;
+ 
++import java.util.Iterator;
+ import java.util.List;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.core.BlockPos;
+@@ -50,12 +51,12 @@
+       CompoundTag var1 = var0.getTag();
+       return var1 != null ? var1.getList("pages", 8).size() : 0;
+    }
+ 
+    public Component getName(ItemStack var1) {
+-      if (var1.hasTag()) {
+-         CompoundTag var2 = var1.getTag();
++      CompoundTag var2 = var1.getTag();
++      if (var2 != null) {
+          String var3 = var2.getString("title");
+          if (!StringUtil.isNullOrEmpty(var3)) {
+             return new TextComponent(var3);
+          }
+       }
+@@ -79,11 +80,11 @@
     public InteractionResult useOn(UseOnContext var1) {
        Level var2 = var1.getLevel();
        BlockPos var3 = var1.getClickedPos();
@@ -13,3 +37,55 @@
        }
     }
  
+@@ -102,30 +103,41 @@
+             return false;
+          } else {
+             ListTag var4 = var3.getList("pages", 8);
+ 
+             for(int var5 = 0; var5 < var4.size(); ++var5) {
+-               String var6 = var4.getString(var5);
++               var4.set(var5, (Tag)StringTag.valueOf(resolvePage(var1, var2, var4.getString(var5))));
++            }
+ 
+-               Object var7;
+-               try {
+-                  MutableComponent var10 = Component.Serializer.fromJsonLenient(var6);
+-                  var7 = ComponentUtils.updateForEntity(var1, var10, var2, 0);
+-               } catch (Exception var9) {
+-                  var7 = new TextComponent(var6);
+-               }
++            if (var3.contains("filtered_pages", 10)) {
++               CompoundTag var8 = var3.getCompound("filtered_pages");
++               Iterator var6 = var8.getAllKeys().iterator();
+ 
+-               var4.set(var5, (Tag)StringTag.valueOf(Component.Serializer.toJson((Component)var7)));
++               while(var6.hasNext()) {
++                  String var7 = (String)var6.next();
++                  var8.putString(var7, resolvePage(var1, var2, var8.getString(var7)));
++               }
+             }
+ 
+-            var3.put("pages", var4);
+             return true;
+          }
+       } else {
+          return false;
+       }
+    }
+ 
++   private static String resolvePage(@Nullable CommandSourceStack var0, @Nullable Player var1, String var2) {
++      Object var3;
++      try {
++         MutableComponent var6 = Component.Serializer.fromJsonLenient(var2);
++         var3 = ComponentUtils.updateForEntity(var0, var6, var1, 0);
++      } catch (Exception var5) {
++         var3 = new TextComponent(var2);
++      }
++
++      return Component.Serializer.toJson((Component)var3);
++   }
++
+    public boolean isFoil(ItemStack var1) {
+       return true;
+    }
+ }

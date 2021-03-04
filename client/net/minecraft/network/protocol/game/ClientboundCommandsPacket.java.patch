@@ -1,0 +1,175 @@
+--- net/minecraft/network/protocol/game/ClientboundCommandsPacket.java
++++ net/minecraft/network/protocol/game/ClientboundCommandsPacket.java
+@@ -11,60 +11,48 @@
+ import com.mojang.brigadier.tree.LiteralCommandNode;
+ import com.mojang.brigadier.tree.RootCommandNode;
+ import it.unimi.dsi.fastutil.objects.Object2IntMap;
+ import it.unimi.dsi.fastutil.objects.Object2IntMaps;
+ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
++import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+ import it.unimi.dsi.fastutil.objects.ObjectIterator;
+-import java.io.IOException;
+ import java.util.ArrayDeque;
+ import java.util.ArrayList;
+ import java.util.Iterator;
++import java.util.List;
+ import java.util.Map;
+ import javax.annotation.Nullable;
+ import net.minecraft.commands.SharedSuggestionProvider;
+ import net.minecraft.commands.synchronization.ArgumentTypes;
+ import net.minecraft.commands.synchronization.SuggestionProviders;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ 
+ public class ClientboundCommandsPacket implements Packet<ClientGamePacketListener> {
+-   private RootCommandNode<SharedSuggestionProvider> root;
++   private final RootCommandNode<SharedSuggestionProvider> root;
+ 
+-   public ClientboundCommandsPacket() {
+-   }
+-
+    public ClientboundCommandsPacket(RootCommandNode<SharedSuggestionProvider> var1) {
+       this.root = var1;
+    }
+ 
+-   public void read(FriendlyByteBuf var1) throws IOException {
+-      ClientboundCommandsPacket.Entry[] var2 = new ClientboundCommandsPacket.Entry[var1.readVarInt()];
+-
+-      for(int var3 = 0; var3 < var2.length; ++var3) {
+-         var2[var3] = readNode(var1);
+-      }
+-
++   public ClientboundCommandsPacket(FriendlyByteBuf var1) {
++      List var2 = var1.readList(ClientboundCommandsPacket::readNode);
+       resolveEntries(var2);
+-      this.root = (RootCommandNode)var2[var1.readVarInt()].node;
++      int var3 = var1.readVarInt();
++      this.root = (RootCommandNode)((ClientboundCommandsPacket.Entry)var2.get(var3)).node;
+    }
+ 
+-   public void write(FriendlyByteBuf var1) throws IOException {
++   public void write(FriendlyByteBuf var1) {
+       Object2IntMap var2 = enumerateNodes(this.root);
+-      CommandNode[] var3 = getNodesInIdOrder(var2);
+-      var1.writeVarInt(var3.length);
+-      CommandNode[] var4 = var3;
+-      int var5 = var3.length;
+-
+-      for(int var6 = 0; var6 < var5; ++var6) {
+-         CommandNode var7 = var4[var6];
+-         writeNode(var1, var7, var2);
+-      }
+-
++      List var3 = getNodesInIdOrder(var2);
++      var1.writeCollection(var3, (var1x, var2x) -> {
++         writeNode(var1x, var2x, var2);
++      });
+       var1.writeVarInt(var2.get(this.root));
+    }
+ 
+-   private static void resolveEntries(ClientboundCommandsPacket.Entry[] var0) {
++   private static void resolveEntries(List<ClientboundCommandsPacket.Entry> var0) {
+       ArrayList var1 = Lists.newArrayList(var0);
+ 
+       boolean var2;
+       do {
+          if (var1.isEmpty()) {
+@@ -97,16 +85,18 @@
+       }
+ 
+       return var1;
+    }
+ 
+-   private static CommandNode<SharedSuggestionProvider>[] getNodesInIdOrder(Object2IntMap<CommandNode<SharedSuggestionProvider>> var0) {
+-      CommandNode[] var1 = (CommandNode[])(new CommandNode[var0.size()]);
++   private static List<CommandNode<SharedSuggestionProvider>> getNodesInIdOrder(Object2IntMap<CommandNode<SharedSuggestionProvider>> var0) {
++      ObjectArrayList var1 = new ObjectArrayList(var0.size());
++      var1.size(var0.size());
++      ObjectIterator var2 = Object2IntMaps.fastIterable(var0).iterator();
+ 
+-      it.unimi.dsi.fastutil.objects.Object2IntMap.Entry var3;
+-      for(ObjectIterator var2 = Object2IntMaps.fastIterable(var0).iterator(); var2.hasNext(); var1[var3.getIntValue()] = (CommandNode)var3.getKey()) {
+-         var3 = (it.unimi.dsi.fastutil.objects.Object2IntMap.Entry)var2.next();
++      while(var2.hasNext()) {
++         it.unimi.dsi.fastutil.objects.Object2IntMap.Entry var3 = (it.unimi.dsi.fastutil.objects.Object2IntMap.Entry)var2.next();
++         var1.set(var3.getIntValue(), var3.getKey());
+       }
+ 
+       return var1;
+    }
+ 
+@@ -120,11 +110,11 @@
+ 
+    @Nullable
+    private static ArgumentBuilder<SharedSuggestionProvider, ?> createBuilder(FriendlyByteBuf var0, byte var1) {
+       int var2 = var1 & 3;
+       if (var2 == 2) {
+-         String var3 = var0.readUtf(32767);
++         String var3 = var0.readUtf();
+          ArgumentType var4 = ArgumentTypes.deserialize(var0);
+          if (var4 == null) {
+             return null;
+          } else {
+             RequiredArgumentBuilder var5 = RequiredArgumentBuilder.argument(var3, var4);
+@@ -133,11 +123,11 @@
+             }
+ 
+             return var5;
+          }
+       } else {
+-         return var2 == 1 ? LiteralArgumentBuilder.literal(var0.readUtf(32767)) : null;
++         return var2 == 1 ? LiteralArgumentBuilder.literal(var0.readUtf()) : null;
+       }
+    }
+ 
+    private static void writeNode(FriendlyByteBuf var0, CommandNode<SharedSuggestionProvider> var1, Map<CommandNode<SharedSuggestionProvider>, Integer> var2) {
+       byte var3 = 0;
+@@ -212,21 +202,21 @@
+          this.flags = var2;
+          this.redirect = var3;
+          this.children = var4;
+       }
+ 
+-      public boolean build(ClientboundCommandsPacket.Entry[] var1) {
++      public boolean build(List<ClientboundCommandsPacket.Entry> var1) {
+          if (this.node == null) {
+             if (this.builder == null) {
+                this.node = new RootCommandNode();
+             } else {
+                if ((this.flags & 8) != 0) {
+-                  if (var1[this.redirect].node == null) {
++                  if (((ClientboundCommandsPacket.Entry)var1.get(this.redirect)).node == null) {
+                      return false;
+                   }
+ 
+-                  this.builder.redirect(var1[this.redirect].node);
++                  this.builder.redirect(((ClientboundCommandsPacket.Entry)var1.get(this.redirect)).node);
+                }
+ 
+                if ((this.flags & 4) != 0) {
+                   this.builder.executes((var0) -> {
+                      return 0;
+@@ -242,21 +232,21 @@
+ 
+          int var4;
+          int var5;
+          for(var4 = 0; var4 < var3; ++var4) {
+             var5 = var2[var4];
+-            if (var1[var5].node == null) {
++            if (((ClientboundCommandsPacket.Entry)var1.get(var5)).node == null) {
+                return false;
+             }
+          }
+ 
+          var2 = this.children;
+          var3 = var2.length;
+ 
+          for(var4 = 0; var4 < var3; ++var4) {
+             var5 = var2[var4];
+-            CommandNode var6 = var1[var5].node;
++            CommandNode var6 = ((ClientboundCommandsPacket.Entry)var1.get(var5)).node;
+             if (!(var6 instanceof RootCommandNode)) {
+                this.node.addChild(var6);
+             }
+          }
+ 

@@ -110,7 +110,7 @@
  
     static <T> TagCollection<T> empty() {
        return of(ImmutableBiMap.of());
-@@ -116,6 +106,46 @@
+@@ -116,6 +106,22 @@
           public Map<ResourceLocation, Tag<T>> getAllTags() {
              return var1;
           }
@@ -125,35 +125,11 @@
 +      }
 +
 +      public void write(FriendlyByteBuf var1) {
-+         var1.writeVarInt(this.tags.size());
-+         Iterator var2 = this.tags.entrySet().iterator();
-+
-+         while(var2.hasNext()) {
-+            Entry var3 = (Entry)var2.next();
-+            var1.writeResourceLocation((ResourceLocation)var3.getKey());
-+            var1.writeVarInt(((IntList)var3.getValue()).size());
-+            ((IntList)var3.getValue()).forEach(var1::writeVarInt);
-+         }
-+
++         var1.writeMap(this.tags, FriendlyByteBuf::writeResourceLocation, FriendlyByteBuf::writeIntIdList);
 +      }
 +
 +      public static TagCollection.NetworkPayload read(FriendlyByteBuf var0) {
-+         HashMap var1 = Maps.newHashMap();
-+         int var2 = var0.readVarInt();
-+
-+         for(int var3 = 0; var3 < var2; ++var3) {
-+            ResourceLocation var4 = var0.readResourceLocation();
-+            int var5 = var0.readVarInt();
-+            IntArrayList var6 = new IntArrayList(var5);
-+
-+            for(int var7 = 0; var7 < var5; ++var7) {
-+               var6.add(var0.readVarInt());
-+            }
-+
-+            var1.put(var4, var6);
-+         }
-+
-+         return new TagCollection.NetworkPayload(var1);
++         return new TagCollection.NetworkPayload(var0.readMap(FriendlyByteBuf::readResourceLocation, FriendlyByteBuf::readIntIdList));
 +      }
 +   }
  }

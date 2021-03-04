@@ -1,0 +1,37 @@
+--- net/minecraft/advancements/Criterion.java
++++ net/minecraft/advancements/Criterion.java
+@@ -55,30 +55,17 @@
+ 
+       return var2;
+    }
+ 
+    public static Map<String, Criterion> criteriaFromNetwork(FriendlyByteBuf var0) {
+-      HashMap var1 = Maps.newHashMap();
+-      int var2 = var0.readVarInt();
+-
+-      for(int var3 = 0; var3 < var2; ++var3) {
+-         var1.put(var0.readUtf(32767), criterionFromNetwork(var0));
+-      }
+-
+-      return var1;
++      return var0.readMap(FriendlyByteBuf::readUtf, Criterion::criterionFromNetwork);
+    }
+ 
+    public static void serializeToNetwork(Map<String, Criterion> var0, FriendlyByteBuf var1) {
+-      var1.writeVarInt(var0.size());
+-      Iterator var2 = var0.entrySet().iterator();
+-
+-      while(var2.hasNext()) {
+-         Entry var3 = (Entry)var2.next();
+-         var1.writeUtf((String)var3.getKey());
+-         ((Criterion)var3.getValue()).serializeToNetwork(var1);
+-      }
+-
++      var1.writeMap(var0, FriendlyByteBuf::writeUtf, (var0x, var1x) -> {
++         var1x.serializeToNetwork(var0x);
++      });
+    }
+ 
+    @Nullable
+    public CriterionTriggerInstance getTrigger() {
+       return this.trigger;

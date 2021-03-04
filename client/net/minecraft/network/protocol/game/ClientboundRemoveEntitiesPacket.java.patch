@@ -1,0 +1,59 @@
+--- net/minecraft/network/protocol/game/ClientboundRemoveEntitiesPacket.java
++++ net/minecraft/network/protocol/game/ClientboundRemoveEntitiesPacket.java
+@@ -1,45 +1,34 @@
+ package net.minecraft.network.protocol.game;
+ 
+-import java.io.IOException;
++import it.unimi.dsi.fastutil.ints.IntArrayList;
++import it.unimi.dsi.fastutil.ints.IntList;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ 
+ public class ClientboundRemoveEntitiesPacket implements Packet<ClientGamePacketListener> {
+-   private int[] entityIds;
++   private final IntList entityIds;
+ 
+-   public ClientboundRemoveEntitiesPacket() {
++   public ClientboundRemoveEntitiesPacket(IntList var1) {
++      this.entityIds = new IntArrayList(var1);
+    }
+ 
+    public ClientboundRemoveEntitiesPacket(int... var1) {
+-      this.entityIds = var1;
++      this.entityIds = new IntArrayList(var1);
+    }
+ 
+-   public void read(FriendlyByteBuf var1) throws IOException {
+-      this.entityIds = new int[var1.readVarInt()];
+-
+-      for(int var2 = 0; var2 < this.entityIds.length; ++var2) {
+-         this.entityIds[var2] = var1.readVarInt();
+-      }
+-
++   public ClientboundRemoveEntitiesPacket(FriendlyByteBuf var1) {
++      this.entityIds = var1.readIntIdList();
+    }
+ 
+-   public void write(FriendlyByteBuf var1) throws IOException {
+-      var1.writeVarInt(this.entityIds.length);
+-      int[] var2 = this.entityIds;
+-      int var3 = var2.length;
+-
+-      for(int var4 = 0; var4 < var3; ++var4) {
+-         int var5 = var2[var4];
+-         var1.writeVarInt(var5);
+-      }
+-
++   public void write(FriendlyByteBuf var1) {
++      var1.writeIntIdList(this.entityIds);
+    }
+ 
+    public void handle(ClientGamePacketListener var1) {
+       var1.handleRemoveEntity(this);
+    }
+ 
+-   public int[] getEntityIds() {
++   public IntList getEntityIds() {
+       return this.entityIds;
+    }
+ }

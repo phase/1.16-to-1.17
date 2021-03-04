@@ -1,5 +1,18 @@
 --- net/minecraft/server/dedicated/DedicatedServer.java
 +++ net/minecraft/server/dedicated/DedicatedServer.java
+@@ -74,11 +74,11 @@
+ 
+    public DedicatedServer(Thread var1, RegistryAccess.RegistryHolder var2, LevelStorageSource.LevelStorageAccess var3, PackRepository var4, ServerResources var5, WorldData var6, DedicatedServerSettings var7, DataFixer var8, MinecraftSessionService var9, GameProfileRepository var10, GameProfileCache var11, ChunkProgressListenerFactory var12) {
+       super(var1, var2, var3, var6, var4, Proxy.NO_PROXY, var8, var5, var9, var10, var11, var12);
+       this.settings = var7;
+       this.rconConsoleSource = new RconConsoleSource(this);
+-      this.textFilterClient = null;
++      this.textFilterClient = TextFilterClient.createFromConfig(var7.getProperties().textFilteringConfig);
+    }
+ 
+    public boolean initServer() throws IOException {
+       Thread var1 = new Thread("Server console handler") {
+          public void run() {
 @@ -96,11 +96,11 @@
           }
        };
@@ -64,11 +77,16 @@
     }
  
     public int getSpawnProtectionRadius() {
-@@ -531,6 +526,15 @@
+@@ -527,10 +522,18 @@
  
-    @Nullable
+    public boolean forceSynchronousWrites() {
+       return this.settings.getProperties().syncChunkWrites;
+    }
+ 
+-   @Nullable
     public TextFilter createTextFilterForPlayer(ServerPlayer var1) {
-       return this.textFilterClient != null ? this.textFilterClient.createContext(var1.getGameProfile()) : null;
+-      return this.textFilterClient != null ? this.textFilterClient.createContext(var1.getGameProfile()) : null;
++      return this.textFilterClient != null ? this.textFilterClient.createContext(var1.getGameProfile()) : TextFilter.DUMMY;
     }
 +
 +   public boolean isResourcePackRequired() {

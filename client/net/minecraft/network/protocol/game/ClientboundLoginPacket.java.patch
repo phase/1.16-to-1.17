@@ -1,9 +1,11 @@
 --- net/minecraft/network/protocol/game/ClientboundLoginPacket.java
 +++ net/minecraft/network/protocol/game/ClientboundLoginPacket.java
-@@ -3,10 +3,11 @@
+@@ -1,42 +1,39 @@
+ package net.minecraft.network.protocol.game;
+ 
  import com.google.common.collect.Sets;
- import java.io.IOException;
- import java.util.Iterator;
+-import java.io.IOException;
+-import java.util.Iterator;
  import java.util.Set;
  import java.util.function.Supplier;
 +import javax.annotation.Nullable;
@@ -12,24 +14,46 @@
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.resources.ResourceKey;
-@@ -17,10 +18,11 @@
+ import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.dimension.DimensionType;
+ 
  public class ClientboundLoginPacket implements Packet<ClientGamePacketListener> {
-    private int playerId;
-    private long seed;
-    private boolean hardcore;
-    private GameType gameType;
+-   private int playerId;
+-   private long seed;
+-   private boolean hardcore;
+-   private GameType gameType;
+-   private GameType previousGameType;
+-   private Set<ResourceKey<Level>> levels;
+-   private RegistryAccess.RegistryHolder registryHolder;
+-   private DimensionType dimensionType;
+-   private ResourceKey<Level> dimension;
+-   private int maxPlayers;
+-   private int chunkRadius;
+-   private boolean reducedDebugInfo;
+-   private boolean showDeathScreen;
+-   private boolean isDebug;
+-   private boolean isFlat;
++   private final int playerId;
++   private final long seed;
++   private final boolean hardcore;
++   private final GameType gameType;
 +   @Nullable
-    private GameType previousGameType;
-    private Set<ResourceKey<Level>> levels;
-    private RegistryAccess.RegistryHolder registryHolder;
-    private DimensionType dimensionType;
-    private ResourceKey<Level> dimension;
-@@ -32,11 +34,11 @@
-    private boolean isFlat;
++   private final GameType previousGameType;
++   private final Set<ResourceKey<Level>> levels;
++   private final RegistryAccess.RegistryHolder registryHolder;
++   private final DimensionType dimensionType;
++   private final ResourceKey<Level> dimension;
++   private final int maxPlayers;
++   private final int chunkRadius;
++   private final boolean reducedDebugInfo;
++   private final boolean showDeathScreen;
++   private final boolean isDebug;
++   private final boolean isFlat;
  
-    public ClientboundLoginPacket() {
-    }
- 
+-   public ClientboundLoginPacket() {
+-   }
+-
 -   public ClientboundLoginPacket(int var1, GameType var2, GameType var3, long var4, boolean var6, Set<ResourceKey<Level>> var7, RegistryAccess.RegistryHolder var8, DimensionType var9, ResourceKey<Level> var10, int var11, int var12, boolean var13, boolean var14, boolean var15, boolean var16) {
 +   public ClientboundLoginPacket(int var1, GameType var2, @Nullable GameType var3, long var4, boolean var6, Set<ResourceKey<Level>> var7, RegistryAccess.RegistryHolder var8, DimensionType var9, ResourceKey<Level> var10, int var11, int var12, boolean var13, boolean var14, boolean var15, boolean var16) {
        this.playerId = var1;
@@ -37,29 +61,72 @@
        this.registryHolder = var8;
        this.dimensionType = var9;
        this.dimension = var10;
-@@ -54,11 +56,11 @@
+@@ -50,22 +47,18 @@
+       this.showDeathScreen = var14;
+       this.isDebug = var15;
+       this.isFlat = var16;
+    }
  
-    public void read(FriendlyByteBuf var1) throws IOException {
+-   public void read(FriendlyByteBuf var1) throws IOException {
++   public ClientboundLoginPacket(FriendlyByteBuf var1) {
        this.playerId = var1.readInt();
        this.hardcore = var1.readBoolean();
        this.gameType = GameType.byId(var1.readByte());
 -      this.previousGameType = GameType.byId(var1.readByte());
+-      int var2 = var1.readVarInt();
+-      this.levels = Sets.newHashSet();
+-
+-      for(int var3 = 0; var3 < var2; ++var3) {
+-         this.levels.add(ResourceKey.create(Registry.DIMENSION_REGISTRY, var1.readResourceLocation()));
+-      }
+-
 +      this.previousGameType = GameType.byNullableId(var1.readByte());
-       int var2 = var1.readVarInt();
-       this.levels = Sets.newHashSet();
++      this.levels = (Set)var1.readCollection(Sets::newHashSetWithExpectedSize, (var0) -> {
++         return ResourceKey.create(Registry.DIMENSION_REGISTRY, var0.readResourceLocation());
++      });
+       this.registryHolder = (RegistryAccess.RegistryHolder)var1.readWithCodec(RegistryAccess.RegistryHolder.NETWORK_CODEC);
+       this.dimensionType = (DimensionType)((Supplier)var1.readWithCodec(DimensionType.CODEC)).get();
+       this.dimension = ResourceKey.create(Registry.DIMENSION_REGISTRY, var1.readResourceLocation());
+       this.seed = var1.readLong();
+       this.maxPlayers = var1.readVarInt();
+@@ -74,23 +67,18 @@
+       this.showDeathScreen = var1.readBoolean();
+       this.isDebug = var1.readBoolean();
+       this.isFlat = var1.readBoolean();
+    }
  
-       for(int var3 = 0; var3 < var2; ++var3) {
-          this.levels.add(ResourceKey.create(Registry.DIMENSION_REGISTRY, var1.readResourceLocation()));
-@@ -78,11 +80,11 @@
- 
-    public void write(FriendlyByteBuf var1) throws IOException {
+-   public void write(FriendlyByteBuf var1) throws IOException {
++   public void write(FriendlyByteBuf var1) {
        var1.writeInt(this.playerId);
        var1.writeBoolean(this.hardcore);
        var1.writeByte(this.gameType.getId());
 -      var1.writeByte(this.previousGameType.getId());
+-      var1.writeVarInt(this.levels.size());
+-      Iterator var2 = this.levels.iterator();
+-
+-      while(var2.hasNext()) {
+-         ResourceKey var3 = (ResourceKey)var2.next();
+-         var1.writeResourceLocation(var3.location());
+-      }
+-
 +      var1.writeByte(GameType.getNullableId(this.previousGameType));
-       var1.writeVarInt(this.levels.size());
-       Iterator var2 = this.levels.iterator();
++      var1.writeCollection(this.levels, (var0, var1x) -> {
++         var0.writeResourceLocation(var1x.location());
++      });
+       var1.writeWithCodec(RegistryAccess.RegistryHolder.NETWORK_CODEC, this.registryHolder);
+       var1.writeWithCodec(DimensionType.CODEC, () -> {
+          return this.dimensionType;
+       });
+       var1.writeResourceLocation(this.dimension.location());
+@@ -121,10 +109,11 @@
  
-       while(var2.hasNext()) {
-          ResourceKey var3 = (ResourceKey)var2.next();
+    public GameType getGameType() {
+       return this.gameType;
+    }
+ 
++   @Nullable
+    public GameType getPreviousGameType() {
+       return this.previousGameType;
+    }
+ 
+    public Set<ResourceKey<Level>> levels() {

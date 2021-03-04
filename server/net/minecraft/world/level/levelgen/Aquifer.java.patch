@@ -1,0 +1,206 @@
+--- net/minecraft/world/level/levelgen/Aquifer.java
++++ net/minecraft/world/level/levelgen/Aquifer.java
+@@ -1,0 +1,203 @@
++package net.minecraft.world.level.levelgen;
++
++import java.util.Arrays;
++import net.minecraft.core.BlockPos;
++import net.minecraft.util.Mth;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.levelgen.synth.NormalNoise;
++
++public class Aquifer {
++   private final NormalNoise barrierNoise;
++   private final NormalNoise waterLevelNoise;
++   private final NoiseGeneratorSettings noiseGeneratorSettings;
++   private final int[] aquiferCache;
++   private final long[] aquiferLocationCache;
++   private double lastBarrierDensity;
++   private int lastWaterLevel;
++   private boolean shouldScheduleWaterUpdate;
++   private final NoiseSampler sampler;
++   private final int minGridX;
++   private final int minGridY;
++   private final int minGridZ;
++   private final int gridSizeX;
++   private final int gridSizeZ;
++
++   public Aquifer(int var1, int var2, NormalNoise var3, NormalNoise var4, NoiseGeneratorSettings var5, NoiseSampler var6, int var7) {
++      this.barrierNoise = var3;
++      this.waterLevelNoise = var4;
++      this.noiseGeneratorSettings = var5;
++      this.sampler = var6;
++      ChunkPos var8 = new ChunkPos(var1, var2);
++      this.minGridX = this.gridX(var8.getMinBlockX()) - 1;
++      int var9 = this.gridX(var8.getMaxBlockX()) + 1;
++      this.gridSizeX = var9 - this.minGridX + 1;
++      int var10 = var5.noiseSettings().minY();
++      this.minGridY = this.gridY(var10) - 1;
++      int var11 = this.gridY(var10 + var7) + 1;
++      int var12 = var11 - this.minGridY + 1;
++      this.minGridZ = this.gridZ(var8.getMinBlockZ()) - 1;
++      int var13 = this.gridZ(var8.getMaxBlockZ()) + 1;
++      this.gridSizeZ = var13 - this.minGridZ + 1;
++      int var14 = this.gridSizeX * var12 * this.gridSizeZ;
++      this.aquiferCache = new int[var14];
++      Arrays.fill(this.aquiferCache, Integer.MAX_VALUE);
++      this.aquiferLocationCache = new long[var14];
++      Arrays.fill(this.aquiferLocationCache, Long.MAX_VALUE);
++   }
++
++   private int getIndex(int var1, int var2, int var3) {
++      int var4 = var1 - this.minGridX;
++      int var5 = var2 - this.minGridY;
++      int var6 = var3 - this.minGridZ;
++      return (var5 * this.gridSizeZ + var6) * this.gridSizeX + var4;
++   }
++
++   protected void computeAt(int var1, int var2, int var3) {
++      int var4 = Math.floorDiv(var1 - 5, 16);
++      int var5 = Math.floorDiv(var2 + 1, 12);
++      int var6 = Math.floorDiv(var3 - 5, 16);
++      int var7 = Integer.MAX_VALUE;
++      int var8 = Integer.MAX_VALUE;
++      int var9 = Integer.MAX_VALUE;
++      long var10 = 0L;
++      long var12 = 0L;
++      long var14 = 0L;
++
++      int var16;
++      int var17;
++      int var18;
++      for(var16 = 0; var16 <= 1; ++var16) {
++         for(var17 = -1; var17 <= 1; ++var17) {
++            for(var18 = 0; var18 <= 1; ++var18) {
++               int var19 = var4 + var16;
++               int var20 = var5 + var17;
++               int var21 = var6 + var18;
++               int var22 = this.getIndex(var19, var20, var21);
++               long var25 = this.aquiferLocationCache[var22];
++               long var23;
++               if (var25 != Long.MAX_VALUE) {
++                  var23 = var25;
++               } else {
++                  WorldgenRandom var27 = new WorldgenRandom(Mth.getSeed(var19, var20 * 3, var21) + 1L);
++                  var23 = BlockPos.asLong(var19 * 16 + var27.nextInt(10), var20 * 12 + var27.nextInt(9), var21 * 16 + var27.nextInt(10));
++                  this.aquiferLocationCache[var22] = var23;
++               }
++
++               int var45 = BlockPos.getX(var23) - var1;
++               int var28 = BlockPos.getY(var23) - var2;
++               int var29 = BlockPos.getZ(var23) - var3;
++               int var30 = var45 * var45 + var28 * var28 + var29 * var29;
++               if (var7 >= var30) {
++                  var14 = var12;
++                  var12 = var10;
++                  var10 = var23;
++                  var9 = var8;
++                  var8 = var7;
++                  var7 = var30;
++               } else if (var8 >= var30) {
++                  var14 = var12;
++                  var12 = var23;
++                  var9 = var8;
++                  var8 = var30;
++               } else if (var9 >= var30) {
++                  var14 = var23;
++                  var9 = var30;
++               }
++            }
++         }
++      }
++
++      var16 = this.getWaterLevel(var10);
++      var17 = this.getWaterLevel(var12);
++      var18 = this.getWaterLevel(var14);
++      double var41 = this.similarity(var7, var8);
++      double var42 = this.similarity(var7, var9);
++      double var43 = this.similarity(var8, var9);
++      this.lastWaterLevel = var16;
++      this.shouldScheduleWaterUpdate = var41 > 0.0D;
++      if (var41 > -1.0D) {
++         double var44 = 1.0D + (this.barrierNoise.getValue((double)var1, (double)var2, (double)var3) + 0.1D) / 4.0D;
++         double var46 = this.calculatePressure(var2, var44, var16, var17);
++         double var47 = this.calculatePressure(var2, var44, var16, var18);
++         double var31 = this.calculatePressure(var2, var44, var17, var18);
++         double var33 = Math.max(0.0D, var41);
++         double var35 = Math.max(0.0D, var42);
++         double var37 = Math.max(0.0D, var43);
++         double var39 = 2.0D * var33 * Math.max(var46, Math.max(var47 * var35, var31 * var37));
++         this.lastBarrierDensity = Math.max(0.0D, var39);
++      } else {
++         this.lastBarrierDensity = 0.0D;
++      }
++
++   }
++
++   private double similarity(int var1, int var2) {
++      double var3 = 25.0D;
++      return 1.0D - (double)Math.abs(var2 - var1) / 25.0D;
++   }
++
++   private double calculatePressure(int var1, double var2, int var4, int var5) {
++      return 0.5D * (double)Math.abs(var4 - var5) * var2 - Math.abs(0.5D * (double)(var4 + var5) - (double)var1 - 0.5D);
++   }
++
++   private int gridX(int var1) {
++      return Math.floorDiv(var1, 16);
++   }
++
++   private int gridY(int var1) {
++      return Math.floorDiv(var1, 12);
++   }
++
++   private int gridZ(int var1) {
++      return Math.floorDiv(var1, 16);
++   }
++
++   private int getWaterLevel(long var1) {
++      int var3 = BlockPos.getX(var1);
++      int var4 = BlockPos.getY(var1);
++      int var5 = BlockPos.getZ(var1);
++      int var6 = this.gridX(var3);
++      int var7 = this.gridY(var4);
++      int var8 = this.gridZ(var5);
++      int var9 = this.getIndex(var6, var7, var8);
++      int var10 = this.aquiferCache[var9];
++      if (var10 != Integer.MAX_VALUE) {
++         return var10;
++      } else {
++         int var11 = this.computeAquifer(var3, var4, var5);
++         this.aquiferCache[var9] = var11;
++         return var11;
++      }
++   }
++
++   private int computeAquifer(int var1, int var2, int var3) {
++      int var4 = this.noiseGeneratorSettings.seaLevel();
++      if (var2 > 30) {
++         return var4;
++      } else {
++         boolean var5 = true;
++         boolean var6 = true;
++         boolean var7 = true;
++         double var8 = this.waterLevelNoise.getValue((double)Math.floorDiv(var1, 64), (double)Math.floorDiv(var2, 40) / 1.4D, (double)Math.floorDiv(var3, 64)) * 30.0D + -10.0D;
++         if (Math.abs(var8) > 8.0D) {
++            var8 *= 4.0D;
++         }
++
++         int var10 = Math.floorDiv(var2, 40) * 40 + 20;
++         int var11 = var10 + Mth.floor(var8);
++         return Math.min(56, var11);
++      }
++   }
++
++   public int getLastWaterLevel() {
++      return this.lastWaterLevel;
++   }
++
++   public double getLastBarrierDensity() {
++      return this.lastBarrierDensity;
++   }
++
++   public boolean shouldScheduleWaterUpdate() {
++      return this.shouldScheduleWaterUpdate;
++   }
++}

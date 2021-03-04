@@ -162,7 +162,7 @@
                    var1.complete((Object)null);
                 });
              }, true));
-@@ -808,10 +811,11 @@
+@@ -808,24 +811,24 @@
              }
           }
        }
@@ -174,7 +174,24 @@
        }
     }
  
-@@ -843,15 +847,10 @@
+    public LevelStorageSource getLevelSource() {
+       return this.levelSource;
+    }
+ 
+    private void openChatScreen(String var1) {
+-      if (!this.isLocalServer() && !this.allowsChat()) {
+-         if (this.player != null) {
+-            this.player.sendMessage((new TranslatableComponent("chat.cannotSend")).withStyle(ChatFormatting.RED), Util.NIL_UUID);
+-         }
++      Minecraft.ChatStatus var2 = this.getChatStatus();
++      if (!var2.isChatAllowed(this.isLocalServer())) {
++         this.gui.setOverlayMessage(var2.getMessage(), false);
+       } else {
+          this.setScreen(new ChatScreen(var1));
+       }
+ 
+    }
+@@ -843,15 +846,10 @@
           } else {
              this.player.respawn();
           }
@@ -190,7 +207,7 @@
           this.mouseHandler.releaseMouse();
           KeyMapping.releaseAll();
           ((Screen)var1).init(this, this.window.getGuiScaledWidth(), this.window.getGuiScaledHeight());
-@@ -1155,11 +1154,11 @@
+@@ -1155,11 +1153,11 @@
        BufferBuilder var6 = var5.getBuilder();
        boolean var7 = true;
        int var8 = this.window.getWidth() - 160 - 10;
@@ -203,7 +220,7 @@
        var6.vertex((double)((float)var8 + 176.0F), (double)(var9 + 320), 0.0D).color(200, 0, 0, 0).endVertex();
        var6.vertex((double)((float)var8 + 176.0F), (double)((float)var9 - 96.0F - 16.0F), 0.0D).color(200, 0, 0, 0).endVertex();
        var5.end();
-@@ -1169,11 +1168,11 @@
+@@ -1169,11 +1167,11 @@
        ResultField var13;
        int var15;
        for(Iterator var12 = var3.iterator(); var12.hasNext(); var10 += var13.percentage) {
@@ -216,7 +233,7 @@
           int var17 = var15 >> 8 & 255;
           int var18 = var15 & 255;
           var6.vertex((double)var8, (double)var9, 0.0D).color(var16, var17, var18, 255).endVertex();
-@@ -1188,11 +1187,11 @@
+@@ -1188,11 +1186,11 @@
              var22 = Mth.cos(var20) * 160.0F * 0.5F;
              var6.vertex((double)((float)var8 + var21), (double)((float)var9 - var22), 0.0D).color(var16, var17, var18, 255).endVertex();
           }
@@ -229,7 +246,7 @@
              var20 = (float)((var10 + var13.percentage * (double)var19 / (double)var14) * 6.2831854820251465D / 100.0D);
              var21 = Mth.sin(var20) * 160.0F;
              var22 = Mth.cos(var20) * 160.0F * 0.5F;
-@@ -1508,11 +1507,11 @@
+@@ -1508,11 +1506,11 @@
              }
           }
  
@@ -242,7 +259,7 @@
           this.profiler.popPush("particles");
           if (!this.pause) {
              this.particleEngine.tick();
-@@ -1549,11 +1548,11 @@
+@@ -1549,11 +1547,11 @@
           boolean var3 = this.options.keyLoadHotbarActivator.isDown();
           if (this.options.keyHotbarSlots[var4].consumeClick()) {
              if (this.player.isSpectator()) {
@@ -255,7 +272,52 @@
              }
           }
        }
-@@ -1859,15 +1858,15 @@
+@@ -1595,37 +1593,34 @@
+          if (!this.player.isSpectator() && this.player.drop(Screen.hasControlDown())) {
+             this.player.swing(InteractionHand.MAIN_HAND);
+          }
+       }
+ 
+-      boolean var5 = this.options.chatVisibility != ChatVisiblity.HIDDEN;
+-      if (var5) {
+-         while(this.options.keyChat.consumeClick()) {
+-            this.openChatScreen("");
+-         }
++      while(this.options.keyChat.consumeClick()) {
++         this.openChatScreen("");
++      }
+ 
+-         if (this.screen == null && this.overlay == null && this.options.keyCommand.consumeClick()) {
+-            this.openChatScreen("/");
+-         }
++      if (this.screen == null && this.overlay == null && this.options.keyCommand.consumeClick()) {
++         this.openChatScreen("/");
+       }
+ 
+       if (this.player.isUsingItem()) {
+          if (!this.options.keyUse.isDown()) {
+             this.gameMode.releaseUsingItem(this.player);
+          }
+ 
+-         label120:
++         label115:
+          while(true) {
+             if (!this.options.keyAttack.consumeClick()) {
+                while(this.options.keyUse.consumeClick()) {
+                }
+ 
+                while(true) {
+                   if (this.options.keyPickItem.consumeClick()) {
+                      continue;
+                   }
+-                  break label120;
++                  break label115;
+                }
+             }
+          }
+       } else {
+          while(this.options.keyAttack.consumeClick()) {
+@@ -1859,15 +1854,15 @@
  
     }
  
@@ -273,7 +335,7 @@
           WorldData var11 = (WorldData)var3.apply(var5, var1, var10.getResourceManager(), var8);
           return new Minecraft.ServerStem(var7, var10, var11);
        } catch (ExecutionException | InterruptedException var12) {
-@@ -1952,11 +1951,11 @@
+@@ -1952,28 +1947,34 @@
     }
  
     private void updateLevelInEngines(@Nullable ClientLevel var1) {
@@ -286,7 +348,33 @@
  
     public boolean allowsMultiplayer() {
        return this.allowsMultiplayer && this.socialInteractionsService.serversAllowed();
-@@ -1999,85 +1998,39 @@
+    }
+ 
+    public boolean isBlocked(UUID var1) {
+-      if (this.allowsChat()) {
++      if (this.getChatStatus().isChatAllowed(false)) {
+          return this.playerSocialManager.shouldHideMessageFrom(var1);
+       } else {
+          return (this.player == null || !var1.equals(this.player.getUUID())) && !var1.equals(Util.NIL_UUID);
+       }
+    }
+ 
+-   public boolean allowsChat() {
+-      return this.allowsChat && this.socialInteractionsService.chatAllowed();
++   public Minecraft.ChatStatus getChatStatus() {
++      if (this.options.chatVisibility == ChatVisiblity.HIDDEN) {
++         return Minecraft.ChatStatus.DISABLED_BY_OPTIONS;
++      } else if (!this.allowsChat) {
++         return Minecraft.ChatStatus.DISABLED_BY_LAUNCHER;
++      } else {
++         return !this.socialInteractionsService.chatAllowed() ? Minecraft.ChatStatus.DISABLED_BY_PROFILE : Minecraft.ChatStatus.ENABLED;
++      }
+    }
+ 
+    public final boolean isDemo() {
+       return this.demo;
+    }
+@@ -1999,85 +2000,39 @@
        return instance.options.ambientOcclusion != AmbientOcclusionStatus.OFF;
     }
  
@@ -381,7 +469,7 @@
  
           if (var3.isEmpty()) {
              String var10 = "";
-@@ -2087,24 +2040,24 @@
+@@ -2087,24 +2042,24 @@
                 var10 = Registry.ENTITY_TYPE.getKey(((EntityHitResult)this.hitResult).getEntity().getType()).toString();
              }
  
@@ -412,7 +500,7 @@
  
           }
        }
-@@ -2341,11 +2294,11 @@
+@@ -2341,11 +2296,11 @@
           } else {
              Biome.BiomeCategory var1 = this.player.level.getBiome(this.player.blockPosition()).getBiomeCategory();
              if (this.musicManager.isPlayingMusic(Musics.UNDER_WATER) || this.player.isUnderWater() && (var1 == Biome.BiomeCategory.OCEAN || var1 == Biome.BiomeCategory.RIVER)) {
@@ -425,7 +513,7 @@
        } else {
           return Musics.MENU;
        }
-@@ -2391,10 +2344,14 @@
+@@ -2391,10 +2346,14 @@
  
     public EntityRenderDispatcher getEntityRenderDispatcher() {
        return this.entityRenderDispatcher;
@@ -440,7 +528,7 @@
     }
  
     public ItemInHandRenderer getItemInHandRenderer() {
-@@ -2500,22 +2457,22 @@
+@@ -2500,22 +2459,22 @@
  
     public RenderBuffers renderBuffers() {
        return this.renderBuffers;
@@ -467,7 +555,7 @@
     private static Supplier<PackResources> adaptV3(Supplier<PackResources> var0) {
        return () -> {
           return new LegacyPackResourcesAdapter((PackResources)var0.get(), LegacyPackResourcesAdapter.V3);
-@@ -2530,10 +2487,14 @@
+@@ -2530,20 +2489,63 @@
  
     public void updateMaxMipLevel(int var1) {
        this.modelManager.updateMaxMipLevel(var1);
@@ -477,8 +565,57 @@
 +      return this.entityModels;
 +   }
 +
++   public boolean isTextFilteringEnabled() {
++      return true;
++   }
++
     static {
        ON_OSX = Util.getPlatform() == Util.OS.OSX;
        DEFAULT_FONT = new ResourceLocation("default");
        UNIFORM_FONT = new ResourceLocation("uniform");
        ALT_FONT = new ResourceLocation("alt");
+       RESOURCE_RELOAD_INITIAL_TASK = CompletableFuture.completedFuture(Unit.INSTANCE);
+       SOCIAL_INTERACTIONS_NOT_AVAILABLE = new TranslatableComponent("multiplayer.socialInteractions.not_available");
+       reserve = new byte[10485760];
+    }
+ 
++   public static enum ChatStatus {
++      ENABLED(TextComponent.EMPTY) {
++         public boolean isChatAllowed(boolean var1) {
++            return true;
++         }
++      },
++      DISABLED_BY_OPTIONS((new TranslatableComponent("chat.disabled.options")).withStyle(ChatFormatting.RED)) {
++         public boolean isChatAllowed(boolean var1) {
++            return false;
++         }
++      },
++      DISABLED_BY_LAUNCHER((new TranslatableComponent("chat.disabled.launcher")).withStyle(ChatFormatting.RED)) {
++         public boolean isChatAllowed(boolean var1) {
++            return var1;
++         }
++      },
++      DISABLED_BY_PROFILE((new TranslatableComponent("chat.disabled.profile")).withStyle(ChatFormatting.RED)) {
++         public boolean isChatAllowed(boolean var1) {
++            return var1;
++         }
++      };
++
++      private final Component message;
++
++      private ChatStatus(Component var3) {
++         this.message = var3;
++      }
++
++      public Component getMessage() {
++         return this.message;
++      }
++
++      public abstract boolean isChatAllowed(boolean var1);
++   }
++
+    public static final class ServerStem implements AutoCloseable {
+       private final PackRepository packRepository;
+       private final ServerResources serverResources;
+       private final WorldData worldData;
+ 

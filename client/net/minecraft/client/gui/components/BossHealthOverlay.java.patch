@@ -1,6 +1,6 @@
 --- net/minecraft/client/gui/components/BossHealthOverlay.java
 +++ net/minecraft/client/gui/components/BossHealthOverlay.java
-@@ -54,11 +54,11 @@
+@@ -54,29 +54,51 @@
        this.blit(var1, var2, var3, 0, var4.getColor().ordinal() * 5 * 2, 182, 5);
        if (var4.getOverlay() != BossEvent.BossBarOverlay.PROGRESS) {
           this.blit(var1, var2, var3, 0, 80 + (var4.getOverlay().ordinal() - 1) * 5 * 2, 182, 5);
@@ -13,3 +13,50 @@
           if (var4.getOverlay() != BossEvent.BossBarOverlay.PROGRESS) {
              this.blit(var1, var2, var3, 0, 80 + (var4.getOverlay().ordinal() - 1) * 5 * 2 + 5, var5, 5);
           }
+       }
+ 
+    }
+ 
+    public void update(ClientboundBossEventPacket var1) {
+-      if (var1.getOperation() == ClientboundBossEventPacket.Operation.ADD) {
+-         this.events.put(var1.getId(), new LerpingBossEvent(var1));
+-      } else if (var1.getOperation() == ClientboundBossEventPacket.Operation.REMOVE) {
+-         this.events.remove(var1.getId());
+-      } else {
+-         ((LerpingBossEvent)this.events.get(var1.getId())).update(var1);
+-      }
++      var1.dispatch(new ClientboundBossEventPacket.Handler() {
++         public void add(UUID var1, Component var2, float var3, BossEvent.BossBarColor var4, BossEvent.BossBarOverlay var5, boolean var6, boolean var7, boolean var8) {
++            BossHealthOverlay.this.events.put(var1, new LerpingBossEvent(var1, var2, var3, var4, var5, var6, var7, var8));
++         }
+ 
++         public void remove(UUID var1) {
++            BossHealthOverlay.this.events.remove(var1);
++         }
++
++         public void updateProgress(UUID var1, float var2) {
++            ((LerpingBossEvent)BossHealthOverlay.this.events.get(var1)).setProgress(var2);
++         }
++
++         public void updateName(UUID var1, Component var2) {
++            ((LerpingBossEvent)BossHealthOverlay.this.events.get(var1)).setName(var2);
++         }
++
++         public void updateStyle(UUID var1, BossEvent.BossBarColor var2, BossEvent.BossBarOverlay var3) {
++            LerpingBossEvent var4 = (LerpingBossEvent)BossHealthOverlay.this.events.get(var1);
++            var4.setColor(var2);
++            var4.setOverlay(var3);
++         }
++
++         public void updateProperties(UUID var1, boolean var2, boolean var3, boolean var4) {
++            LerpingBossEvent var5 = (LerpingBossEvent)BossHealthOverlay.this.events.get(var1);
++            var5.setDarkenScreen(var2);
++            var5.setPlayBossMusic(var3);
++            var5.setCreateWorldFog(var4);
++         }
++      });
+    }
+ 
+    public void reset() {
+       this.events.clear();
+    }

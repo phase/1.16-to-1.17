@@ -1,20 +1,23 @@
 --- net/minecraft/world/level/levelgen/FlatLevelSource.java
 +++ net/minecraft/world/level/levelgen/FlatLevelSource.java
-@@ -2,12 +2,12 @@
+@@ -1,13 +1,14 @@
+ package net.minecraft.world.level.levelgen;
  
  import com.mojang.serialization.Codec;
  import java.util.Arrays;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.Executor;
  import net.minecraft.core.BlockPos;
  import net.minecraft.server.level.WorldGenRegion;
 -import net.minecraft.world.level.BlockGetter;
- import net.minecraft.world.level.LevelAccessor;
+-import net.minecraft.world.level.LevelAccessor;
 +import net.minecraft.world.level.LevelHeightAccessor;
  import net.minecraft.world.level.NoiseColumn;
  import net.minecraft.world.level.StructureFeatureManager;
  import net.minecraft.world.level.biome.FixedBiomeSource;
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
-@@ -43,15 +43,15 @@
+@@ -43,53 +44,56 @@
        BlockState[] var1 = this.settings.getLayers();
  
        for(int var2 = 0; var2 < var1.length; ++var2) {
@@ -29,10 +32,11 @@
 +      return this.settings.getMinBuildHeight() + var1.length;
     }
  
-    public void fillFromNoise(LevelAccessor var1, StructureFeatureManager var2, ChunkAccess var3) {
+-   public void fillFromNoise(LevelAccessor var1, StructureFeatureManager var2, ChunkAccess var3) {
++   public CompletableFuture<ChunkAccess> fillFromNoise(Executor var1, StructureFeatureManager var2, ChunkAccess var3) {
        BlockState[] var4 = this.settings.getLayers();
        BlockPos.MutableBlockPos var5 = new BlockPos.MutableBlockPos();
-@@ -59,37 +59,39 @@
+       Heightmap var6 = var3.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
        Heightmap var7 = var3.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
  
        for(int var8 = 0; var8 < var4.length; ++var8) {
@@ -43,7 +47,7 @@
 -                  var3.setBlockState(var5.set(var10, var8, var11), var9, false);
 -                  var6.update(var10, var8, var11, var9);
 -                  var7.update(var10, var8, var11, var9);
-+            int var10 = var1.getMinBuildHeight() + var8;
++            int var10 = var3.getMinBuildHeight() + var8;
 +
 +            for(int var11 = 0; var11 < 16; ++var11) {
 +               for(int var12 = 0; var12 < 16; ++var12) {
@@ -55,6 +59,7 @@
           }
        }
  
++      return CompletableFuture.completedFuture(var3);
     }
  
 -   public int getBaseHeight(int var1, int var2, Heightmap.Types var3) {

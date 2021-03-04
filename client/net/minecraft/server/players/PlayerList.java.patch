@@ -1,6 +1,44 @@
 --- net/minecraft/server/players/PlayerList.java
 +++ net/minecraft/server/players/PlayerList.java
-@@ -53,14 +53,12 @@
+@@ -16,10 +16,11 @@
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Optional;
+ import java.util.UUID;
++import java.util.function.Function;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.RegistryAccess;
+@@ -30,19 +31,23 @@
+ import net.minecraft.network.chat.ChatType;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
+-import net.minecraft.network.protocol.game.ClientboundChatPacket;
+ import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
+ import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
+ import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
++import net.minecraft.network.protocol.game.ClientboundInitializeBorderPacket;
+ import net.minecraft.network.protocol.game.ClientboundLoginPacket;
+ import net.minecraft.network.protocol.game.ClientboundPlayerAbilitiesPacket;
+ import net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket;
+ import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
+-import net.minecraft.network.protocol.game.ClientboundSetBorderPacket;
++import net.minecraft.network.protocol.game.ClientboundSetBorderCenterPacket;
++import net.minecraft.network.protocol.game.ClientboundSetBorderLerpSizePacket;
++import net.minecraft.network.protocol.game.ClientboundSetBorderSizePacket;
++import net.minecraft.network.protocol.game.ClientboundSetBorderWarningDelayPacket;
++import net.minecraft.network.protocol.game.ClientboundSetBorderWarningDistancePacket;
+ import net.minecraft.network.protocol.game.ClientboundSetCarriedItemPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetChunkCacheRadiusPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetDefaultSpawnPositionPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetExperiencePacket;
+ import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
+@@ -53,14 +58,12 @@
  import net.minecraft.network.protocol.game.ClientboundUpdateTagsPacket;
  import net.minecraft.resources.ResourceKey;
  import net.minecraft.server.MinecraftServer;
@@ -15,7 +53,7 @@
  import net.minecraft.sounds.SoundSource;
  import net.minecraft.stats.ServerStatsCounter;
  import net.minecraft.stats.Stats;
-@@ -69,11 +67,10 @@
+@@ -69,11 +72,10 @@
  import net.minecraft.world.effect.MobEffectInstance;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.EntityType;
@@ -27,7 +65,7 @@
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.border.BorderChangeListener;
-@@ -108,11 +105,10 @@
+@@ -108,11 +110,10 @@
     private final PlayerDataStorage playerIo;
     private boolean doWhiteList;
     private final RegistryAccess.RegistryHolder registryHolder;
@@ -39,7 +77,7 @@
  
     public PlayerList(MinecraftServer var1, RegistryAccess.RegistryHolder var2, PlayerDataStorage var3, int var4) {
        this.bans = new UserBanList(USERBANLIST_FILE);
-@@ -153,30 +149,29 @@
+@@ -153,30 +154,29 @@
        } else {
           var10 = var9;
        }
@@ -74,7 +112,7 @@
        var2.getRecipeBook().sendInitialRecipeBook(var2);
        this.updateEntireScoreboard(var10.getScoreboard(), var2);
        this.server.invalidateStatus();
-@@ -199,11 +194,11 @@
+@@ -199,11 +199,11 @@
  
        var10.addNewPlayer(var2);
        this.server.getCustomBossEvents().onPlayerConnect(var2);
@@ -87,7 +125,7 @@
        Iterator var24 = var2.getActiveEffects().iterator();
  
        while(var24.hasNext()) {
-@@ -240,16 +235,16 @@
+@@ -240,16 +240,16 @@
                 }
              }
  
@@ -106,7 +144,53 @@
           }
        }
  
-@@ -345,37 +340,30 @@
+@@ -260,11 +260,11 @@
+       HashSet var3 = Sets.newHashSet();
+       Iterator var4 = var1.getPlayerTeams().iterator();
+ 
+       while(var4.hasNext()) {
+          PlayerTeam var5 = (PlayerTeam)var4.next();
+-         var2.connection.send(new ClientboundSetPlayerTeamPacket(var5, 0));
++         var2.connection.send(ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(var5, true));
+       }
+ 
+       for(int var9 = 0; var9 < 19; ++var9) {
+          Objective var10 = var1.getDisplayObjective(var9);
+          if (var10 != null && !var3.contains(var10)) {
+@@ -283,27 +283,27 @@
+    }
+ 
+    public void setLevel(ServerLevel var1) {
+       var1.getWorldBorder().addListener(new BorderChangeListener() {
+          public void onBorderSizeSet(WorldBorder var1, double var2) {
+-            PlayerList.this.broadcastAll(new ClientboundSetBorderPacket(var1, ClientboundSetBorderPacket.Type.SET_SIZE));
++            PlayerList.this.broadcastAll(new ClientboundSetBorderSizePacket(var1));
+          }
+ 
+          public void onBorderSizeLerping(WorldBorder var1, double var2, double var4, long var6) {
+-            PlayerList.this.broadcastAll(new ClientboundSetBorderPacket(var1, ClientboundSetBorderPacket.Type.LERP_SIZE));
++            PlayerList.this.broadcastAll(new ClientboundSetBorderLerpSizePacket(var1));
+          }
+ 
+          public void onBorderCenterSet(WorldBorder var1, double var2, double var4) {
+-            PlayerList.this.broadcastAll(new ClientboundSetBorderPacket(var1, ClientboundSetBorderPacket.Type.SET_CENTER));
++            PlayerList.this.broadcastAll(new ClientboundSetBorderCenterPacket(var1));
+          }
+ 
+          public void onBorderSetWarningTime(WorldBorder var1, int var2) {
+-            PlayerList.this.broadcastAll(new ClientboundSetBorderPacket(var1, ClientboundSetBorderPacket.Type.SET_WARNING_TIME));
++            PlayerList.this.broadcastAll(new ClientboundSetBorderWarningDelayPacket(var1));
+          }
+ 
+          public void onBorderSetWarningBlocks(WorldBorder var1, int var2) {
+-            PlayerList.this.broadcastAll(new ClientboundSetBorderPacket(var1, ClientboundSetBorderPacket.Type.SET_WARNING_BLOCKS));
++            PlayerList.this.broadcastAll(new ClientboundSetBorderWarningDistancePacket(var1));
+          }
+ 
+          public void onBorderSetDamagePerBlock(WorldBorder var1, double var2) {
+          }
+ 
+@@ -345,37 +345,30 @@
        ServerLevel var2 = var1.getLevel();
        var1.awardStat(Stats.LEAVE_GAME);
        this.save(var1);
@@ -155,7 +239,7 @@
        this.broadcastAll(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.REMOVE_PLAYER, new ServerPlayer[]{var1}));
     }
  
-@@ -426,24 +414,16 @@
+@@ -426,24 +419,16 @@
        while(var8.hasNext()) {
           ServerPlayer var6 = (ServerPlayer)var8.next();
           var6.connection.disconnect(new TranslatableComponent("multiplayer.disconnect.duplicate_login"));
@@ -182,7 +266,7 @@
        boolean var5 = var1.isRespawnForced();
        ServerLevel var6 = this.server.getLevel(var1.getRespawnDimension());
        Optional var7;
-@@ -451,73 +431,65 @@
+@@ -451,73 +436,65 @@
           var7 = Player.findRespawnPositionAndUseSpawnBlock(var6, var3, var4, var5, var2);
        } else {
           var7 = Optional.empty();
@@ -297,7 +381,49 @@
     public void sendPlayerPermissionLevel(ServerPlayer var1) {
        GameProfile var2 = var1.getGameProfile();
        int var3 = this.server.getProfilePermissions(var2);
-@@ -713,11 +685,11 @@
+@@ -531,19 +508,24 @@
+       }
+ 
+    }
+ 
+    public void broadcastAll(Packet<?> var1) {
+-      for(int var2 = 0; var2 < this.players.size(); ++var2) {
+-         ((ServerPlayer)this.players.get(var2)).connection.send(var1);
++      Iterator var2 = this.players.iterator();
++
++      while(var2.hasNext()) {
++         ServerPlayer var3 = (ServerPlayer)var2.next();
++         var3.connection.send(var1);
+       }
+ 
+    }
+ 
+    public void broadcastAll(Packet<?> var1, ResourceKey<Level> var2) {
+-      for(int var3 = 0; var3 < this.players.size(); ++var3) {
+-         ServerPlayer var4 = (ServerPlayer)this.players.get(var3);
++      Iterator var3 = this.players.iterator();
++
++      while(var3.hasNext()) {
++         ServerPlayer var4 = (ServerPlayer)var3.next();
+          if (var4.level.dimension() == var2) {
+             var4.connection.send(var1);
+          }
+       }
+ 
+@@ -699,11 +681,11 @@
+    public void reloadWhiteList() {
+    }
+ 
+    public void sendLevelInfo(ServerPlayer var1, ServerLevel var2) {
+       WorldBorder var3 = this.server.overworld().getWorldBorder();
+-      var1.connection.send(new ClientboundSetBorderPacket(var3, ClientboundSetBorderPacket.Type.INITIALIZE));
++      var1.connection.send(new ClientboundInitializeBorderPacket(var3));
+       var1.connection.send(new ClientboundSetTimePacket(var2.getGameTime(), var2.getDayTime(), var2.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)));
+       var1.connection.send(new ClientboundSetDefaultSpawnPositionPacket(var2.getSharedSpawnPos(), var2.getSharedSpawnAngle()));
+       if (var2.isRaining()) {
+          var1.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0F));
+          var1.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, var2.getRainLevel(1.0F)));
+@@ -713,11 +695,11 @@
     }
  
     public void sendAllPlayerInfo(ServerPlayer var1) {
@@ -310,7 +436,7 @@
     public int getPlayerCount() {
        return this.players.size();
     }
-@@ -758,24 +730,10 @@
+@@ -758,24 +740,10 @@
  
     public CompoundTag getSingleplayerData() {
        return null;
@@ -335,7 +461,42 @@
     }
  
     public void removeAll() {
-@@ -857,11 +815,11 @@
+@@ -785,13 +753,33 @@
+ 
+    }
+ 
+    public void broadcastMessage(Component var1, ChatType var2, UUID var3) {
+       this.server.sendMessage(var1, var3);
+-      this.broadcastAll(new ClientboundChatPacket(var1, var2, var3));
++      Iterator var4 = this.players.iterator();
++
++      while(var4.hasNext()) {
++         ServerPlayer var5 = (ServerPlayer)var4.next();
++         var5.sendMessage(var1, var2, var3);
++      }
++
+    }
+ 
++   public void broadcastMessage(Component var1, Function<ServerPlayer, Component> var2, ChatType var3, UUID var4) {
++      this.server.sendMessage(var1, var4);
++      Iterator var5 = this.players.iterator();
++
++      while(var5.hasNext()) {
++         ServerPlayer var6 = (ServerPlayer)var5.next();
++         Component var7 = (Component)var2.apply(var6);
++         if (var7 != null) {
++            var6.sendMessage(var7, var3, var4);
++         }
++      }
++
++   }
++
+    public ServerStatsCounter getPlayerStats(Player var1) {
+       UUID var2 = var1.getUUID();
+       ServerStatsCounter var3 = var2 == null ? null : (ServerStatsCounter)this.stats.get(var2);
+       if (var3 == null) {
+          File var4 = this.server.getWorldPath(LevelResource.PLAYER_STATS_DIR).toFile();
+@@ -857,11 +845,11 @@
        while(var1.hasNext()) {
           PlayerAdvancements var2 = (PlayerAdvancements)var1.next();
           var2.reload(this.server.getAdvancements());

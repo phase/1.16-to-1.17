@@ -12,19 +12,131 @@
  import net.minecraft.server.packs.repository.PackSource;
  import net.minecraft.server.packs.repository.RepositorySource;
  import net.minecraft.server.packs.repository.ServerPacksSource;
-@@ -120,13 +121,13 @@
-          boolean var31 = var16.has((OptionSpec)var8);
-          if (var31) {
+@@ -50,10 +51,11 @@
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LevelSettings;
+ import net.minecraft.world.level.levelgen.WorldGenSettings;
+ import net.minecraft.world.level.storage.LevelResource;
+ import net.minecraft.world.level.storage.LevelStorageSource;
++import net.minecraft.world.level.storage.LevelSummary;
+ import net.minecraft.world.level.storage.PrimaryLevelData;
+ import net.minecraft.world.level.storage.WorldData;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+@@ -114,56 +116,62 @@
+          GameProfileCache var26 = new GameProfileCache(var25, new File(var22, MinecraftServer.USERID_CACHE_FILE.getName()));
+          String var27 = (String)Optional.ofNullable(var16.valueOf((OptionSpec)var12)).orElse(var19.getProperties().levelName);
+          LevelStorageSource var28 = LevelStorageSource.createDefault(var22.toPath());
+          LevelStorageSource.LevelStorageAccess var29 = var28.createAccess(var27);
+          MinecraftServer.convertFromRegionFormatIfNeeded(var29);
+-         DataPackConfig var30 = var29.getDataPacks();
+-         boolean var31 = var16.has((OptionSpec)var8);
+-         if (var31) {
++         LevelSummary var30 = var29.getSummary();
++         if (var30 != null && var30.isPreWorldheight()) {
++            LOGGER.info("Loading of old worlds is temporarily disabled.");
++            return;
++         }
++
++         DataPackConfig var31 = var29.getDataPacks();
++         boolean var32 = var16.has((OptionSpec)var8);
++         if (var32) {
              LOGGER.warn("Safe mode active, only vanilla datapack will be loaded");
           }
  
 -         PackRepository var32 = new PackRepository(new RepositorySource[]{new ServerPacksSource(), new FolderRepositorySource(var29.getLevelPath(LevelResource.DATAPACK_DIR).toFile(), PackSource.WORLD)});
-+         PackRepository var32 = new PackRepository(PackType.SERVER_DATA, new RepositorySource[]{new ServerPacksSource(), new FolderRepositorySource(var29.getLevelPath(LevelResource.DATAPACK_DIR).toFile(), PackSource.WORLD)});
-          DataPackConfig var33 = MinecraftServer.configurePackRepository(var32, var30 == null ? DataPackConfig.DEFAULT : var30, var31);
+-         DataPackConfig var33 = MinecraftServer.configurePackRepository(var32, var30 == null ? DataPackConfig.DEFAULT : var30, var31);
 -         CompletableFuture var34 = ServerResources.loadResources(var32.openAllSelected(), Commands.CommandSelection.DEDICATED, var19.getProperties().functionPermissionLevel, Util.backgroundExecutor(), Runnable::run);
-+         CompletableFuture var34 = ServerResources.loadResources(var32.openAllSelected(), var17, Commands.CommandSelection.DEDICATED, var19.getProperties().functionPermissionLevel, Util.backgroundExecutor(), Runnable::run);
++         PackRepository var33 = new PackRepository(PackType.SERVER_DATA, new RepositorySource[]{new ServerPacksSource(), new FolderRepositorySource(var29.getLevelPath(LevelResource.DATAPACK_DIR).toFile(), PackSource.WORLD)});
++         DataPackConfig var34 = MinecraftServer.configurePackRepository(var33, var31 == null ? DataPackConfig.DEFAULT : var31, var32);
++         CompletableFuture var35 = ServerResources.loadResources(var33.openAllSelected(), var17, Commands.CommandSelection.DEDICATED, var19.getProperties().functionPermissionLevel, Util.backgroundExecutor(), Runnable::run);
  
-          ServerResources var35;
+-         ServerResources var35;
++         ServerResources var36;
           try {
-             var35 = (ServerResources)var34.get();
-          } catch (Exception var41) {
+-            var35 = (ServerResources)var34.get();
+-         } catch (Exception var41) {
+-            LOGGER.warn((String)"Failed to load datapacks, can't proceed with server load. You can either fix your datapacks or reset to vanilla with --safeMode", (Throwable)var41);
+-            var32.close();
++            var36 = (ServerResources)var35.get();
++         } catch (Exception var42) {
++            LOGGER.warn((String)"Failed to load datapacks, can't proceed with server load. You can either fix your datapacks or reset to vanilla with --safeMode", (Throwable)var42);
++            var33.close();
+             return;
+          }
+ 
+-         var35.updateGlobals();
+-         RegistryReadOps var36 = RegistryReadOps.create(NbtOps.INSTANCE, (ResourceManager)var35.getResourceManager(), var17);
+-         Object var37 = var29.getDataTag(var36, var33);
+-         if (var37 == null) {
+-            LevelSettings var38;
+-            WorldGenSettings var39;
++         var36.updateGlobals();
++         RegistryReadOps var37 = RegistryReadOps.create(NbtOps.INSTANCE, (ResourceManager)var36.getResourceManager(), var17);
++         Object var38 = var29.getDataTag(var37, var34);
++         if (var38 == null) {
++            LevelSettings var39;
++            WorldGenSettings var40;
+             if (var16.has((OptionSpec)var4)) {
+-               var38 = MinecraftServer.DEMO_SETTINGS;
+-               var39 = WorldGenSettings.demoSettings(var17);
++               var39 = MinecraftServer.DEMO_SETTINGS;
++               var40 = WorldGenSettings.demoSettings(var17);
+             } else {
+-               DedicatedServerProperties var40 = var19.getProperties();
+-               var38 = new LevelSettings(var40.levelName, var40.gamemode, var40.hardcore, var40.difficulty, false, new GameRules(), var33);
+-               var39 = var16.has((OptionSpec)var5) ? var40.worldGenSettings.withBonusChest() : var40.worldGenSettings;
++               DedicatedServerProperties var41 = var19.getProperties();
++               var39 = new LevelSettings(var41.levelName, var41.gamemode, var41.hardcore, var41.difficulty, false, new GameRules(), var34);
++               var40 = var16.has((OptionSpec)var5) ? var41.worldGenSettings.withBonusChest() : var41.worldGenSettings;
+             }
+ 
+-            var37 = new PrimaryLevelData(var38, var39, Lifecycle.stable());
++            var38 = new PrimaryLevelData(var39, var40, Lifecycle.stable());
+          }
+ 
+          if (var16.has((OptionSpec)var6)) {
+             forceUpgrade(var29, DataFixers.getDataFixer(), var16.has((OptionSpec)var7), () -> {
+                return true;
+-            }, ((WorldData)var37).worldGenSettings().levels());
++            }, ((WorldData)var38).worldGenSettings().levels());
+          }
+ 
+-         var29.saveDataTag(var17, (WorldData)var37);
+-         final DedicatedServer var43 = (DedicatedServer)MinecraftServer.spin((var16x) -> {
+-            DedicatedServer var17x = new DedicatedServer(var16x, var17, var29, var32, var35, var37, var19, DataFixers.getDataFixer(), var24, var25, var26, LoggerChunkProgressListener::new);
++         var29.saveDataTag(var17, (WorldData)var38);
++         final DedicatedServer var44 = (DedicatedServer)MinecraftServer.spin((var16x) -> {
++            DedicatedServer var17x = new DedicatedServer(var16x, var17, var29, var33, var36, var38, var19, DataFixers.getDataFixer(), var24, var25, var26, LoggerChunkProgressListener::new);
+             var17x.setSingleplayerName((String)var16.valueOf(var10));
+             var17x.setPort((Integer)var16.valueOf(var13));
+             var17x.setDemo(var16.has(var4));
+             var17x.setId((String)var16.valueOf(var14));
+             boolean var18 = !var16.has(var2) && !var16.valuesOf(var15).contains("nogui");
+@@ -171,19 +179,19 @@
+                var17x.showGui();
+             }
+ 
+             return var17x;
+          });
+-         Thread var44 = new Thread("Server Shutdown Thread") {
++         Thread var45 = new Thread("Server Shutdown Thread") {
+             public void run() {
+-               var43.halt(true);
++               var44.halt(true);
+             }
+          };
+-         var44.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(LOGGER));
+-         Runtime.getRuntime().addShutdownHook(var44);
+-      } catch (Exception var42) {
+-         LOGGER.fatal((String)"Failed to start the minecraft server", (Throwable)var42);
++         var45.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(LOGGER));
++         Runtime.getRuntime().addShutdownHook(var45);
++      } catch (Exception var43) {
++         LOGGER.fatal((String)"Failed to start the minecraft server", (Throwable)var43);
+       }
+ 
+    }
+ 
+    private static void forceUpgrade(LevelStorageSource.LevelStorageAccess var0, DataFixer var1, boolean var2, BooleanSupplier var3, ImmutableSet<ResourceKey<Level>> var4) {

@@ -1,0 +1,98 @@
+--- net/minecraft/server/network/ServerLoginPacketListenerImpl.java
++++ net/minecraft/server/network/ServerLoginPacketListenerImpl.java
+@@ -42,13 +42,14 @@
+    private final byte[] nonce = new byte[4];
+    private final MinecraftServer server;
+    public final Connection connection;
+    private ServerLoginPacketListenerImpl.State state;
+    private int tick;
++   @Nullable
+    private GameProfile gameProfile;
+    private final String serverId;
+-   private SecretKey secretKey;
++   @Nullable
+    private ServerPlayer delayedAcceptPlayer;
+ 
+    public ServerLoginPacketListenerImpl(MinecraftServer var1, Connection var2) {
+       this.state = ServerLoginPacketListenerImpl.State.HELLO;
+       this.serverId = "";
+@@ -62,11 +63,11 @@
+          this.handleAcceptedLogin();
+       } else if (this.state == ServerLoginPacketListenerImpl.State.DELAY_ACCEPT) {
+          ServerPlayer var1 = this.server.getPlayerList().getPlayer(this.gameProfile.getId());
+          if (var1 == null) {
+             this.state = ServerLoginPacketListenerImpl.State.READY_TO_ACCEPT;
+-            this.server.getPlayerList().placeNewPlayer(this.connection, this.delayedAcceptPlayer);
++            this.placeNewPlayer(this.delayedAcceptPlayer);
+             this.delayedAcceptPlayer = null;
+          }
+       }
+ 
+       if (this.tick++ == 600) {
+@@ -110,16 +111,20 @@
+          ServerPlayer var2 = this.server.getPlayerList().getPlayer(this.gameProfile.getId());
+          if (var2 != null) {
+             this.state = ServerLoginPacketListenerImpl.State.DELAY_ACCEPT;
+             this.delayedAcceptPlayer = this.server.getPlayerList().getPlayerForLogin(this.gameProfile);
+          } else {
+-            this.server.getPlayerList().placeNewPlayer(this.connection, this.server.getPlayerList().getPlayerForLogin(this.gameProfile));
++            this.placeNewPlayer(this.server.getPlayerList().getPlayerForLogin(this.gameProfile));
+          }
+       }
+ 
+    }
+ 
++   private void placeNewPlayer(ServerPlayer var1) {
++      this.server.getPlayerList().placeNewPlayer(this.connection, var1);
++   }
++
+    public void onDisconnect(Component var1) {
+       LOGGER.info((String)"{} lost connection: {}", (Object)this.getUserName(), (Object)var1.getString());
+    }
+ 
+    public String getUserName() {
+@@ -146,21 +151,21 @@
+       try {
+          if (!Arrays.equals(this.nonce, var1.getNonce(var2))) {
+             throw new IllegalStateException("Protocol error");
+          }
+ 
+-         this.secretKey = var1.getSecretKey(var2);
+-         Cipher var4 = Crypt.getCipher(2, this.secretKey);
+-         Cipher var5 = Crypt.getCipher(1, this.secretKey);
+-         var3 = (new BigInteger(Crypt.digestData("", this.server.getKeyPair().getPublic(), this.secretKey))).toString(16);
++         SecretKey var4 = var1.getSecretKey(var2);
++         Cipher var5 = Crypt.getCipher(2, var4);
++         Cipher var6 = Crypt.getCipher(1, var4);
++         var3 = (new BigInteger(Crypt.digestData("", this.server.getKeyPair().getPublic(), var4))).toString(16);
+          this.state = ServerLoginPacketListenerImpl.State.AUTHENTICATING;
+-         this.connection.setEncryptionKey(var4, var5);
+-      } catch (CryptException var6) {
+-         throw new IllegalStateException("Protocol error", var6);
++         this.connection.setEncryptionKey(var5, var6);
++      } catch (CryptException var7) {
++         throw new IllegalStateException("Protocol error", var7);
+       }
+ 
+-      Thread var7 = new Thread("User Authenticator #" + UNIQUE_THREAD_ID.incrementAndGet()) {
++      Thread var8 = new Thread("User Authenticator #" + UNIQUE_THREAD_ID.incrementAndGet()) {
+          public void run() {
+             GameProfile var1 = ServerLoginPacketListenerImpl.this.gameProfile;
+ 
+             try {
+                ServerLoginPacketListenerImpl.this.gameProfile = ServerLoginPacketListenerImpl.this.server.getSessionService().hasJoinedServer(new GameProfile((UUID)null, var1.getName()), var3, this.getAddress());
+@@ -192,12 +197,12 @@
+          private InetAddress getAddress() {
+             SocketAddress var1 = ServerLoginPacketListenerImpl.this.connection.getRemoteAddress();
+             return ServerLoginPacketListenerImpl.this.server.getPreventProxyConnections() && var1 instanceof InetSocketAddress ? ((InetSocketAddress)var1).getAddress() : null;
+          }
+       };
+-      var7.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(LOGGER));
+-      var7.start();
++      var8.setUncaughtExceptionHandler(new DefaultUncaughtExceptionHandler(LOGGER));
++      var8.start();
+    }
+ 
+    public void handleCustomQueryPacket(ServerboundCustomQueryPacket var1) {
+       this.disconnect(new TranslatableComponent("multiplayer.disconnect.unexpected_query_response"));
+    }

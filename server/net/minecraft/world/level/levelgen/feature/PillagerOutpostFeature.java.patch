@@ -1,12 +1,9 @@
 --- net/minecraft/world/level/levelgen/feature/PillagerOutpostFeature.java
 +++ net/minecraft/world/level/levelgen/feature/PillagerOutpostFeature.java
-@@ -1,12 +1,14 @@
- package net.minecraft.world.level.levelgen.feature;
- 
+@@ -3,10 +3,11 @@
  import com.google.common.collect.ImmutableList;
  import com.mojang.serialization.Codec;
  import java.util.List;
-+import net.minecraft.core.SectionPos;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.level.ChunkPos;
 +import net.minecraft.world.level.LevelHeightAccessor;
@@ -15,7 +12,7 @@
  import net.minecraft.world.level.biome.MobSpawnSettings;
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.WorldgenRandom;
-@@ -22,14 +24,14 @@
+@@ -22,31 +23,34 @@
  
     public List<MobSpawnSettings.SpawnerData> getSpecialEnemies() {
        return OUTPOST_ENEMIES;
@@ -24,13 +21,40 @@
 -   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, int var6, int var7, Biome var8, ChunkPos var9, JigsawConfiguration var10) {
 -      int var11 = var6 >> 4;
 -      int var12 = var7 >> 4;
--      var5.setSeed((long)(var11 ^ var12 << 4) ^ var3);
-+   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, int var6, int var7, Biome var8, ChunkPos var9, JigsawConfiguration var10, LevelHeightAccessor var11) {
-+      int var12 = SectionPos.blockToSectionCoord(var6);
-+      int var13 = SectionPos.blockToSectionCoord(var7);
-+      var5.setSeed((long)(var12 ^ var13 << 4) ^ var3);
++   protected boolean isFeatureChunk(ChunkGenerator var1, BiomeSource var2, long var3, WorldgenRandom var5, ChunkPos var6, Biome var7, ChunkPos var8, JigsawConfiguration var9, LevelHeightAccessor var10) {
++      int var11 = var6.x >> 4;
++      int var12 = var6.z >> 4;
+       var5.setSeed((long)(var11 ^ var12 << 4) ^ var3);
        var5.nextInt();
        if (var5.nextInt(5) != 0) {
           return false;
        } else {
-          return !this.isNearVillage(var1, var3, var5, var6, var7);
+-         return !this.isNearVillage(var1, var3, var5, var6, var7);
++         return !this.isNearVillage(var1, var3, var5, var6);
+       }
+    }
+ 
+-   private boolean isNearVillage(ChunkGenerator var1, long var2, WorldgenRandom var4, int var5, int var6) {
+-      StructureFeatureConfiguration var7 = var1.getSettings().getConfig(StructureFeature.VILLAGE);
+-      if (var7 == null) {
++   private boolean isNearVillage(ChunkGenerator var1, long var2, WorldgenRandom var4, ChunkPos var5) {
++      StructureFeatureConfiguration var6 = var1.getSettings().getConfig(StructureFeature.VILLAGE);
++      if (var6 == null) {
+          return false;
+       } else {
+-         for(int var8 = var5 - 10; var8 <= var5 + 10; ++var8) {
+-            for(int var9 = var6 - 10; var9 <= var6 + 10; ++var9) {
+-               ChunkPos var10 = StructureFeature.VILLAGE.getPotentialFeatureChunk(var7, var2, var4, var8, var9);
+-               if (var8 == var10.x && var9 == var10.z) {
++         int var7 = var5.x;
++         int var8 = var5.z;
++
++         for(int var9 = var7 - 10; var9 <= var7 + 10; ++var9) {
++            for(int var10 = var8 - 10; var10 <= var8 + 10; ++var10) {
++               ChunkPos var11 = StructureFeature.VILLAGE.getPotentialFeatureChunk(var6, var2, var4, var9, var10);
++               if (var9 == var11.x && var10 == var11.z) {
+                   return true;
+                }
+             }
+          }
+ 

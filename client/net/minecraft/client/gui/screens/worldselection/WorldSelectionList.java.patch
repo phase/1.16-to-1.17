@@ -1,14 +1,88 @@
 --- net/minecraft/client/gui/screens/worldselection/WorldSelectionList.java
 +++ net/minecraft/client/gui/screens/worldselection/WorldSelectionList.java
-@@ -263,13 +263,20 @@
+@@ -68,10 +68,11 @@
+    private static final Component FROM_NEWER_TOOLTIP_1;
+    private static final Component FROM_NEWER_TOOLTIP_2;
+    private static final Component SNAPSHOT_TOOLTIP_1;
+    private static final Component SNAPSHOT_TOOLTIP_2;
+    private static final Component WORLD_LOCKED_TOOLTIP;
++   private static final Component WORLD_PRE_WORLDHEIGHT_TOOLTIP;
+    private final SelectWorldScreen screen;
+    @Nullable
+    private List<LevelSummary> cachedList;
+ 
+    public WorldSelectionList(SelectWorldScreen var1, Minecraft var2, int var3, int var4, int var5, int var6, int var7, Supplier<String> var8, @Nullable WorldSelectionList var9) {
+@@ -137,16 +138,16 @@
+       if (var1 != null) {
+          LevelSummary var2 = var1.summary;
+          NarratorChatListener.INSTANCE.sayNow((new TranslatableComponent("narrator.select", new Object[]{new TranslatableComponent("narrator.select.world", new Object[]{var2.getLevelName(), new Date(var2.getLastPlayed()), var2.isHardcore() ? new TranslatableComponent("gameMode.hardcore") : new TranslatableComponent("gameMode." + var2.getGameMode().getName()), var2.hasCheats() ? new TranslatableComponent("selectWorld.cheats") : TextComponent.EMPTY, var2.getWorldVersionName()})})).getString());
+       }
+ 
+-      this.screen.updateButtonStatus(var1 != null && !var1.summary.isLocked());
++      this.screen.updateButtonStatus(var1 != null && !var1.summary.isDisabled());
+    }
+ 
+    protected void moveSelection(AbstractSelectionList.SelectionDirection var1) {
+       this.moveSelection(var1, (var0) -> {
+-         return !var0.summary.isLocked();
++         return !var0.summary.isDisabled();
+       });
+    }
+ 
+    public Optional<WorldSelectionList.WorldListEntry> getSelectedOpt() {
+       return Optional.ofNullable(this.getSelected());
+@@ -160,10 +161,11 @@
+       FROM_NEWER_TOOLTIP_1 = (new TranslatableComponent("selectWorld.tooltip.fromNewerVersion1")).withStyle(ChatFormatting.RED);
+       FROM_NEWER_TOOLTIP_2 = (new TranslatableComponent("selectWorld.tooltip.fromNewerVersion2")).withStyle(ChatFormatting.RED);
+       SNAPSHOT_TOOLTIP_1 = (new TranslatableComponent("selectWorld.tooltip.snapshot1")).withStyle(ChatFormatting.GOLD);
+       SNAPSHOT_TOOLTIP_2 = (new TranslatableComponent("selectWorld.tooltip.snapshot2")).withStyle(ChatFormatting.GOLD);
+       WORLD_LOCKED_TOOLTIP = (new TranslatableComponent("selectWorld.locked")).withStyle(ChatFormatting.RED);
++      WORLD_PRE_WORLDHEIGHT_TOOLTIP = (new TranslatableComponent("selectWorld.pre_worldheight")).withStyle(ChatFormatting.RED);
+    }
+ 
+    public final class WorldListEntry extends ObjectSelectionList.Entry<WorldSelectionList.WorldListEntry> implements AutoCloseable {
+       private final Minecraft minecraft;
+       private final SelectWorldScreen screen;
+@@ -222,10 +224,15 @@
+             if (this.summary.isLocked()) {
+                GuiComponent.blit(var1, var4, var3, 96.0F, (float)var16, 32, 32, 256, 256);
+                if (var15) {
+                   this.screen.setToolTip(this.minecraft.font.split(WorldSelectionList.WORLD_LOCKED_TOOLTIP, 175));
+                }
++            } else if (this.summary.isPreWorldheight()) {
++               GuiComponent.blit(var1, var4, var3, 96.0F, 32.0F, 32, 32, 256, 256);
++               if (var15) {
++                  this.screen.setToolTip(this.minecraft.font.split(WorldSelectionList.WORLD_PRE_WORLDHEIGHT_TOOLTIP, 175));
++               }
+             } else if (this.summary.markVersionInList()) {
+                GuiComponent.blit(var1, var4, var3, 32.0F, (float)var16, 32, 32, 256, 256);
+                if (this.summary.askToOpenWorld()) {
+                   GuiComponent.blit(var1, var4, var3, 96.0F, (float)var16, 32, 32, 256, 256);
+                   if (var15) {
+@@ -243,11 +250,11 @@
+          }
+ 
+       }
+ 
+       public boolean mouseClicked(double var1, double var3, int var5) {
+-         if (this.summary.isLocked()) {
++         if (this.summary.isDisabled()) {
+             return true;
+          } else {
+             WorldSelectionList.this.setSelected(this);
+             this.screen.updateButtonStatus(WorldSelectionList.this.getSelectedOpt().isPresent());
+             if (var1 - (double)WorldSelectionList.this.getRowLeft() <= 32.0D) {
+@@ -262,14 +269,21 @@
+             }
           }
        }
  
        public void joinWorld() {
-          if (!this.summary.isLocked()) {
+-         if (!this.summary.isLocked()) {
 -            if (this.summary.shouldBackup()) {
 -               TranslatableComponent var1 = new TranslatableComponent("selectWorld.backupQuestion");
 -               TranslatableComponent var2 = new TranslatableComponent("selectWorld.backupWarning", new Object[]{this.summary.getWorldVersionName(), SharedConstants.getCurrentVersion().getName()});
++         if (!this.summary.isDisabled()) {
 +            LevelSummary.BackupStatus var1 = this.summary.backupStatus();
 +            if (var1.shouldBackup()) {
 +               String var2 = "selectWorld.backupQuestion." + var1.getTranslationKey();
@@ -24,7 +98,7 @@
                       String var3 = this.summary.getLevelId();
  
                       try {
-@@ -300,11 +307,11 @@
+@@ -300,11 +314,11 @@
                          WorldSelectionList.LOGGER.error("Failed to backup level {}", var3, var17);
                       }
                    }
@@ -37,7 +111,7 @@
                    if (var1x) {
                       try {
                          this.loadWorld();
-@@ -316,11 +323,11 @@
+@@ -316,11 +330,11 @@
                       }
                    } else {
                       this.minecraft.setScreen(this.screen);
@@ -50,7 +124,7 @@
              }
  
           }
-@@ -328,48 +335,52 @@
+@@ -328,48 +342,52 @@
  
        public void deleteWorld() {
           this.minecraft.setScreen(new ConfirmScreen((var1) -> {

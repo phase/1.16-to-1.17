@@ -1,6 +1,15 @@
 --- net/minecraft/world/level/chunk/ChunkGenerator.java
 +++ net/minecraft/world/level/chunk/ChunkGenerator.java
-@@ -13,21 +13,23 @@
+@@ -6,28 +6,31 @@
+ import java.util.BitSet;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.ListIterator;
+ import java.util.Random;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.Executor;
+ import java.util.function.Function;
+ import java.util.function.Supplier;
  import javax.annotation.Nullable;
  import net.minecraft.CrashReport;
  import net.minecraft.CrashReportCategory;
@@ -17,7 +26,7 @@
  import net.minecraft.world.entity.MobCategory;
 -import net.minecraft.world.level.BlockGetter;
  import net.minecraft.world.level.ChunkPos;
- import net.minecraft.world.level.LevelAccessor;
+-import net.minecraft.world.level.LevelAccessor;
 +import net.minecraft.world.level.LevelHeightAccessor;
 +import net.minecraft.world.level.NoiseColumn;
  import net.minecraft.world.level.StructureFeatureManager;
@@ -25,7 +34,19 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeGenerationSettings;
  import net.minecraft.world.level.biome.BiomeManager;
-@@ -93,14 +95,14 @@
+@@ -38,10 +41,11 @@
+ import net.minecraft.world.level.levelgen.GenerationStep;
+ import net.minecraft.world.level.levelgen.Heightmap;
+ import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
+ import net.minecraft.world.level.levelgen.StructureSettings;
+ import net.minecraft.world.level.levelgen.WorldgenRandom;
++import net.minecraft.world.level.levelgen.carver.CarvingContext;
+ import net.minecraft.world.level.levelgen.carver.ConfiguredWorldCarver;
+ import net.minecraft.world.level.levelgen.feature.ConfiguredStructureFeature;
+ import net.minecraft.world.level.levelgen.feature.StructureFeature;
+ import net.minecraft.world.level.levelgen.feature.configurations.StrongholdConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.StructureFeatureConfiguration;
+@@ -93,14 +97,14 @@
  
              for(int var11 = 0; var11 < var18; ++var11) {
                 double var12 = (double)(4 * var17 + var17 * var10 * 6) + (var6.nextDouble() - 0.5D) * (double)var17 * 2.5D;
@@ -43,7 +64,7 @@
                 this.strongholdPositions.add(new ChunkPos(var14, var15));
                 var7 += 6.283185307179586D / (double)var5;
                 ++var9;
-@@ -119,21 +121,21 @@
+@@ -119,34 +123,34 @@
  
     protected abstract Codec<? extends ChunkGenerator> codec();
  
@@ -58,16 +79,38 @@
        WorldgenRandom var7 = new WorldgenRandom();
        boolean var8 = true;
        ChunkPos var9 = var4.getPos();
-       int var10 = var9.x;
-       int var11 = var9.z;
+-      int var10 = var9.x;
+-      int var11 = var9.z;
 -      BiomeGenerationSettings var12 = this.biomeSource.getNoiseBiome(var9.x << 2, 0, var9.z << 2).getGenerationSettings();
-+      BiomeGenerationSettings var12 = this.biomeSource.getNoiseBiome(QuartPos.fromBlock(var9.getMinBlockX()), 0, QuartPos.fromBlock(var9.getMinBlockZ())).getGenerationSettings();
-       BitSet var13 = ((ProtoChunk)var4).getOrCreateCarvingMask(var5);
+-      BitSet var13 = ((ProtoChunk)var4).getOrCreateCarvingMask(var5);
++      BiomeGenerationSettings var10 = this.biomeSource.getNoiseBiome(QuartPos.fromBlock(var9.getMinBlockX()), 0, QuartPos.fromBlock(var9.getMinBlockZ())).getGenerationSettings();
++      CarvingContext var11 = new CarvingContext(this);
++      BitSet var12 = ((ProtoChunk)var4).getOrCreateCarvingMask(var5);
  
-       for(int var14 = var10 - 8; var14 <= var10 + 8; ++var14) {
-          for(int var15 = var11 - 8; var15 <= var11 + 8; ++var15) {
-             List var16 = var12.getCarvers(var5);
-@@ -163,11 +165,11 @@
+-      for(int var14 = var10 - 8; var14 <= var10 + 8; ++var14) {
+-         for(int var15 = var11 - 8; var15 <= var11 + 8; ++var15) {
+-            List var16 = var12.getCarvers(var5);
++      for(int var13 = -8; var13 <= 8; ++var13) {
++         for(int var14 = -8; var14 <= 8; ++var14) {
++            ChunkPos var15 = new ChunkPos(var9.x + var13, var9.z + var14);
++            List var16 = var10.getCarvers(var5);
+             ListIterator var17 = var16.listIterator();
+ 
+             while(var17.hasNext()) {
+                int var18 = var17.nextIndex();
+                ConfiguredWorldCarver var19 = (ConfiguredWorldCarver)((Supplier)var17.next()).get();
+-               var7.setLargeFeatureSeed(var1 + (long)var18, var14, var15);
+-               if (var19.isStartChunk(var7, var14, var15)) {
+-                  var19.carve(var4, var6::getBiome, var7, this.getSeaLevel(), var14, var15, var10, var11, var13);
++               var7.setLargeFeatureSeed(var1 + (long)var18, var15.x, var15.z);
++               if (var19.isStartChunk(var7)) {
++                  var19.carve(var11, var4, var6::getBiome, var7, this.getSeaLevel(), var15, var12);
+                }
+             }
+          }
+       }
+ 
+@@ -163,11 +167,11 @@
           BlockPos.MutableBlockPos var9 = new BlockPos.MutableBlockPos();
           Iterator var10 = this.strongholdPositions.iterator();
  
@@ -80,7 +123,7 @@
                 var14 = new BlockPos(var9);
                 var7 = var12;
              } else if (var12 < var7) {
-@@ -182,25 +184,24 @@
+@@ -182,25 +186,24 @@
           return var6 == null ? null : var2.getNearestGeneratedFeature(var1, var1.structureFeatureManager(), var3, var4, var5, var1.getSeed(), var6);
        }
     }
@@ -118,7 +161,16 @@
  
     public abstract void buildSurfaceAndBedrock(WorldGenRegion var1, ChunkAccess var2);
  
-@@ -226,67 +227,69 @@
+@@ -218,98 +221,104 @@
+    public BiomeSource getBiomeSource() {
+       return this.runtimeBiomeSource;
+    }
+ 
+    public int getGenDepth() {
+-      return 256;
++      return 384;
+    }
+ 
     public List<MobSpawnSettings.SpawnerData> getMobsAt(Biome var1, StructureFeatureManager var2, MobCategory var3, BlockPos var4) {
        return var1.getMobSettings().getMobs(var3);
     }
@@ -226,20 +278,27 @@
           }
        }
  
-@@ -296,20 +299,20 @@
+    }
+ 
+-   public abstract void fillFromNoise(LevelAccessor var1, StructureFeatureManager var2, ChunkAccess var3);
++   public abstract CompletableFuture<ChunkAccess> fillFromNoise(Executor var1, StructureFeatureManager var2, ChunkAccess var3);
  
     public int getSeaLevel() {
        return 63;
     }
  
 -   public abstract int getBaseHeight(int var1, int var2, Heightmap.Types var3);
-+   public abstract int getBaseHeight(int var1, int var2, Heightmap.Types var3, LevelHeightAccessor var4);
++   public int getMinY() {
++      return 0;
++   }
  
 -   public abstract BlockGetter getBaseColumn(int var1, int var2);
-+   public abstract NoiseColumn getBaseColumn(int var1, int var2, LevelHeightAccessor var3);
++   public abstract int getBaseHeight(int var1, int var2, Heightmap.Types var3, LevelHeightAccessor var4);
  
 -   public int getFirstFreeHeight(int var1, int var2, Heightmap.Types var3) {
 -      return this.getBaseHeight(var1, var2, var3);
++   public abstract NoiseColumn getBaseColumn(int var1, int var2, LevelHeightAccessor var3);
++
 +   public int getFirstFreeHeight(int var1, int var2, Heightmap.Types var3, LevelHeightAccessor var4) {
 +      return this.getBaseHeight(var1, var2, var3, var4);
     }

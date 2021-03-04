@@ -1,0 +1,41 @@
+--- net/minecraft/network/protocol/login/ClientboundCustomQueryPacket.java
++++ net/minecraft/network/protocol/login/ClientboundCustomQueryPacket.java
+@@ -1,32 +1,28 @@
+ package net.minecraft.network.protocol.login;
+ 
+-import java.io.IOException;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.resources.ResourceLocation;
+ 
+ public class ClientboundCustomQueryPacket implements Packet<ClientLoginPacketListener> {
+-   private int transactionId;
+-   private ResourceLocation identifier;
+-   private FriendlyByteBuf data;
++   private final int transactionId;
++   private final ResourceLocation identifier;
++   private final FriendlyByteBuf data;
+ 
+-   public ClientboundCustomQueryPacket() {
+-   }
+-
+-   public void read(FriendlyByteBuf var1) throws IOException {
++   public ClientboundCustomQueryPacket(FriendlyByteBuf var1) {
+       this.transactionId = var1.readVarInt();
+       this.identifier = var1.readResourceLocation();
+       int var2 = var1.readableBytes();
+       if (var2 >= 0 && var2 <= 1048576) {
+          this.data = new FriendlyByteBuf(var1.readBytes(var2));
+       } else {
+-         throw new IOException("Payload may not be larger than 1048576 bytes");
++         throw new IllegalArgumentException("Payload may not be larger than 1048576 bytes");
+       }
+    }
+ 
+-   public void write(FriendlyByteBuf var1) throws IOException {
++   public void write(FriendlyByteBuf var1) {
+       var1.writeVarInt(this.transactionId);
+       var1.writeResourceLocation(this.identifier);
+       var1.writeBytes(this.data.copy());
+    }
+ 

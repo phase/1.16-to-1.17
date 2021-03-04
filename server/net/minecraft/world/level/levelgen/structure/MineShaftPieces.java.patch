@@ -1,0 +1,371 @@
+--- net/minecraft/world/level/levelgen/structure/MineShaftPieces.java
++++ net/minecraft/world/level/levelgen/structure/MineShaftPieces.java
+@@ -12,13 +12,16 @@
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.vehicle.MinecartChest;
+ import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.LevelReader;
+ import net.minecraft.world.level.StructureFeatureManager;
+ import net.minecraft.world.level.WorldGenLevel;
++import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.FallingBlock;
+ import net.minecraft.world.level.block.FenceBlock;
+ import net.minecraft.world.level.block.RailBlock;
+ import net.minecraft.world.level.block.WallTorchBlock;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
+@@ -246,11 +249,11 @@
+ 
+       public boolean postProcess(WorldGenLevel var1, StructureFeatureManager var2, ChunkGenerator var3, Random var4, BoundingBox var5, ChunkPos var6, BlockPos var7) {
+          if (this.edgesLiquid(var1, var5)) {
+             return false;
+          } else {
+-            BlockState var8 = this.getPlanksBlock();
++            BlockState var8 = this.type.getPlanksState();
+             if (this.isTwoFloored) {
+                this.generateBox(var1, var5, this.boundingBox.x0 + 1, this.boundingBox.y0, this.boundingBox.z0, this.boundingBox.x1 - 1, this.boundingBox.y0 + 3 - 1, this.boundingBox.z1, CAVE_AIR, CAVE_AIR, false);
+                this.generateBox(var1, var5, this.boundingBox.x0, this.boundingBox.y0, this.boundingBox.z0 + 1, this.boundingBox.x1, this.boundingBox.y0 + 3 - 1, this.boundingBox.z1 - 1, CAVE_AIR, CAVE_AIR, false);
+                this.generateBox(var1, var5, this.boundingBox.x0 + 1, this.boundingBox.y1 - 2, this.boundingBox.z0, this.boundingBox.x1 - 1, this.boundingBox.y1, this.boundingBox.z1, CAVE_AIR, CAVE_AIR, false);
+                this.generateBox(var1, var5, this.boundingBox.x0, this.boundingBox.y1 - 2, this.boundingBox.z0 + 1, this.boundingBox.x1, this.boundingBox.y1, this.boundingBox.z1 - 1, CAVE_AIR, CAVE_AIR, false);
+@@ -262,26 +265,25 @@
+ 
+             this.placeSupportPillar(var1, var5, this.boundingBox.x0 + 1, this.boundingBox.y0, this.boundingBox.z0 + 1, this.boundingBox.y1);
+             this.placeSupportPillar(var1, var5, this.boundingBox.x0 + 1, this.boundingBox.y0, this.boundingBox.z1 - 1, this.boundingBox.y1);
+             this.placeSupportPillar(var1, var5, this.boundingBox.x1 - 1, this.boundingBox.y0, this.boundingBox.z0 + 1, this.boundingBox.y1);
+             this.placeSupportPillar(var1, var5, this.boundingBox.x1 - 1, this.boundingBox.y0, this.boundingBox.z1 - 1, this.boundingBox.y1);
++            int var9 = this.boundingBox.y0 - 1;
+ 
+-            for(int var9 = this.boundingBox.x0; var9 <= this.boundingBox.x1; ++var9) {
+-               for(int var10 = this.boundingBox.z0; var10 <= this.boundingBox.z1; ++var10) {
+-                  if (this.getBlock(var1, var9, this.boundingBox.y0 - 1, var10, var5).isAir() && this.isInterior(var1, var9, this.boundingBox.y0 - 1, var10, var5)) {
+-                     this.placeBlock(var1, var8, var9, this.boundingBox.y0 - 1, var10, var5);
+-                  }
++            for(int var10 = this.boundingBox.x0; var10 <= this.boundingBox.x1; ++var10) {
++               for(int var11 = this.boundingBox.z0; var11 <= this.boundingBox.z1; ++var11) {
++                  this.setPlanksBlock(var1, var5, var8, var10, var9, var11);
+                }
+             }
+ 
+             return true;
+          }
+       }
+ 
+       private void placeSupportPillar(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5, int var6) {
+          if (!this.getBlock(var1, var3, var6 + 1, var5, var2).isAir()) {
+-            this.generateBox(var1, var2, var3, var4, var5, var3, var6, var5, this.getPlanksBlock(), CAVE_AIR, false);
++            this.generateBox(var1, var2, var3, var4, var5, var3, var6, var5, this.type.getPlanksState(), CAVE_AIR, false);
+          }
+ 
+       }
+    }
+ 
+@@ -446,19 +448,20 @@
+             boolean var8 = false;
+             boolean var9 = true;
+             boolean var10 = false;
+             boolean var11 = true;
+             int var12 = this.numSections * 5 - 1;
+-            BlockState var13 = this.getPlanksBlock();
++            BlockState var13 = this.type.getPlanksState();
+             this.generateBox(var1, var5, 0, 0, 0, 2, 1, var12, CAVE_AIR, CAVE_AIR, false);
+             this.generateMaybeBox(var1, var5, var4, 0.8F, 0, 2, 0, 2, 2, var12, CAVE_AIR, CAVE_AIR, false, false);
+             if (this.spiderCorridor) {
+                this.generateMaybeBox(var1, var5, var4, 0.6F, 0, 0, 0, 2, 1, var12, Blocks.COBWEB.defaultBlockState(), CAVE_AIR, false, true);
+             }
+ 
+             int var14;
+             int var15;
++            int var16;
+             for(var14 = 0; var14 < this.numSections; ++var14) {
+                var15 = 2 + var14 * 5;
+                this.placeSupport(var1, var5, 0, 0, var15, 2, 2, var4);
+                this.placeCobWeb(var1, var5, var4, 0.1F, 0, 2, var15 - 1);
+                this.placeCobWeb(var1, var5, var4, 0.1F, 2, 2, var15 - 1);
+@@ -475,11 +478,11 @@
+                if (var4.nextInt(100) == 0) {
+                   this.createChest(var1, var5, var4, 0, 0, var15 + 1, BuiltInLootTables.ABANDONED_MINESHAFT);
+                }
+ 
+                if (this.spiderCorridor && !this.hasPlacedSpider) {
+-                  int var16 = this.getWorldY(0);
++                  var16 = this.getWorldY(0);
+                   int var17 = var15 - 1 + var4.nextInt(3);
+                   int var18 = this.getWorldX(1, var17);
+                   int var19 = this.getWorldZ(1, var17);
+                   BlockPos var20 = new BlockPos(var18, var16, var19);
+                   if (var5.isInside(var20) && this.isInterior(var1, 1, 0, var17, var5)) {
+@@ -493,56 +496,147 @@
+                }
+             }
+ 
+             for(var14 = 0; var14 <= 2; ++var14) {
+                for(var15 = 0; var15 <= var12; ++var15) {
+-                  boolean var23 = true;
+-                  BlockState var25 = this.getBlock(var1, var14, -1, var15, var5);
+-                  if (var25.isAir() && this.isInterior(var1, var14, -1, var15, var5)) {
+-                     boolean var27 = true;
+-                     this.placeBlock(var1, var13, var14, -1, var15, var5);
+-                  }
++                  this.setPlanksBlock(var1, var5, var13, var14, -1, var15);
+                }
+             }
+ 
++            boolean var22 = true;
++            this.placeDoubleLowerOrUpperSupport(var1, var5, 0, -1, 2);
++            if (this.numSections > 1) {
++               var15 = var12 - 2;
++               this.placeDoubleLowerOrUpperSupport(var1, var5, 0, -1, var15);
++            }
++
+             if (this.hasRails) {
+-               BlockState var22 = (BlockState)Blocks.RAIL.defaultBlockState().setValue(RailBlock.SHAPE, RailShape.NORTH_SOUTH);
++               BlockState var23 = (BlockState)Blocks.RAIL.defaultBlockState().setValue(RailBlock.SHAPE, RailShape.NORTH_SOUTH);
+ 
+-               for(var15 = 0; var15 <= var12; ++var15) {
+-                  BlockState var24 = this.getBlock(var1, 1, -1, var15, var5);
+-                  if (!var24.isAir() && var24.isSolidRender(var1, new BlockPos(this.getWorldX(1, var15), this.getWorldY(-1), this.getWorldZ(1, var15)))) {
+-                     float var26 = this.isInterior(var1, 1, 0, var15, var5) ? 0.7F : 0.9F;
+-                     this.maybeGenerateBlock(var1, var5, var4, var26, 1, 0, var15, var22);
++               for(var16 = 0; var16 <= var12; ++var16) {
++                  BlockState var24 = this.getBlock(var1, 1, -1, var16, var5);
++                  if (!var24.isAir() && var24.isSolidRender(var1, new BlockPos(this.getWorldX(1, var16), this.getWorldY(-1), this.getWorldZ(1, var16)))) {
++                     float var25 = this.isInterior(var1, 1, 0, var16, var5) ? 0.7F : 0.9F;
++                     this.maybeGenerateBlock(var1, var5, var4, var25, 1, 0, var16, var23, false);
+                   }
+                }
+             }
+ 
+             return true;
+          }
+       }
+ 
++      private void placeDoubleLowerOrUpperSupport(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5) {
++         BlockState var6 = this.type.getWoodState();
++         BlockState var7 = this.type.getPlanksState();
++         if (this.getBlock(var1, var3, var4, var5, var2).is(var7.getBlock())) {
++            this.fillPillarDownOrChainUp(var1, var6, var3, var4, var5, var2);
++         }
++
++         if (this.getBlock(var1, var3 + 2, var4, var5, var2).is(var7.getBlock())) {
++            this.fillPillarDownOrChainUp(var1, var6, var3 + 2, var4, var5, var2);
++         }
++
++      }
++
++      protected void fillColumnDown(WorldGenLevel var1, BlockState var2, int var3, int var4, int var5, BoundingBox var6) {
++         int var7 = this.getWorldX(var3, var5);
++         int var8 = this.getWorldY(var4);
++         int var9 = this.getWorldZ(var3, var5);
++         BlockPos.MutableBlockPos var10 = new BlockPos.MutableBlockPos(var7, var8, var9);
++         if (var6.isInside(var10)) {
++            while(this.isReplaceableByStructures(var1.getBlockState(var10)) && var10.getY() > var1.getMinBuildHeight() + 1) {
++               var10.move(Direction.DOWN);
++            }
++
++            if (this.canPlaceColumnOnTopOf(var1.getBlockState(var10))) {
++               while(var10.getY() < var8) {
++                  var10.move(Direction.UP);
++                  var1.setBlock(var10, var2, 2);
++               }
++
++            }
++         }
++      }
++
++      protected void fillPillarDownOrChainUp(WorldGenLevel var1, BlockState var2, int var3, int var4, int var5, BoundingBox var6) {
++         int var7 = this.getWorldX(var3, var5);
++         int var8 = this.getWorldY(var4);
++         int var9 = this.getWorldZ(var3, var5);
++         BlockPos.MutableBlockPos var10 = new BlockPos.MutableBlockPos(var7, var8, var9);
++         if (var6.isInside(var10)) {
++            int var11 = 1;
++            boolean var12 = true;
++
++            for(boolean var13 = true; var12 || var13; ++var11) {
++               BlockState var14;
++               boolean var15;
++               if (var12) {
++                  var10.setY(var8 - var11);
++                  var14 = var1.getBlockState(var10);
++                  var15 = this.isReplaceableByStructures(var14);
++                  if (!var15 && this.canPlaceColumnOnTopOf(var14)) {
++                     fillColumnBetween(var1, var2, var10, var8 - var11 + 1, var8);
++                     return;
++                  }
++
++                  var12 = var11 <= 10 && var15 && var10.getY() > var1.getMinBuildHeight() + 1;
++               }
++
++               if (var13) {
++                  var10.setY(var8 + var11);
++                  var14 = var1.getBlockState(var10);
++                  var15 = this.isReplaceableByStructures(var14);
++                  if (!var15 && this.canHangChainBelow(var1, var10, var14)) {
++                     var1.setBlock(var10.setY(var8 + 1), this.type.getFenceState(), 2);
++                     fillColumnBetween(var1, Blocks.CHAIN.defaultBlockState(), var10, var8 + 2, var8 + var11);
++                     return;
++                  }
++
++                  var13 = var11 <= 20 && var15 && var10.getY() < var1.getMaxBuildHeight() - 1;
++               }
++            }
++
++         }
++      }
++
++      private static void fillColumnBetween(WorldGenLevel var0, BlockState var1, BlockPos.MutableBlockPos var2, int var3, int var4) {
++         for(int var5 = var3; var5 < var4; ++var5) {
++            var0.setBlock(var2.setY(var5), var1, 2);
++         }
++
++      }
++
++      private boolean canPlaceColumnOnTopOf(BlockState var1) {
++         return !var1.is(Blocks.RAIL) && !var1.is(Blocks.LAVA);
++      }
++
++      private boolean canHangChainBelow(LevelReader var1, BlockPos var2, BlockState var3) {
++         return Block.canSupportCenter(var1, var2, Direction.DOWN) && !(var3.getBlock() instanceof FallingBlock);
++      }
++
+       private void placeSupport(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5, int var6, int var7, Random var8) {
+          if (this.isSupportingBox(var1, var2, var3, var7, var6, var5)) {
+-            BlockState var9 = this.getPlanksBlock();
+-            BlockState var10 = this.getFenceBlock();
++            BlockState var9 = this.type.getPlanksState();
++            BlockState var10 = this.type.getFenceState();
+             this.generateBox(var1, var2, var3, var4, var5, var3, var6 - 1, var5, (BlockState)var10.setValue(FenceBlock.WEST, true), CAVE_AIR, false);
+             this.generateBox(var1, var2, var7, var4, var5, var7, var6 - 1, var5, (BlockState)var10.setValue(FenceBlock.EAST, true), CAVE_AIR, false);
+             if (var8.nextInt(4) == 0) {
+                this.generateBox(var1, var2, var3, var6, var5, var3, var6, var5, var9, CAVE_AIR, false);
+                this.generateBox(var1, var2, var7, var6, var5, var7, var6, var5, var9, CAVE_AIR, false);
+             } else {
+                this.generateBox(var1, var2, var3, var6, var5, var7, var6, var5, var9, CAVE_AIR, false);
+-               this.maybeGenerateBlock(var1, var2, var8, 0.05F, var3 + 1, var6, var5 - 1, (BlockState)Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.NORTH));
+-               this.maybeGenerateBlock(var1, var2, var8, 0.05F, var3 + 1, var6, var5 + 1, (BlockState)Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.SOUTH));
++               this.maybeGenerateBlock(var1, var2, var8, 0.05F, var3 + 1, var6, var5 - 1, (BlockState)Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.NORTH), false);
++               this.maybeGenerateBlock(var1, var2, var8, 0.05F, var3 + 1, var6, var5 + 1, (BlockState)Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.SOUTH), false);
+             }
+ 
+          }
+       }
+ 
+       private void placeCobWeb(WorldGenLevel var1, BoundingBox var2, Random var3, float var4, int var5, int var6, int var7) {
+          if (this.isInterior(var1, var5, var6, var7, var2)) {
+-            this.maybeGenerateBlock(var1, var2, var3, var4, var5, var6, var7, Blocks.COBWEB.defaultBlockState());
++            this.maybeGenerateBlock(var1, var2, var3, var4, var5, var6, var7, Blocks.COBWEB.defaultBlockState(), true);
+          }
+ 
+       }
+    }
+ 
+@@ -683,40 +777,86 @@
+       public MineShaftPiece(StructurePieceType var1, CompoundTag var2) {
+          super(var1, var2);
+          this.type = MineshaftFeature.Type.byId(var2.getInt("MST"));
+       }
+ 
++      protected boolean canBeReplaced(LevelReader var1, int var2, int var3, int var4, BoundingBox var5) {
++         BlockState var6 = this.getBlock(var1, var2, var3, var4, var5);
++         return !var6.is(this.type.getPlanksState().getBlock()) && !var6.is(this.type.getWoodState().getBlock()) && !var6.is(this.type.getFenceState().getBlock()) && !var6.is(Blocks.CHAIN);
++      }
++
+       protected void addAdditionalSaveData(CompoundTag var1) {
+          var1.putInt("MST", this.type.ordinal());
+       }
+ 
+-      protected BlockState getPlanksBlock() {
+-         switch(this.type) {
+-         case NORMAL:
+-         default:
+-            return Blocks.OAK_PLANKS.defaultBlockState();
+-         case MESA:
+-            return Blocks.DARK_OAK_PLANKS.defaultBlockState();
+-         }
+-      }
+-
+-      protected BlockState getFenceBlock() {
+-         switch(this.type) {
+-         case NORMAL:
+-         default:
+-            return Blocks.OAK_FENCE.defaultBlockState();
+-         case MESA:
+-            return Blocks.DARK_OAK_FENCE.defaultBlockState();
+-         }
+-      }
+-
+       protected boolean isSupportingBox(BlockGetter var1, BoundingBox var2, int var3, int var4, int var5, int var6) {
+          for(int var7 = var3; var7 <= var4; ++var7) {
+             if (this.getBlock(var1, var7, var5 + 1, var6, var2).isAir()) {
+                return false;
+             }
+          }
+ 
+          return true;
+       }
++
++      protected boolean edgesLiquid(BlockGetter var1, BoundingBox var2) {
++         int var3 = Math.max(this.boundingBox.x0 - 1, var2.x0);
++         int var4 = Math.max(this.boundingBox.y0 - 1, var2.y0);
++         int var5 = Math.max(this.boundingBox.z0 - 1, var2.z0);
++         int var6 = Math.min(this.boundingBox.x1 + 1, var2.x1);
++         int var7 = Math.min(this.boundingBox.y1 + 1, var2.y1);
++         int var8 = Math.min(this.boundingBox.z1 + 1, var2.z1);
++         BlockPos.MutableBlockPos var9 = new BlockPos.MutableBlockPos();
++
++         int var10;
++         int var11;
++         for(var10 = var3; var10 <= var6; ++var10) {
++            for(var11 = var5; var11 <= var8; ++var11) {
++               if (var1.getBlockState(var9.set(var10, var4, var11)).getMaterial().isLiquid()) {
++                  return true;
++               }
++
++               if (var1.getBlockState(var9.set(var10, var7, var11)).getMaterial().isLiquid()) {
++                  return true;
++               }
++            }
++         }
++
++         for(var10 = var3; var10 <= var6; ++var10) {
++            for(var11 = var4; var11 <= var7; ++var11) {
++               if (var1.getBlockState(var9.set(var10, var11, var5)).getMaterial().isLiquid()) {
++                  return true;
++               }
++
++               if (var1.getBlockState(var9.set(var10, var11, var8)).getMaterial().isLiquid()) {
++                  return true;
++               }
++            }
++         }
++
++         for(var10 = var5; var10 <= var8; ++var10) {
++            for(var11 = var4; var11 <= var7; ++var11) {
++               if (var1.getBlockState(var9.set(var3, var11, var10)).getMaterial().isLiquid()) {
++                  return true;
++               }
++
++               if (var1.getBlockState(var9.set(var6, var11, var10)).getMaterial().isLiquid()) {
++                  return true;
++               }
++            }
++         }
++
++         return false;
++      }
++
++      protected void setPlanksBlock(WorldGenLevel var1, BoundingBox var2, BlockState var3, int var4, int var5, int var6) {
++         if (this.isInterior(var1, var4, var5, var6, var2)) {
++            BlockPos var7 = this.getWorldPos(var4, var5, var6);
++            BlockState var8 = var1.getBlockState(var7);
++            if (var8.isAir() || var8.is(Blocks.CHAIN)) {
++               var1.setBlock(var7, var3, 2);
++            }
++
++         }
++      }
+    }
+ }
