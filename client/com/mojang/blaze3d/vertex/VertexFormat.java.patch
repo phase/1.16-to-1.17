@@ -1,15 +1,157 @@
 --- com/mojang/blaze3d/vertex/VertexFormat.java
 +++ com/mojang/blaze3d/vertex/VertexFormat.java
-@@ -83,6 +83,67 @@
-             var2.clearBufferState();
-          }
+@@ -1,34 +1,41 @@
+ package com.mojang.blaze3d.vertex;
  
+ import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
+ import com.google.common.collect.UnmodifiableIterator;
++import com.mojang.blaze3d.platform.GlStateManager;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import it.unimi.dsi.fastutil.ints.IntArrayList;
+ import it.unimi.dsi.fastutil.ints.IntList;
+ import java.util.stream.Collectors;
+ 
+ public class VertexFormat {
+    private final ImmutableList<VertexFormatElement> elements;
++   private final ImmutableMap<String, VertexFormatElement> elementMapping;
+    private final IntList offsets = new IntArrayList();
+    private final int vertexSize;
++   private int vertexArrayObject;
++   private int vertexBufferObject;
++   private int indexBufferObject;
+ 
+-   public VertexFormat(ImmutableList<VertexFormatElement> var1) {
+-      this.elements = var1;
++   public VertexFormat(ImmutableMap<String, VertexFormatElement> var1) {
++      this.elementMapping = var1;
++      this.elements = var1.values().asList();
+       int var2 = 0;
+ 
+       VertexFormatElement var4;
+-      for(UnmodifiableIterator var3 = var1.iterator(); var3.hasNext(); var2 += var4.getByteSize()) {
++      for(UnmodifiableIterator var3 = var1.values().iterator(); var3.hasNext(); var2 += var4.getByteSize()) {
+          var4 = (VertexFormatElement)var3.next();
+          this.offsets.add(var2);
+       }
+ 
+       this.vertexSize = var2;
+    }
+ 
+    public String toString() {
+-      return "format: " + this.elements.size() + " elements: " + (String)this.elements.stream().map(Object::toString).collect(Collectors.joining(" "));
++      return "format: " + this.elementMapping.size() + " elements: " + (String)this.elementMapping.entrySet().stream().map(Object::toString).collect(Collectors.joining(" "));
+    }
+ 
+    public int getIntegerSize() {
+       return this.getVertexSize() / 4;
+    }
+@@ -39,50 +46,149 @@
+ 
+    public ImmutableList<VertexFormatElement> getElements() {
+       return this.elements;
+    }
+ 
++   public ImmutableList<String> getElementAttributeNames() {
++      return this.elementMapping.keySet().asList();
++   }
++
+    public boolean equals(Object var1) {
+       if (this == var1) {
+          return true;
+       } else if (var1 != null && this.getClass() == var1.getClass()) {
+          VertexFormat var2 = (VertexFormat)var1;
+-         return this.vertexSize != var2.vertexSize ? false : this.elements.equals(var2.elements);
++         return this.vertexSize != var2.vertexSize ? false : this.elementMapping.equals(var2.elementMapping);
+       } else {
+          return false;
        }
     }
+ 
+    public int hashCode() {
+-      return this.elements.hashCode();
++      return this.elementMapping.hashCode();
+    }
+ 
+-   public void setupBufferState(long var1) {
++   public void setupBufferState() {
+       if (!RenderSystem.isOnRenderThread()) {
+-         RenderSystem.recordRenderCall(() -> {
+-            this.setupBufferState(var1);
+-         });
++         RenderSystem.recordRenderCall(this::_setupBufferState);
+       } else {
+-         int var3 = this.getVertexSize();
+-         ImmutableList var4 = this.getElements();
++         this._setupBufferState();
++      }
++   }
+ 
+-         for(int var5 = 0; var5 < var4.size(); ++var5) {
+-            ((VertexFormatElement)var4.get(var5)).setupBufferState(var1 + (long)this.offsets.getInt(var5), var3);
+-         }
++   private void _setupBufferState() {
++      int var1 = this.getVertexSize();
++      ImmutableList var2 = this.getElements();
+ 
++      for(int var3 = 0; var3 < var2.size(); ++var3) {
++         ((VertexFormatElement)var2.get(var3)).setupBufferState(var3, (long)this.offsets.getInt(var3), var1);
+       }
++
+    }
+ 
+    public void clearBufferState() {
+       if (!RenderSystem.isOnRenderThread()) {
+-         RenderSystem.recordRenderCall(this::clearBufferState);
++         RenderSystem.recordRenderCall(this::_clearBufferState);
+       } else {
+-         UnmodifiableIterator var1 = this.getElements().iterator();
++         this._clearBufferState();
++      }
++   }
+ 
+-         while(var1.hasNext()) {
+-            VertexFormatElement var2 = (VertexFormatElement)var1.next();
+-            var2.clearBufferState();
++   private void _clearBufferState() {
++      ImmutableList var1 = this.getElements();
++
++      for(int var2 = 0; var2 < var1.size(); ++var2) {
++         VertexFormatElement var3 = (VertexFormatElement)var1.get(var2);
++         var3.clearBufferState(var2);
++      }
++
++   }
++
++   public int getOrCreateVertexArrayObject() {
++      if (this.vertexArrayObject == 0) {
++         this.vertexArrayObject = GlStateManager._glGenVertexArrays();
++      }
++
++      return this.vertexArrayObject;
++   }
++
++   public int getOrCreateVertexBufferObject() {
++      if (this.vertexBufferObject == 0) {
++         this.vertexBufferObject = GlStateManager._glGenBuffers();
++      }
++
++      return this.vertexBufferObject;
++   }
++
++   public int getOrCreateIndexBufferObject() {
++      if (this.indexBufferObject == 0) {
++         this.indexBufferObject = GlStateManager._glGenBuffers();
++      }
++
++      return this.indexBufferObject;
++   }
 +
 +   public static enum Mode {
-+      LINES(1, 2, 2),
-+      LINE_STRIP(3, 2, 1),
++      LINES(4, 2, 2),
++      LINE_STRIP(5, 2, 1),
++      DEBUG_LINES(1, 2, 2),
++      DEBUG_LINE_STRIP(3, 2, 1),
 +      TRIANGLES(4, 3, 3),
 +      TRIANGLE_STRIP(5, 3, 1),
 +      TRIANGLE_FAN(6, 3, 1),
@@ -28,23 +170,25 @@
 +      public int indexCount(int var1) {
 +         int var2;
 +         switch(this) {
-+         case LINES:
 +         case LINE_STRIP:
++         case DEBUG_LINES:
++         case DEBUG_LINE_STRIP:
 +         case TRIANGLES:
 +         case TRIANGLE_STRIP:
 +         case TRIANGLE_FAN:
 +            var2 = var1;
 +            break;
++         case LINES:
 +         case QUADS:
 +            var2 = var1 / 4 * 6;
 +            break;
 +         default:
 +            var2 = 0;
-+         }
-+
+          }
+ 
 +         return var2;
-+      }
-+   }
+       }
+    }
 +
 +   public static enum IndexType {
 +      BYTE(5121, 1),

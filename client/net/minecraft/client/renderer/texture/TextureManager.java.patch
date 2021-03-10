@@ -1,0 +1,69 @@
+--- net/minecraft/client/renderer/texture/TextureManager.java
++++ net/minecraft/client/renderer/texture/TextureManager.java
+@@ -10,11 +10,10 @@
+ import java.util.Map;
+ import java.util.Set;
+ import java.util.Map.Entry;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.Executor;
+-import javax.annotation.Nullable;
+ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportCategory;
+ import net.minecraft.ReportedException;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.components.AbstractWidget;
+@@ -36,11 +35,11 @@
+ 
+    public TextureManager(ResourceManager var1) {
+       this.resourceManager = var1;
+    }
+ 
+-   public void bind(ResourceLocation var1) {
++   public void bindForSetup(ResourceLocation var1) {
+       if (!RenderSystem.isOnRenderThread()) {
+          RenderSystem.recordRenderCall(() -> {
+             this._bind(var1);
+          });
+       } else {
+@@ -106,15 +105,24 @@
+          });
+          throw new ReportedException(var4);
+       }
+    }
+ 
+-   @Nullable
+    public AbstractTexture getTexture(ResourceLocation var1) {
+-      return (AbstractTexture)this.byPath.get(var1);
++      Object var2 = (AbstractTexture)this.byPath.get(var1);
++      if (var2 == null) {
++         var2 = new SimpleTexture(var1);
++         this.register((ResourceLocation)var1, (AbstractTexture)var2);
++      }
++
++      return (AbstractTexture)var2;
+    }
+ 
++   public AbstractTexture getTexture(ResourceLocation var1, AbstractTexture var2) {
++      return (AbstractTexture)this.byPath.getOrDefault(var1, var2);
++   }
++
+    public ResourceLocation register(String var1, DynamicTexture var2) {
+       Integer var3 = (Integer)this.prefixRegister.get(var1);
+       if (var3 == null) {
+          var3 = 1;
+       } else {
+@@ -154,12 +162,12 @@
+       }
+ 
+    }
+ 
+    public void release(ResourceLocation var1) {
+-      AbstractTexture var2 = this.getTexture(var1);
+-      if (var2 != null) {
++      AbstractTexture var2 = this.getTexture(var1, MissingTextureAtlasSprite.getTexture());
++      if (var2 != MissingTextureAtlasSprite.getTexture()) {
+          TextureUtil.releaseTextureId(var2.getId());
+       }
+ 
+    }
+ 

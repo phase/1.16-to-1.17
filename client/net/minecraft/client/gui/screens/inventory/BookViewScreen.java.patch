@@ -1,6 +1,6 @@
 --- net/minecraft/client/gui/screens/inventory/BookViewScreen.java
 +++ net/minecraft/client/gui/screens/inventory/BookViewScreen.java
-@@ -4,12 +4,15 @@
+@@ -4,16 +4,20 @@
  import com.google.common.collect.ImmutableList.Builder;
  import com.mojang.blaze3d.systems.RenderSystem;
  import com.mojang.blaze3d.vertex.PoseStack;
@@ -15,8 +15,13 @@
  import net.minecraft.client.gui.chat.NarratorChatListener;
  import net.minecraft.client.gui.components.Button;
  import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.nbt.CompoundTag;
-@@ -23,11 +26,10 @@
+ import net.minecraft.nbt.ListTag;
+ import net.minecraft.network.chat.ClickEvent;
+ import net.minecraft.network.chat.CommonComponents;
+ import net.minecraft.network.chat.Component;
+@@ -23,11 +27,10 @@
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.resources.ResourceLocation;
@@ -28,7 +33,46 @@
  import net.minecraft.world.item.WrittenBookItem;
  
  public class BookViewScreen extends Screen {
-@@ -253,19 +255,33 @@
+@@ -155,12 +158,13 @@
+       }
+    }
+ 
+    public void render(PoseStack var1, int var2, int var3, float var4) {
+       this.renderBackground(var1);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      this.minecraft.getTextureManager().bind(BOOK_LOCATION);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, BOOK_LOCATION);
+       int var5 = (this.width - 192) / 2;
+       boolean var6 = true;
+       this.blit(var1, var5, 2, 0, 0, 192, 192);
+       if (this.cachedPage != this.currentPage) {
+          FormattedText var7 = this.bookAccess.getPage(this.currentPage);
+@@ -215,17 +219,21 @@
+             return false;
+          }
+       } else {
+          boolean var3 = super.handleComponentClicked(var1);
+          if (var3 && var2.getAction() == ClickEvent.Action.RUN_COMMAND) {
+-            this.minecraft.setScreen((Screen)null);
++            this.closeScreen();
+          }
+ 
+          return var3;
+       }
+    }
+ 
++   protected void closeScreen() {
++      this.minecraft.setScreen((Screen)null);
++   }
++
+    @Nullable
+    public Style getClickedComponentStyleAt(double var1, double var3) {
+       if (this.cachedPageComponents.isEmpty()) {
+          return null;
+       } else {
+@@ -253,19 +261,33 @@
              return null;
           }
        }
@@ -68,7 +112,7 @@
     public static class WritableBookAccess implements BookViewScreen.BookAccess {
        private final List<String> pages;
  
-@@ -273,11 +289,11 @@
+@@ -273,11 +295,11 @@
           this.pages = readPages(var1);
        }
  
@@ -81,7 +125,7 @@
        public int getPageCount() {
           return this.pages.size();
        }
-@@ -294,11 +310,11 @@
+@@ -294,11 +316,11 @@
           this.pages = readPages(var1);
        }
  
@@ -94,7 +138,7 @@
        public int getPageCount() {
           return this.pages.size();
        }
-@@ -326,14 +342,13 @@
+@@ -326,14 +348,13 @@
        default FormattedText getPage(int var1) {
           return var1 >= 0 && var1 < this.getPageCount() ? this.getPageRaw(var1) : FormattedText.EMPTY;
        }

@@ -1,0 +1,80 @@
+--- net/minecraft/client/gui/screens/inventory/BeaconScreen.java
++++ net/minecraft/client/gui/screens/inventory/BeaconScreen.java
+@@ -5,12 +5,12 @@
+ import java.util.Iterator;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.components.AbstractButton;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+-import net.minecraft.core.NonNullList;
+ import net.minecraft.network.chat.CommonComponents;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TextComponent;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.network.protocol.Packet;
+@@ -39,17 +39,14 @@
+    public BeaconScreen(final BeaconMenu var1, Inventory var2, Component var3) {
+       super(var1, var2, var3);
+       this.imageWidth = 230;
+       this.imageHeight = 219;
+       var1.addSlotListener(new ContainerListener() {
+-         public void refreshContainer(AbstractContainerMenu var1x, NonNullList<ItemStack> var2) {
+-         }
+-
+          public void slotChanged(AbstractContainerMenu var1x, int var2, ItemStack var3) {
+          }
+ 
+-         public void setContainerData(AbstractContainerMenu var1x, int var2, int var3) {
++         public void dataChanged(AbstractContainerMenu var1x, int var2, int var3) {
+             BeaconScreen.this.primary = var1.getPrimaryEffect();
+             BeaconScreen.this.secondary = var1.getSecondaryEffect();
+             BeaconScreen.this.initPowerButtons = true;
+          }
+       });
+@@ -133,12 +130,13 @@
+       }
+ 
+    }
+ 
+    protected void renderBg(PoseStack var1, float var2, int var3, int var4) {
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      this.minecraft.getTextureManager().bind(BEACON_LOCATION);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, BEACON_LOCATION);
+       int var5 = (this.width - this.imageWidth) / 2;
+       int var6 = (this.height - this.imageHeight) / 2;
+       this.blit(var1, var5, var6, 0, 0, this.imageWidth, this.imageHeight);
+       this.itemRenderer.blitOffset = 100.0F;
+       this.itemRenderer.renderAndDecorateItem(new ItemStack(Items.NETHERITE_INGOT), var5 + 20, var6 + 109);
+@@ -242,11 +240,11 @@
+       public void renderToolTip(PoseStack var1, int var2, int var3) {
+          BeaconScreen.this.renderTooltip(var1, this.tooltip, var2, var3);
+       }
+ 
+       protected void renderIcon(PoseStack var1) {
+-         Minecraft.getInstance().getTextureManager().bind(this.sprite.atlas().location());
++         RenderSystem.setShaderTexture(0, this.sprite.atlas().location());
+          blit(var1, this.x + 2, this.y + 2, this.getBlitOffset(), 18, 18, this.sprite);
+       }
+    }
+ 
+    abstract static class BeaconScreenButton extends AbstractButton {
+@@ -255,12 +253,13 @@
+       protected BeaconScreenButton(int var1, int var2) {
+          super(var1, var2, 22, 22, TextComponent.EMPTY);
+       }
+ 
+       public void renderButton(PoseStack var1, int var2, int var3, float var4) {
+-         Minecraft.getInstance().getTextureManager().bind(BeaconScreen.BEACON_LOCATION);
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
++         RenderSystem.setShaderTexture(0, BeaconScreen.BEACON_LOCATION);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+          boolean var5 = true;
+          int var6 = 0;
+          if (!this.active) {
+             var6 += this.width * 2;
+          } else if (this.selected) {

@@ -1,18 +1,25 @@
 --- net/minecraft/commands/arguments/coordinates/BlockPosArgument.java
 +++ net/minecraft/commands/arguments/coordinates/BlockPosArgument.java
-@@ -14,11 +14,10 @@
+@@ -14,16 +14,17 @@
  import net.minecraft.commands.CommandSourceStack;
  import net.minecraft.commands.Commands;
  import net.minecraft.commands.SharedSuggestionProvider;
  import net.minecraft.core.BlockPos;
  import net.minecraft.network.chat.TranslatableComponent;
 -import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.level.Level;
  
  public class BlockPosArgument implements ArgumentType<Coordinates> {
     private static final Collection<String> EXAMPLES = Arrays.asList("0 0 0", "~ ~ ~", "^ ^ ^", "^1 ^ ^-5", "~0.5 ~1 ~-5");
     public static final SimpleCommandExceptionType ERROR_NOT_LOADED = new SimpleCommandExceptionType(new TranslatableComponent("argument.pos.unloaded"));
     public static final SimpleCommandExceptionType ERROR_OUT_OF_WORLD = new SimpleCommandExceptionType(new TranslatableComponent("argument.pos.outofworld"));
-@@ -32,21 +31,18 @@
++   public static final SimpleCommandExceptionType ERROR_OUT_OF_BOUNDS = new SimpleCommandExceptionType(new TranslatableComponent("argument.pos.outofbounds"));
+ 
+    public BlockPosArgument() {
+    }
+ 
+    public static BlockPosArgument blockPos() {
+@@ -32,22 +33,24 @@
  
     public static BlockPos getLoadedBlockPos(CommandContext<CommandSourceStack> var0, String var1) throws CommandSyntaxException {
        BlockPos var2 = ((Coordinates)var0.getArgument(var1, Coordinates.class)).getBlockPos((CommandSourceStack)var0.getSource());
@@ -32,9 +39,16 @@
     }
  
 -   public static BlockPos getOrLoadBlockPos(CommandContext<CommandSourceStack> var0, String var1) throws CommandSyntaxException {
-+   public static BlockPos getOrLoadBlockPos(CommandContext<CommandSourceStack> var0, String var1) {
-       return ((Coordinates)var0.getArgument(var1, Coordinates.class)).getBlockPos((CommandSourceStack)var0.getSource());
+-      return ((Coordinates)var0.getArgument(var1, Coordinates.class)).getBlockPos((CommandSourceStack)var0.getSource());
++   public static BlockPos getSpawnablePos(CommandContext<CommandSourceStack> var0, String var1) throws CommandSyntaxException {
++      BlockPos var2 = ((Coordinates)var0.getArgument(var1, Coordinates.class)).getBlockPos((CommandSourceStack)var0.getSource());
++      if (!Level.isInSpawnableBounds(var2)) {
++         throw ERROR_OUT_OF_BOUNDS.create();
++      } else {
++         return var2;
++      }
     }
  
     public Coordinates parse(StringReader var1) throws CommandSyntaxException {
        return (Coordinates)(var1.canRead() && var1.peek() == '^' ? LocalCoordinates.parse(var1) : WorldCoordinates.parseInt(var1));
+    }

@@ -1,9 +1,23 @@
 --- net/minecraft/world/level/levelgen/feature/StructureFeature.java
 +++ net/minecraft/world/level/levelgen/feature/StructureFeature.java
-@@ -16,10 +16,11 @@
+@@ -4,22 +4,25 @@
+ import com.google.common.collect.HashBiMap;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
+ import com.google.common.collect.Maps;
+ import com.mojang.serialization.Codec;
++import com.mojang.serialization.DataResult;
+ import java.util.List;
+ import java.util.Locale;
+ import java.util.Map;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Registry;
+ import net.minecraft.core.RegistryAccess;
  import net.minecraft.core.SectionPos;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.ListTag;
++import net.minecraft.nbt.NbtOps;
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.world.level.ChunkPos;
 +import net.minecraft.world.level.LevelHeightAccessor;
@@ -12,7 +26,7 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeSource;
  import net.minecraft.world.level.biome.MobSpawnSettings;
-@@ -103,40 +104,39 @@
+@@ -103,40 +106,48 @@
           StructureFeature var5 = (StructureFeature)Registry.STRUCTURE_FEATURE.get(new ResourceLocation(var4.toLowerCase(Locale.ROOT)));
           if (var5 == null) {
              LOGGER.error((String)"Unknown feature id: {}", (Object)var4);
@@ -25,9 +39,18 @@
 -            ListTag var10 = var1.getList("Children", 10);
 +            ChunkPos var6 = new ChunkPos(var1.getInt("ChunkX"), var1.getInt("ChunkZ"));
 +            int var7 = var1.getInt("references");
-+            BoundingBox var8 = var1.contains("BB") ? new BoundingBox(var1.getIntArray("BB")) : BoundingBox.getUnknownBox();
-+            ListTag var9 = var1.getList("Children", 10);
++            BoundingBox var8;
++            if (var1.contains("BB")) {
++               DataResult var10000 = BoundingBox.CODEC.parse(NbtOps.INSTANCE, var1.get("BB"));
++               Logger var10001 = LOGGER;
++               var10001.getClass();
++               var8 = (BoundingBox)var10000.resultOrPartial(var10001::error).orElse(new BoundingBox(BlockPos.ZERO));
++            } else {
++               var8 = BoundingBox.getUnknownBox();
++            }
  
++            ListTag var9 = var1.getList("Children", 10);
++
              try {
 -               StructureStart var11 = var5.createStart(var6, var7, var9, var8, var2);
 +               StructureStart var10 = var5.createStart(var6, var8, var7, var2);
@@ -73,7 +96,7 @@
           }
        }
     }
-@@ -150,12 +150,12 @@
+@@ -150,12 +161,12 @@
     }
  
     @Nullable
@@ -88,7 +111,7 @@
        for(WorldgenRandom var13 = new WorldgenRandom(); var12 <= var4; ++var12) {
           for(int var14 = -var12; var14 <= var12; ++var14) {
              boolean var15 = var14 == -var12 || var14 == var12;
-@@ -164,20 +164,23 @@
+@@ -164,20 +175,23 @@
                 boolean var17 = var16 == -var12 || var16 == var12;
                 if (var15 || var17) {
                    int var18 = var10 + var9 * var14;
@@ -121,7 +144,7 @@
  
                    if (var12 == 0) {
                       break;
-@@ -215,25 +218,25 @@
+@@ -215,25 +229,25 @@
        }
  
        return new ChunkPos(var9 * var7 + var11, var10 * var7 + var12);
@@ -157,7 +180,7 @@
  
        return StructureStart.INVALID_START;
     }
-@@ -269,14 +272,14 @@
+@@ -269,14 +283,14 @@
        END_CITY = register("EndCity", new EndCityFeature(NoneFeatureConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
        BURIED_TREASURE = register("Buried_Treasure", new BuriedTreasureFeature(ProbabilityFeatureConfiguration.CODEC), GenerationStep.Decoration.UNDERGROUND_STRUCTURES);
        VILLAGE = register("Village", new VillageFeature(JigsawConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);

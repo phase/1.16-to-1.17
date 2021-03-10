@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/player/Inventory.java
 +++ net/minecraft/world/entity/player/Inventory.java
-@@ -20,11 +20,10 @@
+@@ -20,29 +20,26 @@
  import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.item.ArmorItem;
@@ -12,7 +12,25 @@
  public class Inventory implements Container, Nameable {
     public final NonNullList<ItemStack> items;
     public final NonNullList<ItemStack> armor;
-@@ -51,17 +50,13 @@
+    public final NonNullList<ItemStack> offhand;
+    private final List<NonNullList<ItemStack>> compartments;
+    public int selected;
+    public final Player player;
+-   private ItemStack carried;
+    private int timesChanged;
+ 
+    public Inventory(Player var1) {
+       this.items = NonNullList.withSize(36, ItemStack.EMPTY);
+       this.armor = NonNullList.withSize(4, ItemStack.EMPTY);
+       this.offhand = NonNullList.withSize(1, ItemStack.EMPTY);
+       this.compartments = ImmutableList.of(this.items, this.armor, this.offhand);
+-      this.carried = ItemStack.EMPTY;
+       this.player = var1;
+    }
+ 
+    public ItemStack getSelected() {
+       return isHotbarSlot(this.selected) ? (ItemStack)this.items.get(this.selected) : ItemStack.EMPTY;
+@@ -51,17 +48,13 @@
     public static int getSelectionSize() {
        return 9;
     }
@@ -31,7 +49,7 @@
           if (((ItemStack)this.items.get(var1)).isEmpty()) {
              return var1;
           }
-@@ -82,11 +77,11 @@
+@@ -82,11 +75,11 @@
     }
  
     public int findSlotMatchingUnusedItem(ItemStack var1) {
@@ -44,7 +62,33 @@
        }
  
        return -1;
-@@ -214,11 +209,11 @@
+@@ -113,18 +106,19 @@
+    }
+ 
+    public int clearOrCountMatchingItems(Predicate<ItemStack> var1, int var2, Container var3) {
+       byte var4 = 0;
+       boolean var5 = var2 == 0;
+-      int var6 = var4 + ContainerHelper.clearOrCountMatchingItems((Container)this, var1, var2 - var4, var5);
+-      var6 += ContainerHelper.clearOrCountMatchingItems(var3, var1, var2 - var6, var5);
+-      var6 += ContainerHelper.clearOrCountMatchingItems(this.carried, var1, var2 - var6, var5);
+-      if (this.carried.isEmpty()) {
+-         this.carried = ItemStack.EMPTY;
++      int var7 = var4 + ContainerHelper.clearOrCountMatchingItems((Container)this, var1, var2 - var4, var5);
++      var7 += ContainerHelper.clearOrCountMatchingItems(var3, var1, var2 - var7, var5);
++      ItemStack var6 = this.player.containerMenu.getCarried();
++      var7 += ContainerHelper.clearOrCountMatchingItems(var6, var1, var2 - var7, var5);
++      if (var6.isEmpty()) {
++         this.player.containerMenu.setCarried(ItemStack.EMPTY);
+       }
+ 
+-      return var6;
++      return var7;
+    }
+ 
+    private int addResource(ItemStack var1) {
+       int var2 = this.getSlotWithRemainingSpace(var1);
+       if (var2 == -1) {
+@@ -214,11 +208,11 @@
                 if (var1 >= 0) {
                    this.items.set(var1, var2.copy());
                    ((ItemStack)this.items.get(var1)).setPopTime(5);
@@ -57,7 +101,7 @@
                 } else {
                    return false;
                 }
-@@ -231,11 +226,11 @@
+@@ -231,11 +225,11 @@
                    } else {
                       var2.setCount(this.addResource(var1, var2));
                    }
@@ -70,7 +114,7 @@
                 } else {
                    return var2.getCount() < var3;
                 }
-@@ -251,29 +246,34 @@
+@@ -251,29 +245,34 @@
              throw new ReportedException(var4);
           }
        }
@@ -116,11 +160,20 @@
  
     public ItemStack removeItem(int var1, int var2) {
        NonNullList var3 = null;
-@@ -512,11 +512,11 @@
-    public ItemStack getCarried() {
-       return this.carried;
+@@ -503,20 +502,12 @@
+ 
+    public void setChanged() {
+       ++this.timesChanged;
     }
  
+-   public void setCarried(ItemStack var1) {
+-      this.carried = var1;
+-   }
+-
+-   public ItemStack getCarried() {
+-      return this.carried;
+-   }
+-
     public boolean stillValid(Player var1) {
 -      if (this.player.removed) {
 +      if (this.player.isRemoved()) {

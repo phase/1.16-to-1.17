@@ -1,6 +1,26 @@
 --- net/minecraft/world/level/levelgen/structure/StructurePiece.java
 +++ net/minecraft/world/level/levelgen/structure/StructurePiece.java
-@@ -27,10 +27,11 @@
+@@ -1,17 +1,19 @@
+ package net.minecraft.world.level.levelgen.structure;
+ 
+ import com.google.common.collect.ImmutableSet;
++import com.mojang.serialization.DataResult;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Random;
+ import java.util.Set;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.core.Registry;
+ import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.NbtOps;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.LevelReader;
+ import net.minecraft.world.level.ServerLevelAccessor;
+@@ -27,14 +29,18 @@
  import net.minecraft.world.level.block.entity.ChestBlockEntity;
  import net.minecraft.world.level.block.entity.DispenserBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
@@ -9,10 +29,47 @@
 +import net.minecraft.world.level.levelgen.feature.NoiseEffect;
  import net.minecraft.world.level.levelgen.feature.StructurePieceType;
  import net.minecraft.world.level.material.FluidState;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
  
  public abstract class StructurePiece {
++   private static final Logger LOGGER = LogManager.getLogger();
     protected static final BlockState CAVE_AIR;
-@@ -69,10 +70,14 @@
+    protected BoundingBox boundingBox;
+    @Nullable
+    private Direction orientation;
+    private Mirror mirror;
+@@ -49,30 +55,42 @@
+    }
+ 
+    public StructurePiece(StructurePieceType var1, CompoundTag var2) {
+       this(var1, var2.getInt("GD"));
+       if (var2.contains("BB")) {
+-         this.boundingBox = new BoundingBox(var2.getIntArray("BB"));
++         DataResult var10001 = BoundingBox.CODEC.parse(NbtOps.INSTANCE, var2.get("BB"));
++         Logger var10002 = LOGGER;
++         var10002.getClass();
++         this.boundingBox = (BoundingBox)var10001.resultOrPartial(var10002::error).orElse(new BoundingBox(BlockPos.ZERO));
+       }
+ 
+       int var3 = var2.getInt("O");
+       this.setOrientation(var3 == -1 ? null : Direction.from2DDataValue(var3));
+    }
+ 
+    public final CompoundTag createTag() {
+       CompoundTag var1 = new CompoundTag();
+       var1.putString("id", Registry.STRUCTURE_PIECE.getKey(this.getType()).toString());
+-      var1.put("BB", this.boundingBox.createTag());
++      DataResult var10000 = BoundingBox.CODEC.encodeStart(NbtOps.INSTANCE, this.boundingBox);
++      Logger var10001 = LOGGER;
++      var10001.getClass();
++      var10000.resultOrPartial(var10001::error).ifPresent((var1x) -> {
++         var1.put("BB", var1x);
++      });
+       Direction var2 = this.getOrientation();
+       var1.putInt("O", var2 == null ? -1 : var2.get2DDataValue());
+       var1.putInt("GD", this.genDepth);
+       this.addAdditionalSaveData(var1);
        return var1;
     }
  
@@ -27,7 +84,7 @@
  
     public abstract boolean postProcess(WorldGenLevel var1, StructureFeatureManager var2, ChunkGenerator var3, Random var4, BoundingBox var5, ChunkPos var6, BlockPos var7);
  
-@@ -83,12 +88,12 @@
+@@ -83,12 +101,12 @@
     public int getGenDepth() {
        return this.genDepth;
     }
@@ -42,7 +99,7 @@
  
     public static StructurePiece findCollisionPiece(List<StructurePiece> var0, BoundingBox var1) {
        Iterator var2 = var0.iterator();
-@@ -103,58 +108,12 @@
+@@ -103,58 +121,12 @@
        } while(var3.getBoundingBox() == null || !var3.getBoundingBox().intersects(var1));
  
        return var3;
@@ -103,7 +160,7 @@
     protected int getWorldX(int var1, int var2) {
        Direction var3 = this.getOrientation();
        if (var3 == null) {
-@@ -198,31 +157,37 @@
+@@ -198,31 +170,37 @@
     }
  
     protected void placeBlock(WorldGenLevel var1, BlockState var2, int var3, int var4, int var5, BoundingBox var6) {
@@ -155,7 +212,7 @@
        int var7 = this.getWorldY(var3);
        int var8 = this.getWorldZ(var2, var4);
        BlockPos var9 = new BlockPos(var6, var7, var8);
-@@ -298,13 +263,32 @@
+@@ -298,13 +276,32 @@
           }
        }
  
@@ -190,7 +247,7 @@
     }
  
     protected void generateUpperHalfSphere(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5, int var6, int var7, int var8, BlockState var9, boolean var10) {
-@@ -336,19 +320,24 @@
+@@ -336,19 +333,24 @@
  
     protected void fillColumnDown(WorldGenLevel var1, BlockState var2, int var3, int var4, int var5, BoundingBox var6) {
        int var7 = this.getWorldX(var3, var5);

@@ -1,18 +1,25 @@
 --- net/minecraft/client/Minecraft.java
 +++ net/minecraft/client/Minecraft.java
-@@ -19,10 +19,11 @@
+@@ -16,15 +16,18 @@
+ import com.mojang.blaze3d.platform.GlUtil;
+ import com.mojang.blaze3d.platform.Window;
+ import com.mojang.blaze3d.platform.WindowEventHandler;
  import com.mojang.blaze3d.systems.RenderSystem;
  import com.mojang.blaze3d.vertex.BufferBuilder;
++import com.mojang.blaze3d.vertex.BufferUploader;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
  import com.mojang.blaze3d.vertex.PoseStack;
  import com.mojang.blaze3d.vertex.Tesselator;
 +import com.mojang.blaze3d.vertex.VertexFormat;
  import com.mojang.datafixers.DataFixer;
  import com.mojang.datafixers.util.Function4;
++import com.mojang.math.Matrix4f;
  import com.mojang.serialization.DataResult;
  import com.mojang.serialization.JsonOps;
  import com.mojang.serialization.Lifecycle;
-@@ -83,22 +84,23 @@
+ import java.io.File;
+ import java.io.IOException;
+@@ -83,22 +86,23 @@
  import net.minecraft.client.gui.screens.TitleScreen;
  import net.minecraft.client.gui.screens.WinScreen;
  import net.minecraft.client.gui.screens.advancements.AdvancementsScreen;
@@ -37,7 +44,7 @@
  import net.minecraft.client.renderer.GpuWarnlistManager;
  import net.minecraft.client.renderer.ItemInHandRenderer;
  import net.minecraft.client.renderer.LevelRenderer;
-@@ -107,10 +109,11 @@
+@@ -107,10 +111,11 @@
  import net.minecraft.client.renderer.block.BlockModelShaper;
  import net.minecraft.client.renderer.block.BlockRenderDispatcher;
  import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
@@ -49,7 +56,7 @@
  import net.minecraft.client.renderer.texture.TextureAtlasSprite;
  import net.minecraft.client.renderer.texture.TextureManager;
  import net.minecraft.client.resources.ClientPackSource;
-@@ -194,26 +197,17 @@
+@@ -194,26 +199,17 @@
  import net.minecraft.world.InteractionResult;
  import net.minecraft.world.Snooper;
  import net.minecraft.world.SnooperPopulator;
@@ -76,7 +83,7 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelSettings;
  import net.minecraft.world.level.biome.Biome;
-@@ -298,10 +292,12 @@
+@@ -298,10 +294,12 @@
     private final MobEffectTextureManager mobEffectTextures;
     private final ToastComponent toast;
     private final Game game = new Game(this);
@@ -89,7 +96,7 @@
     public MultiPlayerGameMode gameMode;
     @Nullable
     public ClientLevel level;
-@@ -394,13 +390,13 @@
+@@ -394,13 +392,13 @@
        }
  
        KeybindComponent.setKeyResolver(KeyMapping::createNameSupplier);
@@ -104,7 +111,7 @@
        DisplayData var6;
        if (this.options.overrideHeight > 0 && this.options.overrideWidth > 0) {
           var6 = new DisplayData(this.options.overrideWidth, this.options.overrideHeight, var1.display.fullscreenWidth, var1.display.fullscreenHeight, var1.display.isFullscreen);
-@@ -454,19 +450,26 @@
+@@ -454,19 +452,26 @@
        this.window.setErrorSection("Post startup");
        this.blockColors = BlockColors.createDefault();
        this.itemColors = ItemColors.createDefault(this.blockColors);
@@ -134,11 +141,13 @@
        this.resourceManager.registerReloadListener(this.levelRenderer);
        this.createSearchTrees();
        this.resourceManager.registerReloadListener(this.searchRegistry);
-@@ -495,12 +498,12 @@
+@@ -494,13 +499,14 @@
+          this.setScreen(new ConnectScreen(new TitleScreen(), this, var4, var5));
        } else {
           this.setScreen(new TitleScreen(true));
        }
  
++      this.gameRenderer.preloadUiShader(this.getClientPackSource().getVanillaPack());
        LoadingOverlay.registerTextures(this);
 -      List var10 = this.resourcePackRepository.openAllSelected();
 -      this.setOverlay(new LoadingOverlay(this, this.resourceManager.createFullReload(Util.backgroundExecutor(), this, RESOURCE_RELOAD_INITIAL_TASK, var10), (var1x) -> {
@@ -149,7 +158,7 @@
                 this.selfTest();
              }
  
-@@ -738,11 +741,11 @@
+@@ -738,11 +744,11 @@
              this.pendingReload = var1;
              return var1;
           } else {
@@ -162,7 +171,7 @@
                    var1.complete((Object)null);
                 });
              }, true));
-@@ -808,24 +811,24 @@
+@@ -808,24 +814,24 @@
              }
           }
        }
@@ -191,7 +200,7 @@
        }
  
     }
-@@ -843,15 +846,10 @@
+@@ -843,16 +849,12 @@
           } else {
              this.player.respawn();
           }
@@ -203,50 +212,299 @@
 -      }
 -
        this.screen = (Screen)var1;
++      BufferUploader.reset();
        if (var1 != null) {
           this.mouseHandler.releaseMouse();
           KeyMapping.releaseAll();
           ((Screen)var1).init(this, this.window.getGuiScaledWidth(), this.window.getGuiScaledHeight());
-@@ -1155,11 +1153,11 @@
-       BufferBuilder var6 = var5.getBuilder();
-       boolean var7 = true;
-       int var8 = this.window.getWidth() - 160 - 10;
-       int var9 = this.window.getHeight() - 320;
-       RenderSystem.enableBlend();
--      var6.begin(7, DefaultVertexFormat.POSITION_COLOR);
-+      var6.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-       var6.vertex((double)((float)var8 - 176.0F), (double)((float)var9 - 96.0F - 16.0F), 0.0D).color(200, 0, 0, 0).endVertex();
-       var6.vertex((double)((float)var8 - 176.0F), (double)(var9 + 320), 0.0D).color(200, 0, 0, 0).endVertex();
-       var6.vertex((double)((float)var8 + 176.0F), (double)(var9 + 320), 0.0D).color(200, 0, 0, 0).endVertex();
-       var6.vertex((double)((float)var8 + 176.0F), (double)((float)var9 - 96.0F - 16.0F), 0.0D).color(200, 0, 0, 0).endVertex();
-       var5.end();
-@@ -1169,11 +1167,11 @@
-       ResultField var13;
-       int var15;
-       for(Iterator var12 = var3.iterator(); var12.hasNext(); var10 += var13.percentage) {
-          var13 = (ResultField)var12.next();
-          int var14 = Mth.floor(var13.percentage / 4.0D) + 1;
--         var6.begin(6, DefaultVertexFormat.POSITION_COLOR);
-+         var6.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_COLOR);
-          var15 = var13.getColor();
-          int var16 = var15 >> 16 & 255;
-          int var17 = var15 >> 8 & 255;
-          int var18 = var15 & 255;
-          var6.vertex((double)var8, (double)var9, 0.0D).color(var16, var17, var18, 255).endVertex();
-@@ -1188,11 +1186,11 @@
-             var22 = Mth.cos(var20) * 160.0F * 0.5F;
-             var6.vertex((double)((float)var8 + var21), (double)((float)var9 - var22), 0.0D).color(var16, var17, var18, 255).endVertex();
+          this.noRender = false;
+@@ -939,24 +941,24 @@
+          this.reloadResourcePacks().thenRun(() -> {
+             var4.complete((Object)null);
+          });
+       }
+ 
+-      Runnable var9;
+-      while((var9 = (Runnable)this.progressTasks.poll()) != null) {
+-         var9.run();
++      Runnable var10;
++      while((var10 = (Runnable)this.progressTasks.poll()) != null) {
++         var10.run();
+       }
+ 
+-      int var5;
++      int var6;
+       if (var1) {
+-         var5 = this.timer.advanceTime(Util.getMillis());
++         int var5 = this.timer.advanceTime(Util.getMillis());
+          this.profiler.push("scheduledExecutables");
+          this.runAllTasks();
+          this.profiler.pop();
+          this.profiler.push("tick");
+ 
+-         for(int var6 = 0; var6 < Math.min(10, var5); ++var6) {
++         for(var6 = 0; var6 < Math.min(10, var5); ++var6) {
+             this.profiler.incrementCounter("clientTick");
+             this.tick();
           }
  
-          var5.end();
--         var6.begin(5, DefaultVertexFormat.POSITION_COLOR);
-+         var6.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+          this.profiler.pop();
+@@ -966,12 +968,18 @@
+       this.window.setErrorSection("Render");
+       this.profiler.push("sound");
+       this.soundManager.updateSource(this.gameRenderer.getMainCamera());
+       this.profiler.pop();
+       this.profiler.push("render");
+-      RenderSystem.pushMatrix();
++      PoseStack var11 = RenderSystem.getModelViewStack();
++      var11.pushPose();
++      RenderSystem.applyModelViewMatrix();
+       RenderSystem.clear(16640, ON_OSX);
++      this.mainRenderTarget.clearChannels[0] = 0.1F;
++      this.mainRenderTarget.clearChannels[1] = 0.2F;
++      this.mainRenderTarget.clearChannels[2] = 0.3F;
++      this.mainRenderTarget.clear(ON_OSX);
+       this.mainRenderTarget.bindWrite(true);
+       FogRenderer.setupNoFog();
+       this.profiler.push("display");
+       RenderSystem.enableTexture();
+       RenderSystem.enableCull();
+@@ -990,40 +998,42 @@
+          this.profiler.pop();
+       }
  
-          for(var19 = var14; var19 >= 0; --var19) {
-             var20 = (float)((var10 + var13.percentage * (double)var19 / (double)var14) * 6.2831854820251465D / 100.0D);
-             var21 = Mth.sin(var20) * 160.0F;
-             var22 = Mth.cos(var20) * 160.0F * 0.5F;
-@@ -1508,11 +1506,11 @@
+       this.profiler.push("blit");
+       this.mainRenderTarget.unbindWrite();
+-      RenderSystem.popMatrix();
+-      RenderSystem.pushMatrix();
++      var11.popPose();
++      var11.pushPose();
++      RenderSystem.applyModelViewMatrix();
+       this.mainRenderTarget.blitToScreen(this.window.getWidth(), this.window.getHeight());
+-      RenderSystem.popMatrix();
++      var11.popPose();
++      RenderSystem.applyModelViewMatrix();
+       this.profiler.popPush("updateDisplay");
+       this.window.updateDisplay();
+-      var5 = this.getFramerateLimit();
+-      if ((double)var5 < Option.FRAMERATE_LIMIT.getMaxValue()) {
+-         RenderSystem.limitDisplayFPS(var5);
++      var6 = this.getFramerateLimit();
++      if ((double)var6 < Option.FRAMERATE_LIMIT.getMaxValue()) {
++         RenderSystem.limitDisplayFPS(var6);
+       }
+ 
+       this.profiler.popPush("yield");
+       Thread.yield();
+       this.profiler.pop();
+       this.window.setErrorSection("Post render");
+       ++this.frames;
+-      boolean var10 = this.hasSingleplayerServer() && (this.screen != null && this.screen.isPauseScreen() || this.overlay != null && this.overlay.isPauseScreen()) && !this.singleplayerServer.isPublished();
+-      if (this.pause != var10) {
++      boolean var7 = this.hasSingleplayerServer() && (this.screen != null && this.screen.isPauseScreen() || this.overlay != null && this.overlay.isPauseScreen()) && !this.singleplayerServer.isPublished();
++      if (this.pause != var7) {
+          if (this.pause) {
+             this.pausePartialTick = this.timer.partialTick;
+          } else {
+             this.timer.partialTick = this.pausePartialTick;
+          }
+ 
+-         this.pause = var10;
++         this.pause = var7;
+       }
+ 
+-      long var7 = Util.getNanos();
+-      this.frameTimer.logFrameDuration(var7 - this.lastNanoTime);
+-      this.lastNanoTime = var7;
++      long var8 = Util.getNanos();
++      this.frameTimer.logFrameDuration(var8 - this.lastNanoTime);
++      this.lastNanoTime = var8;
+       this.profiler.push("fpsUpdate");
+ 
+       while(Util.getMillis() >= this.lastTime + 1000L) {
+          fps = this.frames;
+          this.fpsString = String.format("%d fps T: %s%s%s%s B: %d", fps, (double)this.options.framerateLimit == Option.FRAMERATE_LIMIT.getMaxValue() ? "inf" : this.options.framerateLimit, this.options.enableVsync ? " vsync" : "", this.options.graphicsMode.toString(), this.options.renderClouds == CloudStatus.OFF ? "" : (this.options.renderClouds == CloudStatus.FAST ? " fast-clouds" : " fancy-clouds"), this.options.biomeBlendRadius);
+@@ -1141,107 +1151,107 @@
+ 
+    private void renderFpsMeter(PoseStack var1, ProfileResults var2) {
+       List var3 = var2.getTimes(this.debugPath);
+       ResultField var4 = (ResultField)var3.remove(0);
+       RenderSystem.clear(256, ON_OSX);
+-      RenderSystem.matrixMode(5889);
+-      RenderSystem.loadIdentity();
+-      RenderSystem.ortho(0.0D, (double)this.window.getWidth(), (double)this.window.getHeight(), 0.0D, 1000.0D, 3000.0D);
+-      RenderSystem.matrixMode(5888);
+-      RenderSystem.loadIdentity();
+-      RenderSystem.translatef(0.0F, 0.0F, -2000.0F);
++      Matrix4f var5 = Matrix4f.orthographic(0.0F, (float)this.window.getWidth(), 0.0F, (float)this.window.getHeight(), 1000.0F, 3000.0F);
++      RenderSystem.setProjectionMatrix(var5);
++      PoseStack var6 = RenderSystem.getModelViewStack();
++      var6.setIdentity();
++      var6.translate(0.0D, 0.0D, -2000.0D);
++      RenderSystem.applyModelViewMatrix();
+       RenderSystem.lineWidth(1.0F);
+       RenderSystem.disableTexture();
+-      Tesselator var5 = Tesselator.getInstance();
+-      BufferBuilder var6 = var5.getBuilder();
+-      boolean var7 = true;
+-      int var8 = this.window.getWidth() - 160 - 10;
+-      int var9 = this.window.getHeight() - 320;
++      Tesselator var7 = Tesselator.getInstance();
++      BufferBuilder var8 = var7.getBuilder();
++      boolean var9 = true;
++      int var10 = this.window.getWidth() - 160 - 10;
++      int var11 = this.window.getHeight() - 320;
+       RenderSystem.enableBlend();
+-      var6.begin(7, DefaultVertexFormat.POSITION_COLOR);
+-      var6.vertex((double)((float)var8 - 176.0F), (double)((float)var9 - 96.0F - 16.0F), 0.0D).color(200, 0, 0, 0).endVertex();
+-      var6.vertex((double)((float)var8 - 176.0F), (double)(var9 + 320), 0.0D).color(200, 0, 0, 0).endVertex();
+-      var6.vertex((double)((float)var8 + 176.0F), (double)(var9 + 320), 0.0D).color(200, 0, 0, 0).endVertex();
+-      var6.vertex((double)((float)var8 + 176.0F), (double)((float)var9 - 96.0F - 16.0F), 0.0D).color(200, 0, 0, 0).endVertex();
+-      var5.end();
++      var8.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
++      var8.vertex((double)((float)var10 - 176.0F), (double)((float)var11 - 96.0F - 16.0F), 0.0D).color(200, 0, 0, 0).endVertex();
++      var8.vertex((double)((float)var10 - 176.0F), (double)(var11 + 320), 0.0D).color(200, 0, 0, 0).endVertex();
++      var8.vertex((double)((float)var10 + 176.0F), (double)(var11 + 320), 0.0D).color(200, 0, 0, 0).endVertex();
++      var8.vertex((double)((float)var10 + 176.0F), (double)((float)var11 - 96.0F - 16.0F), 0.0D).color(200, 0, 0, 0).endVertex();
++      var7.end();
+       RenderSystem.disableBlend();
+-      double var10 = 0.0D;
++      double var12 = 0.0D;
+ 
+-      ResultField var13;
+-      int var15;
+-      for(Iterator var12 = var3.iterator(); var12.hasNext(); var10 += var13.percentage) {
+-         var13 = (ResultField)var12.next();
+-         int var14 = Mth.floor(var13.percentage / 4.0D) + 1;
+-         var6.begin(6, DefaultVertexFormat.POSITION_COLOR);
+-         var15 = var13.getColor();
+-         int var16 = var15 >> 16 & 255;
+-         int var17 = var15 >> 8 & 255;
+-         int var18 = var15 & 255;
+-         var6.vertex((double)var8, (double)var9, 0.0D).color(var16, var17, var18, 255).endVertex();
++      ResultField var15;
++      int var17;
++      for(Iterator var14 = var3.iterator(); var14.hasNext(); var12 += var15.percentage) {
++         var15 = (ResultField)var14.next();
++         int var16 = Mth.floor(var15.percentage / 4.0D) + 1;
++         var8.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_COLOR);
++         var17 = var15.getColor();
++         int var18 = var17 >> 16 & 255;
++         int var19 = var17 >> 8 & 255;
++         int var20 = var17 & 255;
++         var8.vertex((double)var10, (double)var11, 0.0D).color(var18, var19, var20, 255).endVertex();
+ 
+-         int var19;
+-         float var20;
+-         float var21;
++         int var21;
+          float var22;
+-         for(var19 = var14; var19 >= 0; --var19) {
+-            var20 = (float)((var10 + var13.percentage * (double)var19 / (double)var14) * 6.2831854820251465D / 100.0D);
+-            var21 = Mth.sin(var20) * 160.0F;
+-            var22 = Mth.cos(var20) * 160.0F * 0.5F;
+-            var6.vertex((double)((float)var8 + var21), (double)((float)var9 - var22), 0.0D).color(var16, var17, var18, 255).endVertex();
++         float var23;
++         float var24;
++         for(var21 = var16; var21 >= 0; --var21) {
++            var22 = (float)((var12 + var15.percentage * (double)var21 / (double)var16) * 6.2831854820251465D / 100.0D);
++            var23 = Mth.sin(var22) * 160.0F;
++            var24 = Mth.cos(var22) * 160.0F * 0.5F;
++            var8.vertex((double)((float)var10 + var23), (double)((float)var11 - var24), 0.0D).color(var18, var19, var20, 255).endVertex();
+          }
+ 
+-         var5.end();
+-         var6.begin(5, DefaultVertexFormat.POSITION_COLOR);
++         var7.end();
++         var8.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+ 
+-         for(var19 = var14; var19 >= 0; --var19) {
+-            var20 = (float)((var10 + var13.percentage * (double)var19 / (double)var14) * 6.2831854820251465D / 100.0D);
+-            var21 = Mth.sin(var20) * 160.0F;
+-            var22 = Mth.cos(var20) * 160.0F * 0.5F;
+-            if (var22 <= 0.0F) {
+-               var6.vertex((double)((float)var8 + var21), (double)((float)var9 - var22), 0.0D).color(var16 >> 1, var17 >> 1, var18 >> 1, 255).endVertex();
+-               var6.vertex((double)((float)var8 + var21), (double)((float)var9 - var22 + 10.0F), 0.0D).color(var16 >> 1, var17 >> 1, var18 >> 1, 255).endVertex();
++         for(var21 = var16; var21 >= 0; --var21) {
++            var22 = (float)((var12 + var15.percentage * (double)var21 / (double)var16) * 6.2831854820251465D / 100.0D);
++            var23 = Mth.sin(var22) * 160.0F;
++            var24 = Mth.cos(var22) * 160.0F * 0.5F;
++            if (var24 <= 0.0F) {
++               var8.vertex((double)((float)var10 + var23), (double)((float)var11 - var24), 0.0D).color(var18 >> 1, var19 >> 1, var20 >> 1, 255).endVertex();
++               var8.vertex((double)((float)var10 + var23), (double)((float)var11 - var24 + 10.0F), 0.0D).color(var18 >> 1, var19 >> 1, var20 >> 1, 255).endVertex();
+             }
+          }
+ 
+-         var5.end();
++         var7.end();
+       }
+ 
+-      DecimalFormat var23 = new DecimalFormat("##0.00");
+-      var23.setDecimalFormatSymbols(DecimalFormatSymbols.getInstance(Locale.ROOT));
++      DecimalFormat var25 = new DecimalFormat("##0.00");
++      var25.setDecimalFormatSymbols(DecimalFormatSymbols.getInstance(Locale.ROOT));
+       RenderSystem.enableTexture();
+-      String var24 = ProfileResults.demanglePath(var4.name);
+-      String var26 = "";
+-      if (!"unspecified".equals(var24)) {
+-         var26 = var26 + "[0] ";
++      String var26 = ProfileResults.demanglePath(var4.name);
++      String var28 = "";
++      if (!"unspecified".equals(var26)) {
++         var28 = var28 + "[0] ";
+       }
+ 
+-      if (var24.isEmpty()) {
+-         var26 = var26 + "ROOT ";
++      if (var26.isEmpty()) {
++         var28 = var28 + "ROOT ";
+       } else {
+-         var26 = var26 + var24 + ' ';
++         var28 = var28 + var26 + ' ';
+       }
+ 
+-      var15 = 16777215;
+-      this.font.drawShadow(var1, var26, (float)(var8 - 160), (float)(var9 - 80 - 16), 16777215);
+-      var26 = var23.format(var4.globalPercentage) + "%";
+-      this.font.drawShadow(var1, var26, (float)(var8 + 160 - this.font.width(var26)), (float)(var9 - 80 - 16), 16777215);
++      var17 = 16777215;
++      this.font.drawShadow(var1, var28, (float)(var10 - 160), (float)(var11 - 80 - 16), 16777215);
++      var28 = var25.format(var4.globalPercentage) + "%";
++      this.font.drawShadow(var1, var28, (float)(var10 + 160 - this.font.width(var28)), (float)(var11 - 80 - 16), 16777215);
+ 
+-      for(int var25 = 0; var25 < var3.size(); ++var25) {
+-         ResultField var29 = (ResultField)var3.get(var25);
+-         StringBuilder var27 = new StringBuilder();
+-         if ("unspecified".equals(var29.name)) {
+-            var27.append("[?] ");
++      for(int var27 = 0; var27 < var3.size(); ++var27) {
++         ResultField var31 = (ResultField)var3.get(var27);
++         StringBuilder var29 = new StringBuilder();
++         if ("unspecified".equals(var31.name)) {
++            var29.append("[?] ");
+          } else {
+-            var27.append("[").append(var25 + 1).append("] ");
++            var29.append("[").append(var27 + 1).append("] ");
+          }
+ 
+-         String var28 = var27.append(var29.name).toString();
+-         this.font.drawShadow(var1, var28, (float)(var8 - 160), (float)(var9 + 80 + var25 * 8 + 20), var29.getColor());
+-         var28 = var23.format(var29.percentage) + "%";
+-         this.font.drawShadow(var1, var28, (float)(var8 + 160 - 50 - this.font.width(var28)), (float)(var9 + 80 + var25 * 8 + 20), var29.getColor());
+-         var28 = var23.format(var29.globalPercentage) + "%";
+-         this.font.drawShadow(var1, var28, (float)(var8 + 160 - this.font.width(var28)), (float)(var9 + 80 + var25 * 8 + 20), var29.getColor());
++         String var30 = var29.append(var31.name).toString();
++         this.font.drawShadow(var1, var30, (float)(var10 - 160), (float)(var11 + 80 + var27 * 8 + 20), var31.getColor());
++         var30 = var25.format(var31.percentage) + "%";
++         this.font.drawShadow(var1, var30, (float)(var10 + 160 - 50 - this.font.width(var30)), (float)(var11 + 80 + var27 * 8 + 20), var31.getColor());
++         var30 = var25.format(var31.globalPercentage) + "%";
++         this.font.drawShadow(var1, var30, (float)(var10 + 160 - this.font.width(var30)), (float)(var11 + 80 + var27 * 8 + 20), var31.getColor());
+       }
+ 
+    }
+ 
+    public void stop() {
+@@ -1508,11 +1518,11 @@
              }
           }
  
@@ -259,7 +517,7 @@
           this.profiler.popPush("particles");
           if (!this.pause) {
              this.particleEngine.tick();
-@@ -1549,11 +1547,11 @@
+@@ -1549,11 +1559,11 @@
           boolean var3 = this.options.keyLoadHotbarActivator.isDown();
           if (this.options.keyHotbarSlots[var4].consumeClick()) {
              if (this.player.isSpectator()) {
@@ -272,7 +530,7 @@
              }
           }
        }
-@@ -1595,37 +1593,34 @@
+@@ -1595,37 +1605,34 @@
           if (!this.player.isSpectator() && this.player.drop(Screen.hasControlDown())) {
              this.player.swing(InteractionHand.MAIN_HAND);
           }
@@ -317,7 +575,26 @@
           }
        } else {
           while(this.options.keyAttack.consumeClick()) {
-@@ -1859,15 +1854,15 @@
+@@ -1735,15 +1742,14 @@
+             SkullBlockEntity.setSessionService(var23);
+             GameProfileCache.setUsesAuthentication(false);
+             this.singleplayerServer = (IntegratedServer)MinecraftServer.spin((var8x) -> {
+                return new IntegratedServer(var8x, this, var2, var7, var8.packRepository(), var8.serverResources(), var9, var23, var25, var15, (var1) -> {
+                   StoringChunkProgressListener var2 = new StoringChunkProgressListener(var1 + 0);
+-                  var2.start();
+                   this.progressListener.set(var2);
+-                  Queue var10003 = this.progressTasks;
+-                  var10003.getClass();
+-                  return new ProcessorChunkProgressListener(var2, var10003::add);
++                  Queue var10001 = this.progressTasks;
++                  var10001.getClass();
++                  return ProcessorChunkProgressListener.createStarted(var2, var10001::add);
+                });
+             });
+             this.isLocalServer = true;
+          } catch (Throwable var19) {
+             CrashReport var13 = CrashReport.forThrowable(var19, "Starting integrated server");
+@@ -1859,15 +1865,15 @@
  
     }
  
@@ -335,7 +612,7 @@
           WorldData var11 = (WorldData)var3.apply(var5, var1, var10.getResourceManager(), var8);
           return new Minecraft.ServerStem(var7, var10, var11);
        } catch (ExecutionException | InterruptedException var12) {
-@@ -1952,28 +1947,34 @@
+@@ -1952,28 +1958,34 @@
     }
  
     private void updateLevelInEngines(@Nullable ClientLevel var1) {
@@ -374,7 +651,7 @@
     public final boolean isDemo() {
        return this.demo;
     }
-@@ -1999,85 +2000,39 @@
+@@ -1999,85 +2011,39 @@
        return instance.options.ambientOcclusion != AmbientOcclusionStatus.OFF;
     }
  
@@ -469,7 +746,7 @@
  
           if (var3.isEmpty()) {
              String var10 = "";
-@@ -2087,24 +2042,24 @@
+@@ -2087,24 +2053,24 @@
                 var10 = Registry.ENTITY_TYPE.getKey(((EntityHitResult)this.hitResult).getEntity().getType()).toString();
              }
  
@@ -500,7 +777,7 @@
  
           }
        }
-@@ -2341,11 +2296,11 @@
+@@ -2341,11 +2307,11 @@
           } else {
              Biome.BiomeCategory var1 = this.player.level.getBiome(this.player.blockPosition()).getBiomeCategory();
              if (this.musicManager.isPlayingMusic(Musics.UNDER_WATER) || this.player.isUnderWater() && (var1 == Biome.BiomeCategory.OCEAN || var1 == Biome.BiomeCategory.RIVER)) {
@@ -513,7 +790,7 @@
        } else {
           return Musics.MENU;
        }
-@@ -2391,10 +2346,14 @@
+@@ -2391,10 +2357,14 @@
  
     public EntityRenderDispatcher getEntityRenderDispatcher() {
        return this.entityRenderDispatcher;
@@ -528,7 +805,7 @@
     }
  
     public ItemInHandRenderer getItemInHandRenderer() {
-@@ -2500,22 +2459,22 @@
+@@ -2500,22 +2470,22 @@
  
     public RenderBuffers renderBuffers() {
        return this.renderBuffers;
@@ -555,7 +832,7 @@
     private static Supplier<PackResources> adaptV3(Supplier<PackResources> var0) {
        return () -> {
           return new LegacyPackResourcesAdapter((PackResources)var0.get(), LegacyPackResourcesAdapter.V3);
-@@ -2530,20 +2489,63 @@
+@@ -2530,20 +2500,63 @@
  
     public void updateMaxMipLevel(int var1) {
        this.modelManager.updateMaxMipLevel(var1);

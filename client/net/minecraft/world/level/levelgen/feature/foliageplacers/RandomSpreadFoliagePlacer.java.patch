@@ -1,0 +1,55 @@
+--- net/minecraft/world/level/levelgen/feature/foliageplacers/RandomSpreadFoliagePlacer.java
++++ net/minecraft/world/level/levelgen/feature/foliageplacers/RandomSpreadFoliagePlacer.java
+@@ -1,0 +1,52 @@
++package net.minecraft.world.level.levelgen.feature.foliageplacers;
++
++import com.mojang.serialization.Codec;
++import com.mojang.serialization.codecs.RecordCodecBuilder;
++import java.util.Random;
++import java.util.Set;
++import net.minecraft.core.BlockPos;
++import net.minecraft.util.UniformInt;
++import net.minecraft.world.level.LevelSimulatedRW;
++import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
++import net.minecraft.world.level.levelgen.structure.BoundingBox;
++
++public class RandomSpreadFoliagePlacer extends FoliagePlacer {
++   public static final Codec<RandomSpreadFoliagePlacer> CODEC = RecordCodecBuilder.create((var0) -> {
++      return foliagePlacerParts(var0).and(var0.group(UniformInt.codec(1, 256, 256).fieldOf("foliage_height").forGetter((var0x) -> {
++         return var0x.foliageHeight;
++      }), Codec.intRange(0, 256).fieldOf("leaf_placement_attempts").forGetter((var0x) -> {
++         return var0x.leafPlacementAttempts;
++      }))).apply(var0, RandomSpreadFoliagePlacer::new);
++   });
++   private final UniformInt foliageHeight;
++   private final int leafPlacementAttempts;
++
++   public RandomSpreadFoliagePlacer(UniformInt var1, UniformInt var2, UniformInt var3, int var4) {
++      super(var1, var2);
++      this.foliageHeight = var3;
++      this.leafPlacementAttempts = var4;
++   }
++
++   protected FoliagePlacerType<?> type() {
++      return FoliagePlacerType.RANDOM_SPREAD_FOLIAGE_PLACER;
++   }
++
++   protected void createFoliage(LevelSimulatedRW var1, Random var2, TreeConfiguration var3, int var4, FoliagePlacer.FoliageAttachment var5, int var6, int var7, Set<BlockPos> var8, int var9, BoundingBox var10) {
++      BlockPos var11 = var5.foliagePos();
++      BlockPos.MutableBlockPos var12 = var11.mutable();
++
++      for(int var13 = 0; var13 < this.leafPlacementAttempts; ++var13) {
++         var12.setWithOffset(var11, var2.nextInt(var7) - var2.nextInt(var7), var2.nextInt(var6) - var2.nextInt(var6), var2.nextInt(var7) - var2.nextInt(var7));
++         this.tryPlaceLeaf(var1, var2, var3, var8, var10, var12);
++      }
++
++   }
++
++   public int foliageHeight(Random var1, int var2, TreeConfiguration var3) {
++      return this.foliageHeight.sample(var1);
++   }
++
++   protected boolean shouldSkipLocation(Random var1, int var2, int var3, int var4, int var5, boolean var6) {
++      return false;
++   }
++}

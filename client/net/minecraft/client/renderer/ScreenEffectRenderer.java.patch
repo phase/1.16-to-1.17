@@ -12,7 +12,44 @@
  import javax.annotation.Nullable;
  import net.minecraft.client.Minecraft;
  import net.minecraft.client.player.LocalPlayer;
-@@ -77,11 +78,11 @@
+@@ -23,11 +24,10 @@
+ 
+ public class ScreenEffectRenderer {
+    private static final ResourceLocation UNDERWATER_LOCATION = new ResourceLocation("textures/misc/underwater.png");
+ 
+    public static void renderScreenEffect(Minecraft var0, PoseStack var1) {
+-      RenderSystem.disableAlphaTest();
+       LocalPlayer var2 = var0.player;
+       if (!var2.noPhysics) {
+          BlockState var3 = getViewBlockingState(var2);
+          if (var3 != null) {
+             renderTex(var0, var0.getBlockRenderer().getBlockModelShaper().getParticleIcon(var3), var1);
+@@ -42,11 +42,10 @@
+          if (var0.player.isOnFire()) {
+             renderFire(var0, var1);
+          }
+       }
+ 
+-      RenderSystem.enableAlphaTest();
+    }
+ 
+    @Nullable
+    private static BlockState getViewBlockingState(Player var0) {
+       BlockPos.MutableBlockPos var1 = new BlockPos.MutableBlockPos();
+@@ -64,11 +63,11 @@
+ 
+       return null;
+    }
+ 
+    private static void renderTex(Minecraft var0, TextureAtlasSprite var1, PoseStack var2) {
+-      var0.getTextureManager().bind(var1.atlas().location());
++      RenderSystem.setShaderTexture(0, var1.atlas().location());
+       BufferBuilder var3 = Tesselator.getInstance().getBuilder();
+       float var4 = 0.1F;
+       float var5 = -1.0F;
+       float var6 = 1.0F;
+       float var7 = -1.0F;
+@@ -77,54 +76,57 @@
        float var10 = var1.getU0();
        float var11 = var1.getU1();
        float var12 = var1.getV0();
@@ -25,20 +62,60 @@
        var3.vertex(var14, 1.0F, 1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var10, var12).endVertex();
        var3.vertex(var14, -1.0F, 1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var11, var12).endVertex();
        var3.end();
-@@ -102,11 +103,11 @@
+       BufferUploader.end(var3);
+    }
+ 
+    private static void renderWater(Minecraft var0, PoseStack var1) {
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
+       RenderSystem.enableTexture();
+-      var0.getTextureManager().bind(UNDERWATER_LOCATION);
++      RenderSystem.setShaderTexture(0, UNDERWATER_LOCATION);
+       BufferBuilder var2 = Tesselator.getInstance().getBuilder();
+       float var3 = var0.player.getBrightness();
+       RenderSystem.enableBlend();
+       RenderSystem.defaultBlendFunc();
++      RenderSystem.setShaderColor(var3, var3, var3, 0.1F);
+       float var4 = 4.0F;
+       float var5 = -1.0F;
+       float var6 = 1.0F;
+       float var7 = -1.0F;
        float var8 = 1.0F;
        float var9 = -0.5F;
        float var10 = -var0.player.yRot / 64.0F;
        float var11 = var0.player.xRot / 64.0F;
        Matrix4f var12 = var1.last().pose();
 -      var2.begin(7, DefaultVertexFormat.POSITION_COLOR_TEX);
-+      var2.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-       var2.vertex(var12, -1.0F, -1.0F, -0.5F).color(var3, var3, var3, 0.1F).uv(4.0F + var10, 4.0F + var11).endVertex();
-       var2.vertex(var12, 1.0F, -1.0F, -0.5F).color(var3, var3, var3, 0.1F).uv(0.0F + var10, 4.0F + var11).endVertex();
-       var2.vertex(var12, 1.0F, 1.0F, -0.5F).color(var3, var3, var3, 0.1F).uv(0.0F + var10, 0.0F + var11).endVertex();
-       var2.vertex(var12, -1.0F, 1.0F, -0.5F).color(var3, var3, var3, 0.1F).uv(4.0F + var10, 0.0F + var11).endVertex();
+-      var2.vertex(var12, -1.0F, -1.0F, -0.5F).color(var3, var3, var3, 0.1F).uv(4.0F + var10, 4.0F + var11).endVertex();
+-      var2.vertex(var12, 1.0F, -1.0F, -0.5F).color(var3, var3, var3, 0.1F).uv(0.0F + var10, 4.0F + var11).endVertex();
+-      var2.vertex(var12, 1.0F, 1.0F, -0.5F).color(var3, var3, var3, 0.1F).uv(0.0F + var10, 0.0F + var11).endVertex();
+-      var2.vertex(var12, -1.0F, 1.0F, -0.5F).color(var3, var3, var3, 0.1F).uv(4.0F + var10, 0.0F + var11).endVertex();
++      var2.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
++      var2.vertex(var12, -1.0F, -1.0F, -0.5F).uv(4.0F + var10, 4.0F + var11).endVertex();
++      var2.vertex(var12, 1.0F, -1.0F, -0.5F).uv(0.0F + var10, 4.0F + var11).endVertex();
++      var2.vertex(var12, 1.0F, 1.0F, -0.5F).uv(0.0F + var10, 0.0F + var11).endVertex();
++      var2.vertex(var12, -1.0F, 1.0F, -0.5F).uv(4.0F + var10, 0.0F + var11).endVertex();
        var2.end();
-@@ -144,11 +145,11 @@
+       BufferUploader.end(var2);
+       RenderSystem.disableBlend();
+    }
+ 
+    private static void renderFire(Minecraft var0, PoseStack var1) {
+       BufferBuilder var2 = Tesselator.getInstance().getBuilder();
++      RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+       RenderSystem.depthFunc(519);
+       RenderSystem.depthMask(false);
+       RenderSystem.enableBlend();
+       RenderSystem.defaultBlendFunc();
+       RenderSystem.enableTexture();
+       TextureAtlasSprite var3 = ModelBakery.FIRE_1.sprite();
+-      var0.getTextureManager().bind(var3.atlas().location());
++      RenderSystem.setShaderTexture(0, var3.atlas().location());
+       float var4 = var3.getU0();
+       float var5 = var3.getU1();
+       float var6 = (var4 + var5) / 2.0F;
+       float var7 = var3.getV0();
+       float var8 = var3.getV1();
+@@ -144,11 +146,11 @@
           float var20 = 0.5F;
           float var21 = -0.5F;
           var1.translate((double)((float)(-(var16 * 2 - 1)) * 0.24F), -0.30000001192092896D, 0.0D);

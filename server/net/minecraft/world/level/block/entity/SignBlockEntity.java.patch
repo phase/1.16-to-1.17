@@ -12,7 +12,7 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.ComponentUtils;
  import net.minecraft.network.chat.MutableComponent;
-@@ -21,64 +22,103 @@
+@@ -21,64 +22,106 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.Vec2;
  import net.minecraft.world.phys.Vec3;
@@ -28,6 +28,7 @@
 +   @Nullable
 +   private FormattedCharSequence[] renderMessages;
     private DyeColor color;
++   private boolean hasGlowingText;
  
 -   public SignBlockEntity() {
 -      super(BlockEntityType.SIGN);
@@ -56,6 +57,7 @@
        }
  
        var1.putString("Color", this.color.getName());
++      var1.putBoolean("GlowingText", this.hasGlowingText);
        return var1;
     }
  
@@ -91,6 +93,7 @@
  
 -         this.renderMessages[var3] = null;
 +      this.renderMessages = null;
++      this.hasGlowingText = var1.getBoolean("GlowingText");
 +   }
 +
 +   private Component loadLine(String var1) {
@@ -137,7 +140,7 @@
        return new ClientboundBlockEntityDataPacket(this.worldPosition, 9, this.getUpdateTag());
     }
  
-@@ -100,22 +140,20 @@
+@@ -100,22 +143,20 @@
  
     public Player getPlayerWhoMayEdit() {
        return this.playerWhoMayEdit;
@@ -166,3 +169,37 @@
  
        return true;
     }
+@@ -131,13 +172,31 @@
+    }
+ 
+    public boolean setColor(DyeColor var1) {
+       if (var1 != this.getColor()) {
+          this.color = var1;
+-         this.setChanged();
+-         this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 3);
++         this.markUpdated();
+          return true;
+       } else {
+          return false;
+       }
+    }
++
++   public boolean hasGlowingText() {
++      return this.hasGlowingText;
++   }
++
++   public boolean setHasGlowingText(boolean var1) {
++      if (this.hasGlowingText != var1) {
++         this.hasGlowingText = var1;
++         this.markUpdated();
++         return true;
++      } else {
++         return false;
++      }
++   }
++
++   private void markUpdated() {
++      this.setChanged();
++      this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 3);
++   }
+ }

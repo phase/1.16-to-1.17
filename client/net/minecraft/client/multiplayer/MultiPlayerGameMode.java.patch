@@ -1,17 +1,35 @@
 --- net/minecraft/client/multiplayer/MultiPlayerGameMode.java
 +++ net/minecraft/client/multiplayer/MultiPlayerGameMode.java
-@@ -1,9 +1,10 @@
+@@ -1,15 +1,21 @@
  package net.minecraft.client.multiplayer;
  
++import com.google.common.collect.Lists;
  import com.mojang.datafixers.util.Pair;
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
  import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
++import java.util.ArrayList;
++import java.util.Iterator;
 +import javax.annotation.Nullable;
  import net.minecraft.client.ClientRecipeBook;
  import net.minecraft.client.Minecraft;
  import net.minecraft.client.player.LocalPlayer;
  import net.minecraft.client.resources.sounds.SimpleSoundInstance;
  import net.minecraft.core.BlockPos;
-@@ -33,14 +34,12 @@
+ import net.minecraft.core.Direction;
++import net.minecraft.core.NonNullList;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
+ import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
+ import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+ import net.minecraft.network.protocol.game.ServerboundPickItemPacket;
+@@ -27,20 +33,19 @@
+ import net.minecraft.world.InteractionResultHolder;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.animal.horse.AbstractHorse;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.inventory.ClickType;
++import net.minecraft.world.inventory.Slot;
+ import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.item.crafting.Recipe;
  import net.minecraft.world.level.GameType;
@@ -27,7 +45,7 @@
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.EntityHitResult;
  import net.minecraft.world.phys.Vec3;
-@@ -56,38 +55,40 @@
+@@ -56,38 +61,40 @@
     private float destroyProgress;
     private float destroyTicks;
     private int destroyDelay;
@@ -74,7 +92,7 @@
     public boolean canHurtPlayer() {
        return this.localPlayerMode.isSurvival();
     }
-@@ -100,11 +101,11 @@
+@@ -100,11 +107,11 @@
           BlockState var3 = var2.getBlockState(var1);
           if (!this.minecraft.player.getMainHandItem().getItem().canAttackBlock(var3, var2, var1, this.minecraft.player)) {
              return false;
@@ -87,7 +105,7 @@
                 return false;
              } else {
                 var4.playerWillDestroy(var2, var1, var3, this.minecraft.player);
-@@ -237,18 +238,18 @@
+@@ -237,18 +244,18 @@
  
     private boolean sameDestroyTarget(BlockPos var1) {
        ItemStack var2 = this.minecraft.player.getMainHandItem();
@@ -108,7 +126,7 @@
           this.connection.send((Packet)(new ServerboundSetCarriedItemPacket(this.carriedIndex)));
        }
  
-@@ -325,33 +326,33 @@
+@@ -325,36 +332,54 @@
        return new LocalPlayer(this.minecraft, var1, this.connection, var2, var3, var4, var5);
     }
  
@@ -138,15 +156,40 @@
        return this.localPlayerMode == GameType.SPECTATOR ? InteractionResult.PASS : var2.interactAt(var1, var5, var4);
     }
  
-    public ItemStack handleInventoryMouseClick(int var1, int var2, int var3, ClickType var4, Player var5) {
+-   public ItemStack handleInventoryMouseClick(int var1, int var2, int var3, ClickType var4, Player var5) {
 -      short var6 = var5.containerMenu.backup(var5.inventory);
-+      short var6 = var5.containerMenu.backup(var5.getInventory());
-       ItemStack var7 = var5.containerMenu.clicked(var2, var3, var4, var5);
-       this.connection.send((Packet)(new ServerboundContainerClickPacket(var1, var2, var3, var4, var7, var6)));
-       return var7;
+-      ItemStack var7 = var5.containerMenu.clicked(var2, var3, var4, var5);
+-      this.connection.send((Packet)(new ServerboundContainerClickPacket(var1, var2, var3, var4, var7, var6)));
+-      return var7;
++   public void handleInventoryMouseClick(int var1, int var2, int var3, ClickType var4, Player var5) {
++      NonNullList var6 = var5.containerMenu.slots;
++      int var7 = var6.size();
++      ArrayList var8 = Lists.newArrayListWithCapacity(var7);
++      Iterator var9 = var6.iterator();
++
++      while(var9.hasNext()) {
++         Slot var10 = (Slot)var9.next();
++         var8.add(var10.getItem().copy());
++      }
++
++      var5.containerMenu.clicked(var2, var3, var4, var5);
++      Int2ObjectOpenHashMap var14 = new Int2ObjectOpenHashMap();
++
++      for(int var13 = 0; var13 < var7; ++var13) {
++         ItemStack var11 = (ItemStack)var8.get(var13);
++         ItemStack var12 = ((Slot)var6.get(var13)).getItem();
++         if (!ItemStack.matches(var11, var12)) {
++            var14.put(var13, var12.copy());
++         }
++      }
++
++      this.connection.send((Packet)(new ServerboundContainerClickPacket(var1, var2, var3, var4, var5.containerMenu.getCarried().copy(), var14)));
     }
  
-@@ -405,10 +406,11 @@
+    public void handlePlaceRecipe(int var1, Recipe<?> var2, boolean var3) {
+       this.connection.send((Packet)(new ServerboundPlaceRecipePacket(var1, var2, var3)));
+    }
+@@ -405,10 +430,11 @@
  
     public boolean isAlwaysFlying() {
        return this.localPlayerMode == GameType.SPECTATOR;
@@ -158,7 +201,7 @@
     }
  
     public GameType getPlayerMode() {
-@@ -441,10 +443,10 @@
+@@ -441,10 +467,10 @@
        }
  
        while(this.unAckedActions.size() >= 50) {

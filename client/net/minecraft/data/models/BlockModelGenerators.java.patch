@@ -1,12 +1,11 @@
 --- net/minecraft/data/models/BlockModelGenerators.java
 +++ net/minecraft/data/models/BlockModelGenerators.java
-@@ -1,23 +1,30 @@
+@@ -1,23 +1,29 @@
  package net.minecraft.data.models;
  
  import com.google.common.collect.ImmutableList;
 +import com.google.common.collect.ImmutableMap;
 +import com.google.common.collect.Maps;
-+import com.google.common.collect.ImmutableMap.Builder;
  import com.google.gson.JsonElement;
  import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
  import java.util.Arrays;
@@ -31,7 +30,7 @@
  import net.minecraft.data.models.blockstates.MultiPartGenerator;
  import net.minecraft.data.models.blockstates.MultiVariantGenerator;
  import net.minecraft.data.models.blockstates.PropertyDispatch;
-@@ -34,33 +41,61 @@
+@@ -34,33 +40,67 @@
  import net.minecraft.world.item.Item;
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.SpawnEggItem;
@@ -63,45 +62,56 @@
     private final BiConsumer<ResourceLocation, Supplier<JsonElement>> modelOutput;
     private final Consumer<Item> skippedAutoModelsOutput;
 +   private final List<Block> nonOrientableTrapdoor;
-+   private final Map<Block, BlockModelGenerators.MirroredModelFactory> mirroredModels;
++   private final Map<Block, BlockModelGenerators.BlockStateGeneratorSupplier> fullBlockModelCustomGenerators;
 +   private final Map<Block, TexturedModel> texturedModels;
 +   private static final Map<BlockFamily.Variant, BiConsumer<BlockModelGenerators.BlockFamilyProvider, Block>> SHAPE_CONSUMERS;
 +   public static final Map<BooleanProperty, Function<ResourceLocation, Variant>> MULTIFACE_GENERATOR;
  
++   private static BlockStateGenerator createMirroredCubeGenerator(Block var0, ResourceLocation var1, TextureMapping var2, BiConsumer<ResourceLocation, Supplier<JsonElement>> var3) {
++      ResourceLocation var4 = ModelTemplates.CUBE_MIRRORED_ALL.create(var0, var2, var3);
++      return createRotatedVariant(var0, var1, var4);
++   }
++
++   private static BlockStateGenerator createMirroredColumnGenerator(Block var0, ResourceLocation var1, TextureMapping var2, BiConsumer<ResourceLocation, Supplier<JsonElement>> var3) {
++      ResourceLocation var4 = ModelTemplates.CUBE_COLUMN_MIRRORED.create(var0, var2, var3);
++      return createRotatedVariant(var0, var1, var4).with(createRotatedPillar());
++   }
++
     public BlockModelGenerators(Consumer<BlockStateGenerator> var1, BiConsumer<ResourceLocation, Supplier<JsonElement>> var2, Consumer<Item> var3) {
 +      this.nonOrientableTrapdoor = ImmutableList.of(Blocks.OAK_TRAPDOOR, Blocks.DARK_OAK_TRAPDOOR, Blocks.IRON_TRAPDOOR);
-+      Builder var10001 = ImmutableMap.builder();
-+      Block var10002 = Blocks.STONE;
-+      ModelTemplate var10003 = ModelTemplates.CUBE_MIRRORED_ALL;
-+      var10003.getClass();
-+      var10001 = var10001.put(var10002, var10003::create);
-+      var10002 = Blocks.COBBLED_DEEPSLATE;
-+      var10003 = ModelTemplates.CUBE_MIRRORED_ALL;
-+      var10003.getClass();
-+      var10001 = var10001.put(var10002, var10003::create);
-+      var10002 = Blocks.DEEPSLATE;
-+      var10003 = ModelTemplates.CUBE_COLUMN_MIRRORED;
-+      var10003.getClass();
-+      this.mirroredModels = var10001.put(var10002, var10003::create).build();
++      this.fullBlockModelCustomGenerators = ImmutableMap.builder().put(Blocks.STONE, BlockModelGenerators::createMirroredCubeGenerator).put(Blocks.DEEPSLATE, BlockModelGenerators::createMirroredColumnGenerator).build();
 +      this.texturedModels = ImmutableMap.builder().put(Blocks.SANDSTONE, TexturedModel.TOP_BOTTOM_WITH_WALL.get(Blocks.SANDSTONE)).put(Blocks.RED_SANDSTONE, TexturedModel.TOP_BOTTOM_WITH_WALL.get(Blocks.RED_SANDSTONE)).put(Blocks.SMOOTH_SANDSTONE, TexturedModel.createAllSame(TextureMapping.getBlockTexture(Blocks.SANDSTONE, "_top"))).put(Blocks.SMOOTH_RED_SANDSTONE, TexturedModel.createAllSame(TextureMapping.getBlockTexture(Blocks.RED_SANDSTONE, "_top"))).put(Blocks.CUT_SANDSTONE, TexturedModel.COLUMN.get(Blocks.SANDSTONE).updateTextures((var0) -> {
 +         var0.put(TextureSlot.SIDE, TextureMapping.getBlockTexture(Blocks.CUT_SANDSTONE));
 +      })).put(Blocks.CUT_RED_SANDSTONE, TexturedModel.COLUMN.get(Blocks.RED_SANDSTONE).updateTextures((var0) -> {
 +         var0.put(TextureSlot.SIDE, TextureMapping.getBlockTexture(Blocks.CUT_RED_SANDSTONE));
-+      })).put(Blocks.QUARTZ_BLOCK, TexturedModel.COLUMN.get(Blocks.QUARTZ_BLOCK)).put(Blocks.SMOOTH_QUARTZ, TexturedModel.createAllSame(TextureMapping.getBlockTexture(Blocks.QUARTZ_BLOCK, "_bottom"))).put(Blocks.BLACKSTONE, TexturedModel.COLUMN_WITH_WALL.get(Blocks.BLACKSTONE)).put(Blocks.DEEPSLATE, TexturedModel.COLUMN_WITH_WALL.get(Blocks.DEEPSLATE)).build();
++      })).put(Blocks.QUARTZ_BLOCK, TexturedModel.COLUMN.get(Blocks.QUARTZ_BLOCK)).put(Blocks.SMOOTH_QUARTZ, TexturedModel.createAllSame(TextureMapping.getBlockTexture(Blocks.QUARTZ_BLOCK, "_bottom"))).put(Blocks.BLACKSTONE, TexturedModel.COLUMN_WITH_WALL.get(Blocks.BLACKSTONE)).put(Blocks.DEEPSLATE, TexturedModel.COLUMN_WITH_WALL.get(Blocks.DEEPSLATE)).put(Blocks.CHISELED_QUARTZ_BLOCK, TexturedModel.COLUMN.get(Blocks.CHISELED_QUARTZ_BLOCK).updateTextures((var0) -> {
++         var0.put(TextureSlot.SIDE, TextureMapping.getBlockTexture(Blocks.CHISELED_QUARTZ_BLOCK));
++      })).put(Blocks.CHISELED_SANDSTONE, TexturedModel.COLUMN.get(Blocks.CHISELED_SANDSTONE).updateTextures((var0) -> {
++         var0.put(TextureSlot.END, TextureMapping.getBlockTexture(Blocks.SANDSTONE, "_top"));
++         var0.put(TextureSlot.SIDE, TextureMapping.getBlockTexture(Blocks.CHISELED_SANDSTONE));
++      })).put(Blocks.CHISELED_RED_SANDSTONE, TexturedModel.COLUMN.get(Blocks.CHISELED_RED_SANDSTONE).updateTextures((var0) -> {
++         var0.put(TextureSlot.END, TextureMapping.getBlockTexture(Blocks.RED_SANDSTONE, "_top"));
++         var0.put(TextureSlot.SIDE, TextureMapping.getBlockTexture(Blocks.CHISELED_RED_SANDSTONE));
++      })).build();
        this.blockStateOutput = var1;
        this.modelOutput = var2;
        this.skippedAutoModelsOutput = var3;
     }
  
-@@ -231,27 +266,15 @@
-    private void createTrivialBlock(Block var1, TextureMapping var2, ModelTemplate var3) {
-       ResourceLocation var4 = var3.create(var1, var2, this.modelOutput);
-       this.blockStateOutput.accept(createSimpleBlock(var1, var4));
+@@ -226,32 +266,15 @@
+ 
+    private void createTrivialBlock(Block var1, TexturedModel.Provider var2) {
+       this.blockStateOutput.accept(createSimpleBlock(var1, var2.create(var1, this.modelOutput)));
     }
  
+-   private void createTrivialBlock(Block var1, TextureMapping var2, ModelTemplate var3) {
+-      ResourceLocation var4 = var3.create(var1, var2, this.modelOutput);
+-      this.blockStateOutput.accept(createSimpleBlock(var1, var4));
+-   }
+-
 -   private BlockModelGenerators.BlockFamilyProvider family(Block var1, TexturedModel var2) {
 +   private BlockModelGenerators.BlockFamilyProvider family(Block var1) {
-+      TexturedModel var2 = this.texturedModels.containsKey(var1) ? (TexturedModel)this.texturedModels.get(var1) : TexturedModel.CUBE.get(var1);
++      TexturedModel var2 = (TexturedModel)this.texturedModels.getOrDefault(var1, TexturedModel.CUBE.get(var1));
        return (new BlockModelGenerators.BlockFamilyProvider(var2.getMapping())).fullBlock(var1, var2.getTemplate());
     }
  
@@ -190,7 +200,7 @@
        ResourceLocation var2 = ModelTemplates.CUBE_COLUMN.create(Blocks.BOOKSHELF, var1, this.modelOutput);
        this.blockStateOutput.accept(createSimpleBlock(Blocks.BOOKSHELF, var2));
     }
-@@ -646,13 +690,16 @@
+@@ -646,20 +690,18 @@
     private void createPumpkinVariant(Block var1, TextureMapping var2) {
        ResourceLocation var3 = ModelTemplates.CUBE_ORIENTABLE.create(var1, var2.copyAndUpdate(TextureSlot.FRONT, TextureMapping.getBlockTexture(var1)), this.modelOutput);
        this.blockStateOutput.accept(MultiVariantGenerator.multiVariant(var1, Variant.variant().with(VariantProperties.MODEL, var3)).with(createHorizontalFacingDispatch()));
@@ -206,10 +216,17 @@
 +      this.blockStateOutput.accept(MultiVariantGenerator.multiVariant(Blocks.POWDER_SNOW_CAULDRON).with(PropertyDispatch.property(LayeredCauldronBlock.LEVEL).select(1, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelTemplates.CAULDRON_LEVEL1.createWithSuffix(Blocks.POWDER_SNOW_CAULDRON, "_level1", TextureMapping.cauldron(TextureMapping.getBlockTexture(Blocks.POWDER_SNOW)), this.modelOutput))).select(2, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelTemplates.CAULDRON_LEVEL2.createWithSuffix(Blocks.POWDER_SNOW_CAULDRON, "_level2", TextureMapping.cauldron(TextureMapping.getBlockTexture(Blocks.POWDER_SNOW)), this.modelOutput))).select(3, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelTemplates.CAULDRON_FULL.createWithSuffix(Blocks.POWDER_SNOW_CAULDRON, "_full", TextureMapping.cauldron(TextureMapping.getBlockTexture(Blocks.POWDER_SNOW)), this.modelOutput)))));
     }
  
-    private void createChiseledSandsone(Block var1, Block var2) {
-       TextureMapping var3 = (new TextureMapping()).put(TextureSlot.END, TextureMapping.getBlockTexture(var2, "_top")).put(TextureSlot.SIDE, TextureMapping.getBlockTexture(var1));
-       this.createTrivialBlock(var1, var3, ModelTemplates.CUBE_COLUMN);
-@@ -692,10 +739,52 @@
+-   private void createChiseledSandsone(Block var1, Block var2) {
+-      TextureMapping var3 = (new TextureMapping()).put(TextureSlot.END, TextureMapping.getBlockTexture(var2, "_top")).put(TextureSlot.SIDE, TextureMapping.getBlockTexture(var1));
+-      this.createTrivialBlock(var1, var3, ModelTemplates.CUBE_COLUMN);
+-   }
+-
+    private void createChorusFlower() {
+       TextureMapping var1 = TextureMapping.defaultTexture(Blocks.CHORUS_FLOWER);
+       ResourceLocation var2 = ModelTemplates.CHORUS_FLOWER.create(Blocks.CHORUS_FLOWER, var1, this.modelOutput);
+       ResourceLocation var3 = this.createSuffixedVariant(Blocks.CHORUS_FLOWER, "_dead", ModelTemplates.CHORUS_FLOWER, (var1x) -> {
+          return var1.copyAndUpdate(TextureSlot.TEXTURE, var1x);
+@@ -692,10 +734,52 @@
  
     private void createComposter() {
        this.blockStateOutput.accept(MultiPartGenerator.multiPart(Blocks.COMPOSTER).with(Variant.variant().with(VariantProperties.MODEL, TextureMapping.getBlockTexture(Blocks.COMPOSTER))).with(Condition.condition().term(BlockStateProperties.LEVEL_COMPOSTER, 1), (Variant)Variant.variant().with(VariantProperties.MODEL, TextureMapping.getBlockTexture(Blocks.COMPOSTER, "_contents1"))).with(Condition.condition().term(BlockStateProperties.LEVEL_COMPOSTER, 2), (Variant)Variant.variant().with(VariantProperties.MODEL, TextureMapping.getBlockTexture(Blocks.COMPOSTER, "_contents2"))).with(Condition.condition().term(BlockStateProperties.LEVEL_COMPOSTER, 3), (Variant)Variant.variant().with(VariantProperties.MODEL, TextureMapping.getBlockTexture(Blocks.COMPOSTER, "_contents3"))).with(Condition.condition().term(BlockStateProperties.LEVEL_COMPOSTER, 4), (Variant)Variant.variant().with(VariantProperties.MODEL, TextureMapping.getBlockTexture(Blocks.COMPOSTER, "_contents4"))).with(Condition.condition().term(BlockStateProperties.LEVEL_COMPOSTER, 5), (Variant)Variant.variant().with(VariantProperties.MODEL, TextureMapping.getBlockTexture(Blocks.COMPOSTER, "_contents5"))).with(Condition.condition().term(BlockStateProperties.LEVEL_COMPOSTER, 6), (Variant)Variant.variant().with(VariantProperties.MODEL, TextureMapping.getBlockTexture(Blocks.COMPOSTER, "_contents6"))).with(Condition.condition().term(BlockStateProperties.LEVEL_COMPOSTER, 7), (Variant)Variant.variant().with(VariantProperties.MODEL, TextureMapping.getBlockTexture(Blocks.COMPOSTER, "_contents7"))).with(Condition.condition().term(BlockStateProperties.LEVEL_COMPOSTER, 8), (Variant)Variant.variant().with(VariantProperties.MODEL, TextureMapping.getBlockTexture(Blocks.COMPOSTER, "_contents_ready"))));
@@ -262,7 +279,7 @@
        this.blockStateOutput.accept(createSimpleBlock(var1, ModelTemplates.CUBE_BOTTOM_TOP.create(var1, var2, this.modelOutput)));
     }
  
-@@ -816,12 +905,12 @@
+@@ -816,12 +900,12 @@
     private void createCocoa() {
        this.createSimpleFlatItemModel(Items.COCOA_BEANS);
        this.blockStateOutput.accept(MultiVariantGenerator.multiVariant(Blocks.COCOA).with(PropertyDispatch.property(BlockStateProperties.AGE_2).select(0, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelLocationUtils.getModelLocation(Blocks.COCOA, "_stage0"))).select(1, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelLocationUtils.getModelLocation(Blocks.COCOA, "_stage1"))).select(2, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelLocationUtils.getModelLocation(Blocks.COCOA, "_stage2")))).with(createHorizontalFacingDispatchAlt()));
@@ -277,7 +294,7 @@
     private void createWeightedPressurePlate(Block var1, Block var2) {
        TextureMapping var3 = TextureMapping.defaultTexture(var2);
        ResourceLocation var4 = ModelTemplates.PRESSURE_PLATE_UP.create(var1, var3, this.modelOutput);
-@@ -909,17 +998,35 @@
+@@ -909,17 +993,35 @@
        TextureMapping var2 = var1.copyAndUpdate(TextureSlot.PLATFORM, TextureMapping.getBlockTexture(Blocks.PISTON, "_top_sticky"));
        TextureMapping var3 = var1.copyAndUpdate(TextureSlot.PLATFORM, TextureMapping.getBlockTexture(Blocks.PISTON, "_top"));
        this.blockStateOutput.accept(MultiVariantGenerator.multiVariant(Blocks.PISTON_HEAD).with(PropertyDispatch.properties(BlockStateProperties.SHORT, BlockStateProperties.PISTON_TYPE).select(false, PistonType.DEFAULT, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelTemplates.PISTON_HEAD.createWithSuffix(Blocks.PISTON, "_head", var3, this.modelOutput))).select(false, PistonType.STICKY, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelTemplates.PISTON_HEAD.createWithSuffix(Blocks.PISTON, "_head_sticky", var2, this.modelOutput))).select(true, PistonType.DEFAULT, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelTemplates.PISTON_HEAD_SHORT.createWithSuffix(Blocks.PISTON, "_head_short", var3, this.modelOutput))).select(true, PistonType.STICKY, (Variant)Variant.variant().with(VariantProperties.MODEL, ModelTemplates.PISTON_HEAD_SHORT.createWithSuffix(Blocks.PISTON, "_head_short_sticky", var2, this.modelOutput)))).with(createFacingDispatch()));
@@ -313,7 +330,7 @@
        ResourceLocation var2 = this.createSuffixedVariant(Blocks.REDSTONE_LAMP, "_on", ModelTemplates.CUBE_ALL, TextureMapping::cube);
        this.blockStateOutput.accept(MultiVariantGenerator.multiVariant(Blocks.REDSTONE_LAMP).with(createBooleanModelDispatch(BlockStateProperties.LIT, var2, var1)));
     }
-@@ -1041,13 +1148,21 @@
+@@ -1041,13 +1143,21 @@
        this.blockStateOutput.accept(MultiVariantGenerator.multiVariant(Blocks.TURTLE_EGG).with(PropertyDispatch.properties(BlockStateProperties.EGGS, BlockStateProperties.HATCH).generateList((var1, var2) -> {
           return Arrays.asList(createRotatedVariants(this.createTurtleEggModel(var1, var2)));
        })));
@@ -338,7 +355,7 @@
     private void createMagmaBlock() {
        this.blockStateOutput.accept(createSimpleBlock(Blocks.MAGMA_BLOCK, ModelTemplates.CUBE_ALL.create(Blocks.MAGMA_BLOCK, TextureMapping.cube(ModelLocationUtils.decorateBlockModelLocation("magma")), this.modelOutput)));
     }
-@@ -1138,11 +1253,27 @@
+@@ -1138,11 +1248,27 @@
        this.blockStateOutput.accept(MultiVariantGenerator.multiVariant(Blocks.JIGSAW, Variant.variant().with(VariantProperties.MODEL, var6)).with(PropertyDispatch.property(BlockStateProperties.ORIENTATION).generate((var1x) -> {
           return this.applyRotation(var1x, Variant.variant());
        })));
@@ -366,7 +383,7 @@
        this.createNonTemplateModelBlock(Blocks.VOID_AIR, Blocks.AIR);
        this.createNonTemplateModelBlock(Blocks.BEACON);
        this.createNonTemplateModelBlock(Blocks.CACTUS);
-@@ -1155,34 +1286,62 @@
+@@ -1155,42 +1281,69 @@
        this.createNonTemplateModelBlock(Blocks.HONEY_BLOCK);
        this.createNonTemplateModelBlock(Blocks.WATER);
        this.createNonTemplateModelBlock(Blocks.LAVA);
@@ -403,11 +420,13 @@
        this.createSimpleFlatItemModel(Items.STRUCTURE_VOID);
        this.createAirLikeBlock(Blocks.MOVING_PISTON, TextureMapping.getBlockTexture(Blocks.PISTON, "_side"));
        this.createTrivialBlock(Blocks.COAL_ORE, TexturedModel.CUBE);
++      this.createTrivialBlock(Blocks.DEEPSLATE_COAL_ORE, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.COAL_BLOCK, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.DIAMOND_ORE, TexturedModel.CUBE);
 +      this.createTrivialBlock(Blocks.DEEPSLATE_DIAMOND_ORE, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.DIAMOND_BLOCK, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.EMERALD_ORE, TexturedModel.CUBE);
++      this.createTrivialBlock(Blocks.DEEPSLATE_EMERALD_ORE, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.EMERALD_BLOCK, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.GOLD_ORE, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.NETHER_GOLD_ORE, TexturedModel.CUBE);
@@ -427,22 +446,38 @@
        this.createTrivialBlock(Blocks.REDSTONE_BLOCK, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.GILDED_BLACKSTONE, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.BLUE_ICE, TexturedModel.CUBE);
-       this.createTrivialBlock(Blocks.CHISELED_NETHER_BRICKS, TexturedModel.CUBE);
+-      this.createTrivialBlock(Blocks.CHISELED_NETHER_BRICKS, TexturedModel.CUBE);
        this.createTrivialBlock(Blocks.CLAY, TexturedModel.CUBE);
-@@ -1221,31 +1380,48 @@
-       }));
-       this.createTrivialBlock(Blocks.CHISELED_STONE_BRICKS, TexturedModel.CUBE);
-       this.createChiseledSandsone(Blocks.CHISELED_SANDSTONE, Blocks.SANDSTONE);
-       this.createChiseledSandsone(Blocks.CHISELED_RED_SANDSTONE, Blocks.RED_SANDSTONE);
-       this.createTrivialBlock(Blocks.CHISELED_POLISHED_BLACKSTONE, TexturedModel.CUBE);
+       this.createTrivialBlock(Blocks.COARSE_DIRT, TexturedModel.CUBE);
+-      this.createTrivialBlock(Blocks.CRACKED_NETHER_BRICKS, TexturedModel.CUBE);
+-      this.createTrivialBlock(Blocks.CRACKED_STONE_BRICKS, TexturedModel.CUBE);
+       this.createTrivialBlock(Blocks.CRYING_OBSIDIAN, TexturedModel.CUBE);
+       this.createTrivialBlock(Blocks.END_STONE, TexturedModel.CUBE);
+       this.createTrivialBlock(Blocks.GLOWSTONE, TexturedModel.CUBE);
+       this.createTrivialBlock(Blocks.GRAVEL, TexturedModel.CUBE);
+       this.createTrivialBlock(Blocks.HONEYCOMB_BLOCK, TexturedModel.CUBE);
+@@ -1213,39 +1366,48 @@
+       this.createSimpleFlatItemModel(Items.SEAGRASS);
+       this.createTrivialBlock(Blocks.TNT, TexturedModel.CUBE_TOP_BOTTOM);
+       this.createTrivialBlock(Blocks.TARGET, TexturedModel.COLUMN);
+       this.createTrivialBlock(Blocks.WARPED_WART_BLOCK, TexturedModel.CUBE);
+       this.createTrivialBlock(Blocks.WET_SPONGE, TexturedModel.CUBE);
+-      this.createTrivialBlock(Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS, TexturedModel.CUBE);
+-      this.createTrivialBlock(Blocks.CHISELED_QUARTZ_BLOCK, TexturedModel.COLUMN.updateTexture((var0) -> {
+-         var0.put(TextureSlot.SIDE, TextureMapping.getBlockTexture(Blocks.CHISELED_QUARTZ_BLOCK));
+-      }));
+-      this.createTrivialBlock(Blocks.CHISELED_STONE_BRICKS, TexturedModel.CUBE);
+-      this.createChiseledSandsone(Blocks.CHISELED_SANDSTONE, Blocks.SANDSTONE);
+-      this.createChiseledSandsone(Blocks.CHISELED_RED_SANDSTONE, Blocks.RED_SANDSTONE);
+-      this.createTrivialBlock(Blocks.CHISELED_POLISHED_BLACKSTONE, TexturedModel.CUBE);
 +      this.createTrivialBlock(Blocks.AMETHYST_BLOCK, TexturedModel.CUBE);
 +      this.createTrivialBlock(Blocks.BUDDING_AMETHYST, TexturedModel.CUBE);
 +      this.createTrivialBlock(Blocks.CALCITE, TexturedModel.CUBE);
 +      this.createTrivialBlock(Blocks.TUFF, TexturedModel.CUBE);
 +      this.createTrivialBlock(Blocks.DRIPSTONE_BLOCK, TexturedModel.CUBE);
-+      this.createTrivialBlock(Blocks.CHISELED_DEEPSLATE, TexturedModel.CUBE);
 +      this.createPetrifiedOakSlab();
 +      this.createTrivialCube(Blocks.COPPER_ORE);
++      this.createTrivialCube(Blocks.DEEPSLATE_COPPER_ORE);
 +      this.createTrivialCube(Blocks.COPPER_BLOCK);
 +      this.createTrivialCube(Blocks.EXPOSED_COPPER);
 +      this.createTrivialCube(Blocks.WEATHERED_COPPER);
@@ -480,7 +515,7 @@
        this.createIronBars();
        this.createLever();
        this.createLilyPad();
-@@ -1265,16 +1441,20 @@
+@@ -1265,16 +1427,20 @@
        this.createStructureBlock();
        this.createSweetBerryBush();
        this.createTripwire();
@@ -502,7 +537,7 @@
        this.createCraftingTableLike(Blocks.CRAFTING_TABLE, Blocks.OAK_PLANKS, TextureMapping::craftingTable);
        this.createCraftingTableLike(Blocks.FLETCHING_TABLE, Blocks.BIRCH_PLANKS, TextureMapping::fletchingTable);
        this.createNyliumBlock(Blocks.CRIMSON_NYLIUM);
-@@ -1284,10 +1464,11 @@
+@@ -1284,10 +1450,11 @@
        this.createLantern(Blocks.LANTERN);
        this.createLantern(Blocks.SOUL_LANTERN);
        this.createAxisAlignedPillarBlockCustomModel(Blocks.CHAIN, ModelLocationUtils.getModelLocation(Blocks.CHAIN));
@@ -514,7 +549,7 @@
        this.createRotatedVariantBlock(Blocks.SAND);
        this.createRotatedVariantBlock(Blocks.RED_SAND);
        this.createRotatedMirroredVariantBlock(Blocks.BEDROCK);
-@@ -1342,10 +1523,13 @@
+@@ -1342,10 +1509,13 @@
        this.createTrivialBlock(Blocks.CONDUIT, TexturedModel.PARTICLE_ONLY);
        this.skipAutoItemBlock(Blocks.CONDUIT);
        this.blockEntityModels(ModelLocationUtils.decorateBlockModelLocation("chest"), Blocks.OAK_PLANKS).createWithoutBlockItem(Blocks.CHEST, Blocks.TRAPPED_CHEST);
@@ -528,7 +563,7 @@
        this.createTrivialCube(Blocks.MAGENTA_CONCRETE);
        this.createTrivialCube(Blocks.LIGHT_BLUE_CONCRETE);
        this.createTrivialCube(Blocks.YELLOW_CONCRETE);
-@@ -1376,10 +1560,11 @@
+@@ -1376,10 +1546,11 @@
        this.createTrivialCube(Blocks.BLUE_TERRACOTTA);
        this.createTrivialCube(Blocks.BROWN_TERRACOTTA);
        this.createTrivialCube(Blocks.GREEN_TERRACOTTA);
@@ -540,7 +575,7 @@
        this.createGlassBlocks(Blocks.ORANGE_STAINED_GLASS, Blocks.ORANGE_STAINED_GLASS_PANE);
        this.createGlassBlocks(Blocks.MAGENTA_STAINED_GLASS, Blocks.MAGENTA_STAINED_GLASS_PANE);
        this.createGlassBlocks(Blocks.LIGHT_BLUE_STAINED_GLASS, Blocks.LIGHT_BLUE_STAINED_GLASS_PANE);
-@@ -1394,26 +1579,26 @@
+@@ -1394,26 +1565,26 @@
        this.createGlassBlocks(Blocks.BROWN_STAINED_GLASS, Blocks.BROWN_STAINED_GLASS_PANE);
        this.createGlassBlocks(Blocks.GREEN_STAINED_GLASS, Blocks.GREEN_STAINED_GLASS_PANE);
        this.createGlassBlocks(Blocks.RED_STAINED_GLASS, Blocks.RED_STAINED_GLASS_PANE);
@@ -583,7 +618,7 @@
        this.createPlant(Blocks.POPPY, Blocks.POTTED_POPPY, BlockModelGenerators.TintState.NOT_TINTED);
        this.createPlant(Blocks.BLUE_ORCHID, Blocks.POTTED_BLUE_ORCHID, BlockModelGenerators.TintState.NOT_TINTED);
        this.createPlant(Blocks.ALLIUM, Blocks.POTTED_ALLIUM, BlockModelGenerators.TintState.NOT_TINTED);
-@@ -1427,19 +1612,23 @@
+@@ -1427,19 +1598,23 @@
        this.createPlant(Blocks.LILY_OF_THE_VALLEY, Blocks.POTTED_LILY_OF_THE_VALLEY, BlockModelGenerators.TintState.NOT_TINTED);
        this.createPlant(Blocks.WITHER_ROSE, Blocks.POTTED_WITHER_ROSE, BlockModelGenerators.TintState.NOT_TINTED);
        this.createPlant(Blocks.RED_MUSHROOM, Blocks.POTTED_RED_MUSHROOM, BlockModelGenerators.TintState.NOT_TINTED);
@@ -607,7 +642,7 @@
        this.createSimpleFlatItemModel(Blocks.WEEPING_VINES, "_plant");
        this.skipAutoItemBlock(Blocks.WEEPING_VINES_PLANT);
        this.createSimpleFlatItemModel(Blocks.TWISTING_VINES, "_plant");
-@@ -1452,116 +1641,54 @@
+@@ -1452,116 +1627,54 @@
        this.createDoublePlant(Blocks.PEONY, BlockModelGenerators.TintState.NOT_TINTED);
        this.createDoublePlant(Blocks.TALL_GRASS, BlockModelGenerators.TintState.TINTED);
        this.createDoublePlant(Blocks.LARGE_FERN, BlockModelGenerators.TintState.TINTED);
@@ -725,7 +760,13 @@
        this.createActiveRail(Blocks.POWERED_RAIL);
        this.createActiveRail(Blocks.DETECTOR_RAIL);
        this.createActiveRail(Blocks.ACTIVATOR_RAIL);
-@@ -1588,10 +1715,45 @@
+@@ -1583,15 +1696,55 @@
+       this.copyModel(Blocks.COBBLESTONE, Blocks.INFESTED_COBBLESTONE);
+       this.copyModel(Blocks.CRACKED_STONE_BRICKS, Blocks.INFESTED_CRACKED_STONE_BRICKS);
+       this.copyModel(Blocks.MOSSY_STONE_BRICKS, Blocks.INFESTED_MOSSY_STONE_BRICKS);
+       this.createInfestedStone();
+       this.copyModel(Blocks.STONE_BRICKS, Blocks.INFESTED_STONE_BRICKS);
++      this.copyModel(Blocks.DEEPSLATE, Blocks.INFESTED_DEEPSLATE);
        SpawnEggItem.eggs().forEach((var1) -> {
           this.delegateItemModel((Item)var1, ModelLocationUtils.decorateItemModelLocation("template_spawn_egg"));
        });
@@ -741,6 +782,10 @@
 +   static {
 +      SHAPE_CONSUMERS = ImmutableMap.builder().put(BlockFamily.Variant.BUTTON, BlockModelGenerators.BlockFamilyProvider::button).put(BlockFamily.Variant.DOOR, (var0, var1) -> {
 +         ((BlockModelGenerators.BlockFamilyProvider)var0).door(var1);
++      }).put(BlockFamily.Variant.CHISELED, (var0, var1) -> {
++         ((BlockModelGenerators.BlockFamilyProvider)var0).fullBlockVariant(var1);
++      }).put(BlockFamily.Variant.CRACKED, (var0, var1) -> {
++         ((BlockModelGenerators.BlockFamilyProvider)var0).fullBlockVariant(var1);
 +      }).put(BlockFamily.Variant.FENCE, BlockModelGenerators.BlockFamilyProvider::fence).put(BlockFamily.Variant.FENCE_GATE, BlockModelGenerators.BlockFamilyProvider::fenceGate).put(BlockFamily.Variant.SIGN, BlockModelGenerators.BlockFamilyProvider::sign).put(BlockFamily.Variant.SLAB, BlockModelGenerators.BlockFamilyProvider::slab).put(BlockFamily.Variant.STAIRS, BlockModelGenerators.BlockFamilyProvider::stairs).put(BlockFamily.Variant.PRESSURE_PLATE, BlockModelGenerators.BlockFamilyProvider::pressurePlate).put(BlockFamily.Variant.TRAPDOOR, (var0, var1) -> {
 +         ((BlockModelGenerators.BlockFamilyProvider)var0).trapdoor(var1);
 +      }).put(BlockFamily.Variant.WALL, BlockModelGenerators.BlockFamilyProvider::wall).build();
@@ -771,7 +816,7 @@
  
        public BlockEntityModelGenerator(ResourceLocation var2, Block var3) {
           this.baseModel = ModelTemplates.PARTICLE_ONLY.create(var2, TextureMapping.particle(var3), BlockModelGenerators.this.modelOutput);
-@@ -1678,26 +1840,47 @@
+@@ -1678,26 +1831,46 @@
        }
     }
  
@@ -790,9 +835,8 @@
        public BlockModelGenerators.BlockFamilyProvider fullBlock(Block var1, ModelTemplate var2) {
           this.fullBlock = var2.create(var1, this.mapping, BlockModelGenerators.this.modelOutput);
 -         BlockModelGenerators.this.blockStateOutput.accept(BlockModelGenerators.createSimpleBlock(var1, this.fullBlock));
-+         if (BlockModelGenerators.this.mirroredModels.containsKey(var1)) {
-+            ResourceLocation var3 = ((BlockModelGenerators.MirroredModelFactory)BlockModelGenerators.this.mirroredModels.get(var1)).create(var1, this.mapping, BlockModelGenerators.this.modelOutput);
-+            BlockModelGenerators.this.blockStateOutput.accept(BlockModelGenerators.createRotatedVariant(var1, this.fullBlock, var3));
++         if (BlockModelGenerators.this.fullBlockModelCustomGenerators.containsKey(var1)) {
++            BlockModelGenerators.this.blockStateOutput.accept(((BlockModelGenerators.BlockStateGeneratorSupplier)BlockModelGenerators.this.fullBlockModelCustomGenerators.get(var1)).create(var1, this.fullBlock, this.mapping, BlockModelGenerators.this.modelOutput));
 +         } else {
 +            BlockModelGenerators.this.blockStateOutput.accept(BlockModelGenerators.createSimpleBlock(var1, this.fullBlock));
 +         }
@@ -823,7 +867,7 @@
        public BlockModelGenerators.BlockFamilyProvider button(Block var1) {
           ResourceLocation var2 = ModelTemplates.BUTTON.create(var1, this.mapping, BlockModelGenerators.this.modelOutput);
           ResourceLocation var3 = ModelTemplates.BUTTON_PRESSED.create(var1, this.mapping, BlockModelGenerators.this.modelOutput);
-@@ -1740,34 +1923,78 @@
+@@ -1740,34 +1913,84 @@
           ResourceLocation var3 = ModelTemplates.PRESSURE_PLATE_DOWN.create(var1, this.mapping, BlockModelGenerators.this.modelOutput);
           BlockModelGenerators.this.blockStateOutput.accept(BlockModelGenerators.createPressurePlate(var1, var2, var3));
           return this;
@@ -840,7 +884,7 @@
 +         if (this.family == null) {
 +            throw new IllegalStateException("Family not defined");
 +         } else {
-+            Block var2 = (Block)this.family.getShapes().get(BlockFamily.Variant.WALL_SIGN);
++            Block var2 = (Block)this.family.getVariants().get(BlockFamily.Variant.WALL_SIGN);
 +            ResourceLocation var3 = ModelTemplates.PARTICLE_ONLY.create(var1, this.mapping, BlockModelGenerators.this.modelOutput);
 +            BlockModelGenerators.this.blockStateOutput.accept(BlockModelGenerators.createSimpleBlock(var1, var3));
 +            BlockModelGenerators.this.blockStateOutput.accept(BlockModelGenerators.createSimpleBlock(var2, var3));
@@ -876,6 +920,12 @@
           return this;
        }
 +
++      private BlockModelGenerators.BlockFamilyProvider fullBlockVariant(Block var1) {
++         TexturedModel var2 = (TexturedModel)BlockModelGenerators.this.texturedModels.getOrDefault(var1, TexturedModel.CUBE.get(var1));
++         BlockModelGenerators.this.blockStateOutput.accept(BlockModelGenerators.createSimpleBlock(var1, var2.create(var1, BlockModelGenerators.this.modelOutput)));
++         return this;
++      }
++
 +      private BlockModelGenerators.BlockFamilyProvider door(Block var1) {
 +         BlockModelGenerators.this.createDoor(var1);
 +         return this;
@@ -898,7 +948,7 @@
 +
 +      public BlockModelGenerators.BlockFamilyProvider generateFor(BlockFamily var1) {
 +         this.family = var1;
-+         var1.getShapes().forEach((var1x, var2) -> {
++         var1.getVariants().forEach((var1x, var2) -> {
 +            BiConsumer var3 = (BiConsumer)BlockModelGenerators.SHAPE_CONSUMERS.get(var1x);
 +            if (var3 != null) {
 +               var3.accept(this, var2);
@@ -910,7 +960,7 @@
     }
 +
 +   @FunctionalInterface
-+   interface MirroredModelFactory {
-+      ResourceLocation create(Block var1, TextureMapping var2, BiConsumer<ResourceLocation, Supplier<JsonElement>> var3);
++   interface BlockStateGeneratorSupplier {
++      BlockStateGenerator create(Block var1, ResourceLocation var2, TextureMapping var3, BiConsumer<ResourceLocation, Supplier<JsonElement>> var4);
 +   }
  }

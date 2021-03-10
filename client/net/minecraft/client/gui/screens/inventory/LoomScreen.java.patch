@@ -1,6 +1,10 @@
 --- net/minecraft/client/gui/screens/inventory/LoomScreen.java
 +++ net/minecraft/client/gui/screens/inventory/LoomScreen.java
-@@ -4,10 +4,11 @@
+@@ -1,14 +1,17 @@
+ package net.minecraft.client.gui.screens.inventory;
+ 
+ import com.mojang.blaze3d.platform.Lighting;
++import com.mojang.blaze3d.systems.RenderSystem;
  import com.mojang.blaze3d.vertex.PoseStack;
  import com.mojang.datafixers.util.Pair;
  import java.util.List;
@@ -8,11 +12,13 @@
  import net.minecraft.client.Minecraft;
 +import net.minecraft.client.model.geom.ModelLayers;
  import net.minecraft.client.model.geom.ModelPart;
++import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.client.renderer.MultiBufferSource;
  import net.minecraft.client.renderer.blockentity.BannerRenderer;
  import net.minecraft.client.renderer.texture.OverlayTexture;
  import net.minecraft.client.resources.model.ModelBakery;
-@@ -29,11 +30,11 @@
+ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+@@ -29,11 +32,11 @@
  import net.minecraft.world.level.block.entity.BannerPattern;
  
  public class LoomScreen extends AbstractContainerScreen<LoomMenu> {
@@ -25,7 +31,7 @@
     private ItemStack bannerStack;
     private ItemStack dyeStack;
     private ItemStack patternStack;
-@@ -48,15 +49,19 @@
+@@ -48,23 +51,28 @@
        super(var1, var2, var3);
        this.bannerStack = ItemStack.EMPTY;
        this.dyeStack = ItemStack.EMPTY;
@@ -45,4 +51,40 @@
        super.render(var1, var2, var3, var4);
        this.renderTooltip(var1, var2, var3);
     }
+ 
+    protected void renderBg(PoseStack var1, float var2, int var3, int var4) {
+       this.renderBackground(var1);
+-      this.minecraft.getTextureManager().bind(BG_LOCATION);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderTexture(0, BG_LOCATION);
+       int var5 = this.leftPos;
+       int var6 = this.topPos;
+       this.blit(var1, var5, var6, 0, 0, this.imageWidth, this.imageHeight);
+       Slot var7 = ((LoomMenu)this.menu).getBannerSlot();
+       Slot var8 = ((LoomMenu)this.menu).getDyeSlot();
+@@ -112,11 +120,11 @@
+ 
+          for(int var15 = this.startIndex; var15 < var14 && var15 < BannerPattern.COUNT - BannerPattern.PATTERN_ITEM_COUNT; ++var15) {
+             int var16 = var15 - this.startIndex;
+             int var17 = var20 + var16 % 4 * 14;
+             int var18 = var21 + var16 / 4 * 14;
+-            this.minecraft.getTextureManager().bind(BG_LOCATION);
++            RenderSystem.setShaderTexture(0, BG_LOCATION);
+             int var19 = this.imageHeight;
+             if (var15 == ((LoomMenu)this.menu).getSelectedBannerPatternIndex()) {
+                var19 += 14;
+             } else if (var3 >= var17 && var4 >= var18 && var3 < var17 + 14 && var4 < var18 + 14) {
+                var19 += 28;
+@@ -126,11 +134,11 @@
+             this.renderPattern(var15, var17, var18);
+          }
+       } else if (this.displaySpecialPattern) {
+          var20 = var5 + 60;
+          var21 = var6 + 13;
+-         this.minecraft.getTextureManager().bind(BG_LOCATION);
++         RenderSystem.setShaderTexture(0, BG_LOCATION);
+          this.blit(var1, var20, var21, 0, this.imageHeight, 14, 14);
+          var14 = ((LoomMenu)this.menu).getSelectedBannerPatternIndex();
+          this.renderPattern(var14, var20, var21);
+       }
  

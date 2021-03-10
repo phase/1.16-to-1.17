@@ -1,18 +1,19 @@
 --- net/minecraft/client/gui/screens/debug/GameModeSwitcherScreen.java
 +++ net/minecraft/client/gui/screens/debug/GameModeSwitcherScreen.java
-@@ -10,10 +10,11 @@
+@@ -10,10 +10,12 @@
  import net.minecraft.ChatFormatting;
  import net.minecraft.client.Minecraft;
  import net.minecraft.client.gui.chat.NarratorChatListener;
  import net.minecraft.client.gui.components.AbstractWidget;
  import net.minecraft.client.gui.screens.Screen;
 +import net.minecraft.client.multiplayer.MultiPlayerGameMode;
++import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.client.renderer.entity.ItemRenderer;
  import net.minecraft.client.renderer.texture.TextureManager;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.resources.ResourceLocation;
-@@ -22,11 +23,11 @@
+@@ -22,11 +24,11 @@
  import net.minecraft.world.level.GameType;
  import net.minecraft.world.level.block.Blocks;
  
@@ -25,7 +26,7 @@
     private Optional<GameModeSwitcherScreen.GameModeIcon> currentlyHovered = Optional.empty();
     private int firstMouseX;
     private int firstMouseY;
-@@ -36,46 +37,42 @@
+@@ -36,46 +38,43 @@
     public GameModeSwitcherScreen() {
        super(NarratorChatListener.NO_TITLE);
     }
@@ -64,9 +65,11 @@
  
     public void render(PoseStack var1, int var2, int var3, float var4) {
        if (!this.checkToClose()) {
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
           var1.pushPose();
           RenderSystem.enableBlend();
-          this.minecraft.getTextureManager().bind(GAMEMODE_SWITCHER_LOCATION);
+-         this.minecraft.getTextureManager().bind(GAMEMODE_SWITCHER_LOCATION);
++         RenderSystem.setShaderTexture(0, GAMEMODE_SWITCHER_LOCATION);
           int var5 = this.width / 2 - 62;
 -         int var6 = this.height / 2 - 30 - 27;
 +         int var6 = this.height / 2 - 31 - 27;
@@ -81,7 +84,7 @@
           if (!this.setFirstMousePos) {
              this.firstMouseX = var2;
              this.firstMouseY = var3;
-@@ -145,11 +142,11 @@
+@@ -145,11 +144,11 @@
     public class GameModeSlot extends AbstractWidget {
        private final GameModeSwitcherScreen.GameModeIcon icon;
        private boolean isSelected;
@@ -94,10 +97,15 @@
  
        public void renderButton(PoseStack var1, int var2, int var3, float var4) {
           Minecraft var5 = Minecraft.getInstance();
-@@ -172,19 +169,19 @@
+@@ -169,22 +168,24 @@
+          this.isSelected = var1;
+          this.narrate();
+       }
  
        private void drawSlot(PoseStack var1, TextureManager var2) {
-          var2.bind(GameModeSwitcherScreen.GAMEMODE_SWITCHER_LOCATION);
+-         var2.bind(GameModeSwitcherScreen.GAMEMODE_SWITCHER_LOCATION);
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
++         RenderSystem.setShaderTexture(0, GameModeSwitcherScreen.GAMEMODE_SWITCHER_LOCATION);
           var1.pushPose();
           var1.translate((double)this.x, (double)this.y, 0.0D);
 -         blit(var1, 0, 0, 0.0F, 75.0F, 25, 25, 128, 128);
@@ -106,7 +114,9 @@
        }
  
        private void drawSelection(PoseStack var1, TextureManager var2) {
-          var2.bind(GameModeSwitcherScreen.GAMEMODE_SWITCHER_LOCATION);
+-         var2.bind(GameModeSwitcherScreen.GAMEMODE_SWITCHER_LOCATION);
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
++         RenderSystem.setShaderTexture(0, GameModeSwitcherScreen.GAMEMODE_SWITCHER_LOCATION);
           var1.pushPose();
           var1.translate((double)this.x, (double)this.y, 0.0D);
 -         blit(var1, 0, 0, 25.0F, 75.0F, 25, 25, 128, 128);

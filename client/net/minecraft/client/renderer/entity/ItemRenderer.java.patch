@@ -1,6 +1,12 @@
 --- net/minecraft/client/renderer/entity/ItemRenderer.java
 +++ net/minecraft/client/renderer/entity/ItemRenderer.java
-@@ -8,10 +8,11 @@
+@@ -3,15 +3,17 @@
+ import com.google.common.collect.Sets;
+ import com.mojang.blaze3d.platform.GlStateManager;
+ import com.mojang.blaze3d.platform.Lighting;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.BufferBuilder;
++import com.mojang.blaze3d.vertex.BufferUploader;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
  import com.mojang.blaze3d.vertex.PoseStack;
  import com.mojang.blaze3d.vertex.SheetedDecalTextureGenerator;
@@ -12,7 +18,19 @@
  import java.util.List;
  import java.util.Random;
  import java.util.Set;
-@@ -60,20 +61,22 @@
+@@ -23,10 +25,11 @@
+ import net.minecraft.client.color.item.ItemColors;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.player.LocalPlayer;
+ import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.client.renderer.ItemBlockRenderTypes;
+ import net.minecraft.client.renderer.ItemModelShaper;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.client.renderer.Sheets;
+@@ -60,20 +63,22 @@
     private static final Set<Item> IGNORED;
     public float blitOffset;
     private final ItemModelShaper itemModelShaper;
@@ -41,29 +59,33 @@
  
        this.itemColors = var3;
     }
-@@ -100,18 +103,18 @@
+@@ -100,30 +105,32 @@
  
     public void render(ItemStack var1, ItemTransforms.TransformType var2, boolean var3, PoseStack var4, MultiBufferSource var5, int var6, int var7, BakedModel var8) {
        if (!var1.isEmpty()) {
           var4.pushPose();
           boolean var9 = var2 == ItemTransforms.TransformType.GUI || var2 == ItemTransforms.TransformType.GROUND || var2 == ItemTransforms.TransformType.FIXED;
 -         if (var1.getItem() == Items.TRIDENT && var9) {
-+         if (var1.is(Items.TRIDENT) && var9) {
-             var8 = this.itemModelShaper.getModelManager().getModel(new ModelResourceLocation("minecraft:trident#inventory"));
+-            var8 = this.itemModelShaper.getModelManager().getModel(new ModelResourceLocation("minecraft:trident#inventory"));
++         if (var9) {
++            if (var1.is(Items.TRIDENT)) {
++               var8 = this.itemModelShaper.getModelManager().getModel(new ModelResourceLocation("minecraft:trident#inventory"));
++            } else if (var1.is(Items.SPYGLASS)) {
++               var8 = this.itemModelShaper.getModelManager().getModel(new ModelResourceLocation("minecraft:spyglass#inventory"));
++            }
           }
  
           var8.getTransforms().getTransform(var2).apply(var3, var4);
           var4.translate(-0.5D, -0.5D, -0.5D);
 -         if (var8.isCustomRenderer() || var1.getItem() == Items.TRIDENT && !var9) {
 -            BlockEntityWithoutLevelRenderer.instance.renderByItem(var1, var2, var4, var5, var6, var7);
-+         if (var8.isCustomRenderer() || var1.is(Items.TRIDENT) && !var9) {
-+            this.blockEntityRenderer.renderByItem(var1, var2, var4, var5, var6, var7);
-          } else {
+-         } else {
++         if (!var8.isCustomRenderer() && (!var1.is(Items.TRIDENT) || var9)) {
              boolean var10;
              if (var2 != ItemTransforms.TransformType.GUI && !var2.firstPerson() && var1.getItem() instanceof BlockItem) {
                 Block var11 = ((BlockItem)var1.getItem()).getBlock();
                 var10 = !(var11 instanceof HalfTransparentBlock) && !(var11 instanceof StainedGlassPaneBlock);
-@@ -119,11 +122,11 @@
+             } else {
                 var10 = true;
              }
  
@@ -76,7 +98,20 @@
                 if (var2 == ItemTransforms.TransformType.GUI) {
                    var13.pose().multiply(0.5F);
                 } else if (var2.firstPerson()) {
-@@ -192,37 +195,36 @@
+@@ -142,10 +149,12 @@
+             } else {
+                var12 = getFoilBuffer(var5, var14, true, var1.hasFoil());
+             }
+ 
+             this.renderModelLists(var8, var1, var6, var7, var4, var12);
++         } else {
++            this.blockEntityRenderer.renderByItem(var1, var2, var4, var5, var6, var7);
+          }
+ 
+          var4.popPose();
+       }
+    }
+@@ -192,106 +201,109 @@
           var2.putBulkData(var8, var10, var12, var13, var14, var5, var6);
        }
  
@@ -91,6 +126,8 @@
 +      BakedModel var5;
 +      if (var1.is(Items.TRIDENT)) {
 +         var5 = this.itemModelShaper.getModelManager().getModel(new ModelResourceLocation("minecraft:trident_in_hand#inventory"));
++      } else if (var1.is(Items.SPYGLASS)) {
++         var5 = this.itemModelShaper.getModelManager().getModel(new ModelResourceLocation("minecraft:spyglass_in_hand#inventory"));
        } else {
 -         var4 = this.itemModelShaper.getItemModel(var1);
 +         var5 = this.itemModelShaper.getItemModel(var1);
@@ -124,11 +161,54 @@
     }
  
     protected void renderGuiItem(ItemStack var1, int var2, int var3, BakedModel var4) {
-       RenderSystem.pushMatrix();
-       this.textureManager.bind(TextureAtlas.LOCATION_BLOCKS);
-@@ -255,43 +257,47 @@
-       RenderSystem.disableRescaleNormal();
-       RenderSystem.popMatrix();
+-      RenderSystem.pushMatrix();
+-      this.textureManager.bind(TextureAtlas.LOCATION_BLOCKS);
+       this.textureManager.getTexture(TextureAtlas.LOCATION_BLOCKS).setFilter(false, false);
+-      RenderSystem.enableRescaleNormal();
+-      RenderSystem.enableAlphaTest();
+-      RenderSystem.defaultAlphaFunc();
++      RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_BLOCKS);
+       RenderSystem.enableBlend();
+       RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      RenderSystem.translatef((float)var2, (float)var3, 100.0F + this.blitOffset);
+-      RenderSystem.translatef(8.0F, 8.0F, 0.0F);
+-      RenderSystem.scalef(1.0F, -1.0F, 1.0F);
+-      RenderSystem.scalef(16.0F, 16.0F, 16.0F);
+-      PoseStack var5 = new PoseStack();
+-      MultiBufferSource.BufferSource var6 = Minecraft.getInstance().renderBuffers().bufferSource();
+-      boolean var7 = !var4.usesBlockLight();
+-      if (var7) {
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++      PoseStack var5 = RenderSystem.getModelViewStack();
++      var5.pushPose();
++      var5.translate((double)var2, (double)var3, (double)(100.0F + this.blitOffset));
++      var5.translate(8.0D, 8.0D, 0.0D);
++      var5.scale(1.0F, -1.0F, 1.0F);
++      var5.scale(16.0F, 16.0F, 16.0F);
++      RenderSystem.applyModelViewMatrix();
++      PoseStack var6 = new PoseStack();
++      MultiBufferSource.BufferSource var7 = Minecraft.getInstance().renderBuffers().bufferSource();
++      boolean var8 = !var4.usesBlockLight();
++      if (var8) {
+          Lighting.setupForFlatItems();
+       }
+ 
+-      this.render(var1, ItemTransforms.TransformType.GUI, false, var5, var6, 15728880, OverlayTexture.NO_OVERLAY, var4);
+-      var6.endBatch();
++      this.render(var1, ItemTransforms.TransformType.GUI, false, var6, var7, 15728880, OverlayTexture.NO_OVERLAY, var4);
++      var7.endBatch();
+       RenderSystem.enableDepthTest();
+-      if (var7) {
++      if (var8) {
+          Lighting.setupFor3DItems();
+       }
+ 
+-      RenderSystem.disableAlphaTest();
+-      RenderSystem.disableRescaleNormal();
+-      RenderSystem.popMatrix();
++      var5.popPose();
++      RenderSystem.applyModelViewMatrix();
     }
  
     public void renderAndDecorateItem(ItemStack var1, int var2, int var3) {
@@ -188,7 +268,7 @@
           this.blitOffset -= 50.0F;
        }
     }
-@@ -309,49 +315,46 @@
+@@ -309,54 +321,51 @@
              MultiBufferSource.BufferSource var8 = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
              var1.drawInBatch((String)var7, (float)(var3 + 19 - 2 - var1.width(var7)), (float)(var4 + 6 + 3), 16777215, true, var6.last().pose(), var8, false, 0, 15728880);
              var8.endBatch();
@@ -198,7 +278,7 @@
 +         if (var2.isBarVisible()) {
              RenderSystem.disableDepthTest();
              RenderSystem.disableTexture();
-             RenderSystem.disableAlphaTest();
+-            RenderSystem.disableAlphaTest();
              RenderSystem.disableBlend();
 -            Tesselator var14 = Tesselator.getInstance();
 -            BufferBuilder var16 = var14.getBuilder();
@@ -216,7 +296,7 @@
 +            this.fillRect(var13, var3 + 2, var4 + 13, 13, 2, 0, 0, 0, 255);
 +            this.fillRect(var13, var3 + 2, var4 + 13, var9, 1, var10 >> 16 & 255, var10 >> 8 & 255, var10 & 255, 255);
              RenderSystem.enableBlend();
-             RenderSystem.enableAlphaTest();
+-            RenderSystem.enableAlphaTest();
              RenderSystem.enableTexture();
              RenderSystem.enableDepthTest();
           }
@@ -246,9 +326,17 @@
  
     private void fillRect(BufferBuilder var1, int var2, int var3, int var4, int var5, int var6, int var7, int var8, int var9) {
 -      var1.begin(7, DefaultVertexFormat.POSITION_COLOR);
++      RenderSystem.setShader(GameRenderer::getPositionColorShader);
 +      var1.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
        var1.vertex((double)(var2 + 0), (double)(var3 + 0), 0.0D).color(var6, var7, var8, var9).endVertex();
        var1.vertex((double)(var2 + 0), (double)(var3 + var5), 0.0D).color(var6, var7, var8, var9).endVertex();
        var1.vertex((double)(var2 + var4), (double)(var3 + var5), 0.0D).color(var6, var7, var8, var9).endVertex();
        var1.vertex((double)(var2 + var4), (double)(var3 + 0), 0.0D).color(var6, var7, var8, var9).endVertex();
-       Tesselator.getInstance().end();
+-      Tesselator.getInstance().end();
++      var1.end();
++      BufferUploader.end(var1);
+    }
+ 
+    public void onResourceManagerReload(ResourceManager var1) {
+       this.itemModelShaper.rebuildCache();
+    }

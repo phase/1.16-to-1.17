@@ -24,13 +24,14 @@
  import net.minecraft.CrashReportCategory;
  import net.minecraft.ReportedException;
  import net.minecraft.Util;
-@@ -29,17 +32,19 @@
+@@ -29,17 +32,20 @@
  import net.minecraft.client.gui.components.AbstractWidget;
  import net.minecraft.client.gui.components.TickableWidget;
  import net.minecraft.client.gui.components.Widget;
  import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
  import net.minecraft.client.gui.components.events.GuiEventListener;
 +import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
++import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.client.renderer.MultiBufferSource;
  import net.minecraft.client.renderer.entity.ItemRenderer;
  import net.minecraft.network.chat.ClickEvent;
@@ -44,7 +45,7 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
-@@ -110,13 +115,21 @@
+@@ -110,13 +116,21 @@
        this.children.add(var1);
        return var1;
     }
@@ -67,7 +68,7 @@
     }
  
     public void renderTooltip(PoseStack var1, Component var2, int var3, int var4) {
-@@ -126,83 +139,90 @@
+@@ -126,83 +140,89 @@
     public void renderComponentTooltip(PoseStack var1, List<Component> var2, int var3, int var4) {
        this.renderTooltip(var1, Lists.transform(var2, Component::getVisualOrderText), var3, var4);
     }
@@ -143,6 +144,7 @@
 +         this.itemRenderer.blitOffset = 400.0F;
 +         Tesselator var16 = Tesselator.getInstance();
 +         BufferBuilder var17 = var16.getBuilder();
++         RenderSystem.setShader(GameRenderer::getPositionColorShader);
 +         var17.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 +         Matrix4f var18 = var1.last().pose();
 +         fillGradient(var18, var17, var23 - 3, var24 - 4, var23 + var5 + 3, var24 - 3, 400, -267386864, -267386864);
@@ -158,12 +160,12 @@
           RenderSystem.disableTexture();
           RenderSystem.enableBlend();
           RenderSystem.defaultBlendFunc();
-          RenderSystem.shadeModel(7425);
+-         RenderSystem.shadeModel(7425);
 -         var15.end();
 -         BufferUploader.end(var15);
+-         RenderSystem.shadeModel(7424);
 +         var17.end();
 +         BufferUploader.end(var17);
-          RenderSystem.shadeModel(7424);
           RenderSystem.disableBlend();
           RenderSystem.enableTexture();
 -         MultiBufferSource.BufferSource var17 = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
@@ -206,11 +208,17 @@
  
     protected void renderComponentHoverEffect(PoseStack var1, @Nullable Style var2, int var3, int var4) {
        if (var2 != null && var2.getHoverEvent() != null) {
-@@ -340,11 +360,11 @@
+@@ -337,14 +357,15 @@
+    }
+ 
+    public void renderDirtBackground(int var1) {
        Tesselator var2 = Tesselator.getInstance();
        BufferBuilder var3 = var2.getBuilder();
-       this.minecraft.getTextureManager().bind(BACKGROUND_LOCATION);
-       RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      this.minecraft.getTextureManager().bind(BACKGROUND_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
++      RenderSystem.setShaderTexture(0, BACKGROUND_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
        float var4 = 32.0F;
 -      var3.begin(7, DefaultVertexFormat.POSITION_TEX_COLOR);
 +      var3.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);

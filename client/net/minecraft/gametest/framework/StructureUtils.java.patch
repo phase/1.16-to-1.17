@@ -1,10 +1,12 @@
 --- net/minecraft/gametest/framework/StructureUtils.java
 +++ net/minecraft/gametest/framework/StructureUtils.java
-@@ -16,11 +16,11 @@
+@@ -15,12 +15,13 @@
+ import java.util.Optional;
  import javax.annotation.Nullable;
  import net.minecraft.commands.arguments.blocks.BlockInput;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Registry;
++import net.minecraft.core.Vec3i;
  import net.minecraft.nbt.CompoundTag;
 -import net.minecraft.nbt.TagParser;
 +import net.minecraft.nbt.NbtUtils;
@@ -13,7 +15,7 @@
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.level.ChunkPos;
-@@ -36,12 +36,15 @@
+@@ -36,12 +37,15 @@
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
  import net.minecraft.world.phys.AABB;
@@ -29,7 +31,46 @@
     public static Rotation getRotationForRotationSteps(int var0) {
        switch(var0) {
        case 0:
-@@ -140,11 +143,11 @@
+@@ -66,11 +70,11 @@
+ 
+    public static BoundingBox getStructureBoundingBox(StructureBlockEntity var0) {
+       BlockPos var1 = var0.getBlockPos();
+       BlockPos var2 = var1.offset(var0.getStructureSize().offset(-1, -1, -1));
+       BlockPos var3 = StructureTemplate.transform(var2, Mirror.NONE, var0.getRotation(), var1);
+-      return new BoundingBox(var1, var3);
++      return BoundingBox.createProper(var1, var3);
+    }
+ 
+    public static void addCommandBlockAndButtonToStartTest(BlockPos var0, BlockPos var1, Rotation var2, ServerLevel var3) {
+       BlockPos var4 = StructureTemplate.transform(var0.offset(var1), Mirror.NONE, var2, var0);
+       var3.setBlockAndUpdate(var4, Blocks.COMMAND_BLOCK.defaultBlockState());
+@@ -78,11 +82,11 @@
+       var5.getCommandBlock().setCommand("test runthis");
+       BlockPos var6 = StructureTemplate.transform(var4.offset(0, 0, -1), Mirror.NONE, var2, var4);
+       var3.setBlockAndUpdate(var6, Blocks.STONE_BUTTON.defaultBlockState().rotate(var2));
+    }
+ 
+-   public static void createNewEmptyStructureBlock(String var0, BlockPos var1, BlockPos var2, Rotation var3, ServerLevel var4) {
++   public static void createNewEmptyStructureBlock(String var0, BlockPos var1, Vec3i var2, Rotation var3, ServerLevel var4) {
+       BoundingBox var5 = getStructureBoundingBox(var1, var2, var3);
+       clearSpaceForStructure(var5, var1.getY(), var4);
+       var4.setBlockAndUpdate(var1, Blocks.STRUCTURE_BLOCK.defaultBlockState());
+       StructureBlockEntity var6 = (StructureBlockEntity)var4.getBlockEntity(var1);
+       var6.setIgnoreEntities(false);
+@@ -91,11 +95,11 @@
+       var6.setMode(StructureMode.SAVE);
+       var6.setShowBoundingBox(true);
+    }
+ 
+    public static StructureBlockEntity spawnStructure(String var0, BlockPos var1, Rotation var2, int var3, ServerLevel var4, boolean var5) {
+-      BlockPos var6 = getStructureTemplate(var0, var4).getSize();
++      Vec3i var6 = getStructureTemplate(var0, var4).getSize();
+       BoundingBox var7 = getStructureBoundingBox(var1, var6, var2);
+       BlockPos var8;
+       if (var2 == Rotation.NONE) {
+          var8 = var1;
+       } else if (var2 == Rotation.CLOCKWISE_90) {
+@@ -140,22 +144,20 @@
        var2.clearBlockEvents(var3);
        AABB var4 = new AABB((double)var3.x0, (double)var3.y0, (double)var3.z0, (double)var3.x1, (double)var3.y1, (double)var3.z1);
        List var5 = var2.getEntitiesOfClass(Entity.class, var4, (var0x) -> {
@@ -39,10 +80,42 @@
 +      var5.forEach(Entity::discard);
     }
  
-    public static BoundingBox getStructureBoundingBox(BlockPos var0, BlockPos var1, Rotation var2) {
+-   public static BoundingBox getStructureBoundingBox(BlockPos var0, BlockPos var1, Rotation var2) {
++   public static BoundingBox getStructureBoundingBox(BlockPos var0, Vec3i var1, Rotation var2) {
        BlockPos var3 = var0.offset(var1).offset(-1, -1, -1);
        BlockPos var4 = StructureTemplate.transform(var3, Mirror.NONE, var2, var0);
-@@ -233,11 +236,11 @@
+       BoundingBox var5 = BoundingBox.createProper(var0.getX(), var0.getY(), var0.getZ(), var4.getX(), var4.getY(), var4.getZ());
+       int var6 = Math.min(var5.x0, var5.x1);
+       int var7 = Math.min(var5.z0, var5.z1);
+-      BlockPos var8 = new BlockPos(var0.getX() - var6, 0, var0.getZ() - var7);
+-      var5.move(var8);
+-      return var5;
++      return var5.move(var0.getX() - var6, 0, var0.getZ() - var7);
+    }
+ 
+    public static Optional<BlockPos> findStructureBlockContainingPos(BlockPos var0, int var1, ServerLevel var2) {
+       return findStructureBlocks(var0, var1, var2).stream().filter((var2x) -> {
+          return doesStructureContain(var2x, var0, var2);
+@@ -215,16 +217,16 @@
+       var5.setMode(StructureMode.LOAD);
+       var5.setRotation(var2);
+       var5.setIgnoreEntities(false);
+       var5.setStructureName(new ResourceLocation(var0));
+       var5.loadStructure(var3, var4);
+-      if (var5.getStructureSize() != BlockPos.ZERO) {
++      if (var5.getStructureSize() != Vec3i.ZERO) {
+          return var5;
+       } else {
+          StructureTemplate var6 = getStructureTemplate(var0, var3);
+          var5.loadStructure(var3, var4, var6);
+-         if (var5.getStructureSize() == BlockPos.ZERO) {
++         if (var5.getStructureSize() == Vec3i.ZERO) {
+             throw new RuntimeException("Failed to load structure " + var0);
+          } else {
+             return var5;
+          }
+       }
+@@ -233,11 +235,11 @@
     @Nullable
     private static CompoundTag tryLoadStructure(Path var0) {
        try {
@@ -55,7 +128,7 @@
        } catch (CommandSyntaxException var4) {
           throw new RuntimeException("Error while trying to load structure " + var0, var4);
        }
-@@ -246,12 +249,13 @@
+@@ -246,12 +248,13 @@
     private static void clearBlock(int var0, BlockPos var1, ServerLevel var2) {
        BlockState var3 = null;
        FlatLevelGeneratorSettings var4 = FlatLevelGeneratorSettings.getDefault(var2.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY));
@@ -71,7 +144,7 @@
           var3 = var2.getBiome(var1).getGenerationSettings().getSurfaceBuilderConfig().getTopMaterial();
        } else if (var1.getY() < var0 - 1) {
           var3 = var2.getBiome(var1).getGenerationSettings().getSurfaceBuilderConfig().getUnderMaterial();
-@@ -259,12 +263,12 @@
+@@ -259,12 +262,12 @@
  
        if (var3 == null) {
           var3 = Blocks.AIR.defaultBlockState();

@@ -1,6 +1,11 @@
 --- net/minecraft/client/renderer/FogRenderer.java
 +++ net/minecraft/client/renderer/FogRenderer.java
-@@ -6,19 +6,18 @@
+@@ -1,24 +1,22 @@
+ package net.minecraft.client.renderer;
+ 
+-import com.mojang.blaze3d.platform.GlStateManager;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.math.Vector3f;
  import net.minecraft.Util;
  import net.minecraft.client.Camera;
  import net.minecraft.client.multiplayer.ClientLevel;
@@ -21,7 +26,7 @@
  public class FogRenderer {
     private static float fogRed;
     private static float fogGreen;
-@@ -26,151 +25,158 @@
+@@ -26,182 +24,185 @@
     private static int targetBiomeFog = -1;
     private static int previousBiomeFog = -1;
     private static long biomeChangedTime = -1L;
@@ -275,9 +280,10 @@
        RenderSystem.clearColor(fogRed, fogGreen, fogBlue, 0.0F);
     }
  
-@@ -178,14 +184,14 @@
-       RenderSystem.fogDensity(0.0F);
-       RenderSystem.fogMode(GlStateManager.FogMode.EXP2);
+    public static void setupNoFog() {
+-      RenderSystem.fogDensity(0.0F);
+-      RenderSystem.fogMode(GlStateManager.FogMode.EXP2);
++      RenderSystem.setShaderFogStart(Float.MAX_VALUE);
     }
  
     public static void setupFog(Camera var0, FogRenderer.FogMode var1, float var2, boolean var3) {
@@ -292,10 +298,14 @@
           if (var5 instanceof LocalPlayer) {
              LocalPlayer var7 = (LocalPlayer)var5;
              var6 -= var7.getWaterVision() * var7.getWaterVision() * 0.03F;
-@@ -197,11 +203,11 @@
- 
-          RenderSystem.fogDensity(var6);
-          RenderSystem.fogMode(GlStateManager.FogMode.EXP2);
+             Biome var8 = var7.level.getBiome(var7.blockPosition());
+             if (var8.getBiomeCategory() == Biome.BiomeCategory.SWAMP) {
+                var6 += 0.005F;
+             }
+          }
+-
+-         RenderSystem.fogDensity(var6);
+-         RenderSystem.fogMode(GlStateManager.FogMode.EXP2);
        } else {
           float var10;
 -         if (var4.is(FluidTags.LAVA)) {
@@ -305,7 +315,7 @@
                 var10 = 3.0F;
              } else {
                 var6 = 0.25F;
-@@ -215,10 +221,13 @@
+@@ -215,10 +216,13 @@
                 var10 = var9 * 0.8F;
              } else {
                 var6 = var9 * 0.25F;
@@ -319,3 +329,27 @@
              var10 = Math.min(var2, 192.0F) * 0.5F;
           } else if (var1 == FogRenderer.FogMode.FOG_SKY) {
              var6 = 0.0F;
+@@ -226,20 +230,18 @@
+          } else {
+             var6 = var2 * 0.75F;
+             var10 = var2;
+          }
+ 
+-         RenderSystem.fogStart(var6);
+-         RenderSystem.fogEnd(var10);
+-         RenderSystem.fogMode(GlStateManager.FogMode.LINEAR);
+-         RenderSystem.setupNvFogDistance();
++         RenderSystem.setShaderFogStart(var6);
++         RenderSystem.setShaderFogEnd(var10);
+       }
+ 
+    }
+ 
+    public static void levelFogColor() {
+-      RenderSystem.fog(2918, fogRed, fogGreen, fogBlue, 1.0F);
++      RenderSystem.setShaderFogColor(fogRed, fogGreen, fogBlue);
+    }
+ 
+    public static enum FogMode {
+       FOG_SKY,
+       FOG_TERRAIN;

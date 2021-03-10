@@ -1,6 +1,6 @@
 --- net/minecraft/client/gui/GuiComponent.java
 +++ net/minecraft/client/gui/GuiComponent.java
-@@ -5,10 +5,11 @@
+@@ -5,12 +5,14 @@
  import com.mojang.blaze3d.vertex.BufferBuilder;
  import com.mojang.blaze3d.vertex.BufferUploader;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -9,23 +9,27 @@
 +import com.mojang.blaze3d.vertex.VertexFormat;
  import com.mojang.math.Matrix4f;
  import java.util.function.BiConsumer;
++import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.client.renderer.texture.TextureAtlasSprite;
  import net.minecraft.network.chat.Component;
  import net.minecraft.resources.ResourceLocation;
-@@ -67,11 +68,11 @@
+ import net.minecraft.util.FormattedCharSequence;
+ 
+@@ -67,11 +69,12 @@
        float var9 = (float)(var5 & 255) / 255.0F;
        BufferBuilder var10 = Tesselator.getInstance().getBuilder();
        RenderSystem.enableBlend();
        RenderSystem.disableTexture();
        RenderSystem.defaultBlendFunc();
 -      var10.begin(7, DefaultVertexFormat.POSITION_COLOR);
++      RenderSystem.setShader(GameRenderer::getPositionColorShader);
 +      var10.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
        var10.vertex(var0, (float)var1, (float)var4, 0.0F).color(var7, var8, var9, var11).endVertex();
        var10.vertex(var0, (float)var3, (float)var4, 0.0F).color(var7, var8, var9, var11).endVertex();
        var10.vertex(var0, (float)var3, (float)var2, 0.0F).color(var7, var8, var9, var11).endVertex();
        var10.vertex(var0, (float)var1, (float)var2, 0.0F).color(var7, var8, var9, var11).endVertex();
        var10.end();
-@@ -79,19 +80,23 @@
+@@ -79,23 +82,24 @@
        RenderSystem.enableTexture();
        RenderSystem.disableBlend();
     }
@@ -37,9 +41,10 @@
 +   protected static void fillGradient(PoseStack var0, int var1, int var2, int var3, int var4, int var5, int var6, int var7) {
        RenderSystem.disableTexture();
        RenderSystem.enableBlend();
-       RenderSystem.disableAlphaTest();
+-      RenderSystem.disableAlphaTest();
        RenderSystem.defaultBlendFunc();
-       RenderSystem.shadeModel(7425);
+-      RenderSystem.shadeModel(7425);
++      RenderSystem.setShader(GameRenderer::getPositionColorShader);
        Tesselator var8 = Tesselator.getInstance();
        BufferBuilder var9 = var8.getBuilder();
 -      var9.begin(7, DefaultVertexFormat.POSITION_COLOR);
@@ -47,15 +52,21 @@
 +      var9.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 +      fillGradient(var0.last().pose(), var9, var1, var2, var3, var4, var7, var5, var6);
        var8.end();
-       RenderSystem.shadeModel(7424);
+-      RenderSystem.shadeModel(7424);
        RenderSystem.disableBlend();
-       RenderSystem.enableAlphaTest();
+-      RenderSystem.enableAlphaTest();
        RenderSystem.enableTexture();
-@@ -163,11 +168,11 @@
+    }
+ 
+    protected static void fillGradient(Matrix4f var0, BufferBuilder var1, int var2, int var3, int var4, int var5, int var6, int var7, int var8) {
+       float var9 = (float)(var7 >> 24 & 255) / 255.0F;
+@@ -162,18 +166,18 @@
+    private static void innerBlit(PoseStack var0, int var1, int var2, int var3, int var4, int var5, int var6, int var7, float var8, float var9, int var10, int var11) {
        innerBlit(var0.last().pose(), var1, var2, var3, var4, var5, (var8 + 0.0F) / (float)var10, (var8 + (float)var6) / (float)var10, (var9 + 0.0F) / (float)var11, (var9 + (float)var7) / (float)var11);
     }
  
     private static void innerBlit(Matrix4f var0, int var1, int var2, int var3, int var4, int var5, float var6, float var7, float var8, float var9) {
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
        BufferBuilder var10 = Tesselator.getInstance().getBuilder();
 -      var10.begin(7, DefaultVertexFormat.POSITION_TEX);
 +      var10.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
@@ -64,3 +75,9 @@
        var10.vertex(var0, (float)var2, (float)var3, (float)var5).uv(var7, var8).endVertex();
        var10.vertex(var0, (float)var1, (float)var3, (float)var5).uv(var6, var8).endVertex();
        var10.end();
+-      RenderSystem.enableAlphaTest();
+       BufferUploader.end(var10);
+    }
+ 
+    public int getBlitOffset() {
+       return this.blitOffset;

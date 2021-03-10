@@ -303,7 +303,29 @@
  
     public void putByte(int var1, byte var2) {
        this.buffer.put(this.nextElementByte + var1, var2);
-@@ -277,37 +311,37 @@
+@@ -215,10 +249,21 @@
+       if (this.elementIndex != 0) {
+          throw new IllegalStateException("Not filled all elements of the vertex");
+       } else {
+          ++this.vertices;
+          this.ensureVertexCapacity();
++         if (this.mode == VertexFormat.Mode.LINES || this.mode == VertexFormat.Mode.LINE_STRIP) {
++            int var1 = this.format.getVertexSize();
++            this.buffer.position(this.nextElementByte);
++            ByteBuffer var2 = this.buffer.duplicate();
++            var2.position(this.nextElementByte - var1).limit(this.nextElementByte);
++            this.buffer.put(var2);
++            this.nextElementByte += var1;
++            ++this.vertices;
++            this.ensureVertexCapacity();
++         }
++
+       }
+    }
+ 
+    public void nextElement() {
+       ImmutableList var1 = this.format.getElements();
+@@ -277,37 +322,37 @@
           super.vertex(var1, var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12, var13, var14);
        }
     }
@@ -347,7 +369,7 @@
     public VertexFormatElement currentElement() {
        if (this.currentElement == null) {
           throw new IllegalStateException("BufferBuilder not started");
-@@ -321,36 +355,81 @@
+@@ -321,36 +366,81 @@
     }
  
     public static final class DrawState {

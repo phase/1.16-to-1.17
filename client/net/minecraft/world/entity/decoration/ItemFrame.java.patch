@@ -1,6 +1,16 @@
 --- net/minecraft/world/entity/decoration/ItemFrame.java
 +++ net/minecraft/world/entity/decoration/ItemFrame.java
-@@ -16,10 +16,11 @@
+@@ -7,19 +7,21 @@
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
++import net.minecraft.sounds.SoundEvent;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.EntityDimensions;
  import net.minecraft.world.entity.EntityType;
@@ -12,7 +22,7 @@
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.MapItem;
  import net.minecraft.world.level.GameRules;
-@@ -36,22 +37,28 @@
+@@ -36,22 +38,28 @@
  
  public class ItemFrame extends HangingEntity {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -44,7 +54,61 @@
     }
  
     protected void defineSynchedData() {
-@@ -188,18 +195,18 @@
+@@ -144,19 +152,23 @@
+       } else if (this.isInvulnerableTo(var1)) {
+          return false;
+       } else if (!var1.isExplosion() && !this.getItem().isEmpty()) {
+          if (!this.level.isClientSide) {
+             this.dropItem(var1.getEntity(), false);
+-            this.playSound(SoundEvents.ITEM_FRAME_REMOVE_ITEM, 1.0F, 1.0F);
++            this.playSound(this.getRemoveItemSound(), 1.0F, 1.0F);
+          }
+ 
+          return true;
+       } else {
+          return super.hurt(var1, var2);
+       }
+    }
+ 
++   public SoundEvent getRemoveItemSound() {
++      return SoundEvents.ITEM_FRAME_REMOVE_ITEM;
++   }
++
+    public int getWidth() {
+       return 12;
+    }
+ 
+    public int getHeight() {
+@@ -168,18 +180,26 @@
+       var3 *= 64.0D * getViewScale();
+       return var1 < var3 * var3;
+    }
+ 
+    public void dropItem(@Nullable Entity var1) {
+-      this.playSound(SoundEvents.ITEM_FRAME_BREAK, 1.0F, 1.0F);
++      this.playSound(this.getBreakSound(), 1.0F, 1.0F);
+       this.dropItem(var1, true);
+    }
+ 
++   public SoundEvent getBreakSound() {
++      return SoundEvents.ITEM_FRAME_BREAK;
++   }
++
+    public void playPlacementSound() {
+-      this.playSound(SoundEvents.ITEM_FRAME_PLACE, 1.0F, 1.0F);
++      this.playSound(this.getPlaceSound(), 1.0F, 1.0F);
+    }
+ 
++   public SoundEvent getPlaceSound() {
++      return SoundEvents.ITEM_FRAME_PLACE;
++   }
++
+    private void dropItem(@Nullable Entity var1, boolean var2) {
+       if (!this.fixed) {
+          ItemStack var3 = this.getItem();
+          this.setItem(ItemStack.EMPTY);
+          if (!this.level.getGameRules().getBoolean(GameRules.RULE_DOENTITYDROPS)) {
+@@ -188,18 +208,18 @@
              }
  
           } else {
@@ -65,7 +129,7 @@
              if (!var3.isEmpty()) {
                 var3 = var3.copy();
                 this.removeFramedMap(var3);
-@@ -211,14 +218,16 @@
+@@ -211,14 +231,16 @@
           }
        }
     }
@@ -86,7 +150,17 @@
        var1.setEntityRepresentation((Entity)null);
     }
  
-@@ -246,17 +255,21 @@
+@@ -237,28 +259,36 @@
+          var1.setEntityRepresentation(this);
+       }
+ 
+       this.getEntityData().set(DATA_ITEM, var1);
+       if (!var1.isEmpty()) {
+-         this.playSound(SoundEvents.ITEM_FRAME_ADD_ITEM, 1.0F, 1.0F);
++         this.playSound(this.getAddItemSound(), 1.0F, 1.0F);
+       }
+ 
+       if (var2 && this.pos != null) {
           this.level.updateNeighbourForOutputSignal(this.pos, Blocks.AIR);
        }
  
@@ -99,6 +173,10 @@
 -      } else {
 -         return false;
 -      }
++   public SoundEvent getAddItemSound() {
++      return SoundEvents.ITEM_FRAME_ADD_ITEM;
+    }
+ 
 +   public SlotAccess getSlot(int var1) {
 +      return var1 == 0 ? new SlotAccess() {
 +         public ItemStack get() {
@@ -110,12 +188,14 @@
 +            return true;
 +         }
 +      } : super.getSlot(var1);
-    }
- 
++   }
++
     public void onSyncedDataUpdated(EntityDataAccessor<?> var1) {
        if (var1.equals(DATA_ITEM)) {
           ItemStack var2 = this.getItem();
-@@ -328,13 +341,13 @@
+          if (!var2.isEmpty() && var2.getFrame() != this) {
+             var2.setEntityRepresentation(this);
+@@ -328,35 +358,53 @@
        boolean var5 = !var3.isEmpty();
        if (this.fixed) {
           return InteractionResult.PASS;
@@ -130,8 +210,24 @@
                 }
              }
           } else {
-             this.playSound(SoundEvents.ITEM_FRAME_ROTATE_ITEM, 1.0F, 1.0F);
-@@ -353,10 +366,28 @@
+-            this.playSound(SoundEvents.ITEM_FRAME_ROTATE_ITEM, 1.0F, 1.0F);
++            this.playSound(this.getRotateItemSound(), 1.0F, 1.0F);
+             this.setRotation(this.getRotation() + 1);
+          }
+ 
+          return InteractionResult.CONSUME;
+       } else {
+          return !var4 && !var5 ? InteractionResult.PASS : InteractionResult.SUCCESS;
+       }
+    }
+ 
++   public SoundEvent getRotateItemSound() {
++      return SoundEvents.ITEM_FRAME_ROTATE_ITEM;
++   }
++
+    public int getAnalogOutput() {
+       return this.getItem().isEmpty() ? 0 : this.getRotation() % 8 + 1;
+    }
  
     public Packet<?> getAddEntityPacket() {
        return new ClientboundAddEntityPacket(this, this.getType(), this.direction.get3DDataValue(), this.getPos());
@@ -147,12 +243,8 @@
 +      return var1.isEmpty() ? this.getFrameItemStack() : var1.copy();
 +   }
 +
-+   private ItemStack getFrameItemStack() {
-+      return this.isGlowFrame() ? new ItemStack(Items.GLOW_ITEM_FRAME) : new ItemStack(Items.ITEM_FRAME);
-+   }
-+
-+   public boolean isGlowFrame() {
-+      return this.getType() == EntityType.GLOW_ITEM_FRAME;
++   protected ItemStack getFrameItemStack() {
++      return new ItemStack(Items.ITEM_FRAME);
 +   }
 +
     static {

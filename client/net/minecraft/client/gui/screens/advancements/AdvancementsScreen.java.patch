@@ -1,0 +1,111 @@
+--- net/minecraft/client/gui/screens/advancements/AdvancementsScreen.java
++++ net/minecraft/client/gui/screens/advancements/AdvancementsScreen.java
+@@ -11,10 +11,11 @@
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.chat.NarratorChatListener;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.multiplayer.ClientAdvancements;
+ import net.minecraft.client.multiplayer.ClientPacketListener;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ServerboundSeenAdvancementsPacket;
+ import net.minecraft.resources.ResourceLocation;
+@@ -110,47 +111,50 @@
+ 
+    private void renderInside(PoseStack var1, int var2, int var3, int var4, int var5) {
+       AdvancementTab var6 = this.selectedTab;
+       if (var6 == null) {
+          fill(var1, var4 + 9, var5 + 18, var4 + 9 + 234, var5 + 18 + 113, -16777216);
+-         int var7 = var4 + 9 + 117;
++         int var8 = var4 + 9 + 117;
+          Font var10001 = this.font;
+          Component var10002 = NO_ADVANCEMENTS_LABEL;
+          int var10004 = var5 + 18 + 56;
+          this.font.getClass();
+-         drawCenteredString(var1, var10001, var10002, var7, var10004 - 9 / 2, -1);
++         drawCenteredString(var1, var10001, var10002, var8, var10004 - 9 / 2, -1);
+          var10001 = this.font;
+          var10002 = VERY_SAD_LABEL;
+          var10004 = var5 + 18 + 113;
+          this.font.getClass();
+-         drawCenteredString(var1, var10001, var10002, var7, var10004 - 9, -1);
++         drawCenteredString(var1, var10001, var10002, var8, var10004 - 9, -1);
+       } else {
+-         RenderSystem.pushMatrix();
+-         RenderSystem.translatef((float)(var4 + 9), (float)(var5 + 18), 0.0F);
++         PoseStack var7 = RenderSystem.getModelViewStack();
++         var7.pushPose();
++         var7.translate((double)(var4 + 9), (double)(var5 + 18), 0.0D);
++         RenderSystem.applyModelViewMatrix();
+          var6.drawContents(var1);
+-         RenderSystem.popMatrix();
++         var7.popPose();
++         RenderSystem.applyModelViewMatrix();
+          RenderSystem.depthFunc(515);
+          RenderSystem.disableDepthTest();
+       }
+    }
+ 
+    public void renderWindow(PoseStack var1, int var2, int var3) {
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       RenderSystem.enableBlend();
+-      this.minecraft.getTextureManager().bind(WINDOW_LOCATION);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderTexture(0, WINDOW_LOCATION);
+       this.blit(var1, var2, var3, 0, 0, 252, 140);
+       if (this.tabs.size() > 1) {
+-         this.minecraft.getTextureManager().bind(TABS_LOCATION);
++         RenderSystem.setShaderTexture(0, TABS_LOCATION);
+          Iterator var4 = this.tabs.values().iterator();
+ 
+          AdvancementTab var5;
+          while(var4.hasNext()) {
+             var5 = (AdvancementTab)var4.next();
+             var5.drawTab(var1, var2, var3, var5 == this.selectedTab);
+          }
+ 
+-         RenderSystem.enableRescaleNormal();
+          RenderSystem.defaultBlendFunc();
+          var4 = this.tabs.values().iterator();
+ 
+          while(var4.hasNext()) {
+             var5 = (AdvancementTab)var4.next();
+@@ -162,25 +166,28 @@
+ 
+       this.font.draw(var1, TITLE, (float)(var2 + 8), (float)(var3 + 6), 4210752);
+    }
+ 
+    private void renderTooltips(PoseStack var1, int var2, int var3, int var4, int var5) {
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       if (this.selectedTab != null) {
+-         RenderSystem.pushMatrix();
++         PoseStack var6 = RenderSystem.getModelViewStack();
++         var6.pushPose();
++         var6.translate((double)(var4 + 9), (double)(var5 + 18), 400.0D);
++         RenderSystem.applyModelViewMatrix();
+          RenderSystem.enableDepthTest();
+-         RenderSystem.translatef((float)(var4 + 9), (float)(var5 + 18), 400.0F);
+          this.selectedTab.drawTooltips(var1, var2 - var4 - 9, var3 - var5 - 18, var4, var5);
+          RenderSystem.disableDepthTest();
+-         RenderSystem.popMatrix();
++         var6.popPose();
++         RenderSystem.applyModelViewMatrix();
+       }
+ 
+       if (this.tabs.size() > 1) {
+-         Iterator var6 = this.tabs.values().iterator();
++         Iterator var8 = this.tabs.values().iterator();
+ 
+-         while(var6.hasNext()) {
+-            AdvancementTab var7 = (AdvancementTab)var6.next();
++         while(var8.hasNext()) {
++            AdvancementTab var7 = (AdvancementTab)var8.next();
+             if (var7.isMouseOver(var4, var5, (double)var2, (double)var3)) {
+                this.renderTooltip(var1, var7.getTitle(), var2, var3);
+             }
+          }
+       }

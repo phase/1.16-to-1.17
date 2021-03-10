@@ -1,6 +1,18 @@
 --- net/minecraft/client/gui/screens/worldselection/WorldSelectionList.java
 +++ net/minecraft/client/gui/screens/worldselection/WorldSelectionList.java
-@@ -68,10 +68,11 @@
+@@ -35,10 +35,11 @@
+ import net.minecraft.client.gui.screens.ConfirmScreen;
+ import net.minecraft.client.gui.screens.ErrorScreen;
+ import net.minecraft.client.gui.screens.GenericDirtMessageScreen;
+ import net.minecraft.client.gui.screens.ProgressScreen;
+ import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.client.renderer.texture.AbstractTexture;
+ import net.minecraft.client.renderer.texture.DynamicTexture;
+ import net.minecraft.client.resources.language.I18n;
+ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+ import net.minecraft.core.RegistryAccess;
+@@ -68,10 +69,11 @@
     private static final Component FROM_NEWER_TOOLTIP_1;
     private static final Component FROM_NEWER_TOOLTIP_2;
     private static final Component SNAPSHOT_TOOLTIP_1;
@@ -12,7 +24,7 @@
     private List<LevelSummary> cachedList;
  
     public WorldSelectionList(SelectWorldScreen var1, Minecraft var2, int var3, int var4, int var5, int var6, int var7, Supplier<String> var8, @Nullable WorldSelectionList var9) {
-@@ -137,16 +138,16 @@
+@@ -137,16 +139,16 @@
        if (var1 != null) {
           LevelSummary var2 = var1.summary;
           NarratorChatListener.INSTANCE.sayNow((new TranslatableComponent("narrator.select", new Object[]{new TranslatableComponent("narrator.select.world", new Object[]{var2.getLevelName(), new Date(var2.getLastPlayed()), var2.isHardcore() ? new TranslatableComponent("gameMode.hardcore") : new TranslatableComponent("gameMode." + var2.getGameMode().getName()), var2.hasCheats() ? new TranslatableComponent("selectWorld.cheats") : TextComponent.EMPTY, var2.getWorldVersionName()})})).getString());
@@ -31,7 +43,7 @@
  
     public Optional<WorldSelectionList.WorldListEntry> getSelectedOpt() {
        return Optional.ofNullable(this.getSelected());
-@@ -160,10 +161,11 @@
+@@ -160,10 +162,11 @@
        FROM_NEWER_TOOLTIP_1 = (new TranslatableComponent("selectWorld.tooltip.fromNewerVersion1")).withStyle(ChatFormatting.RED);
        FROM_NEWER_TOOLTIP_2 = (new TranslatableComponent("selectWorld.tooltip.fromNewerVersion2")).withStyle(ChatFormatting.RED);
        SNAPSHOT_TOOLTIP_1 = (new TranslatableComponent("selectWorld.tooltip.snapshot1")).withStyle(ChatFormatting.GOLD);
@@ -43,7 +55,30 @@
     public final class WorldListEntry extends ObjectSelectionList.Entry<WorldSelectionList.WorldListEntry> implements AutoCloseable {
        private final Minecraft minecraft;
        private final SelectWorldScreen screen;
-@@ -222,10 +224,15 @@
+@@ -205,27 +208,34 @@
+          var10003 = (float)(var4 + 32 + 3);
+          this.minecraft.font.getClass();
+          int var10004 = var3 + 9;
+          this.minecraft.font.getClass();
+          var10000.draw(var1, var13, var10003, (float)(var10004 + 9 + 3), 8421504);
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-         this.minecraft.getTextureManager().bind(this.icon != null ? this.iconLocation : WorldSelectionList.ICON_MISSING);
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderTexture(0, this.icon != null ? this.iconLocation : WorldSelectionList.ICON_MISSING);
+          RenderSystem.enableBlend();
+          GuiComponent.blit(var1, var4, var3, 0.0F, 0.0F, 32, 32, 32, 32);
+          RenderSystem.disableBlend();
+          if (this.minecraft.options.touchscreen || var9) {
+-            this.minecraft.getTextureManager().bind(WorldSelectionList.ICON_OVERLAY_LOCATION);
++            RenderSystem.setShaderTexture(0, WorldSelectionList.ICON_OVERLAY_LOCATION);
+             GuiComponent.fill(var1, var4, var3, var4 + 32, var3 + 32, -1601138544);
+-            RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++            RenderSystem.setShader(GameRenderer::getPositionTexShader);
++            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+             int var14 = var7 - var4;
+             boolean var15 = var14 < 32;
+             int var16 = var15 ? 32 : 0;
              if (this.summary.isLocked()) {
                 GuiComponent.blit(var1, var4, var3, 96.0F, (float)var16, 32, 32, 256, 256);
                 if (var15) {
@@ -59,7 +94,7 @@
                 if (this.summary.askToOpenWorld()) {
                    GuiComponent.blit(var1, var4, var3, 96.0F, (float)var16, 32, 32, 256, 256);
                    if (var15) {
-@@ -243,11 +250,11 @@
+@@ -243,11 +253,11 @@
           }
  
        }
@@ -72,7 +107,7 @@
              WorldSelectionList.this.setSelected(this);
              this.screen.updateButtonStatus(WorldSelectionList.this.getSelectedOpt().isPresent());
              if (var1 - (double)WorldSelectionList.this.getRowLeft() <= 32.0D) {
-@@ -262,14 +269,21 @@
+@@ -262,14 +272,21 @@
              }
           }
        }
@@ -98,7 +133,7 @@
                       String var3 = this.summary.getLevelId();
  
                       try {
-@@ -300,11 +314,11 @@
+@@ -300,11 +317,11 @@
                          WorldSelectionList.LOGGER.error("Failed to backup level {}", var3, var17);
                       }
                    }
@@ -111,7 +146,7 @@
                    if (var1x) {
                       try {
                          this.loadWorld();
-@@ -316,11 +330,11 @@
+@@ -316,11 +333,11 @@
                       }
                    } else {
                       this.minecraft.setScreen(this.screen);
@@ -124,7 +159,7 @@
              }
  
           }
-@@ -328,48 +342,52 @@
+@@ -328,48 +345,52 @@
  
        public void deleteWorld() {
           this.minecraft.setScreen(new ConfirmScreen((var1) -> {

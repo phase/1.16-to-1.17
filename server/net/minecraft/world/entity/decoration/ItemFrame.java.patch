@@ -1,6 +1,16 @@
 --- net/minecraft/world/entity/decoration/ItemFrame.java
 +++ net/minecraft/world/entity/decoration/ItemFrame.java
-@@ -16,10 +16,11 @@
+@@ -7,19 +7,21 @@
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
++import net.minecraft.sounds.SoundEvent;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.EntityDimensions;
  import net.minecraft.world.entity.EntityType;
@@ -12,7 +22,7 @@
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.MapItem;
  import net.minecraft.world.level.GameRules;
-@@ -36,22 +37,28 @@
+@@ -36,22 +38,28 @@
  
  public class ItemFrame extends HangingEntity {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -44,7 +54,59 @@
     }
  
     protected void defineSynchedData() {
-@@ -182,18 +189,18 @@
+@@ -144,36 +152,48 @@
+       } else if (this.isInvulnerableTo(var1)) {
+          return false;
+       } else if (!var1.isExplosion() && !this.getItem().isEmpty()) {
+          if (!this.level.isClientSide) {
+             this.dropItem(var1.getEntity(), false);
+-            this.playSound(SoundEvents.ITEM_FRAME_REMOVE_ITEM, 1.0F, 1.0F);
++            this.playSound(this.getRemoveItemSound(), 1.0F, 1.0F);
+          }
+ 
+          return true;
+       } else {
+          return super.hurt(var1, var2);
+       }
+    }
+ 
++   public SoundEvent getRemoveItemSound() {
++      return SoundEvents.ITEM_FRAME_REMOVE_ITEM;
++   }
++
+    public int getWidth() {
+       return 12;
+    }
+ 
+    public int getHeight() {
+       return 12;
+    }
+ 
+    public void dropItem(@Nullable Entity var1) {
+-      this.playSound(SoundEvents.ITEM_FRAME_BREAK, 1.0F, 1.0F);
++      this.playSound(this.getBreakSound(), 1.0F, 1.0F);
+       this.dropItem(var1, true);
+    }
+ 
++   public SoundEvent getBreakSound() {
++      return SoundEvents.ITEM_FRAME_BREAK;
++   }
++
+    public void playPlacementSound() {
+-      this.playSound(SoundEvents.ITEM_FRAME_PLACE, 1.0F, 1.0F);
++      this.playSound(this.getPlaceSound(), 1.0F, 1.0F);
+    }
+ 
++   public SoundEvent getPlaceSound() {
++      return SoundEvents.ITEM_FRAME_PLACE;
++   }
++
+    private void dropItem(@Nullable Entity var1, boolean var2) {
+       if (!this.fixed) {
+          ItemStack var3 = this.getItem();
+          this.setItem(ItemStack.EMPTY);
+          if (!this.level.getGameRules().getBoolean(GameRules.RULE_DOENTITYDROPS)) {
+@@ -182,18 +202,18 @@
              }
  
           } else {
@@ -65,7 +127,7 @@
              if (!var3.isEmpty()) {
                 var3 = var3.copy();
                 this.removeFramedMap(var3);
-@@ -205,14 +212,16 @@
+@@ -205,14 +225,16 @@
           }
        }
     }
@@ -86,7 +148,17 @@
        var1.setEntityRepresentation((Entity)null);
     }
  
-@@ -240,17 +249,21 @@
+@@ -231,28 +253,36 @@
+          var1.setEntityRepresentation(this);
+       }
+ 
+       this.getEntityData().set(DATA_ITEM, var1);
+       if (!var1.isEmpty()) {
+-         this.playSound(SoundEvents.ITEM_FRAME_ADD_ITEM, 1.0F, 1.0F);
++         this.playSound(this.getAddItemSound(), 1.0F, 1.0F);
+       }
+ 
+       if (var2 && this.pos != null) {
           this.level.updateNeighbourForOutputSignal(this.pos, Blocks.AIR);
        }
  
@@ -99,6 +171,10 @@
 -      } else {
 -         return false;
 -      }
++   public SoundEvent getAddItemSound() {
++      return SoundEvents.ITEM_FRAME_ADD_ITEM;
+    }
+ 
 +   public SlotAccess getSlot(int var1) {
 +      return var1 == 0 ? new SlotAccess() {
 +         public ItemStack get() {
@@ -110,12 +186,14 @@
 +            return true;
 +         }
 +      } : super.getSlot(var1);
-    }
- 
++   }
++
     public void onSyncedDataUpdated(EntityDataAccessor<?> var1) {
        if (var1.equals(DATA_ITEM)) {
           ItemStack var2 = this.getItem();
-@@ -322,13 +335,13 @@
+          if (!var2.isEmpty() && var2.getFrame() != this) {
+             var2.setEntityRepresentation(this);
+@@ -322,35 +352,43 @@
        boolean var5 = !var3.isEmpty();
        if (this.fixed) {
           return InteractionResult.PASS;
@@ -130,19 +208,31 @@
                 }
              }
           } else {
-             this.playSound(SoundEvents.ITEM_FRAME_ROTATE_ITEM, 1.0F, 1.0F);
-@@ -347,10 +360,18 @@
+-            this.playSound(SoundEvents.ITEM_FRAME_ROTATE_ITEM, 1.0F, 1.0F);
++            this.playSound(this.getRotateItemSound(), 1.0F, 1.0F);
+             this.setRotation(this.getRotation() + 1);
+          }
+ 
+          return InteractionResult.CONSUME;
+       } else {
+          return !var4 && !var5 ? InteractionResult.PASS : InteractionResult.SUCCESS;
+       }
+    }
+ 
++   public SoundEvent getRotateItemSound() {
++      return SoundEvents.ITEM_FRAME_ROTATE_ITEM;
++   }
++
+    public int getAnalogOutput() {
+       return this.getItem().isEmpty() ? 0 : this.getRotation() % 8 + 1;
+    }
  
     public Packet<?> getAddEntityPacket() {
        return new ClientboundAddEntityPacket(this, this.getType(), this.direction.get3DDataValue(), this.getPos());
     }
  
-+   private ItemStack getFrameItemStack() {
-+      return this.isGlowFrame() ? new ItemStack(Items.GLOW_ITEM_FRAME) : new ItemStack(Items.ITEM_FRAME);
-+   }
-+
-+   public boolean isGlowFrame() {
-+      return this.getType() == EntityType.GLOW_ITEM_FRAME;
++   protected ItemStack getFrameItemStack() {
++      return new ItemStack(Items.ITEM_FRAME);
 +   }
 +
     static {

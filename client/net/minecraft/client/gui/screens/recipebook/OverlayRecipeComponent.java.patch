@@ -1,0 +1,86 @@
+--- net/minecraft/client/gui/screens/recipebook/OverlayRecipeComponent.java
++++ net/minecraft/client/gui/screens/recipebook/OverlayRecipeComponent.java
+@@ -127,14 +127,14 @@
+ 
+    public void render(PoseStack var1, int var2, int var3, float var4) {
+       if (this.isVisible) {
+          this.time += var4;
+          RenderSystem.enableBlend();
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-         this.minecraft.getTextureManager().bind(RECIPE_BOOK_LOCATION);
+-         RenderSystem.pushMatrix();
+-         RenderSystem.translatef(0.0F, 0.0F, 170.0F);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderTexture(0, RECIPE_BOOK_LOCATION);
++         var1.pushPose();
++         var1.translate(0.0D, 0.0D, 170.0D);
+          int var5 = this.recipeButtons.size() <= 16 ? 4 : 5;
+          int var6 = Math.min(this.recipeButtons.size(), var5);
+          int var7 = Mth.ceil((float)this.recipeButtons.size() / (float)var5);
+          boolean var8 = true;
+          boolean var9 = true;
+@@ -147,11 +147,11 @@
+          while(var12.hasNext()) {
+             OverlayRecipeComponent.OverlayRecipeButton var13 = (OverlayRecipeComponent.OverlayRecipeButton)var12.next();
+             var13.render(var1, var2, var3, var4);
+          }
+ 
+-         RenderSystem.popMatrix();
++         var1.popPose();
+       }
+    }
+ 
+    private void nineInchSprite(PoseStack var1, int var2, int var3, int var4, int var5, int var6, int var7) {
+       this.blit(var1, this.x, this.y, var6, var7, var5, var5);
+@@ -218,12 +218,11 @@
+          }
+ 
+       }
+ 
+       public void renderButton(PoseStack var1, int var2, int var3, float var4) {
+-         RenderSystem.enableAlphaTest();
+-         OverlayRecipeComponent.this.minecraft.getTextureManager().bind(OverlayRecipeComponent.RECIPE_BOOK_LOCATION);
++         RenderSystem.setShaderTexture(0, OverlayRecipeComponent.RECIPE_BOOK_LOCATION);
+          int var5 = 152;
+          if (!this.isCraftable) {
+             var5 += 26;
+          }
+ 
+@@ -231,24 +230,26 @@
+          if (this.isHovered()) {
+             var6 += 26;
+          }
+ 
+          this.blit(var1, this.x, this.y, var5, var6, this.width, this.height);
+-         Iterator var7 = this.ingredientPos.iterator();
++         float var7 = 0.42F;
++         PoseStack var8 = RenderSystem.getModelViewStack();
++         var8.pushPose();
++         var8.scale(0.42F, 0.42F, 1.0F);
++         RenderSystem.applyModelViewMatrix();
++         Iterator var9 = this.ingredientPos.iterator();
+ 
+-         while(var7.hasNext()) {
+-            OverlayRecipeComponent.OverlayRecipeButton.Pos var8 = (OverlayRecipeComponent.OverlayRecipeButton.Pos)var7.next();
+-            RenderSystem.pushMatrix();
+-            float var9 = 0.42F;
+-            int var10 = (int)((float)(this.x + var8.x) / 0.42F - 3.0F);
+-            int var11 = (int)((float)(this.y + var8.y) / 0.42F - 3.0F);
+-            RenderSystem.scalef(0.42F, 0.42F, 1.0F);
+-            OverlayRecipeComponent.this.minecraft.getItemRenderer().renderAndDecorateItem(var8.ingredients[Mth.floor(OverlayRecipeComponent.this.time / 30.0F) % var8.ingredients.length], var10, var11);
+-            RenderSystem.popMatrix();
++         while(var9.hasNext()) {
++            OverlayRecipeComponent.OverlayRecipeButton.Pos var10 = (OverlayRecipeComponent.OverlayRecipeButton.Pos)var9.next();
++            int var11 = (int)((float)(this.x + var10.x) / 0.42F - 3.0F);
++            int var12 = (int)((float)(this.y + var10.y) / 0.42F - 3.0F);
++            OverlayRecipeComponent.this.minecraft.getItemRenderer().renderAndDecorateItem(var10.ingredients[Mth.floor(OverlayRecipeComponent.this.time / 30.0F) % var10.ingredients.length], var11, var12);
+          }
+ 
+-         RenderSystem.disableAlphaTest();
++         var8.popPose();
++         RenderSystem.applyModelViewMatrix();
+       }
+ 
+       public class Pos {
+          public final ItemStack[] ingredients;
+          public final int x;

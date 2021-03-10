@@ -1,0 +1,117 @@
+--- net/minecraft/client/gui/screens/inventory/MerchantScreen.java
++++ net/minecraft/client/gui/screens/inventory/MerchantScreen.java
+@@ -2,10 +2,11 @@
+ 
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import java.util.Iterator;
+ import net.minecraft.client.gui.components.Button;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.FormattedText;
+ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.network.chat.TextComponent;
+ import net.minecraft.network.chat.TranslatableComponent;
+@@ -70,18 +71,19 @@
+          this.font.draw(var1, (Component)var5, (float)var7, 6.0F, 4210752);
+       } else {
+          this.font.draw(var1, this.title, (float)(49 + this.imageWidth / 2 - this.font.width((FormattedText)this.title) / 2), 6.0F, 4210752);
+       }
+ 
+-      this.font.draw(var1, this.inventory.getDisplayName(), (float)this.inventoryLabelX, (float)this.inventoryLabelY, 4210752);
++      this.font.draw(var1, this.playerInventoryTitle, (float)this.inventoryLabelX, (float)this.inventoryLabelY, 4210752);
+       int var8 = this.font.width((FormattedText)TRADES_LABEL);
+       this.font.draw(var1, TRADES_LABEL, (float)(5 - var8 / 2 + 48), 6.0F, 4210752);
+    }
+ 
+    protected void renderBg(PoseStack var1, float var2, int var3, int var4) {
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      this.minecraft.getTextureManager().bind(VILLAGER_LOCATION);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, VILLAGER_LOCATION);
+       int var5 = (this.width - this.imageWidth) / 2;
+       int var6 = (this.height - this.imageHeight) / 2;
+       blit(var1, var5, var6, this.getBlitOffset(), 0.0F, 0.0F, this.imageWidth, this.imageHeight, 256, 512);
+       MerchantOffers var7 = ((MerchantMenu)this.menu).getOffers();
+       if (!var7.isEmpty()) {
+@@ -90,20 +92,21 @@
+             return;
+          }
+ 
+          MerchantOffer var9 = (MerchantOffer)var7.get(var8);
+          if (var9.isOutOfStock()) {
+-            this.minecraft.getTextureManager().bind(VILLAGER_LOCATION);
+-            RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++            RenderSystem.setShaderTexture(0, VILLAGER_LOCATION);
++            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+             blit(var1, this.leftPos + 83 + 99, this.topPos + 35, this.getBlitOffset(), 311.0F, 0.0F, 28, 21, 256, 512);
+          }
+       }
+ 
+    }
+ 
+    private void renderProgressBar(PoseStack var1, int var2, int var3, MerchantOffer var4) {
+-      this.minecraft.getTextureManager().bind(VILLAGER_LOCATION);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderTexture(0, VILLAGER_LOCATION);
+       int var5 = ((MerchantMenu)this.menu).getTraderLevel();
+       int var6 = ((MerchantMenu)this.menu).getTraderXp();
+       if (var5 < 5) {
+          blit(var1, var2 + 136, var3 + 16, this.getBlitOffset(), 0.0F, 186.0F, 102, 5, 256, 512);
+          int var7 = VillagerData.getMinXpPerLevel(var5);
+@@ -147,13 +150,12 @@
+       if (!var5.isEmpty()) {
+          int var6 = (this.width - this.imageWidth) / 2;
+          int var7 = (this.height - this.imageHeight) / 2;
+          int var8 = var7 + 16 + 1;
+          int var9 = var6 + 5 + 5;
+-         RenderSystem.pushMatrix();
+-         RenderSystem.enableRescaleNormal();
+-         this.minecraft.getTextureManager().bind(VILLAGER_LOCATION);
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
++         RenderSystem.setShaderTexture(0, VILLAGER_LOCATION);
+          this.renderScroller(var1, var6, var7, var5);
+          int var10 = 0;
+          Iterator var11 = var5.iterator();
+ 
+          while(true) {
+@@ -204,22 +206,22 @@
+                }
+ 
+                var22.visible = var22.index < ((MerchantMenu)this.menu).getOffers().size();
+             }
+ 
+-            RenderSystem.popMatrix();
+             RenderSystem.enableDepthTest();
+             break;
+          }
+       }
+ 
+       this.renderTooltip(var1, var2, var3);
+    }
+ 
+    private void renderButtonArrows(PoseStack var1, MerchantOffer var2, int var3, int var4) {
+       RenderSystem.enableBlend();
+-      this.minecraft.getTextureManager().bind(VILLAGER_LOCATION);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderTexture(0, VILLAGER_LOCATION);
+       if (var2.isOutOfStock()) {
+          blit(var1, var3 + 5 + 35 + 20, var4 + 3, this.getBlitOffset(), 25.0F, 171.0F, 10, 9, 256, 512);
+       } else {
+          blit(var1, var3 + 5 + 35 + 20, var4 + 3, this.getBlitOffset(), 15.0F, 171.0F, 10, 9, 256, 512);
+       }
+@@ -231,11 +233,12 @@
+       if (var3.getCount() == var2.getCount()) {
+          this.itemRenderer.renderGuiItemDecorations(this.font, var2, var4, var5);
+       } else {
+          this.itemRenderer.renderGuiItemDecorations(this.font, var3, var4, var5, var3.getCount() == 1 ? "1" : null);
+          this.itemRenderer.renderGuiItemDecorations(this.font, var2, var4 + 14, var5, var2.getCount() == 1 ? "1" : null);
+-         this.minecraft.getTextureManager().bind(VILLAGER_LOCATION);
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
++         RenderSystem.setShaderTexture(0, VILLAGER_LOCATION);
+          this.setBlitOffset(this.getBlitOffset() + 300);
+          blit(var1, var4 + 7, var5 + 12, this.getBlitOffset(), 0.0F, 176.0F, 9, 2, 256, 512);
+          this.setBlitOffset(this.getBlitOffset() - 300);
+       }
+ 

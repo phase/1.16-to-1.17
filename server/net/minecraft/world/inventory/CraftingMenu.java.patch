@@ -1,6 +1,40 @@
 --- net/minecraft/world/inventory/CraftingMenu.java
 +++ net/minecraft/world/inventory/CraftingMenu.java
-@@ -89,11 +89,11 @@
+@@ -50,11 +50,11 @@
+          this.addSlot(new Slot(var2, var4, 8 + var4 * 18, 142));
+       }
+ 
+    }
+ 
+-   protected static void slotChangedCraftingGrid(int var0, Level var1, Player var2, CraftingContainer var3, ResultContainer var4) {
++   protected static void slotChangedCraftingGrid(AbstractContainerMenu var0, Level var1, Player var2, CraftingContainer var3, ResultContainer var4) {
+       if (!var1.isClientSide) {
+          ServerPlayer var5 = (ServerPlayer)var2;
+          ItemStack var6 = ItemStack.EMPTY;
+          Optional var7 = var1.getServer().getRecipeManager().getRecipeFor(RecipeType.CRAFTING, var3, var1);
+          if (var7.isPresent()) {
+@@ -63,17 +63,18 @@
+                var6 = var8.assemble(var3);
+             }
+          }
+ 
+          var4.setItem(0, var6);
+-         var5.connection.send(new ClientboundContainerSetSlotPacket(var0, 0, var6));
++         var0.setRemoteSlot(0, var6);
++         var5.connection.send(new ClientboundContainerSetSlotPacket(var0.containerId, 0, var6));
+       }
+    }
+ 
+    public void slotsChanged(Container var1) {
+       this.access.execute((var1x, var2) -> {
+-         slotChangedCraftingGrid(this.containerId, var1x, this.player, this.craftSlots, this.resultSlots);
++         slotChangedCraftingGrid(this, var1x, this.player, this.craftSlots, this.resultSlots);
+       });
+    }
+ 
+    public void fillCraftSlotsStackedContents(StackedContents var1) {
+       this.craftSlots.fillStackedContents(var1);
+@@ -89,11 +90,11 @@
     }
  
     public void removed(Player var1) {
@@ -13,7 +47,23 @@
  
     public boolean stillValid(Player var1) {
        return stillValid(this.access, var1, Blocks.CRAFTING_TABLE);
-@@ -160,6 +160,14 @@
+@@ -136,13 +137,13 @@
+ 
+          if (var5.getCount() == var3.getCount()) {
+             return ItemStack.EMPTY;
+          }
+ 
+-         ItemStack var6 = var4.onTake(var1, var5);
++         var4.onTake(var1, var5);
+          if (var2 == 0) {
+-            var1.drop(var6, false);
++            var1.drop(var5, false);
+          }
+       }
+ 
+       return var3;
+    }
+@@ -160,6 +161,14 @@
     }
  
     public int getGridHeight() {

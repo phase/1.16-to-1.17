@@ -13,7 +13,19 @@
  import java.util.Iterator;
  import java.util.List;
  import java.util.Optional;
-@@ -51,11 +53,13 @@
+@@ -35,10 +37,11 @@
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundAddPlayerPacket;
+ import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
+ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
++import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+ import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
+ import net.minecraft.network.protocol.game.ClientboundChatPacket;
+ import net.minecraft.network.protocol.game.ClientboundContainerClosePacket;
+ import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
+ import net.minecraft.network.protocol.game.ClientboundContainerSetDataPacket;
+@@ -51,11 +54,13 @@
  import net.minecraft.network.protocol.game.ClientboundMerchantOffersPacket;
  import net.minecraft.network.protocol.game.ClientboundOpenBookPacket;
  import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket;
@@ -28,7 +40,7 @@
  import net.minecraft.network.protocol.game.ClientboundRemoveMobEffectPacket;
  import net.minecraft.network.protocol.game.ClientboundResourcePackPacket;
  import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
-@@ -86,10 +90,11 @@
+@@ -86,10 +91,11 @@
  import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.damagesource.EntityDamageSource;
  import net.minecraft.world.effect.MobEffectInstance;
@@ -40,9 +52,13 @@
  import net.minecraft.world.entity.Mob;
  import net.minecraft.world.entity.NeutralMob;
  import net.minecraft.world.entity.animal.horse.AbstractHorse;
-@@ -101,11 +106,10 @@
+@@ -98,14 +104,14 @@
+ import net.minecraft.world.entity.player.ChatVisiblity;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.entity.projectile.AbstractArrow;
  import net.minecraft.world.inventory.AbstractContainerMenu;
  import net.minecraft.world.inventory.ContainerListener;
++import net.minecraft.world.inventory.ContainerSynchronizer;
  import net.minecraft.world.inventory.HorseInventoryMenu;
  import net.minecraft.world.inventory.ResultSlot;
  import net.minecraft.world.item.ComplexItem;
@@ -52,8 +68,14 @@
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.ServerItemCooldowns;
  import net.minecraft.world.item.WrittenBookItem;
-@@ -137,11 +141,11 @@
- public class ServerPlayer extends Player implements ContainerListener {
+@@ -132,16 +138,16 @@
+ import net.minecraft.world.scores.Team;
+ import net.minecraft.world.scores.criteria.ObjectiveCriteria;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-public class ServerPlayer extends Player implements ContainerListener {
++public class ServerPlayer extends Player {
     private static final Logger LOGGER = LogManager.getLogger();
     public ServerGamePacketListenerImpl connection;
     public final MinecraftServer server;
@@ -65,7 +87,7 @@
     private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
     private int lastRecordedFoodLevel = Integer.MIN_VALUE;
     private int lastRecordedAirLevel = Integer.MIN_VALUE;
-@@ -152,45 +156,50 @@
+@@ -152,45 +158,95 @@
     private int lastSentFood = -99999999;
     private boolean lastFoodSaturationZero = true;
     private int lastSentExp = -99999999;
@@ -95,8 +117,10 @@
 -   @Nullable
     private final TextFilter textFilter;
 +   private boolean textFilteringEnabled;
++   private final ContainerSynchronizer containerSynchronizer;
++   private final ContainerListener containerListener;
     private int containerCounter;
-    public boolean ignoreSlotUpdateHack;
+-   public boolean ignoreSlotUpdateHack;
     public int latency;
     public boolean wonGame;
  
@@ -112,6 +136,50 @@
 -      var4.player = this;
 -      this.gameMode = var4;
 +      this.textFilteringEnabled = true;
++      this.containerSynchronizer = new ContainerSynchronizer() {
++         public void sendInitialData(AbstractContainerMenu var1, NonNullList<ItemStack> var2, ItemStack var3, int[] var4) {
++            ServerPlayer.this.connection.send(new ClientboundContainerSetContentPacket(var1.containerId, var2));
++            this.broadcastCarriedItem(var3);
++
++            for(int var5 = 0; var5 < var4.length; ++var5) {
++               this.broadcastDataValue(var1, var5, var4[var5]);
++            }
++
++         }
++
++         public void sendSlotChange(AbstractContainerMenu var1, int var2, ItemStack var3) {
++            ServerPlayer.this.connection.send(new ClientboundContainerSetSlotPacket(var1.containerId, var2, var3));
++         }
++
++         public void sendCarriedChange(AbstractContainerMenu var1, ItemStack var2) {
++            this.broadcastCarriedItem(var2);
++         }
++
++         public void sendDataChange(AbstractContainerMenu var1, int var2, int var3) {
++            this.broadcastDataValue(var1, var2, var3);
++         }
++
++         private void broadcastDataValue(AbstractContainerMenu var1, int var2, int var3) {
++            ServerPlayer.this.connection.send(new ClientboundContainerSetDataPacket(var1.containerId, var2, var3));
++         }
++
++         private void broadcastCarriedItem(ItemStack var1) {
++            ServerPlayer.this.connection.send(new ClientboundContainerSetSlotPacket(-1, -1, var1));
++         }
++      };
++      this.containerListener = new ContainerListener() {
++         public void slotChanged(AbstractContainerMenu var1, int var2, ItemStack var3) {
++            if (!(var1.getSlot(var2) instanceof ResultSlot)) {
++               if (var1 == ServerPlayer.this.inventoryMenu) {
++                  CriteriaTriggers.INVENTORY_CHANGED.trigger(ServerPlayer.this, ServerPlayer.this.getInventory(), var3);
++               }
++
++            }
++         }
++
++         public void dataChanged(AbstractContainerMenu var1, int var2, int var3) {
++         }
++      };
 +      this.textFilter = var1.createTextFilterForPlayer(this);
 +      this.gameMode = var1.createGameModeForPlayer(this);
        this.server = var1;
@@ -125,7 +193,7 @@
     private void fudgeSpawnLocation(ServerLevel var1) {
        BlockPos var2 = var1.getSharedSpawnPos();
        if (var1.dimensionType().hasSkyLight() && var1.getServer().getWorldData().getGameType() != GameType.ADVENTURE) {
-@@ -223,11 +232,11 @@
+@@ -223,11 +279,11 @@
              }
           }
        } else {
@@ -138,7 +206,7 @@
        }
  
     }
-@@ -236,18 +245,10 @@
+@@ -236,18 +292,10 @@
        return var1 <= 16 ? var1 - 1 : 17;
     }
  
@@ -157,7 +225,7 @@
           this.enteredNetherPosition = new Vec3(var2.getDouble("x"), var2.getDouble("y"), var2.getDouble("z"));
        }
  
-@@ -274,12 +275,11 @@
+@@ -274,12 +322,11 @@
  
     }
  
@@ -171,7 +239,7 @@
           CompoundTag var2 = new CompoundTag();
           var2.putDouble("x", this.enteredNetherPosition.x);
           var2.putDouble("y", this.enteredNetherPosition.y);
-@@ -287,11 +287,11 @@
+@@ -287,11 +334,11 @@
           var1.put("enteredNetherPosition", var2);
        }
  
@@ -184,10 +252,23 @@
           var6.save(var5);
           var4.putUUID("Attach", var3.getUUID());
           var4.put("Entity", var5);
-@@ -342,16 +342,16 @@
-       this.containerMenu.addSlotListener(this);
+@@ -336,22 +383,27 @@
+    public void onEnchantmentPerformed(ItemStack var1, int var2) {
+       super.onEnchantmentPerformed(var1, var2);
+       this.lastSentExp = -1;
     }
  
+-   public void initMenu() {
+-      this.containerMenu.addSlotListener(this);
++   private void initMenu(AbstractContainerMenu var1) {
++      var1.addSlotListener(this.containerListener);
++      var1.setSynchronizer(this.containerSynchronizer);
+    }
+ 
++   public void initInventoryMenu() {
++      this.initMenu(this.inventoryMenu);
++   }
++
     public void onEnterCombat() {
        super.onEnterCombat();
 -      this.connection.send(new ClientboundPlayerCombatPacket(this.getCombatTracker(), ClientboundPlayerCombatPacket.Event.ENTER_COMBAT));
@@ -203,7 +284,7 @@
     protected void onInsideBlock(BlockState var1) {
        CriteriaTriggers.ENTER_BLOCK.trigger(this, var1);
     }
-@@ -371,28 +371,19 @@
+@@ -371,28 +423,19 @@
        if (!this.level.isClientSide && !this.containerMenu.stillValid(this)) {
           this.closeContainer();
           this.containerMenu = this.inventoryMenu;
@@ -239,7 +320,7 @@
                 this.setCamera(this);
              }
           } else {
-@@ -408,16 +399,16 @@
+@@ -408,16 +451,16 @@
        this.advancements.flushDirty(this);
     }
  
@@ -259,7 +340,7 @@
                 if (var6 != null) {
                    this.connection.send(var6);
                 }
-@@ -486,19 +477,19 @@
+@@ -486,19 +529,19 @@
  
     public void die(DamageSource var1) {
        boolean var2 = this.level.getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
@@ -281,7 +362,7 @@
           });
           Team var4 = this.getTeam();
           if (var4 != null && var4.getDeathMessageVisibility() != Team.Visibility.ALWAYS) {
-@@ -509,11 +500,11 @@
+@@ -509,11 +552,11 @@
              }
           } else {
              this.server.getPlayerList().broadcastMessage(var3, ChatType.SYSTEM, Util.NIL_UUID);
@@ -294,7 +375,7 @@
        this.removeEntitiesOnShoulder();
        if (this.level.getGameRules().getBoolean(GameRules.RULE_FORGIVE_DEAD_PLAYERS)) {
           this.tellNeutralMobsThatIDied();
-@@ -534,17 +525,17 @@
+@@ -534,17 +577,17 @@
        this.level.broadcastEntityEvent(this, (byte)3);
        this.awardStat(Stats.DEATHS);
        this.resetStat(Stats.CUSTOM.get(Stats.TIME_SINCE_DEATH));
@@ -314,7 +395,7 @@
           ((NeutralMob)var1x).playerDied(this);
        });
     }
-@@ -632,11 +623,11 @@
+@@ -632,11 +675,11 @@
        this.isChangingDimension = true;
        ServerLevel var2 = this.getLevel();
        ResourceKey var3 = var2.dimension();
@@ -327,7 +408,7 @@
              this.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.WIN_GAME, this.seenCredits ? 0.0F : 1.0F));
              this.seenCredits = true;
           }
-@@ -646,12 +637,12 @@
+@@ -646,12 +689,12 @@
           LevelData var4 = var1.getLevelData();
           this.connection.send(new ClientboundRespawnPacket(var1.dimensionType(), var1.dimension(), BiomeManager.obfuscateSeed(var1.getSeed()), this.gameMode.getGameModeForPlayer(), this.gameMode.getPreviousGameModeForPlayer(), var1.isDebug(), var1.isFlat(), true));
           this.connection.send(new ClientboundChangeDifficultyPacket(var4.getDifficulty(), var4.isDifficultyLocked()));
@@ -342,7 +423,7 @@
              var2.getProfiler().push("moving");
              if (var3 == Level.OVERWORLD && var1.dimension() == Level.NETHER) {
                 this.enteredNetherPosition = this.position();
-@@ -665,12 +656,11 @@
+@@ -665,12 +708,11 @@
              var1.addDuringPortalTeleport(this);
              this.setRot(var6.yRot, var6.xRot);
              this.moveTo(var6.pos.x, var6.pos.y, var6.pos.z);
@@ -356,7 +437,7 @@
              Iterator var7 = this.getActiveEffects().iterator();
  
              while(var7.hasNext()) {
-@@ -782,10 +772,14 @@
+@@ -782,10 +824,14 @@
  
                 Either var9 = super.startSleepInBed(var1).ifRight((var1x) -> {
                    this.awardStat(Stats.SLEEP_IN_BED);
@@ -371,7 +452,7 @@
              }
           }
        } else {
-@@ -841,17 +835,25 @@
+@@ -841,17 +887,25 @@
     public void stopRiding() {
        Entity var1 = this.getVehicle();
        super.stopRiding();
@@ -399,7 +480,7 @@
     protected void checkFallDamage(double var1, boolean var3, BlockState var4, BlockPos var5) {
     }
  
-@@ -861,12 +863,12 @@
+@@ -861,18 +915,19 @@
        }
  
     }
@@ -414,7 +495,14 @@
     }
  
     public void openTextEdit(SignBlockEntity var1) {
-@@ -885,11 +887,11 @@
+       var1.setAllowedPlayerEditor(this);
++      this.connection.send(new ClientboundBlockUpdatePacket(this.level, var1.getBlockPos()));
+       this.connection.send(new ClientboundOpenSignEditorPacket(var1.getBlockPos()));
+    }
+ 
+    private void nextContainerCounter() {
+       this.containerCounter = this.containerCounter % 100 + 1;
+@@ -885,20 +940,20 @@
           if (this.containerMenu != this.inventoryMenu) {
              this.closeContainer();
           }
@@ -427,15 +515,26 @@
                 this.displayClientMessage((new TranslatableComponent("container.spectatorCantOpen")).withStyle(ChatFormatting.RED), true);
              }
  
-@@ -912,17 +914,16 @@
+             return OptionalInt.empty();
+          } else {
+             this.connection.send(new ClientboundOpenScreenPacket(var2.containerId, var2.getType(), var1.getDisplayName()));
+-            var2.addSlotListener(this);
++            this.initMenu(var2);
+             this.containerMenu = var2;
+             return OptionalInt.of(this.containerCounter);
+          }
+       }
+    }
+@@ -912,17 +967,16 @@
           this.closeContainer();
        }
  
        this.nextContainerCounter();
        this.connection.send(new ClientboundHorseScreenOpenPacket(this.containerCounter, var2.getContainerSize(), var1.getId()));
 -      this.containerMenu = new HorseInventoryMenu(this.containerCounter, this.inventory, var2, var1);
+-      this.containerMenu.addSlotListener(this);
 +      this.containerMenu = new HorseInventoryMenu(this.containerCounter, this.getInventory(), var2, var1);
-       this.containerMenu.addSlotListener(this);
++      this.initMenu(this.containerMenu);
     }
  
     public void openItemGui(ItemStack var1, InteractionHand var2) {
@@ -447,46 +546,57 @@
           }
  
           this.connection.send(new ClientboundOpenBookPacket(var2));
-@@ -936,11 +937,11 @@
+@@ -933,48 +987,18 @@
+    public void openCommandBlock(CommandBlockEntity var1) {
+       var1.setSendToClient(true);
+       this.broadcast(var1);
     }
  
-    public void slotChanged(AbstractContainerMenu var1, int var2, ItemStack var3) {
-       if (!(var1.getSlot(var2) instanceof ResultSlot)) {
-          if (var1 == this.inventoryMenu) {
+-   public void slotChanged(AbstractContainerMenu var1, int var2, ItemStack var3) {
+-      if (!(var1.getSlot(var2) instanceof ResultSlot)) {
+-         if (var1 == this.inventoryMenu) {
 -            CriteriaTriggers.INVENTORY_CHANGED.trigger(this, this.inventory, var3);
-+            CriteriaTriggers.INVENTORY_CHANGED.trigger(this, this.getInventory(), var3);
-          }
- 
-          if (!this.ignoreSlotUpdateHack) {
-             this.connection.send(new ClientboundContainerSetSlotPacket(var1.containerId, var2, var3));
-          }
-@@ -951,11 +952,11 @@
-       this.refreshContainer(var1, var1.getItems());
-    }
- 
-    public void refreshContainer(AbstractContainerMenu var1, NonNullList<ItemStack> var2) {
-       this.connection.send(new ClientboundContainerSetContentPacket(var1.containerId, var2));
+-         }
+-
+-         if (!this.ignoreSlotUpdateHack) {
+-            this.connection.send(new ClientboundContainerSetSlotPacket(var1.containerId, var2, var3));
+-         }
+-      }
+-   }
+-
+-   public void refreshContainer(AbstractContainerMenu var1) {
+-      this.refreshContainer(var1, var1.getItems());
+-   }
+-
+-   public void refreshContainer(AbstractContainerMenu var1, NonNullList<ItemStack> var2) {
+-      this.connection.send(new ClientboundContainerSetContentPacket(var1.containerId, var2));
 -      this.connection.send(new ClientboundContainerSetSlotPacket(-1, -1, this.inventory.getCarried()));
-+      this.connection.send(new ClientboundContainerSetSlotPacket(-1, -1, this.getInventory().getCarried()));
-    }
- 
-    public void setContainerData(AbstractContainerMenu var1, int var2, int var3) {
-       this.connection.send(new ClientboundContainerSetDataPacket(var1.containerId, var2, var3));
-    }
-@@ -965,11 +966,11 @@
+-   }
+-
+-   public void setContainerData(AbstractContainerMenu var1, int var2, int var3) {
+-      this.connection.send(new ClientboundContainerSetDataPacket(var1.containerId, var2, var3));
+-   }
+-
+    public void closeContainer() {
+       this.connection.send(new ClientboundContainerClosePacket(this.containerMenu.containerId));
        this.doCloseContainer();
     }
  
-    public void broadcastCarriedItem() {
-       if (!this.ignoreSlotUpdateHack) {
+-   public void broadcastCarriedItem() {
+-      if (!this.ignoreSlotUpdateHack) {
 -         this.connection.send(new ClientboundContainerSetSlotPacket(-1, -1, this.inventory.getCarried()));
-+         this.connection.send(new ClientboundContainerSetSlotPacket(-1, -1, this.getInventory().getCarried()));
-       }
-    }
- 
+-      }
+-   }
+-
     public void doCloseContainer() {
        this.containerMenu.removed(this);
-@@ -1046,11 +1047,11 @@
++      this.inventoryMenu.transferState(this.containerMenu);
+       this.containerMenu = this.inventoryMenu;
+    }
+ 
+    public void setPlayerInput(float var1, float var2, boolean var3, boolean var4) {
+       if (this.isPassenger()) {
+@@ -1046,11 +1070,11 @@
     public void resetSentInfo() {
        this.lastSentHealth = -1.0E8F;
     }
@@ -499,7 +609,7 @@
     protected void completeUsingItem() {
        if (!this.useItem.isEmpty() && this.isUsingItem()) {
           this.connection.send(new ClientboundEntityEventPacket(this, (byte)9));
-@@ -1069,21 +1070,23 @@
+@@ -1069,21 +1093,23 @@
        super.lookAt(var1, var4);
        this.connection.send(new ClientboundPlayerLookAtPacket(var1, var2, var3));
     }
@@ -525,7 +635,7 @@
           this.experienceProgress = var1.experienceProgress;
           this.setScore(var1.getScore());
        }
-@@ -1146,31 +1149,35 @@
+@@ -1146,31 +1172,35 @@
        this.getLevel().getChunkSource().broadcastAndSend(this, new ClientboundAnimatePacket(var1, 5));
     }
  
@@ -572,7 +682,7 @@
     public boolean isSpectator() {
        return this.gameMode.getGameModeForPlayer() == GameType.SPECTATOR;
     }
-@@ -1182,19 +1189,21 @@
+@@ -1182,19 +1212,21 @@
     public void sendMessage(Component var1, UUID var2) {
        this.sendMessage(var1, ChatType.SYSTEM, var2);
     }
@@ -602,7 +712,7 @@
     public String getIpAddress() {
        String var1 = this.connection.connection.getRemoteAddress().toString();
        var1 = var1.substring(var1.indexOf("/") + 1);
-@@ -1203,22 +1212,35 @@
+@@ -1203,22 +1235,35 @@
     }
  
     public void updateOptions(ServerboundClientInformationPacket var1) {
@@ -640,7 +750,7 @@
     }
  
     public void resetLastActionTime() {
-@@ -1241,11 +1263,11 @@
+@@ -1241,11 +1286,11 @@
        }
  
     }
@@ -653,7 +763,7 @@
     protected void updateInvisibilityStatus() {
        if (this.isSpectator()) {
           this.removeEffectParticles();
-@@ -1321,18 +1343,17 @@
+@@ -1321,18 +1366,17 @@
           ServerLevel var10 = this.getLevel();
           LevelData var11 = var1.getLevelData();
           this.connection.send(new ClientboundRespawnPacket(var1.dimensionType(), var1.dimension(), BiomeManager.obfuscateSeed(var1.getSeed()), this.gameMode.getGameModeForPlayer(), this.gameMode.getPreviousGameModeForPlayer(), var1.isDebug(), var1.isFlat(), true));
@@ -674,7 +784,7 @@
        }
  
     }
-@@ -1419,10 +1440,53 @@
+@@ -1419,10 +1463,53 @@
  
           return var4;
        }

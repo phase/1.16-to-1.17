@@ -1,0 +1,81 @@
+--- net/minecraft/client/gui/screens/TitleScreen.java
++++ net/minecraft/client/gui/screens/TitleScreen.java
+@@ -2,10 +2,11 @@
+ 
+ import com.google.common.util.concurrent.Runnables;
+ import com.mojang.blaze3d.platform.GlStateManager;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.PoseStack;
++import com.mojang.math.Vector3f;
+ import java.io.IOException;
+ import java.util.Iterator;
+ import java.util.Random;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.Executor;
+@@ -18,10 +19,11 @@
+ import net.minecraft.client.gui.components.toasts.SystemToast;
+ import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
+ import net.minecraft.client.gui.screens.multiplayer.SafetyScreen;
+ import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
+ import net.minecraft.client.renderer.CubeMap;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.client.renderer.PanoramaRenderer;
+ import net.minecraft.client.renderer.texture.TextureManager;
+ import net.minecraft.client.resources.language.I18n;
+ import net.minecraft.core.RegistryAccess;
+ import net.minecraft.network.chat.CommonComponents;
+@@ -246,20 +248,22 @@
+       fill(var1, 0, 0, this.width, this.height, -1);
+       this.panorama.render(var4, Mth.clamp(var5, 0.0F, 1.0F));
+       boolean var6 = true;
+       int var7 = this.width / 2 - 137;
+       boolean var8 = true;
+-      this.minecraft.getTextureManager().bind(PANORAMA_OVERLAY);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderTexture(0, PANORAMA_OVERLAY);
+       RenderSystem.enableBlend();
+       RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, this.fading ? (float)Mth.ceil(Mth.clamp(var5, 0.0F, 1.0F)) : 1.0F);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, this.fading ? (float)Mth.ceil(Mth.clamp(var5, 0.0F, 1.0F)) : 1.0F);
+       blit(var1, 0, 0, this.width, this.height, 0.0F, 0.0F, 16, 128, 16, 128);
+       float var9 = this.fading ? Mth.clamp(var5 - 1.0F, 0.0F, 1.0F) : 1.0F;
+       int var10 = Mth.ceil(var9 * 255.0F) << 24;
+       if ((var10 & -67108864) != 0) {
+-         this.minecraft.getTextureManager().bind(MINECRAFT_LOGO);
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, var9);
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
++         RenderSystem.setShaderTexture(0, MINECRAFT_LOGO);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, var9);
+          if (this.minceraftEasterEgg) {
+             this.blitOutlineBlack(var7, 30, (var2x, var3x) -> {
+                this.blit(var1, var2x + 0, var3x, 0, 0, 99, 44);
+                this.blit(var1, var2x + 99, var3x, 129, 0, 27, 44);
+                this.blit(var1, var2x + 99 + 26, var3x, 126, 0, 3, 44);
+@@ -271,21 +275,21 @@
+                this.blit(var1, var2x + 0, var3x, 0, 0, 155, 44);
+                this.blit(var1, var2x + 155, var3x, 0, 45, 155, 44);
+             });
+          }
+ 
+-         this.minecraft.getTextureManager().bind(MINECRAFT_EDITION);
++         RenderSystem.setShaderTexture(0, MINECRAFT_EDITION);
+          blit(var1, var7 + 88, 67, 0.0F, 0.0F, 98, 14, 128, 16);
+          if (this.splash != null) {
+-            RenderSystem.pushMatrix();
+-            RenderSystem.translatef((float)(this.width / 2 + 90), 70.0F, 0.0F);
+-            RenderSystem.rotatef(-20.0F, 0.0F, 0.0F, 1.0F);
++            var1.pushPose();
++            var1.translate((double)(this.width / 2 + 90), 70.0D, 0.0D);
++            var1.mulPose(Vector3f.ZP.rotationDegrees(-20.0F));
+             float var11 = 1.8F - Mth.abs(Mth.sin((float)(Util.getMillis() % 1000L) / 1000.0F * 6.2831855F) * 0.1F);
+             var11 = var11 * 100.0F / (float)(this.font.width(this.splash) + 32);
+-            RenderSystem.scalef(var11, var11, var11);
++            var1.scale(var11, var11, var11);
+             drawCenteredString(var1, this.font, this.splash, 0, -8, 16776960 | var10);
+-            RenderSystem.popMatrix();
++            var1.popPose();
+          }
+ 
+          String var14 = "Minecraft " + SharedConstants.getCurrentVersion().getName();
+          if (this.minecraft.isDemo()) {
+             var14 = var14 + " Demo";

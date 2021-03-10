@@ -1,6 +1,30 @@
 --- com/mojang/realmsclient/RealmsMainScreen.java
 +++ com/mojang/realmsclient/RealmsMainScreen.java
-@@ -94,11 +94,11 @@
+@@ -4,10 +4,11 @@
+ import com.google.common.collect.Lists;
+ import com.google.common.util.concurrent.RateLimiter;
+ import com.mojang.blaze3d.platform.GlStateManager;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.PoseStack;
++import com.mojang.math.Vector3f;
+ import com.mojang.realmsclient.client.Ping;
+ import com.mojang.realmsclient.client.RealmsClient;
+ import com.mojang.realmsclient.dto.PingResult;
+ import com.mojang.realmsclient.dto.RealmsServer;
+ import com.mojang.realmsclient.dto.RealmsServerPlayerList;
+@@ -40,10 +41,11 @@
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.MultiLineLabel;
+ import net.minecraft.client.gui.components.ObjectSelectionList;
+ import net.minecraft.client.gui.components.TickableWidget;
+ import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.client.resources.language.I18n;
+ import net.minecraft.network.chat.CommonComponents;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.FormattedText;
+ import net.minecraft.network.chat.TextComponent;
+@@ -94,11 +96,11 @@
     private static final Component LEAVE_SERVER_TOOLTIP = new TranslatableComponent("mco.selectServer.leave");
     private static final Component CONFIGURE_SERVER_TOOLTIP = new TranslatableComponent("mco.selectServer.configure");
     private static final Component SERVER_INFO_TOOLTIP = new TranslatableComponent("mco.selectServer.info");
@@ -13,7 +37,7 @@
     private static volatile boolean hasParentalConsent;
     private static volatile boolean checkedParentalConsent;
     private static volatile boolean checkedClientCompatability;
-@@ -568,11 +568,11 @@
+@@ -568,11 +570,11 @@
                       RealmsClient.switchToStage();
                       RealmsMainScreen.LOGGER.info("Switched to stage");
                       RealmsMainScreen.REALMS_DATA_FETCHER.forceUpdate();
@@ -26,7 +50,7 @@
              }
           }).start();
        }
-@@ -591,11 +591,11 @@
+@@ -591,11 +593,11 @@
                       RealmsClient.switchToLocal();
                       RealmsMainScreen.LOGGER.info("Switched to local");
                       RealmsMainScreen.REALMS_DATA_FETCHER.forceUpdate();
@@ -39,7 +63,45 @@
              }
           }).start();
        }
-@@ -802,11 +802,11 @@
+@@ -752,12 +754,12 @@
+       if (this.toolTip != null) {
+          this.renderMousehoverTooltip(var1, this.toolTip, var2, var3);
+       }
+ 
+       if (this.trialsAvailable && !this.createdTrial && this.shouldShowPopup()) {
+-         this.minecraft.getTextureManager().bind(TRIAL_ICON_LOCATION);
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderTexture(0, TRIAL_ICON_LOCATION);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+          boolean var8 = true;
+          boolean var6 = true;
+          byte var7 = 0;
+          if ((Util.getMillis() / 800L & 1L) == 1L) {
+             var7 = 8;
+@@ -767,16 +769,17 @@
+       }
+ 
+    }
+ 
+    private void drawRealmsLogo(PoseStack var1, int var2, int var3) {
+-      this.minecraft.getTextureManager().bind(LOGO_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      RenderSystem.pushMatrix();
+-      RenderSystem.scalef(0.5F, 0.5F, 0.5F);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderTexture(0, LOGO_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++      var1.pushPose();
++      var1.scale(0.5F, 0.5F, 0.5F);
+       GuiComponent.blit(var1, var2 * 2, var3 * 2 - 5, 0.0F, 0.0F, 200, 50, 200, 50);
+-      RenderSystem.popMatrix();
++      var1.popPose();
+    }
+ 
+    public boolean mouseClicked(double var1, double var3, int var5) {
+       if (this.isOutsidePopup(var1, var3) && this.popupOpenedByUser) {
+          this.popupOpenedByUser = false;
+@@ -802,34 +805,34 @@
           this.hasSwitchedCarouselImage = true;
           this.updateButtonStates((RealmsServer)null);
           if (this.children.contains(this.realmSelectionList)) {
@@ -52,7 +114,248 @@
  
           NarrationHelper.now(POPUP_TEXT.getString());
        }
-@@ -1171,11 +1171,11 @@
+ 
+       if (this.hasFetchedServers) {
+          this.showingPopup = true;
+       }
+ 
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 0.7F);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 0.7F);
+       RenderSystem.enableBlend();
+-      this.minecraft.getTextureManager().bind(DARKEN_LOCATION);
++      RenderSystem.setShaderTexture(0, DARKEN_LOCATION);
+       boolean var8 = false;
+       boolean var7 = true;
+       GuiComponent.blit(var1, 0, 32, 0.0F, 0.0F, this.width, this.height - 40 - 32, 310, 166);
+       RenderSystem.disableBlend();
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      this.minecraft.getTextureManager().bind(POPUP_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, POPUP_LOCATION);
+       GuiComponent.blit(var1, var4, var5, 0.0F, 0.0F, 310, 166, 310, 166);
+       if (!teaserImages.isEmpty()) {
+-         this.minecraft.getTextureManager().bind((ResourceLocation)teaserImages.get(this.carouselIndex));
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderTexture(0, (ResourceLocation)teaserImages.get(this.carouselIndex));
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+          GuiComponent.blit(var1, var4 + 7, var5 + 7, 0.0F, 0.0F, 195, 152, 195, 152);
+          if (this.carouselTick % 95 < 5) {
+             if (!this.hasSwitchedCarouselImage) {
+                this.carouselIndex = (this.carouselIndex + 1) % teaserImages.size();
+                this.hasSwitchedCarouselImage = true;
+@@ -863,22 +866,22 @@
+          this.fillGradient(var1, var4 - 2, var5 - 2, var4 - 1, var5 + 18, var12, var12);
+          this.fillGradient(var1, var4 + 17, var5 - 2, var4 + 18, var5 + 18, var12, var12);
+          this.fillGradient(var1, var4 - 2, var5 + 17, var4 + 18, var5 + 18, var12, var12);
+       }
+ 
+-      this.minecraft.getTextureManager().bind(INVITE_ICON_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, INVITE_ICON_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       boolean var19 = var7 && var6;
+       float var20 = var19 ? 16.0F : 0.0F;
+       GuiComponent.blit(var1, var4, var5 - 6, var20, 0.0F, 15, 25, 31, 25);
+       boolean var13 = var7 && var8 != 0;
+       int var14;
+       if (var13) {
+          var14 = (Math.min(var8, 6) - 1) * 8;
+          int var15 = (int)(Math.max(0.0F, Math.max(Mth.sin((float)(10 + this.animTick) * 0.57F), Mth.cos((float)this.animTick * 0.35F))) * -6.0F);
+-         this.minecraft.getTextureManager().bind(INVITATION_ICONS_LOCATION);
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderTexture(0, INVITATION_ICONS_LOCATION);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+          float var16 = var9 ? 8.0F : 0.0F;
+          GuiComponent.blit(var1, var4 + 4, var5 + 4 + var15, (float)var14, var16, 8, 8, 48, 16);
+       }
+ 
+       var14 = var2 + 12;
+@@ -934,22 +937,22 @@
+    private boolean isSelfOwnedNonExpiredServer(RealmsServer var1) {
+       return this.isSelfOwnedServer(var1) && !var1.expired;
+    }
+ 
+    private void drawExpired(PoseStack var1, int var2, int var3, int var4, int var5) {
+-      this.minecraft.getTextureManager().bind(EXPIRED_ICON_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, EXPIRED_ICON_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       GuiComponent.blit(var1, var2, var3, 0.0F, 0.0F, 10, 28, 10, 28);
+       if (var4 >= var2 && var4 <= var2 + 9 && var5 >= var3 && var5 <= var3 + 27 && var5 < this.height - 40 && var5 > 32 && !this.shouldShowPopup()) {
+          this.setTooltip(SERVER_EXPIRED_TOOLTIP);
+       }
+ 
+    }
+ 
+    private void drawExpiring(PoseStack var1, int var2, int var3, int var4, int var5, int var6) {
+-      this.minecraft.getTextureManager().bind(EXPIRES_SOON_ICON_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, EXPIRES_SOON_ICON_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       if (this.animTick % 20 < 10) {
+          GuiComponent.blit(var1, var2, var3, 0.0F, 0.0F, 10, 28, 20, 28);
+       } else {
+          GuiComponent.blit(var1, var2, var3, 10.0F, 0.0F, 10, 28, 20, 28);
+       }
+@@ -965,22 +968,22 @@
+       }
+ 
+    }
+ 
+    private void drawOpen(PoseStack var1, int var2, int var3, int var4, int var5) {
+-      this.minecraft.getTextureManager().bind(ON_ICON_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, ON_ICON_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       GuiComponent.blit(var1, var2, var3, 0.0F, 0.0F, 10, 28, 10, 28);
+       if (var4 >= var2 && var4 <= var2 + 9 && var5 >= var3 && var5 <= var3 + 27 && var5 < this.height - 40 && var5 > 32 && !this.shouldShowPopup()) {
+          this.setTooltip(SERVER_OPEN_TOOLTIP);
+       }
+ 
+    }
+ 
+    private void drawClose(PoseStack var1, int var2, int var3, int var4, int var5) {
+-      this.minecraft.getTextureManager().bind(OFF_ICON_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, OFF_ICON_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       GuiComponent.blit(var1, var2, var3, 0.0F, 0.0F, 10, 28, 10, 28);
+       if (var4 >= var2 && var4 <= var2 + 9 && var5 >= var3 && var5 <= var3 + 27 && var5 < this.height - 40 && var5 > 32 && !this.shouldShowPopup()) {
+          this.setTooltip(SERVER_CLOSED_TOOLTIP);
+       }
+ 
+@@ -990,12 +993,12 @@
+       boolean var6 = false;
+       if (var4 >= var2 && var4 <= var2 + 28 && var5 >= var3 && var5 <= var3 + 28 && var5 < this.height - 40 && var5 > 32 && !this.shouldShowPopup()) {
+          var6 = true;
+       }
+ 
+-      this.minecraft.getTextureManager().bind(LEAVE_ICON_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, LEAVE_ICON_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       float var7 = var6 ? 28.0F : 0.0F;
+       GuiComponent.blit(var1, var2, var3, var7, 0.0F, 28, 28, 56, 28);
+       if (var6) {
+          this.setTooltip(LEAVE_SERVER_TOOLTIP);
+          this.hoveredElement = RealmsMainScreen.HoveredElement.LEAVE;
+@@ -1007,12 +1010,12 @@
+       boolean var6 = false;
+       if (var4 >= var2 && var4 <= var2 + 28 && var5 >= var3 && var5 <= var3 + 28 && var5 < this.height - 40 && var5 > 32 && !this.shouldShowPopup()) {
+          var6 = true;
+       }
+ 
+-      this.minecraft.getTextureManager().bind(CONFIGURE_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, CONFIGURE_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       float var7 = var6 ? 28.0F : 0.0F;
+       GuiComponent.blit(var1, var2, var3, var7, 0.0F, 28, 28, 56, 28);
+       if (var6) {
+          this.setTooltip(CONFIGURE_SERVER_TOOLTIP);
+          this.hoveredElement = RealmsMainScreen.HoveredElement.CONFIGURE;
+@@ -1054,12 +1057,12 @@
+       boolean var7 = false;
+       if (var2 >= var4 && var2 <= var4 + 20 && var3 >= var5 && var3 <= var5 + 20) {
+          var7 = true;
+       }
+ 
+-      this.minecraft.getTextureManager().bind(QUESTIONMARK_LOCATION);
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, QUESTIONMARK_LOCATION);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       float var8 = var6 ? 20.0F : 0.0F;
+       GuiComponent.blit(var1, var4, var5, var8, 0.0F, 20, 20, 40, 20);
+       if (var7) {
+          this.setTooltip(SERVER_INFO_TOOLTIP);
+       }
+@@ -1070,15 +1073,15 @@
+       boolean var9 = false;
+       if (var2 >= var5 && var2 <= var5 + 20 && var3 >= var6 && var3 <= var6 + 20) {
+          var9 = true;
+       }
+ 
+-      this.minecraft.getTextureManager().bind(NEWS_LOCATION);
++      RenderSystem.setShaderTexture(0, NEWS_LOCATION);
+       if (var8) {
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       } else {
+-         RenderSystem.color4f(0.5F, 0.5F, 0.5F, 1.0F);
++         RenderSystem.setShaderColor(0.5F, 0.5F, 0.5F, 1.0F);
+       }
+ 
+       boolean var10 = var8 && var7;
+       float var11 = var10 ? 20.0F : 0.0F;
+       GuiComponent.blit(var1, var5, var6, var11, 0.0F, 20, 20, 40, 20);
+@@ -1086,37 +1089,37 @@
+          this.setTooltip(NEWS_TOOLTIP);
+       }
+ 
+       if (var4 && var8) {
+          int var12 = var9 ? 0 : (int)(Math.max(0.0F, Math.max(Mth.sin((float)(10 + this.animTick) * 0.57F), Mth.cos((float)this.animTick * 0.35F))) * -6.0F);
+-         this.minecraft.getTextureManager().bind(INVITATION_ICONS_LOCATION);
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderTexture(0, INVITATION_ICONS_LOCATION);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+          GuiComponent.blit(var1, var5 + 10, var6 + 2 + var12, 40.0F, 0.0F, 8, 8, 48, 16);
+       }
+ 
+    }
+ 
+    private void renderLocal(PoseStack var1) {
+       String var2 = "LOCAL!";
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      RenderSystem.pushMatrix();
+-      RenderSystem.translatef((float)(this.width / 2 - 25), 20.0F, 0.0F);
+-      RenderSystem.rotatef(-20.0F, 0.0F, 0.0F, 1.0F);
+-      RenderSystem.scalef(1.5F, 1.5F, 1.5F);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++      var1.pushPose();
++      var1.translate((double)(this.width / 2 - 25), 20.0D, 0.0D);
++      var1.mulPose(Vector3f.ZP.rotationDegrees(-20.0F));
++      var1.scale(1.5F, 1.5F, 1.5F);
+       this.font.draw(var1, "LOCAL!", 0.0F, 0.0F, 8388479);
+-      RenderSystem.popMatrix();
++      var1.popPose();
+    }
+ 
+    private void renderStage(PoseStack var1) {
+       String var2 = "STAGE!";
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      RenderSystem.pushMatrix();
+-      RenderSystem.translatef((float)(this.width / 2 - 25), 20.0F, 0.0F);
+-      RenderSystem.rotatef(-20.0F, 0.0F, 0.0F, 1.0F);
+-      RenderSystem.scalef(1.5F, 1.5F, 1.5F);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++      var1.pushPose();
++      var1.translate((double)(this.width / 2 - 25), 20.0D, 0.0D);
++      var1.mulPose(Vector3f.ZP.rotationDegrees(-20.0F));
++      var1.scale(1.5F, 1.5F, 1.5F);
+       this.font.draw(var1, (String)"STAGE!", 0.0F, 0.0F, -256);
+-      RenderSystem.popMatrix();
++      var1.popPose();
+    }
+ 
+    public RealmsMainScreen newScreen() {
+       RealmsMainScreen var1 = new RealmsMainScreen(this.lastScreen);
+       var1.init(this.minecraft, this.width, this.height);
+@@ -1146,12 +1149,12 @@
+             RealmsMainScreen.this.onClosePopup();
+          });
+       }
+ 
+       public void renderButton(PoseStack var1, int var2, int var3, float var4) {
+-         RealmsMainScreen.this.minecraft.getTextureManager().bind(RealmsMainScreen.CROSS_ICON_LOCATION);
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderTexture(0, RealmsMainScreen.CROSS_ICON_LOCATION);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+          float var5 = this.isHovered() ? 12.0F : 0.0F;
+          blit(var1, this.x, this.y, 0.0F, var5, 12, 12, 12, 24);
+          if (this.isMouseOver((double)var2, (double)var3)) {
+             RealmsMainScreen.this.setTooltip(this.getMessage());
+          }
+@@ -1171,11 +1174,11 @@
        }
     }
  
@@ -65,7 +368,7 @@
                 if (RealmsMainScreen.this.hasUnreadNews) {
                    RealmsPersistence.RealmsPersistenceData var2 = RealmsPersistence.readFile();
                    var2.hasUnreadNews = false;
-@@ -1183,11 +1183,10 @@
+@@ -1183,11 +1186,10 @@
                    RealmsPersistence.writeFile(var2);
                 }
  
@@ -77,7 +380,7 @@
        public void renderButton(PoseStack var1, int var2, int var3, float var4) {
           RealmsMainScreen.this.renderNews(var1, var2, var3, RealmsMainScreen.this.hasUnreadNews, this.x, this.y, this.isHovered(), this.active);
        }
-@@ -1199,11 +1198,11 @@
+@@ -1199,11 +1201,11 @@
              RealmsMainScreen.this.pendingButtonPress(var1x);
           });
        }
@@ -90,7 +393,52 @@
        public void renderButton(PoseStack var1, int var2, int var3, float var4) {
           RealmsMainScreen.this.drawInvitationPendingIcon(var1, var2, var3, this.x, this.y, this.isHovered(), this.active);
        }
-@@ -1395,11 +1394,11 @@
+@@ -1236,13 +1238,12 @@
+          this.renderLegacy(var1, var2, var3 + 36, var4, var5, var6);
+       }
+ 
+       private void renderLegacy(RealmsServer var1, PoseStack var2, int var3, int var4, int var5, int var6) {
+          if (var1.state == RealmsServer.State.UNINITIALIZED) {
+-            RealmsMainScreen.this.minecraft.getTextureManager().bind(RealmsMainScreen.WORLDICON_LOCATION);
+-            RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-            RenderSystem.enableAlphaTest();
++            RenderSystem.setShaderTexture(0, RealmsMainScreen.WORLDICON_LOCATION);
++            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+             GuiComponent.blit(var2, var3 + 10, var4 + 6, 0.0F, 0.0F, 40, 20, 40, 20);
+             float var19 = 0.5F + (1.0F + Mth.sin((float)RealmsMainScreen.this.animTick * 0.25F)) * 0.25F;
+             int var20 = -16777216 | (int)(127.0F * var19) << 16 | (int)(255.0F * var19) << 8 | (int)(127.0F * var19);
+             GuiComponent.drawCenteredString(var2, RealmsMainScreen.this.font, RealmsMainScreen.SERVER_UNITIALIZED_TEXT, var3 + 10 + 40 + 75, var4 + 12, var20);
+          } else {
+@@ -1271,13 +1272,13 @@
+                   RealmsMainScreen.this.setTooltip(new TextComponent(var1.serverPing.playerList));
+                }
+             }
+ 
+             if (RealmsMainScreen.this.isSelfOwnedServer(var1) && var1.expired) {
+-               RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++               RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+                RenderSystem.enableBlend();
+-               RealmsMainScreen.this.minecraft.getTextureManager().bind(RealmsMainScreen.BUTTON_LOCATION);
++               RenderSystem.setShaderTexture(0, RealmsMainScreen.BUTTON_LOCATION);
+                RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+                Component var22;
+                Component var23;
+                if (var1.expiredTrial) {
+                   var22 = RealmsMainScreen.TRIAL_EXPIRED_TEXT;
+@@ -1322,11 +1323,11 @@
+                }
+             }
+ 
+             RealmsMainScreen.this.font.draw(var2, var1.getName(), (float)(var3 + 2), (float)(var4 + 1), 16777215);
+             RealmsTextureManager.withBoundFace(var1.ownerUUID, () -> {
+-               RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++               RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+                GuiComponent.blit(var2, var3 - 36, var4, 32, 32, 8.0F, 8.0F, 8, 8, 64, 64);
+                GuiComponent.blit(var2, var3 - 36, var4, 32, 32, 40.0F, 8.0F, 8, 8, 64, 64);
+             });
+          }
+       }
+@@ -1395,11 +1396,11 @@
  
        public boolean keyPressed(int var1, int var2, int var3) {
           if (var1 != 257 && var1 != 32 && var1 != 335) {

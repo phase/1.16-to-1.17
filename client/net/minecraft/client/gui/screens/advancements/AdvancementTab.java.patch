@@ -1,0 +1,86 @@
+--- net/minecraft/client/gui/screens/advancements/AdvancementTab.java
++++ net/minecraft/client/gui/screens/advancements/AdvancementTab.java
+@@ -8,10 +8,11 @@
+ import javax.annotation.Nullable;
+ import net.minecraft.advancements.Advancement;
+ import net.minecraft.advancements.DisplayInfo;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiComponent;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.client.renderer.entity.ItemRenderer;
+ import net.minecraft.client.renderer.texture.TextureManager;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.Mth;
+@@ -71,25 +72,26 @@
+          this.scrollX = (double)(117 - (this.maxX + this.minX) / 2);
+          this.scrollY = (double)(56 - (this.maxY + this.minY) / 2);
+          this.centered = true;
+       }
+ 
+-      RenderSystem.pushMatrix();
++      var1.pushPose();
++      var1.translate(0.0D, 0.0D, 950.0D);
+       RenderSystem.enableDepthTest();
+-      RenderSystem.translatef(0.0F, 0.0F, 950.0F);
+       RenderSystem.colorMask(false, false, false, false);
+       fill(var1, 4680, 2260, -4680, -2260, -16777216);
+       RenderSystem.colorMask(true, true, true, true);
+-      RenderSystem.translatef(0.0F, 0.0F, -950.0F);
++      var1.translate(0.0D, 0.0D, -950.0D);
+       RenderSystem.depthFunc(518);
+       fill(var1, 234, 113, 0, 0, -16777216);
+       RenderSystem.depthFunc(515);
+       ResourceLocation var2 = this.display.getBackground();
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
+       if (var2 != null) {
+-         this.minecraft.getTextureManager().bind(var2);
++         RenderSystem.setShaderTexture(0, var2);
+       } else {
+-         this.minecraft.getTextureManager().bind(TextureManager.INTENTIONAL_MISSING_TEXTURE);
++         RenderSystem.setShaderTexture(0, TextureManager.INTENTIONAL_MISSING_TEXTURE);
+       }
+ 
+       int var3 = Mth.floor(this.scrollX);
+       int var4 = Mth.floor(this.scrollY);
+       int var5 = var3 % 16;
+@@ -103,22 +105,21 @@
+ 
+       this.root.drawConnectivity(var1, var3, var4, true);
+       this.root.drawConnectivity(var1, var3, var4, false);
+       this.root.draw(var1, var3, var4);
+       RenderSystem.depthFunc(518);
+-      RenderSystem.translatef(0.0F, 0.0F, -950.0F);
++      var1.translate(0.0D, 0.0D, -950.0D);
+       RenderSystem.colorMask(false, false, false, false);
+       fill(var1, 4680, 2260, -4680, -2260, -16777216);
+       RenderSystem.colorMask(true, true, true, true);
+-      RenderSystem.translatef(0.0F, 0.0F, 950.0F);
+       RenderSystem.depthFunc(515);
+-      RenderSystem.popMatrix();
++      var1.popPose();
+    }
+ 
+    public void drawTooltips(PoseStack var1, int var2, int var3, int var4, int var5) {
+-      RenderSystem.pushMatrix();
+-      RenderSystem.translatef(0.0F, 0.0F, 200.0F);
++      var1.pushPose();
++      var1.translate(0.0D, 0.0D, -200.0D);
+       fill(var1, 0, 0, 234, 113, Mth.floor(this.fade * 255.0F) << 24);
+       boolean var6 = false;
+       int var7 = Mth.floor(this.scrollX);
+       int var8 = Mth.floor(this.scrollY);
+       if (var2 > 0 && var2 < 234 && var3 > 0 && var3 < 113) {
+@@ -132,11 +133,11 @@
+                break;
+             }
+          }
+       }
+ 
+-      RenderSystem.popMatrix();
++      var1.popPose();
+       if (var6) {
+          this.fade = Mth.clamp(this.fade + 0.02F, 0.0F, 0.3F);
+       } else {
+          this.fade = Mth.clamp(this.fade - 0.04F, 0.0F, 1.0F);
+       }

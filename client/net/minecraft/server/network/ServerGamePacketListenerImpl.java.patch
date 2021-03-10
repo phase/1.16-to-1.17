@@ -1,6 +1,20 @@
 --- net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -16,10 +16,11 @@
+@@ -5,21 +5,23 @@
+ import com.google.common.primitives.Floats;
+ import com.mojang.brigadier.ParseResults;
+ import com.mojang.brigadier.StringReader;
+ import io.netty.util.concurrent.Future;
+ import io.netty.util.concurrent.GenericFutureListener;
+-import it.unimi.dsi.fastutil.ints.Int2ShortMap;
+-import it.unimi.dsi.fastutil.ints.Int2ShortOpenHashMap;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMap.Entry;
++import it.unimi.dsi.fastutil.objects.ObjectIterator;
+ import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
  import java.util.Optional;
  import java.util.Set;
  import java.util.concurrent.CompletableFuture;
@@ -12,7 +26,43 @@
  import javax.annotation.Nullable;
  import net.minecraft.ChatFormatting;
  import net.minecraft.CrashReport;
-@@ -115,10 +116,11 @@
+@@ -29,11 +31,10 @@
+ import net.minecraft.Util;
+ import net.minecraft.advancements.Advancement;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+-import net.minecraft.core.NonNullList;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.ListTag;
+ import net.minecraft.nbt.StringTag;
+ import net.minecraft.network.Connection;
+ import net.minecraft.network.chat.ChatType;
+@@ -44,11 +45,10 @@
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.PacketUtils;
+ import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+ import net.minecraft.network.protocol.game.ClientboundChatPacket;
+ import net.minecraft.network.protocol.game.ClientboundCommandSuggestionsPacket;
+-import net.minecraft.network.protocol.game.ClientboundContainerAckPacket;
+ import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+ import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
+ import net.minecraft.network.protocol.game.ClientboundKeepAlivePacket;
+ import net.minecraft.network.protocol.game.ClientboundMoveVehiclePacket;
+ import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+@@ -60,11 +60,10 @@
+ import net.minecraft.network.protocol.game.ServerboundChangeDifficultyPacket;
+ import net.minecraft.network.protocol.game.ServerboundChatPacket;
+ import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
+ import net.minecraft.network.protocol.game.ServerboundClientInformationPacket;
+ import net.minecraft.network.protocol.game.ServerboundCommandSuggestionPacket;
+-import net.minecraft.network.protocol.game.ServerboundContainerAckPacket;
+ import net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
+ import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
+ import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
+ import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
+ import net.minecraft.network.protocol.game.ServerboundEditBookPacket;
+@@ -115,18 +114,18 @@
  import net.minecraft.world.entity.PlayerRideableJumping;
  import net.minecraft.world.entity.animal.horse.AbstractHorse;
  import net.minecraft.world.entity.item.ItemEntity;
@@ -24,7 +74,15 @@
  import net.minecraft.world.inventory.AbstractContainerMenu;
  import net.minecraft.world.inventory.AnvilMenu;
  import net.minecraft.world.inventory.BeaconMenu;
-@@ -153,11 +155,11 @@
+ import net.minecraft.world.inventory.MerchantMenu;
+ import net.minecraft.world.inventory.RecipeBookMenu;
+-import net.minecraft.world.inventory.Slot;
+ import net.minecraft.world.item.BlockItem;
+ import net.minecraft.world.item.BucketItem;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+@@ -153,35 +152,36 @@
  import net.minecraft.world.phys.shapes.VoxelShape;
  import org.apache.commons.lang3.StringUtils;
  import org.apache.logging.log4j.LogManager;
@@ -37,7 +95,13 @@
     private final MinecraftServer server;
     public ServerPlayer player;
     private int tickCount;
-@@ -171,17 +173,19 @@
+    private long keepAliveTime;
+    private boolean keepAlivePending;
+    private long keepAliveChallenge;
+    private int chatSpamTickCount;
+    private int dropSpamTickCount;
+-   private final Int2ShortMap expectedAcks = new Int2ShortOpenHashMap();
+    private double firstGoodX;
     private double firstGoodY;
     private double firstGoodZ;
     private double lastGoodX;
@@ -57,7 +121,7 @@
     private int awaitingTeleportTime;
     private boolean clientIsFloating;
     private int aboveGroundTickCount;
-@@ -194,15 +198,11 @@
+@@ -194,15 +194,11 @@
        this.server = var1;
        this.connection = var2;
        var2.setListener(this);
@@ -74,7 +138,7 @@
     public void tick() {
        this.resetPosition();
        this.player.xo = this.player.getX();
-@@ -299,38 +299,28 @@
+@@ -299,38 +295,28 @@
        this.connection.setReadOnly();
        Connection var10001 = this.connection;
        this.server.executeBlocking(var10001::handleDisconnection);
@@ -117,7 +181,7 @@
  
     public void handlePlayerInput(ServerboundPlayerInputPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
-@@ -490,29 +480,32 @@
+@@ -490,29 +476,32 @@
  
           String var6 = var1.getCommand();
           boolean var7 = var1.isTrackOutput();
@@ -160,7 +224,7 @@
              if (!var7) {
                 var2.setLastOutput((Component)null);
              }
-@@ -553,14 +546,14 @@
+@@ -553,14 +542,14 @@
        }
     }
  
@@ -179,7 +243,7 @@
     public void handleRenameItem(ServerboundRenameItemPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        if (this.player.containerMenu instanceof AnvilMenu) {
-@@ -679,72 +672,95 @@
+@@ -679,72 +668,95 @@
        }
  
     }
@@ -313,7 +377,7 @@
     public void handleEntityTagQuery(ServerboundEntityTagQuery var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        if (this.player.hasPermissions(2)) {
-@@ -850,11 +866,11 @@
+@@ -850,11 +862,11 @@
                          LOGGER.warn("{} moved wrongly!", this.player.getName().getString());
                       }
  
@@ -326,7 +390,7 @@
                          this.player.setOnGround(var1.isOnGround());
                          if (var31) {
                             this.player.fallDistance = 0.0F;
-@@ -882,28 +898,36 @@
+@@ -882,28 +894,36 @@
        return var3.anyMatch((var1x) -> {
           return !Shapes.joinIsNotEmpty(var1x, var4, BooleanOp.AND);
        });
@@ -370,7 +434,7 @@
     public void handlePlayerAction(ServerboundPlayerActionPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        BlockPos var2 = var1.getPos();
-@@ -935,11 +959,11 @@
+@@ -935,11 +955,11 @@
           this.player.releaseUsingItem();
           return;
        case START_DESTROY_BLOCK:
@@ -383,7 +447,7 @@
           throw new IllegalArgumentException("Invalid player action");
        }
     }
-@@ -960,23 +984,24 @@
+@@ -960,23 +980,24 @@
        ItemStack var4 = this.player.getItemInHand(var3);
        BlockHitResult var5 = var1.getHitResult();
        BlockPos var6 = var5.getBlockPos();
@@ -416,7 +480,7 @@
        this.player.connection.send(new ClientboundBlockUpdatePacket(var2, var6));
        this.player.connection.send(new ClientboundBlockUpdatePacket(var2, var6.relative(var7)));
     }
-@@ -1012,10 +1037,16 @@
+@@ -1012,10 +1033,16 @@
        }
  
     }
@@ -433,7 +497,7 @@
     public void handlePaddleBoat(ServerboundPaddleBoatPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        Entity var2 = this.player.getVehicle();
-@@ -1029,15 +1060,11 @@
+@@ -1029,15 +1056,11 @@
        LOGGER.info("{} lost connection: {}", this.player.getName().getString(), var1.getString());
        this.server.invalidateStatus();
        this.server.getPlayerList().broadcastMessage((new TranslatableComponent("multiplayer.player.left", new Object[]{this.player.getDisplayName()})).withStyle(ChatFormatting.YELLOW), ChatType.SYSTEM, Util.NIL_UUID);
@@ -450,7 +514,7 @@
           this.server.halt(false);
        }
  
-@@ -1046,77 +1073,70 @@
+@@ -1046,77 +1069,70 @@
     public void send(Packet<?> var1) {
        this.send(var1, (GenericFutureListener)null);
     }
@@ -553,7 +617,7 @@
           this.chatSpamTickCount += 20;
           if (this.chatSpamTickCount > 200 && !this.server.getPlayerList().isOp(this.player.getGameProfile())) {
              this.disconnect(new TranslatableComponent("disconnect.spam"));
-@@ -1190,39 +1210,48 @@
+@@ -1190,39 +1206,48 @@
     }
  
     public void handleInteract(ServerboundInteractPacket var1) {
@@ -622,7 +686,107 @@
  
     }
  
-@@ -1368,11 +1397,11 @@
+@@ -1260,59 +1285,45 @@
+    }
+ 
+    public void handleContainerClick(ServerboundContainerClickPacket var1) {
+       PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+       this.player.resetLastActionTime();
+-      if (this.player.containerMenu.containerId == var1.getContainerId() && this.player.containerMenu.isSynched(this.player)) {
++      if (this.player.containerMenu.containerId == var1.getContainerId()) {
+          if (this.player.isSpectator()) {
+-            NonNullList var2 = NonNullList.create();
+-
+-            for(int var3 = 0; var3 < this.player.containerMenu.slots.size(); ++var3) {
+-               var2.add(((Slot)this.player.containerMenu.slots.get(var3)).getItem());
+-            }
+-
+-            this.player.refreshContainer(this.player.containerMenu, var2);
++            this.player.containerMenu.sendAllDataToRemote();
+          } else {
+-            ItemStack var6 = this.player.containerMenu.clicked(var1.getSlotNum(), var1.getButtonNum(), var1.getClickType(), this.player);
+-            if (ItemStack.matches(var1.getItem(), var6)) {
+-               this.player.connection.send(new ClientboundContainerAckPacket(var1.getContainerId(), var1.getUid(), true));
+-               this.player.ignoreSlotUpdateHack = true;
+-               this.player.containerMenu.broadcastChanges();
+-               this.player.broadcastCarriedItem();
+-               this.player.ignoreSlotUpdateHack = false;
+-            } else {
+-               this.expectedAcks.put(this.player.containerMenu.containerId, var1.getUid());
+-               this.player.connection.send(new ClientboundContainerAckPacket(var1.getContainerId(), var1.getUid(), false));
+-               this.player.containerMenu.setSynched(this.player, false);
+-               NonNullList var7 = NonNullList.create();
++            this.player.containerMenu.suppressRemoteUpdates();
++            this.player.containerMenu.clicked(var1.getSlotNum(), var1.getButtonNum(), var1.getClickType(), this.player);
++            ObjectIterator var2 = Int2ObjectMaps.fastIterable(var1.getChangedSlots()).iterator();
+ 
+-               for(int var4 = 0; var4 < this.player.containerMenu.slots.size(); ++var4) {
+-                  ItemStack var5 = ((Slot)this.player.containerMenu.slots.get(var4)).getItem();
+-                  var7.add(var5.isEmpty() ? ItemStack.EMPTY : var5);
+-               }
+-
+-               this.player.refreshContainer(this.player.containerMenu, var7);
++            while(var2.hasNext()) {
++               Entry var3 = (Entry)var2.next();
++               this.player.containerMenu.setRemoteSlot(var3.getIntKey(), (ItemStack)var3.getValue());
+             }
++
++            this.player.containerMenu.setRemoteCarried(var1.getCarriedItem());
++            this.player.containerMenu.resumeRemoteUpdates();
++            this.player.containerMenu.broadcastChanges();
+          }
+       }
+ 
+    }
+ 
+    public void handlePlaceRecipe(ServerboundPlaceRecipePacket var1) {
+       PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+       this.player.resetLastActionTime();
+-      if (!this.player.isSpectator() && this.player.containerMenu.containerId == var1.getContainerId() && this.player.containerMenu.isSynched(this.player) && this.player.containerMenu instanceof RecipeBookMenu) {
++      if (!this.player.isSpectator() && this.player.containerMenu.containerId == var1.getContainerId() && this.player.containerMenu instanceof RecipeBookMenu) {
+          this.server.getRecipeManager().byKey(var1.getRecipe()).ifPresent((var2) -> {
+             ((RecipeBookMenu)this.player.containerMenu).handlePlacement(var1.isShiftDown(), var2, this.player);
+          });
+       }
+    }
+ 
+    public void handleContainerButtonClick(ServerboundContainerButtonClickPacket var1) {
+       PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+       this.player.resetLastActionTime();
+-      if (this.player.containerMenu.containerId == var1.getContainerId() && this.player.containerMenu.isSynched(this.player) && !this.player.isSpectator()) {
++      if (this.player.containerMenu.containerId == var1.getContainerId() && !this.player.isSpectator()) {
+          this.player.containerMenu.clickMenuButton(this.player, var1.getButtonId());
+          this.player.containerMenu.broadcastChanges();
+       }
+ 
+    }
+@@ -1342,37 +1353,27 @@
+                this.player.inventoryMenu.setItem(var1.getSlotNum(), ItemStack.EMPTY);
+             } else {
+                this.player.inventoryMenu.setItem(var1.getSlotNum(), var3);
+             }
+ 
+-            this.player.inventoryMenu.setSynched(this.player, true);
+             this.player.inventoryMenu.broadcastChanges();
+          } else if (var2 && var9 && this.dropSpamTickCount < 200) {
+             this.dropSpamTickCount += 20;
+             this.player.drop(var3, true);
+          }
+       }
+ 
+    }
+ 
+-   public void handleContainerAck(ServerboundContainerAckPacket var1) {
+-      PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+-      int var2 = this.player.containerMenu.containerId;
+-      if (var2 == var1.getContainerId() && this.expectedAcks.getOrDefault(var2, (short)(var1.getUid() + 1)) == var1.getUid() && !this.player.containerMenu.isSynched(this.player) && !this.player.isSpectator()) {
+-         this.player.containerMenu.setSynched(this.player, true);
+-      }
+-
+-   }
+-
+    public void handleSignUpdate(ServerboundSignUpdatePacket var1) {
+       List var2 = (List)Stream.of(var1.getLines()).map(ChatFormatting::stripFormatting).collect(Collectors.toList());
        this.filterTextPacket(var2, (var2x) -> {
           this.updateSignText(var1, var2x);
        });
@@ -635,7 +799,7 @@
        BlockPos var4 = var1.getPos();
        if (var3.hasChunkAt(var4)) {
           BlockState var5 = var3.getBlockState(var4);
-@@ -1386,11 +1415,16 @@
+@@ -1386,11 +1387,16 @@
              LOGGER.warn("Player {} just tried to change non-editable sign", this.player.getName().getString());
              return;
           }
@@ -653,7 +817,7 @@
           var7.setChanged();
           var3.sendBlockUpdated(var4, var5, var5, 3);
        }
-@@ -1408,11 +1442,11 @@
+@@ -1408,11 +1414,11 @@
  
     }
  
@@ -666,7 +830,7 @@
     public void handleClientInformation(ServerboundClientInformationPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        this.player.updateOptions(var1);
-@@ -1432,6 +1466,15 @@
+@@ -1432,6 +1438,15 @@
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        if (this.player.hasPermissions(2) || this.isSingleplayerOwner()) {
           this.server.setDifficultyLocked(var1.isLocked());

@@ -1,8 +1,9 @@
 --- net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
 +++ net/minecraft/world/level/levelgen/NoiseBasedChunkGenerator.java
-@@ -1,48 +1,46 @@
+@@ -1,48 +1,47 @@
  package net.minecraft.world.level.levelgen;
  
++import com.google.common.collect.ImmutableList;
 +import com.google.common.collect.Sets;
  import com.mojang.serialization.Codec;
  import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -58,7 +59,7 @@
  import net.minecraft.world.level.levelgen.synth.SimplexNoise;
  import net.minecraft.world.level.levelgen.synth.SurfaceNoise;
  
-@@ -54,48 +52,28 @@
+@@ -54,48 +53,28 @@
           return var0x.seed;
        }), NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter((var0x) -> {
           return var0x.settings;
@@ -118,7 +119,7 @@
        this(var1, var1, var2, var4);
     }
  
-@@ -104,32 +82,37 @@
+@@ -104,32 +83,37 @@
        this.seed = var3;
        NoiseGeneratorSettings var6 = (NoiseGeneratorSettings)var5.get();
        this.settings = var5;
@@ -172,7 +173,7 @@
     protected Codec<? extends ChunkGenerator> codec() {
        return CODEC;
     }
-@@ -140,215 +123,101 @@
+@@ -140,215 +124,108 @@
  
     public boolean stable(long var1, ResourceKey<NoiseGeneratorSettings> var3) {
        return this.seed == var1 && ((NoiseGeneratorSettings)this.settings.get()).stable(var3);
@@ -213,7 +214,7 @@
 -      return Mth.clampedLerp(var12 / 512.0D, var14 / 512.0D, (var16 / 10.0D + 1.0D) / 2.0D);
 +   private double[] makeAndFillNoiseColumn(int var1, int var2, int var3, int var4) {
 +      double[] var5 = new double[var4 + 1];
-+      this.sampler.fillNoiseColumn(var5, var1, var2, ((NoiseGeneratorSettings)this.settings.get()).noiseSettings(), this.getSeaLevel(), var3, var4);
++      this.fillNoiseColumn(var5, var1, var2, var3, var4);
 +      return var5;
     }
  
@@ -221,12 +222,9 @@
 -      double[] var3 = new double[this.chunkCountY + 1];
 -      this.fillNoiseColumn(var3, var1, var2);
 -      return var3;
-+   public int getBaseHeight(int var1, int var2, Heightmap.Types var3, LevelHeightAccessor var4) {
-+      int var5 = Math.max(((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY(), var4.getMinBuildHeight());
-+      int var6 = Math.min(((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY() + ((NoiseGeneratorSettings)this.settings.get()).noiseSettings().height(), var4.getMaxBuildHeight());
-+      int var7 = Mth.intFloorDiv(var5, this.cellHeight);
-+      int var8 = Mth.intFloorDiv(var6 - var5, this.cellHeight);
-+      return var8 <= 0 ? var4.getMinBuildHeight() : this.iterateNoiseColumn(var1, var2, (BlockState[])null, var3.isOpaque(), var7, var8).orElse(var4.getMinBuildHeight());
++   private void fillNoiseColumn(double[] var1, int var2, int var3, int var4, int var5) {
++      NoiseSettings var6 = ((NoiseGeneratorSettings)this.settings.get()).noiseSettings();
++      this.sampler.fillNoiseColumn(var1, var2, var3, var6, this.getSeaLevel(), var4, var5);
     }
  
 -   private void fillNoiseColumn(double[] var1, int var2, int var3) {
@@ -242,14 +240,7 @@
 -         } else {
 -            var6 = 1.0D;
 -         }
-+   public NoiseColumn getBaseColumn(int var1, int var2, LevelHeightAccessor var3) {
-+      int var4 = Math.max(((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY(), var3.getMinBuildHeight());
-+      int var5 = Math.min(((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY() + ((NoiseGeneratorSettings)this.settings.get()).noiseSettings().height(), var3.getMaxBuildHeight());
-+      int var6 = Mth.intFloorDiv(var4, this.cellHeight);
-+      int var7 = Mth.intFloorDiv(var5 - var4, this.cellHeight);
-+      if (var7 <= 0) {
-+         return new NoiseColumn(var4, EMPTY_COLUMN);
-       } else {
+-      } else {
 -         float var9 = 0.0F;
 -         float var10 = 0.0F;
 -         float var11 = 0.0F;
@@ -286,10 +277,7 @@
 -         var53 = (double)(var51 * 0.9F + 0.1F);
 -         var4 = var52 * 0.265625D;
 -         var6 = 96.0D / var53;
-+         BlockState[] var8 = new BlockState[var7 * this.cellHeight];
-+         this.iterateNoiseColumn(var1, var2, var8, (Predicate)null, var6, var7);
-+         return new NoiseColumn(var4, var8);
-       }
+-      }
 -
 -      double var46 = 684.412D * var8.noiseSamplingSettings().xzScale();
 -      double var47 = 684.412D * var8.noiseSamplingSettings().yScale();
@@ -330,6 +318,12 @@
 -         var1[var35] = var36;
 -      }
 -
++   public int getBaseHeight(int var1, int var2, Heightmap.Types var3, LevelHeightAccessor var4) {
++      int var5 = Math.max(((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY(), var4.getMinBuildHeight());
++      int var6 = Math.min(((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY() + ((NoiseGeneratorSettings)this.settings.get()).noiseSettings().height(), var4.getMaxBuildHeight());
++      int var7 = Mth.intFloorDiv(var5, this.cellHeight);
++      int var8 = Mth.intFloorDiv(var6 - var5, this.cellHeight);
++      return var8 <= 0 ? var4.getMinBuildHeight() : this.iterateNoiseColumn(var1, var2, (BlockState[])null, var3.isOpaque(), var7, var8).orElse(var4.getMinBuildHeight());
     }
  
 -   private double getRandomDensity(int var1, int var2) {
@@ -337,9 +331,27 @@
 -      double var5;
 -      if (var3 < 0.0D) {
 -         var5 = -var3 * 0.3D;
--      } else {
++   public NoiseColumn getBaseColumn(int var1, int var2, LevelHeightAccessor var3) {
++      int var4 = Math.max(((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY(), var3.getMinBuildHeight());
++      int var5 = Math.min(((NoiseGeneratorSettings)this.settings.get()).noiseSettings().minY() + ((NoiseGeneratorSettings)this.settings.get()).noiseSettings().height(), var3.getMaxBuildHeight());
++      int var6 = Mth.intFloorDiv(var4, this.cellHeight);
++      int var7 = Mth.intFloorDiv(var5 - var4, this.cellHeight);
++      if (var7 <= 0) {
++         return new NoiseColumn(var4, EMPTY_COLUMN);
+       } else {
 -         var5 = var3;
--      }
++         BlockState[] var8 = new BlockState[var7 * this.cellHeight];
++         this.iterateNoiseColumn(var1, var2, var8, (Predicate)null, var6, var7);
++         return new NoiseColumn(var4, var8);
+       }
+-
+-      double var7 = var5 * 24.575625D - 2.0D;
+-      return var7 < 0.0D ? var7 * 0.009486607142857142D : Math.min(var7, 1.0D) * 0.006640625D;
+    }
+ 
+-   public int getBaseHeight(int var1, int var2, Heightmap.Types var3) {
+-      return this.iterateNoiseColumn(var1, var2, (BlockState[])null, var3.isOpaque());
+-   }
 +   private OptionalInt iterateNoiseColumn(int var1, int var2, @Nullable BlockState[] var3, @Nullable Predicate<BlockState> var4, int var5, int var6) {
 +      int var7 = SectionPos.blockToSectionCoord(var1);
 +      int var8 = SectionPos.blockToSectionCoord(var2);
@@ -352,8 +364,10 @@
 +      double[][] var17 = new double[][]{this.makeAndFillNoiseColumn(var9, var10, var5, var6), this.makeAndFillNoiseColumn(var9, var10 + 1, var5, var6), this.makeAndFillNoiseColumn(var9 + 1, var10, var5, var6), this.makeAndFillNoiseColumn(var9 + 1, var10 + 1, var5, var6)};
 +      Aquifer var18 = this.aquifersEnabled ? new Aquifer(var7, var8, this.barrierNoise, this.waterLevelNoise, (NoiseGeneratorSettings)this.settings.get(), this.sampler, var6 * this.cellHeight) : null;
  
--      double var7 = var5 * 24.575625D - 2.0D;
--      return var7 < 0.0D ? var7 * 0.009486607142857142D : Math.min(var7, 1.0D) * 0.006640625D;
+-   public BlockGetter getBaseColumn(int var1, int var2) {
+-      BlockState[] var3 = new BlockState[this.chunkCountY * this.chunkHeight];
+-      this.iterateNoiseColumn(var1, var2, var3, (Predicate)null);
+-      return new NoiseColumn(var3);
 -   }
 +      for(int var19 = var6 - 1; var19 >= 0; --var19) {
 +         double var20 = var17[0][var19];
@@ -365,16 +379,6 @@
 +         double var32 = var17[2][var19 + 1];
 +         double var34 = var17[3][var19 + 1];
  
--   public int getBaseHeight(int var1, int var2, Heightmap.Types var3) {
--      return this.iterateNoiseColumn(var1, var2, (BlockState[])null, var3.isOpaque());
--   }
--
--   public BlockGetter getBaseColumn(int var1, int var2) {
--      BlockState[] var3 = new BlockState[this.chunkCountY * this.chunkHeight];
--      this.iterateNoiseColumn(var1, var2, var3, (Predicate)null);
--      return new NoiseColumn(var3);
--   }
--
 -   private int iterateNoiseColumn(int var1, int var2, @Nullable BlockState[] var3, @Nullable Predicate<BlockState> var4) {
 -      int var5 = Math.floorDiv(var1, this.chunkWidth);
 -      int var6 = Math.floorDiv(var2, this.chunkWidth);
@@ -440,6 +444,8 @@
 +      BlockState var11;
 +      if (var9 > 0.0D) {
 +         var11 = var3.getBaseStone(var4, var5, var6, (NoiseGeneratorSettings)this.settings.get());
++      } else if (this.aquifersEnabled && var5 < this.getMinY() + 9) {
++         var11 = Blocks.LAVA.defaultBlockState();
        } else {
 -         var4 = AIR;
 +         int var12 = var2 == null ? this.getSeaLevel() : var2.getLastWaterLevel();
@@ -457,7 +463,7 @@
     public void buildSurfaceAndBedrock(WorldGenRegion var1, ChunkAccess var2) {
        ChunkPos var3 = var2.getPos();
        int var4 = var3.x;
-@@ -377,241 +246,203 @@
+@@ -377,241 +254,177 @@
     private void setBedrock(ChunkAccess var1, Random var2) {
        BlockPos.MutableBlockPos var3 = new BlockPos.MutableBlockPos();
        int var4 = var1.getPos().getMinBlockX();
@@ -593,13 +599,25 @@
 +               var3.release();
              }
 -         });
-+
+-      }
+ 
+-      double[][][] var75 = new double[2][this.chunkCountZ + 1][this.chunkCountY + 1];
+-
+-      for(int var76 = 0; var76 < this.chunkCountZ + 1; ++var76) {
+-         var75[0][var76] = new double[this.chunkCountY + 1];
+-         this.fillNoiseColumn(var75[0][var76], var7 * this.chunkCountX, var8 * this.chunkCountZ + var76);
+-         var75[1][var76] = new double[this.chunkCountY + 1];
 +            return var1x;
 +         }, var1);
        }
 +   }
  
--      double[][][] var75 = new double[2][this.chunkCountZ + 1][this.chunkCountY + 1];
+-      ProtoChunk var77 = (ProtoChunk)var3;
+-      Heightmap var13 = var77.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
+-      Heightmap var14 = var77.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
+-      BlockPos.MutableBlockPos var15 = new BlockPos.MutableBlockPos();
+-      ObjectListIterator var16 = var4.iterator();
+-      ObjectListIterator var17 = var5.iterator();
 +   private ChunkAccess doFill(StructureFeatureManager var1, ChunkAccess var2, int var3, int var4) {
 +      NoiseSettings var5 = ((NoiseGeneratorSettings)this.settings.get()).noiseSettings();
 +      int var6 = var5.minY();
@@ -612,50 +630,26 @@
 +      int var13 = var9.getMinBlockZ();
 +      Beardifier var14 = new Beardifier(var1, var2);
 +      Aquifer var15 = this.aquifersEnabled ? new Aquifer(var10, var11, this.barrierNoise, this.waterLevelNoise, (NoiseGeneratorSettings)this.settings.get(), this.sampler, var4 * this.cellHeight) : null;
-+      double[][][] var16 = new double[2][this.cellCountZ + 1][var4 + 1];
- 
--      for(int var76 = 0; var76 < this.chunkCountZ + 1; ++var76) {
--         var75[0][var76] = new double[this.chunkCountY + 1];
--         this.fillNoiseColumn(var75[0][var76], var7 * this.chunkCountX, var8 * this.chunkCountZ + var76);
--         var75[1][var76] = new double[this.chunkCountY + 1];
-+      int var19;
-+      int var20;
-+      for(int var17 = 0; var17 < this.cellCountZ + 1; ++var17) {
-+         var16[0][var17] = new double[var4 + 1];
-+         double[] var18 = var16[0][var17];
-+         var19 = var10 * this.cellCountX;
-+         var20 = var11 * this.cellCountZ + var17;
-+         this.sampler.fillNoiseColumn(var18, var19, var20, var5, this.getSeaLevel(), var3, var4);
-+         var16[1][var17] = new double[var4 + 1];
-       }
- 
--      ProtoChunk var77 = (ProtoChunk)var3;
--      Heightmap var13 = var77.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
--      Heightmap var14 = var77.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
--      BlockPos.MutableBlockPos var15 = new BlockPos.MutableBlockPos();
--      ObjectListIterator var16 = var4.iterator();
--      ObjectListIterator var17 = var5.iterator();
-+      BlockPos.MutableBlockPos var70 = new BlockPos.MutableBlockPos();
++      NoiseInterpolator var16 = new NoiseInterpolator(this.cellCountX, var4, this.cellCountZ, var10, var11, var3, this::fillNoiseColumn);
++      ImmutableList var17 = ImmutableList.of(var16);
++      var17.forEach(NoiseInterpolator::initializeForFirstCellX);
++      BlockPos.MutableBlockPos var18 = new BlockPos.MutableBlockPos();
  
 -      for(int var18 = 0; var18 < this.chunkCountX; ++var18) {
 -         int var19;
 -         for(var19 = 0; var19 < this.chunkCountZ + 1; ++var19) {
 -            this.fillNoiseColumn(var75[1][var19], var7 * this.chunkCountX + var18 + 1, var8 * this.chunkCountZ + var19);
-+      for(int var71 = 0; var71 < this.cellCountX; ++var71) {
-+         var19 = var10 * this.cellCountX + var71 + 1;
-+
-+         int var22;
-+         for(var20 = 0; var20 < this.cellCountZ + 1; ++var20) {
-+            double[] var21 = var16[1][var20];
-+            var22 = var11 * this.cellCountZ + var20;
-+            this.sampler.fillNoiseColumn(var21, var19, var22, var5, this.getSeaLevel(), var3, var4);
-          }
+-         }
++      for(int var19 = 0; var19 < this.cellCountX; ++var19) {
++         var17.forEach((var1x) -> {
++            var1x.advanceCellX(var19);
++         });
  
 -         for(var19 = 0; var19 < this.chunkCountZ; ++var19) {
 -            LevelChunkSection var20 = var77.getOrCreateSection(15);
 -            var20.acquire();
-+         for(var20 = 0; var20 < this.cellCountZ; ++var20) {
-+            LevelChunkSection var72 = var2.getOrCreateSection(var2.getSectionsCount() - 1);
++         for(int var21 = 0; var21 < this.cellCountZ; ++var21) {
++            LevelChunkSection var22 = var2.getOrCreateSection(var2.getSectionsCount() - 1);
  
 -            for(int var21 = this.chunkCountY - 1; var21 >= 0; --var21) {
 -               double var22 = var75[0][var19][var21];
@@ -666,15 +660,10 @@
 -               double var32 = var75[0][var19 + 1][var21 + 1];
 -               double var34 = var75[1][var19][var21 + 1];
 -               double var36 = var75[1][var19 + 1][var21 + 1];
-+            for(var22 = var4 - 1; var22 >= 0; --var22) {
-+               double var23 = var16[0][var20][var22];
-+               double var25 = var16[0][var20 + 1][var22];
-+               double var27 = var16[1][var20][var22];
-+               double var29 = var16[1][var20 + 1][var22];
-+               double var31 = var16[0][var20][var22 + 1];
-+               double var33 = var16[0][var20 + 1][var22 + 1];
-+               double var35 = var16[1][var20][var22 + 1];
-+               double var37 = var16[1][var20 + 1][var22 + 1];
++            for(int var23 = var4 - 1; var23 >= 0; --var23) {
++               var17.forEach((var2x) -> {
++                  var2x.selectCellYZ(var23, var21);
++               });
  
 -               for(int var38 = this.chunkHeight - 1; var38 >= 0; --var38) {
 -                  int var39 = var21 * this.chunkHeight + var38;
@@ -684,12 +673,12 @@
 -                     var20.release();
 -                     var20 = var77.getOrCreateSection(var41);
 -                     var20.acquire();
-+               for(int var39 = this.cellHeight - 1; var39 >= 0; --var39) {
-+                  int var40 = var22 * this.cellHeight + var39 + var6;
-+                  int var41 = var40 & 15;
-+                  int var42 = var2.getSectionIndex(var40);
-+                  if (var2.getSectionIndex(var72.bottomBlockY()) != var42) {
-+                     var72 = var2.getOrCreateSection(var42);
++               for(int var26 = this.cellHeight - 1; var26 >= 0; --var26) {
++                  int var27 = var23 * this.cellHeight + var26 + var6;
++                  int var28 = var27 & 15;
++                  int var29 = var2.getSectionIndex(var27);
++                  if (var2.getSectionIndex(var22.bottomBlockY()) != var29) {
++                     var22 = var2.getOrCreateSection(var29);
                    }
  
 -                  double var42 = (double)var38 / (double)this.chunkHeight;
@@ -697,11 +686,10 @@
 -                  double var46 = Mth.lerp(var42, var26, var34);
 -                  double var48 = Mth.lerp(var42, var24, var32);
 -                  double var50 = Mth.lerp(var42, var28, var36);
-+                  double var43 = (double)var39 / (double)this.cellHeight;
-+                  double var45 = Mth.lerp(var43, var23, var31);
-+                  double var47 = Mth.lerp(var43, var27, var35);
-+                  double var49 = Mth.lerp(var43, var25, var33);
-+                  double var51 = Mth.lerp(var43, var29, var37);
++                  double var30 = (double)var26 / (double)this.cellHeight;
++                  var17.forEach((var2x) -> {
++                     var2x.updateForY(var30);
++                  });
  
 -                  for(int var52 = 0; var52 < this.chunkWidth; ++var52) {
 -                     int var53 = var9 + var18 * this.chunkWidth + var52;
@@ -709,12 +697,13 @@
 -                     double var55 = (double)var52 / (double)this.chunkWidth;
 -                     double var57 = Mth.lerp(var55, var44, var46);
 -                     double var59 = Mth.lerp(var55, var48, var50);
-+                  for(int var53 = 0; var53 < this.cellWidth; ++var53) {
-+                     int var54 = var12 + var71 * this.cellWidth + var53;
-+                     int var55 = var54 & 15;
-+                     double var56 = (double)var53 / (double)this.cellWidth;
-+                     double var58 = Mth.lerp(var56, var45, var47);
-+                     double var60 = Mth.lerp(var56, var49, var51);
++                  for(int var32 = 0; var32 < this.cellWidth; ++var32) {
++                     int var33 = var12 + var19 * this.cellWidth + var32;
++                     int var34 = var33 & 15;
++                     double var35 = (double)var32 / (double)this.cellWidth;
++                     var17.forEach((var2x) -> {
++                        var2x.updateForX(var35);
++                     });
  
 -                     for(int var61 = 0; var61 < this.chunkWidth; ++var61) {
 -                        int var62 = var10 + var19 * this.chunkWidth + var61;
@@ -750,27 +739,27 @@
 -                           if (var80.getLightEmission() != 0) {
 -                              var15.set(var53, var39, var62);
 -                              var77.addLight(var15);
-+                     for(int var62 = 0; var62 < this.cellWidth; ++var62) {
-+                        int var63 = var13 + var20 * this.cellWidth + var62;
-+                        int var64 = var63 & 15;
-+                        double var65 = (double)var62 / (double)this.cellWidth;
-+                        double var67 = Mth.lerp(var65, var58, var60);
-+                        BlockState var69 = this.updateNoiseAndGenerateBaseState(var14, var15, this.baseStoneSource, var54, var40, var63, var67);
-+                        if (var69 != AIR) {
-+                           if (var69.getLightEmission() != 0 && var2 instanceof ProtoChunk) {
-+                              var70.set(var54, var40, var63);
-+                              ((ProtoChunk)var2).addLight(var70);
++                     for(int var37 = 0; var37 < this.cellWidth; ++var37) {
++                        int var38 = var13 + var21 * this.cellWidth + var37;
++                        int var39 = var38 & 15;
++                        double var40 = (double)var37 / (double)this.cellWidth;
++                        double var42 = var16.calculateValue(var40);
++                        BlockState var44 = this.updateNoiseAndGenerateBaseState(var14, var15, this.baseStoneSource, var33, var27, var38, var42);
++                        if (var44 != AIR) {
++                           if (var44.getLightEmission() != 0 && var2 instanceof ProtoChunk) {
++                              var18.set(var33, var27, var38);
++                              ((ProtoChunk)var2).addLight(var18);
                             }
  
 -                           var20.setBlockState(var54, var40, var63, var80, false);
 -                           var13.update(var54, var39, var63, var80);
 -                           var14.update(var54, var39, var63, var80);
-+                           var72.setBlockState(var55, var41, var64, var69, false);
-+                           var7.update(var55, var40, var64, var69);
-+                           var8.update(var55, var40, var64, var69);
-+                           if (var15 != null && var15.shouldScheduleWaterUpdate() && !var69.getFluidState().isEmpty()) {
-+                              var70.set(var54, var40, var63);
-+                              var2.getLiquidTicks().scheduleTick(var70, var69.getFluidState().getType(), 0);
++                           var22.setBlockState(var34, var28, var39, var44, false);
++                           var7.update(var34, var27, var39, var44);
++                           var8.update(var34, var27, var39, var44);
++                           if (var15 != null && var15.shouldScheduleWaterUpdate() && !var44.getFluidState().isEmpty()) {
++                              var18.set(var33, var27, var38);
++                              var2.getLiquidTicks().scheduleTick(var18, var44.getFluidState().getType(), 0);
 +                           }
                          }
                       }
@@ -784,7 +773,7 @@
 -         double[][] var78 = var75[0];
 -         var75[0] = var75[1];
 -         var75[1] = var78;
-+         this.swapFirstTwoElements(var16);
++         var17.forEach(NoiseInterpolator::swapSlices);
        }
  
 +      return var2;
@@ -803,12 +792,8 @@
 -      } else {
 -         return 0.0D;
 -      }
-+   public <T> void swapFirstTwoElements(T[] var1) {
-+      Object var2 = var1[0];
-+      var1[0] = var1[1];
-+      var1[1] = var2;
-    }
- 
+-   }
+-
 -   private static double computeContribution(int var0, int var1, int var2) {
 -      double var3 = (double)(var0 * var0 + var2 * var2);
 -      double var5 = (double)var1 + 0.5D;
@@ -835,7 +820,7 @@
           if (var3 == MobCategory.MONSTER) {
              return StructureFeature.SWAMP_HUT.getSpecialEnemies();
           }
-@@ -638,18 +469,18 @@
+@@ -638,18 +451,18 @@
        return super.getMobsAt(var1, var2, var3, var4);
     }
  

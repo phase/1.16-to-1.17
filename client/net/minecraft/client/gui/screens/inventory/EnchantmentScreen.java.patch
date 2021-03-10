@@ -1,18 +1,19 @@
 --- net/minecraft/client/gui/screens/inventory/EnchantmentScreen.java
 +++ net/minecraft/client/gui/screens/inventory/EnchantmentScreen.java
-@@ -10,10 +10,11 @@
+@@ -10,10 +10,12 @@
  import com.mojang.math.Vector3f;
  import java.util.ArrayList;
  import java.util.Random;
  import net.minecraft.ChatFormatting;
  import net.minecraft.client.model.BookModel;
 +import net.minecraft.client.model.geom.ModelLayers;
++import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.client.renderer.MultiBufferSource;
  import net.minecraft.client.renderer.texture.OverlayTexture;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.FormattedText;
  import net.minecraft.network.chat.TextComponent;
-@@ -26,12 +27,12 @@
+@@ -26,12 +28,12 @@
  import net.minecraft.world.item.enchantment.Enchantment;
  
  public class EnchantmentScreen extends AbstractContainerScreen<EnchantmentMenu> {
@@ -26,7 +27,7 @@
     public float oFlip;
     public float flipT;
     public float flipA;
-@@ -42,10 +43,15 @@
+@@ -42,10 +44,15 @@
     public EnchantmentScreen(EnchantmentMenu var1, Inventory var2, Component var3) {
        super(var1, var2, var3);
        this.last = ItemStack.EMPTY;
@@ -42,38 +43,175 @@
        this.tickBook();
     }
  
-@@ -113,14 +119,14 @@
+@@ -65,119 +72,116 @@
+       return super.mouseClicked(var1, var3, var5);
+    }
+ 
+    protected void renderBg(PoseStack var1, float var2, int var3, int var4) {
+       Lighting.setupForFlatItems();
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-      this.minecraft.getTextureManager().bind(ENCHANTING_TABLE_LOCATION);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderTexture(0, ENCHANTING_TABLE_LOCATION);
+       int var5 = (this.width - this.imageWidth) / 2;
+       int var6 = (this.height - this.imageHeight) / 2;
+       this.blit(var1, var5, var6, 0, 0, this.imageWidth, this.imageHeight);
+-      RenderSystem.matrixMode(5889);
+-      RenderSystem.pushMatrix();
+-      RenderSystem.loadIdentity();
+       int var7 = (int)this.minecraft.getWindow().getGuiScale();
+       RenderSystem.viewport((this.width - 320) / 2 * var7, (this.height - 240) / 2 * var7, 320 * var7, 240 * var7);
+-      RenderSystem.translatef(-0.34F, 0.23F, 0.0F);
+-      RenderSystem.multMatrix(Matrix4f.perspective(90.0D, 1.3333334F, 9.0F, 80.0F));
+-      RenderSystem.matrixMode(5888);
++      Matrix4f var8 = Matrix4f.createTranslateMatrix(-0.34F, 0.23F, 0.0F);
++      var8.multiply(Matrix4f.perspective(90.0D, 1.3333334F, 9.0F, 80.0F));
++      RenderSystem.backupProjectionMatrix();
++      RenderSystem.setProjectionMatrix(var8);
+       var1.pushPose();
+-      PoseStack.Pose var8 = var1.last();
+-      var8.pose().setIdentity();
+-      var8.normal().setIdentity();
++      PoseStack.Pose var9 = var1.last();
++      var9.pose().setIdentity();
++      var9.normal().setIdentity();
+       var1.translate(0.0D, 3.299999952316284D, 1984.0D);
+-      float var9 = 5.0F;
++      float var10 = 5.0F;
+       var1.scale(5.0F, 5.0F, 5.0F);
+       var1.mulPose(Vector3f.ZP.rotationDegrees(180.0F));
+       var1.mulPose(Vector3f.XP.rotationDegrees(20.0F));
+-      float var10 = Mth.lerp(var2, this.oOpen, this.open);
+-      var1.translate((double)((1.0F - var10) * 0.2F), (double)((1.0F - var10) * 0.1F), (double)((1.0F - var10) * 0.25F));
+-      float var11 = -(1.0F - var10) * 90.0F - 90.0F;
+-      var1.mulPose(Vector3f.YP.rotationDegrees(var11));
++      float var11 = Mth.lerp(var2, this.oOpen, this.open);
++      var1.translate((double)((1.0F - var11) * 0.2F), (double)((1.0F - var11) * 0.1F), (double)((1.0F - var11) * 0.25F));
++      float var12 = -(1.0F - var11) * 90.0F - 90.0F;
++      var1.mulPose(Vector3f.YP.rotationDegrees(var12));
+       var1.mulPose(Vector3f.XP.rotationDegrees(180.0F));
+-      float var12 = Mth.lerp(var2, this.oFlip, this.flip) + 0.25F;
+-      float var13 = Mth.lerp(var2, this.oFlip, this.flip) + 0.75F;
+-      var12 = (var12 - (float)Mth.fastFloor((double)var12)) * 1.6F - 0.3F;
++      float var13 = Mth.lerp(var2, this.oFlip, this.flip) + 0.25F;
++      float var14 = Mth.lerp(var2, this.oFlip, this.flip) + 0.75F;
+       var13 = (var13 - (float)Mth.fastFloor((double)var13)) * 1.6F - 0.3F;
+-      if (var12 < 0.0F) {
+-         var12 = 0.0F;
+-      }
+-
++      var14 = (var14 - (float)Mth.fastFloor((double)var14)) * 1.6F - 0.3F;
+       if (var13 < 0.0F) {
+          var13 = 0.0F;
+       }
+ 
+-      if (var12 > 1.0F) {
+-         var12 = 1.0F;
++      if (var14 < 0.0F) {
++         var14 = 0.0F;
+       }
+ 
        if (var13 > 1.0F) {
           var13 = 1.0F;
        }
  
-       RenderSystem.enableRescaleNormal();
+-      RenderSystem.enableRescaleNormal();
 -      BOOK_MODEL.setupAnim(0.0F, var12, var13, var10);
-+      this.bookModel.setupAnim(0.0F, var12, var13, var10);
-       MultiBufferSource.BufferSource var14 = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
+-      MultiBufferSource.BufferSource var14 = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
 -      VertexConsumer var15 = var14.getBuffer(BOOK_MODEL.renderType(ENCHANTING_BOOK_LOCATION));
 -      BOOK_MODEL.renderToBuffer(var1, var15, 15728880, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
-+      VertexConsumer var15 = var14.getBuffer(this.bookModel.renderType(ENCHANTING_BOOK_LOCATION));
-+      this.bookModel.renderToBuffer(var1, var15, 15728880, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
-       var14.endBatch();
+-      var14.endBatch();
++      if (var14 > 1.0F) {
++         var14 = 1.0F;
++      }
++
++      this.bookModel.setupAnim(0.0F, var13, var14, var11);
++      MultiBufferSource.BufferSource var15 = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
++      VertexConsumer var16 = var15.getBuffer(this.bookModel.renderType(ENCHANTING_BOOK_LOCATION));
++      this.bookModel.renderToBuffer(var1, var16, 15728880, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
++      var15.endBatch();
        var1.popPose();
-       RenderSystem.matrixMode(5889);
+-      RenderSystem.matrixMode(5889);
        RenderSystem.viewport(0, 0, this.minecraft.getWindow().getWidth(), this.minecraft.getWindow().getHeight());
-       RenderSystem.popMatrix();
-@@ -142,11 +148,11 @@
+-      RenderSystem.popMatrix();
+-      RenderSystem.matrixMode(5888);
++      RenderSystem.restoreProjectionMatrix();
+       Lighting.setupFor3DItems();
+-      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       EnchantmentNames.getInstance().initSeed((long)((EnchantmentMenu)this.menu).getEnchantmentSeed());
+-      int var16 = ((EnchantmentMenu)this.menu).getGoldCount();
++      int var17 = ((EnchantmentMenu)this.menu).getGoldCount();
+ 
+-      for(int var17 = 0; var17 < 3; ++var17) {
+-         int var18 = var5 + 60;
+-         int var19 = var18 + 20;
++      for(int var18 = 0; var18 < 3; ++var18) {
++         int var19 = var5 + 60;
++         int var20 = var19 + 20;
+          this.setBlitOffset(0);
+-         this.minecraft.getTextureManager().bind(ENCHANTING_TABLE_LOCATION);
+-         int var20 = ((EnchantmentMenu)this.menu).costs[var17];
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-         if (var20 == 0) {
+-            this.blit(var1, var18, var6 + 14 + 19 * var17, 0, 185, 108, 19);
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
++         RenderSystem.setShaderTexture(0, ENCHANTING_TABLE_LOCATION);
++         int var21 = ((EnchantmentMenu)this.menu).costs[var18];
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
++         if (var21 == 0) {
++            this.blit(var1, var19, var6 + 14 + 19 * var18, 0, 185, 108, 19);
           } else {
-             String var21 = "" + var20;
-             int var22 = 86 - this.font.width(var21);
-             FormattedText var23 = EnchantmentNames.getInstance().getRandomName(this.font, var22);
-             int var24 = 6839882;
+-            String var21 = "" + var20;
+-            int var22 = 86 - this.font.width(var21);
+-            FormattedText var23 = EnchantmentNames.getInstance().getRandomName(this.font, var22);
+-            int var24 = 6839882;
 -            if ((var16 < var17 + 1 || this.minecraft.player.experienceLevel < var20) && !this.minecraft.player.abilities.instabuild) {
-+            if ((var16 < var17 + 1 || this.minecraft.player.experienceLevel < var20) && !this.minecraft.player.getAbilities().instabuild) {
-                this.blit(var1, var18, var6 + 14 + 19 * var17, 0, 185, 108, 19);
-                this.blit(var1, var18 + 1, var6 + 15 + 19 * var17, 16 * var17, 239, 16, 16);
-                this.font.drawWordWrap(var23, var19, var6 + 16 + 19 * var17, var22, (var24 & 16711422) >> 1);
-                var24 = 4226832;
+-               this.blit(var1, var18, var6 + 14 + 19 * var17, 0, 185, 108, 19);
+-               this.blit(var1, var18 + 1, var6 + 15 + 19 * var17, 16 * var17, 239, 16, 16);
+-               this.font.drawWordWrap(var23, var19, var6 + 16 + 19 * var17, var22, (var24 & 16711422) >> 1);
+-               var24 = 4226832;
++            String var22 = "" + var21;
++            int var23 = 86 - this.font.width(var22);
++            FormattedText var24 = EnchantmentNames.getInstance().getRandomName(this.font, var23);
++            int var25 = 6839882;
++            if ((var17 < var18 + 1 || this.minecraft.player.experienceLevel < var21) && !this.minecraft.player.getAbilities().instabuild) {
++               this.blit(var1, var19, var6 + 14 + 19 * var18, 0, 185, 108, 19);
++               this.blit(var1, var19 + 1, var6 + 15 + 19 * var18, 16 * var18, 239, 16, 16);
++               this.font.drawWordWrap(var24, var20, var6 + 16 + 19 * var18, var23, (var25 & 16711422) >> 1);
++               var25 = 4226832;
              } else {
-@@ -173,11 +179,11 @@
+-               int var25 = var3 - (var5 + 60);
+-               int var26 = var4 - (var6 + 14 + 19 * var17);
+-               if (var25 >= 0 && var26 >= 0 && var25 < 108 && var26 < 19) {
+-                  this.blit(var1, var18, var6 + 14 + 19 * var17, 0, 204, 108, 19);
+-                  var24 = 16777088;
++               int var26 = var3 - (var5 + 60);
++               int var27 = var4 - (var6 + 14 + 19 * var18);
++               if (var26 >= 0 && var27 >= 0 && var26 < 108 && var27 < 19) {
++                  this.blit(var1, var19, var6 + 14 + 19 * var18, 0, 204, 108, 19);
++                  var25 = 16777088;
+                } else {
+-                  this.blit(var1, var18, var6 + 14 + 19 * var17, 0, 166, 108, 19);
++                  this.blit(var1, var19, var6 + 14 + 19 * var18, 0, 166, 108, 19);
+                }
+ 
+-               this.blit(var1, var18 + 1, var6 + 15 + 19 * var17, 16 * var17, 223, 16, 16);
+-               this.font.drawWordWrap(var23, var19, var6 + 16 + 19 * var17, var22, var24);
+-               var24 = 8453920;
++               this.blit(var1, var19 + 1, var6 + 15 + 19 * var18, 16 * var18, 223, 16, 16);
++               this.font.drawWordWrap(var24, var20, var6 + 16 + 19 * var18, var23, var25);
++               var25 = 8453920;
+             }
+ 
+-            this.font.drawShadow(var1, var21, (float)(var19 + 86 - this.font.width(var21)), (float)(var6 + 16 + 19 * var17 + 7), var24);
++            this.font.drawShadow(var1, var22, (float)(var20 + 86 - this.font.width(var22)), (float)(var6 + 16 + 19 * var18 + 7), var25);
+          }
+       }
+ 
+    }
+ 
     public void render(PoseStack var1, int var2, int var3, float var4) {
        var4 = this.minecraft.getFrameTime();
        this.renderBackground(var1);

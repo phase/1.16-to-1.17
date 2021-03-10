@@ -1,0 +1,107 @@
+--- net/minecraft/client/renderer/EffectInstance.java
++++ net/minecraft/client/renderer/EffectInstance.java
+@@ -7,17 +7,19 @@
+ import com.google.gson.JsonObject;
+ import com.mojang.blaze3d.platform.GlStateManager;
+ import com.mojang.blaze3d.shaders.AbstractUniform;
+ import com.mojang.blaze3d.shaders.BlendMode;
+ import com.mojang.blaze3d.shaders.Effect;
++import com.mojang.blaze3d.shaders.EffectProgram;
+ import com.mojang.blaze3d.shaders.Program;
+ import com.mojang.blaze3d.shaders.ProgramManager;
+ import com.mojang.blaze3d.shaders.Uniform;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import it.unimi.dsi.fastutil.ints.IntArrayList;
+ import java.io.IOException;
+ import java.io.InputStreamReader;
++import java.io.InvalidClassException;
+ import java.io.Reader;
+ import java.nio.charset.StandardCharsets;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+@@ -47,12 +49,12 @@
+    private final String name;
+    private boolean dirty;
+    private final BlendMode blend;
+    private final List<Integer> attributes;
+    private final List<String> attributeNames;
+-   private final Program vertexProgram;
+-   private final Program fragmentProgram;
++   private final EffectProgram vertexProgram;
++   private final EffectProgram fragmentProgram;
+ 
+    public EffectInstance(ResourceManager var1, String var2) throws IOException {
+       ResourceLocation var3 = new ResourceLocation("shaders/program/" + var2 + ".json");
+       this.name = var2;
+       Resource var4 = null;
+@@ -123,11 +125,11 @@
+ 
+             this.blend = parseBlendNode(GsonHelper.getAsJsonObject(var5, "blend", (JsonObject)null));
+             this.vertexProgram = getOrCreate(var1, Program.Type.VERTEX, var6);
+             this.fragmentProgram = getOrCreate(var1, Program.Type.FRAGMENT, var7);
+             this.programId = ProgramManager.createProgram();
+-            ProgramManager.linkProgram(this);
++            ProgramManager.linkShader(this);
+             this.updateLocations();
+             if (this.attributeNames != null) {
+                var31 = this.attributeNames.iterator();
+ 
+                while(var31.hasNext()) {
+@@ -152,24 +154,31 @@
+       }
+ 
+       this.markDirty();
+    }
+ 
+-   public static Program getOrCreate(ResourceManager var0, Program.Type var1, String var2) throws IOException {
++   public static EffectProgram getOrCreate(ResourceManager var0, Program.Type var1, String var2) throws IOException {
+       Program var3 = (Program)var1.getPrograms().get(var2);
+-      if (var3 == null) {
+-         ResourceLocation var4 = new ResourceLocation("shaders/program/" + var2 + var1.getExtension());
+-         Resource var5 = var0.getResource(var4);
++      if (var3 != null && !(var3 instanceof EffectProgram)) {
++         throw new InvalidClassException("Program is not of type EffectProgram");
++      } else {
++         EffectProgram var4;
++         if (var3 == null) {
++            ResourceLocation var5 = new ResourceLocation("shaders/program/" + var2 + var1.getExtension());
++            Resource var6 = var0.getResource(var5);
+ 
+-         try {
+-            var3 = Program.compileShader(var1, var2, var5.getInputStream(), var5.getSourceName());
+-         } finally {
+-            IOUtils.closeQuietly(var5);
++            try {
++               var4 = EffectProgram.compileShader(var1, var2, var6.getInputStream(), var6.getSourceName());
++            } finally {
++               IOUtils.closeQuietly(var6);
++            }
++         } else {
++            var4 = (EffectProgram)var3;
+          }
+-      }
+ 
+-      return var3;
++         return var4;
++      }
+    }
+ 
+    public static BlendMode parseBlendNode(JsonObject var0) {
+       if (var0 == null) {
+          return new BlendMode();
+@@ -413,9 +422,14 @@
+ 
+    public Program getFragmentProgram() {
+       return this.fragmentProgram;
+    }
+ 
++   public void attachToProgram() {
++      this.fragmentProgram.attachToEffect(this);
++      this.vertexProgram.attachToEffect(this);
++   }
++
+    public int getId() {
+       return this.programId;
+    }
+ }

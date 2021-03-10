@@ -1,6 +1,143 @@
 --- com/mojang/blaze3d/shaders/Uniform.java
 +++ com/mojang/blaze3d/shaders/Uniform.java
-@@ -204,11 +204,11 @@
+@@ -1,10 +1,11 @@
+ package com.mojang.blaze3d.shaders;
+ 
+ import com.mojang.blaze3d.platform.GlStateManager;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.math.Matrix4f;
++import com.mojang.math.Vector3f;
+ import java.nio.FloatBuffer;
+ import java.nio.IntBuffer;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.lwjgl.system.MemoryUtil;
+@@ -16,13 +17,13 @@
+    private final int type;
+    private final IntBuffer intValues;
+    private final FloatBuffer floatValues;
+    private final String name;
+    private boolean dirty;
+-   private final Effect parent;
++   private final Shader parent;
+ 
+-   public Uniform(String var1, int var2, int var3, Effect var4) {
++   public Uniform(String var1, int var2, int var3, Shader var4) {
+       this.name = var1;
+       this.count = var3;
+       this.type = var2;
+       this.parent = var4;
+       if (var2 <= 3) {
+@@ -47,10 +48,14 @@
+ 
+    public static int glGetAttribLocation(int var0, CharSequence var1) {
+       return GlStateManager._glGetAttribLocation(var0, var1);
+    }
+ 
++   public static void glBindAttribLocation(int var0, int var1, CharSequence var2) {
++      GlStateManager._glBindAttribLocation(var0, var1, var2);
++   }
++
+    public void close() {
+       if (this.intValues != null) {
+          MemoryUtil.memFree(this.intValues);
+       }
+ 
+@@ -93,42 +98,50 @@
+ 
+    public String getName() {
+       return this.name;
+    }
+ 
+-   public void set(float var1) {
++   public final void set(float var1) {
+       this.floatValues.position(0);
+       this.floatValues.put(0, var1);
+       this.markDirty();
+    }
+ 
+-   public void set(float var1, float var2) {
++   public final void set(float var1, float var2) {
+       this.floatValues.position(0);
+       this.floatValues.put(0, var1);
+       this.floatValues.put(1, var2);
+       this.markDirty();
+    }
+ 
+-   public void set(float var1, float var2, float var3) {
++   public final void set(float var1, float var2, float var3) {
+       this.floatValues.position(0);
+       this.floatValues.put(0, var1);
+       this.floatValues.put(1, var2);
+       this.floatValues.put(2, var3);
+       this.markDirty();
+    }
+ 
+-   public void set(float var1, float var2, float var3, float var4) {
++   public final void set(Vector3f var1) {
+       this.floatValues.position(0);
++      this.floatValues.put(0, var1.x());
++      this.floatValues.put(1, var1.y());
++      this.floatValues.put(2, var1.z());
++      this.markDirty();
++   }
++
++   public final void set(float var1, float var2, float var3, float var4) {
++      this.floatValues.position(0);
+       this.floatValues.put(var1);
+       this.floatValues.put(var2);
+       this.floatValues.put(var3);
+       this.floatValues.put(var4);
+       this.floatValues.flip();
+       this.markDirty();
+    }
+ 
+-   public void setSafe(float var1, float var2, float var3, float var4) {
++   public final void setSafe(float var1, float var2, float var3, float var4) {
+       this.floatValues.position(0);
+       if (this.type >= 4) {
+          this.floatValues.put(0, var1);
+       }
+ 
+@@ -145,11 +158,11 @@
+       }
+ 
+       this.markDirty();
+    }
+ 
+-   public void setSafe(int var1, int var2, int var3, int var4) {
++   public final void setSafe(int var1, int var2, int var3, int var4) {
+       this.intValues.position(0);
+       if (this.type >= 0) {
+          this.intValues.put(0, var1);
+       }
+ 
+@@ -166,22 +179,22 @@
+       }
+ 
+       this.markDirty();
+    }
+ 
+-   public void set(float[] var1) {
++   public final void set(float[] var1) {
+       if (var1.length < this.count) {
+          LOGGER.warn("Uniform.set called with a too-small value array (expected {}, got {}). Ignoring.", this.count, var1.length);
+       } else {
+          this.floatValues.position(0);
+          this.floatValues.put(var1);
+          this.floatValues.position(0);
+          this.markDirty();
+       }
+    }
+ 
+-   public void set(Matrix4f var1) {
++   public final void set(Matrix4f var1) {
+       this.floatValues.position(0);
+       var1.store(this.floatValues);
+       this.markDirty();
+    }
+ 
+@@ -204,11 +217,11 @@
        }
  
     }
@@ -13,7 +150,7 @@
           RenderSystem.glUniform1(this.location, this.intValues);
           break;
        case 1:
-@@ -225,11 +225,11 @@
+@@ -225,11 +238,11 @@
        }
  
     }

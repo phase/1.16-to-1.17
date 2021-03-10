@@ -1,11 +1,74 @@
 --- net/minecraft/world/level/levelgen/structure/BoundingBox.java
 +++ net/minecraft/world/level/levelgen/structure/BoundingBox.java
-@@ -54,19 +54,10 @@
+@@ -1,36 +1,47 @@
+ package net.minecraft.world.level.levelgen.structure;
  
-    public static BoundingBox createProper(int var0, int var1, int var2, int var3, int var4, int var5) {
-       return new BoundingBox(Math.min(var0, var3), Math.min(var1, var4), Math.min(var2, var5), Math.max(var0, var3), Math.max(var1, var4), Math.max(var2, var5));
+ import com.google.common.base.MoreObjects;
++import com.mojang.serialization.Codec;
++import java.util.Objects;
++import java.util.function.Consumer;
++import java.util.stream.IntStream;
++import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.core.Vec3i;
+-import net.minecraft.nbt.IntArrayTag;
+ 
+ public class BoundingBox {
++   public static final Codec<BoundingBox> CODEC;
+    public int x0;
+    public int y0;
+    public int z0;
+    public int x1;
+    public int y1;
+    public int z1;
+ 
+-   public BoundingBox() {
++   public BoundingBox(BlockPos var1) {
++      this(var1.getX(), var1.getY(), var1.getZ(), var1.getX(), var1.getY(), var1.getZ());
     }
  
+-   public BoundingBox(int[] var1) {
+-      if (var1.length == 6) {
+-         this.x0 = var1[0];
+-         this.y0 = var1[1];
+-         this.z0 = var1[2];
+-         this.x1 = var1[3];
+-         this.y1 = var1[4];
+-         this.z1 = var1[5];
+-      }
++   public BoundingBox(int var1, int var2, int var3, int var4, int var5, int var6) {
++      this.x0 = var1;
++      this.y0 = var2;
++      this.z0 = var3;
++      this.x1 = var4;
++      this.y1 = var5;
++      this.z1 = var6;
++   }
+ 
++   public static BoundingBox createProper(Vec3i var0, Vec3i var1) {
++      return createProper(var0.getX(), var0.getY(), var0.getZ(), var1.getX(), var1.getY(), var1.getZ());
+    }
+ 
++   public static BoundingBox createProper(int var0, int var1, int var2, int var3, int var4, int var5) {
++      return new BoundingBox(Math.min(var0, var3), Math.min(var1, var4), Math.min(var2, var5), Math.max(var0, var3), Math.max(var1, var4), Math.max(var2, var5));
++   }
++
+    public static BoundingBox getUnknownBox() {
+       return new BoundingBox(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+    }
+ 
+    public static BoundingBox infinite() {
+@@ -50,50 +61,10 @@
+       default:
+          return new BoundingBox(var0 + var3, var1 + var4, var2 + var5, var0 + var6 - 1 + var3, var1 + var7 - 1 + var4, var2 + var8 - 1 + var5);
+       }
+    }
+ 
+-   public static BoundingBox createProper(int var0, int var1, int var2, int var3, int var4, int var5) {
+-      return new BoundingBox(Math.min(var0, var3), Math.min(var1, var4), Math.min(var2, var5), Math.max(var0, var3), Math.max(var1, var4), Math.max(var2, var5));
+-   }
+-
 -   public BoundingBox(BoundingBox var1) {
 -      this.x0 = var1.x0;
 -      this.y0 = var1.y0;
@@ -15,17 +78,24 @@
 -      this.z1 = var1.z1;
 -   }
 -
-    public BoundingBox(int var1, int var2, int var3, int var4, int var5, int var6) {
-       this.x0 = var1;
-       this.y0 = var2;
-       this.z0 = var3;
-       this.x1 = var4;
-@@ -81,19 +72,10 @@
-       this.x1 = Math.max(var1.getX(), var2.getX());
-       this.y1 = Math.max(var1.getY(), var2.getY());
-       this.z1 = Math.max(var1.getZ(), var2.getZ());
-    }
- 
+-   public BoundingBox(int var1, int var2, int var3, int var4, int var5, int var6) {
+-      this.x0 = var1;
+-      this.y0 = var2;
+-      this.z0 = var3;
+-      this.x1 = var4;
+-      this.y1 = var5;
+-      this.z1 = var6;
+-   }
+-
+-   public BoundingBox(Vec3i var1, Vec3i var2) {
+-      this.x0 = Math.min(var1.getX(), var2.getX());
+-      this.y0 = Math.min(var1.getY(), var2.getY());
+-      this.z0 = Math.min(var1.getZ(), var2.getZ());
+-      this.x1 = Math.max(var1.getX(), var2.getX());
+-      this.y1 = Math.max(var1.getY(), var2.getY());
+-      this.z1 = Math.max(var1.getZ(), var2.getZ());
+-   }
+-
 -   public BoundingBox(int var1, int var2, int var3, int var4) {
 -      this.x0 = var1;
 -      this.z0 = var2;
@@ -40,3 +110,101 @@
     }
  
     public boolean intersects(int var1, int var2, int var3, int var4) {
+@@ -107,27 +78,38 @@
+       this.x1 = Math.max(this.x1, var1.x1);
+       this.y1 = Math.max(this.y1, var1.y1);
+       this.z1 = Math.max(this.z1, var1.z1);
+    }
+ 
+-   public void move(int var1, int var2, int var3) {
++   public BoundingBox encapsulate(BlockPos var1) {
++      this.x0 = Math.min(this.x0, var1.getX());
++      this.y0 = Math.min(this.y0, var1.getY());
++      this.z0 = Math.min(this.z0, var1.getZ());
++      this.x1 = Math.max(this.x1, var1.getX());
++      this.y1 = Math.max(this.y1, var1.getY());
++      this.z1 = Math.max(this.z1, var1.getZ());
++      return this;
++   }
++
++   public BoundingBox move(int var1, int var2, int var3) {
+       this.x0 += var1;
+       this.y0 += var2;
+       this.z0 += var3;
+       this.x1 += var1;
+       this.y1 += var2;
+       this.z1 += var3;
++      return this;
+    }
+ 
++   public BoundingBox move(Vec3i var1) {
++      return this.move(var1.getX(), var1.getY(), var1.getZ());
++   }
++
+    public BoundingBox moved(int var1, int var2, int var3) {
+       return new BoundingBox(this.x0 + var1, this.y0 + var2, this.z0 + var3, this.x1 + var1, this.y1 + var2, this.z1 + var3);
+    }
+ 
+-   public void move(Vec3i var1) {
+-      this.move(var1.getX(), var1.getY(), var1.getZ());
+-   }
+-
+    public boolean isInside(Vec3i var1) {
+       return var1.getX() >= this.x0 && var1.getX() <= this.x1 && var1.getZ() >= this.z0 && var1.getZ() <= this.z1 && var1.getY() >= this.y0 && var1.getY() <= this.y1;
+    }
+ 
+    public Vec3i getLength() {
+@@ -144,17 +126,50 @@
+ 
+    public int getZSpan() {
+       return this.z1 - this.z0 + 1;
+    }
+ 
+-   public Vec3i getCenter() {
++   public BlockPos getCenter() {
+       return new BlockPos(this.x0 + (this.x1 - this.x0 + 1) / 2, this.y0 + (this.y1 - this.y0 + 1) / 2, this.z0 + (this.z1 - this.z0 + 1) / 2);
+    }
+ 
++   public void forAllCorners(Consumer<BlockPos> var1) {
++      BlockPos.MutableBlockPos var2 = new BlockPos.MutableBlockPos();
++      var1.accept(var2.set(this.x1, this.y1, this.z1));
++      var1.accept(var2.set(this.x0, this.y1, this.z1));
++      var1.accept(var2.set(this.x1, this.y0, this.z1));
++      var1.accept(var2.set(this.x0, this.y0, this.z1));
++      var1.accept(var2.set(this.x1, this.y1, this.z0));
++      var1.accept(var2.set(this.x0, this.y1, this.z0));
++      var1.accept(var2.set(this.x1, this.y0, this.z0));
++      var1.accept(var2.set(this.x0, this.y0, this.z0));
++   }
++
+    public String toString() {
+       return MoreObjects.toStringHelper(this).add("x0", this.x0).add("y0", this.y0).add("z0", this.z0).add("x1", this.x1).add("y1", this.y1).add("z1", this.z1).toString();
+    }
+ 
+-   public IntArrayTag createTag() {
+-      return new IntArrayTag(new int[]{this.x0, this.y0, this.z0, this.x1, this.y1, this.z1});
++   public boolean equals(Object var1) {
++      if (this == var1) {
++         return true;
++      } else if (!(var1 instanceof BoundingBox)) {
++         return false;
++      } else {
++         BoundingBox var2 = (BoundingBox)var1;
++         return this.x0 == var2.x0 && this.y0 == var2.y0 && this.z0 == var2.z0 && this.x1 == var2.x1 && this.y1 == var2.y1 && this.z1 == var2.z1;
++      }
+    }
++
++   public int hashCode() {
++      return Objects.hash(new Object[]{this.x0, this.y0, this.z0, this.x1, this.y1, this.z1});
++   }
++
++   static {
++      CODEC = Codec.INT_STREAM.comapFlatMap((var0) -> {
++         return Util.fixedSize((IntStream)var0, 6).map((var0x) -> {
++            return new BoundingBox(var0x[0], var0x[1], var0x[2], var0x[3], var0x[4], var0x[5]);
++         });
++      }, (var0) -> {
++         return IntStream.of(new int[]{var0.x0, var0.y0, var0.z0, var0.x1, var0.y1, var0.z1});
++      }).stable();
++   }
+ }

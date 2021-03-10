@@ -1,24 +1,37 @@
 --- com/mojang/blaze3d/platform/NativeImage.java
 +++ com/mojang/blaze3d/platform/NativeImage.java
-@@ -416,17 +416,17 @@
-          int var3 = Math.min(this.getHeight(), Integer.MAX_VALUE / this.getWidth() / this.format.components());
-          if (var3 < this.getHeight()) {
-             LOGGER.warn("Dropping image height from {} to {} to fit the size into 32-bit signed int", this.getHeight(), var3);
-          }
+@@ -135,22 +135,10 @@
  
--         if (STBImageWrite.nstbi_write_png_to_func(var2.address(), 0L, this.getWidth(), var3, this.format.components(), this.pixels, 0) == 0) {
--            var4 = false;
-+         if (STBImageWrite.nstbi_write_png_to_func(var2.address(), 0L, this.getWidth(), var3, this.format.components(), this.pixels, 0) != 0) {
-+            var2.throwIfException();
-+            var4 = true;
-             return var4;
-          }
- 
--         var2.throwIfException();
--         var4 = true;
-+         var4 = false;
-       } finally {
-          var2.free();
+          return var8;
        }
+    }
  
-       return var4;
+-   private static void setClamp(boolean var0) {
+-      RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
+-      if (var0) {
+-         GlStateManager._texParameter(3553, 10242, 10496);
+-         GlStateManager._texParameter(3553, 10243, 10496);
+-      } else {
+-         GlStateManager._texParameter(3553, 10242, 10497);
+-         GlStateManager._texParameter(3553, 10243, 10497);
+-      }
+-
+-   }
+-
+    private static void setFilter(boolean var0, boolean var1) {
+       RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
+       if (var0) {
+          GlStateManager._texParameter(3553, 10241, var1 ? 9987 : 9729);
+          GlStateManager._texParameter(3553, 10240, 9729);
+@@ -271,11 +259,10 @@
+ 
+    private void _upload(int var1, int var2, int var3, int var4, int var5, int var6, int var7, boolean var8, boolean var9, boolean var10, boolean var11) {
+       RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
+       this.checkAllocated();
+       setFilter(var8, var10);
+-      setClamp(var9);
+       if (var6 == this.getWidth()) {
+          GlStateManager._pixelStore(3314, 0);
+       } else {
+          GlStateManager._pixelStore(3314, this.getWidth());
+       }

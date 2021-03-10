@@ -1,6 +1,31 @@
 --- net/minecraft/client/resources/model/ModelBakery.java
 +++ net/minecraft/client/resources/model/ModelBakery.java
-@@ -220,11 +220,11 @@
+@@ -149,10 +149,11 @@
+          this.loadTopLevel(new ModelResourceLocation(var14, "inventory"));
+       }
+ 
+       var3.popPush("special");
+       this.loadTopLevel(new ModelResourceLocation("minecraft:trident_in_hand#inventory"));
++      this.loadTopLevel(new ModelResourceLocation("minecraft:spyglass_in_hand#inventory"));
+       var3.popPush("textures");
+       LinkedHashSet var13 = Sets.newLinkedHashSet();
+       Set var15 = (Set)this.topLevelModels.values().stream().flatMap((var2x) -> {
+          return var2x.getMaterials(this::getModel, var13).stream();
+       }).collect(Collectors.toSet());
+@@ -185,11 +186,11 @@
+          Pair var4 = (Pair)var3.next();
+          TextureAtlas var5 = (TextureAtlas)var4.getFirst();
+          TextureAtlas.Preparations var6 = (TextureAtlas.Preparations)var4.getSecond();
+          var5.reload(var6);
+          var1.register((ResourceLocation)var5.location(), (AbstractTexture)var5);
+-         var1.bind(var5.location());
++         var1.bindForSetup(var5.location());
+          var5.updateFilter(var6);
+       }
+ 
+       this.atlasSet = new AtlasSet((Collection)this.atlasPreparations.values().stream().map(Pair::getFirst).collect(Collectors.toList()));
+       var2.popPush("baking");
+@@ -220,11 +221,11 @@
              Iterator var5;
              do {
                 if (!var3.hasNext()) {
@@ -13,75 +38,6 @@
                          Entry var4;
                          do {
                             if (!var3.hasNext()) {
-@@ -582,45 +582,46 @@
- 
-    private BlockModel loadBlockModel(ResourceLocation var1) throws IOException {
-       Object var2 = null;
-       Resource var3 = null;
- 
--      BlockModel var5;
-+      BlockModel var11;
-       try {
-          String var4 = var1.getPath();
--         if (!"builtin/generated".equals(var4)) {
--            if ("builtin/entity".equals(var4)) {
--               var5 = BLOCK_ENTITY_MARKER;
--               return var5;
--            }
-+         BlockModel var10;
-+         if ("builtin/generated".equals(var4)) {
-+            var10 = GENERATION_MARKER;
-+            return var10;
-+         }
- 
--            if (var4.startsWith("builtin/")) {
--               String var10 = var4.substring("builtin/".length());
--               String var6 = (String)BUILTIN_MODELS.get(var10);
--               if (var6 == null) {
--                  throw new FileNotFoundException(var1.toString());
--               }
-+         if ("builtin/entity".equals(var4)) {
-+            var10 = BLOCK_ENTITY_MARKER;
-+            return var10;
-+         }
- 
--               var2 = new StringReader(var6);
--            } else {
--               var3 = this.resourceManager.getResource(new ResourceLocation(var1.getNamespace(), "models/" + var1.getPath() + ".json"));
--               var2 = new InputStreamReader(var3.getInputStream(), StandardCharsets.UTF_8);
-+         if (var4.startsWith("builtin/")) {
-+            String var5 = var4.substring("builtin/".length());
-+            String var6 = (String)BUILTIN_MODELS.get(var5);
-+            if (var6 == null) {
-+               throw new FileNotFoundException(var1.toString());
-             }
- 
--            var5 = BlockModel.fromStream((Reader)var2);
--            var5.name = var1.toString();
--            BlockModel var11 = var5;
--            return var11;
-+            var2 = new StringReader(var6);
-+         } else {
-+            var3 = this.resourceManager.getResource(new ResourceLocation(var1.getNamespace(), "models/" + var1.getPath() + ".json"));
-+            var2 = new InputStreamReader(var3.getInputStream(), StandardCharsets.UTF_8);
-          }
- 
--         var5 = GENERATION_MARKER;
-+         var10 = BlockModel.fromStream((Reader)var2);
-+         var10.name = var1.toString();
-+         var11 = var10;
-       } finally {
-          IOUtils.closeQuietly((Reader)var2);
-          IOUtils.closeQuietly(var3);
-       }
- 
--      return var5;
-+      return var11;
-    }
- 
-    public Map<ResourceLocation, BakedModel> getBakedTopLevelModels() {
-       return this.bakedTopLevelModels;
-    }
 @@ -689,11 +690,11 @@
        BLOCK_ENTITY_MARKER = (BlockModel)Util.make(BlockModel.fromString("{\"gui_light\": \"side\"}"), (var0) -> {
           var0.name = "block entity marker";

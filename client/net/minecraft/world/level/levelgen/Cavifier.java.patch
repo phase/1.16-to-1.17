@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/Cavifier.java
 +++ net/minecraft/world/level/levelgen/Cavifier.java
-@@ -1,0 +1,148 @@
+@@ -1,0 +1,150 @@
 +package net.minecraft.world.level.levelgen;
 +
 +import net.minecraft.util.Mth;
@@ -24,6 +24,7 @@
 +   private final NormalNoise spaghettiRoughnessNoise;
 +   private final NormalNoise spaghettiRoughnessModulator;
 +   private final NormalNoise caveEntranceNoiseSource;
++   private final NormalNoise cheeseNoiseSource;
 +
 +   public Cavifier(RandomSource var1, int var2) {
 +      this.minCellY = var2;
@@ -42,23 +43,24 @@
 +      this.spaghettiRoughnessModulator = NormalNoise.create(new SimpleRandomSource(var1.nextLong()), -8, (double[])(1.0D));
 +      this.caveEntranceNoiseSource = NormalNoise.create(new SimpleRandomSource(var1.nextLong()), -8, (double[])(1.0D, 1.0D, 1.0D));
 +      this.layerNoiseSource = NormalNoise.create(new SimpleRandomSource(var1.nextLong()), -8, (double[])(1.0D));
++      this.cheeseNoiseSource = NormalNoise.create(new SimpleRandomSource(var1.nextLong()), -6, (double[])(1.0D, 1.0D, 0.0D, 1.0D, 0.0D, 1.0D, 1.0D));
 +   }
 +
-+   public double cavify(int var1, int var2, int var3, double var4, double var6) {
-+      boolean var8 = var6 >= 375.0D;
-+      double var9 = this.spaghettiRoughness(var1, var2, var3);
-+      double var11 = this.getSpaghetti3d(var1, var2, var3);
-+      if (var8) {
-+         double var13 = var4 / 128.0D;
-+         double var15 = Mth.clamp(var13 + 0.25D, -1.0D, 1.0D);
-+         double var17 = this.getLayerizedCaverns(var1, var2, var3);
-+         double var19 = this.getSpaghetti2d(var1, var2, var3);
-+         double var21 = var15 + var17;
-+         double var23 = Math.min(var21, Math.min(var11, var19) + var9);
-+         double var25 = Math.max(var23, this.getPillars(var1, var2, var3));
-+         return 128.0D * Mth.clamp(var25, -1.0D, 1.0D);
++   public double cavify(int var1, int var2, int var3, double var4) {
++      boolean var6 = var4 < 375.0D;
++      double var7 = this.spaghettiRoughness(var1, var2, var3);
++      double var9 = this.getSpaghetti3d(var1, var2, var3);
++      if (var6) {
++         return Math.min(var4, (var9 + var7) * 128.0D * 64.0D);
 +      } else {
-+         return Math.min(var6, (var11 + var9) * 128.0D);
++         double var11 = this.cheeseNoiseSource.getValue((double)var1, (double)((float)var2 / 2.0F), (double)var3);
++         double var13 = Mth.clamp(var11 + 0.25D, -1.0D, 1.0D);
++         double var15 = this.getLayerizedCaverns(var1, var2, var3);
++         double var17 = this.getSpaghetti2d(var1, var2, var3);
++         double var19 = var13 + var15;
++         double var21 = Math.min(var19, Math.min(var9, var17) + var7);
++         double var23 = Math.max(var21, this.getPillars(var1, var2, var3));
++         return 128.0D * Mth.clamp(var23, -1.0D, 1.0D);
 +      }
 +   }
 +

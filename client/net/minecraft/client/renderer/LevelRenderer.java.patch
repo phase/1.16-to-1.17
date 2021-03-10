@@ -1,6 +1,18 @@
 --- net/minecraft/client/renderer/LevelRenderer.java
 +++ net/minecraft/client/renderer/LevelRenderer.java
-@@ -28,11 +28,10 @@
+@@ -6,10 +6,11 @@
+ import com.google.common.collect.Sets;
+ import com.google.gson.JsonSyntaxException;
+ import com.mojang.blaze3d.pipeline.RenderTarget;
+ import com.mojang.blaze3d.platform.GlStateManager;
+ import com.mojang.blaze3d.platform.Lighting;
++import com.mojang.blaze3d.shaders.Uniform;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.BufferBuilder;
+ import com.mojang.blaze3d.vertex.BufferUploader;
+ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+ import com.mojang.blaze3d.vertex.PoseStack;
+@@ -28,11 +29,10 @@
  import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
  import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
@@ -12,7 +24,7 @@
  import java.util.ArrayDeque;
  import java.util.ArrayList;
  import java.util.Collection;
-@@ -67,10 +66,11 @@
+@@ -67,10 +67,11 @@
  import net.minecraft.client.resources.sounds.SimpleSoundInstance;
  import net.minecraft.client.resources.sounds.SoundInstance;
  import net.minecraft.core.BlockPos;
@@ -24,7 +36,7 @@
  import net.minecraft.core.particles.ParticleTypes;
  import net.minecraft.core.particles.SimpleParticleType;
  import net.minecraft.network.chat.TextComponent;
-@@ -99,10 +99,11 @@
+@@ -99,10 +100,11 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.Blocks;
@@ -36,7 +48,7 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.border.WorldBorder;
  import net.minecraft.world.level.levelgen.Heightmap;
-@@ -128,14 +129,15 @@
+@@ -128,31 +130,31 @@
     private static final ResourceLocation SNOW_LOCATION = new ResourceLocation("textures/environment/snow.png");
     public static final Direction[] DIRECTIONS = Direction.values();
     private final Minecraft minecraft;
@@ -50,12 +62,69 @@
 +   private final ObjectArrayList<LevelRenderer.RenderChunkInfo> renderChunks = new ObjectArrayList();
     private final Set<BlockEntity> globalBlockEntities = Sets.newHashSet();
     private ViewArea viewArea;
-    private final VertexFormat skyFormat;
+-   private final VertexFormat skyFormat;
     @Nullable
     private VertexBuffer starBuffer;
-@@ -186,10 +188,11 @@
+    @Nullable
+    private VertexBuffer skyBuffer;
+    @Nullable
+    private VertexBuffer darkBuffer;
+-   private boolean generateClouds;
++   private boolean generateClouds = true;
+    @Nullable
+    private VertexBuffer cloudBuffer;
+-   private final RunningTrimmedMean frameTimes;
++   private final RunningTrimmedMean frameTimes = new RunningTrimmedMean(100);
+    private int ticks;
+-   private final Int2ObjectMap<BlockDestructionProgress> destroyingBlocks;
+-   private final Long2ObjectMap<SortedSet<BlockDestructionProgress>> destructionProgress;
+-   private final Map<BlockPos, SoundInstance> playingRecords;
++   private final Int2ObjectMap<BlockDestructionProgress> destroyingBlocks = new Int2ObjectOpenHashMap();
++   private final Long2ObjectMap<SortedSet<BlockDestructionProgress>> destructionProgress = new Long2ObjectOpenHashMap();
++   private final Map<BlockPos, SoundInstance> playingRecords = Maps.newHashMap();
+    @Nullable
+    private RenderTarget entityTarget;
+    @Nullable
+    private PostChain entityEffect;
+    @Nullable
+@@ -165,31 +167,31 @@
+    private RenderTarget weatherTarget;
+    @Nullable
+    private RenderTarget cloudsTarget;
+    @Nullable
+    private PostChain transparencyChain;
+-   private double lastCameraX;
+-   private double lastCameraY;
+-   private double lastCameraZ;
+-   private int lastCameraChunkX;
+-   private int lastCameraChunkY;
+-   private int lastCameraChunkZ;
+-   private double prevCamX;
+-   private double prevCamY;
+-   private double prevCamZ;
+-   private double prevCamRotX;
+-   private double prevCamRotY;
+-   private int prevCloudX;
+-   private int prevCloudY;
+-   private int prevCloudZ;
++   private double lastCameraX = Double.MIN_VALUE;
++   private double lastCameraY = Double.MIN_VALUE;
++   private double lastCameraZ = Double.MIN_VALUE;
++   private int lastCameraChunkX = Integer.MIN_VALUE;
++   private int lastCameraChunkY = Integer.MIN_VALUE;
++   private int lastCameraChunkZ = Integer.MIN_VALUE;
++   private double prevCamX = Double.MIN_VALUE;
++   private double prevCamY = Double.MIN_VALUE;
++   private double prevCamZ = Double.MIN_VALUE;
++   private double prevCamRotX = Double.MIN_VALUE;
++   private double prevCamRotY = Double.MIN_VALUE;
++   private int prevCloudX = Integer.MIN_VALUE;
++   private int prevCloudY = Integer.MIN_VALUE;
++   private int prevCloudZ = Integer.MIN_VALUE;
+    private Vec3 prevCloudColor;
+    private CloudStatus prevCloudsType;
     private ChunkRenderDispatcher chunkRenderDispatcher;
-    private final VertexFormat format;
+-   private final VertexFormat format;
     private int lastViewDistance;
     private int renderedEntities;
     private int culledEntities;
@@ -65,7 +134,37 @@
     private Frustum capturedFrustum;
     private final Vector4f[] frustumPoints;
     private final Vector3d frustumPos;
-@@ -231,10 +234,11 @@
+@@ -201,40 +203,20 @@
+    private int rainSoundTime;
+    private final float[] rainSizeX;
+    private final float[] rainSizeZ;
+ 
+    public LevelRenderer(Minecraft var1, RenderBuffers var2) {
+-      this.skyFormat = DefaultVertexFormat.POSITION;
+-      this.generateClouds = true;
+-      this.frameTimes = new RunningTrimmedMean(100);
+-      this.destroyingBlocks = new Int2ObjectOpenHashMap();
+-      this.destructionProgress = new Long2ObjectOpenHashMap();
+-      this.playingRecords = Maps.newHashMap();
+-      this.lastCameraX = Double.MIN_VALUE;
+-      this.lastCameraY = Double.MIN_VALUE;
+-      this.lastCameraZ = Double.MIN_VALUE;
+-      this.lastCameraChunkX = Integer.MIN_VALUE;
+-      this.lastCameraChunkY = Integer.MIN_VALUE;
+-      this.lastCameraChunkZ = Integer.MIN_VALUE;
+-      this.prevCamX = Double.MIN_VALUE;
+-      this.prevCamY = Double.MIN_VALUE;
+-      this.prevCamZ = Double.MIN_VALUE;
+-      this.prevCamRotX = Double.MIN_VALUE;
+-      this.prevCamRotY = Double.MIN_VALUE;
+-      this.prevCloudX = Integer.MIN_VALUE;
+-      this.prevCloudY = Integer.MIN_VALUE;
+-      this.prevCloudZ = Integer.MIN_VALUE;
+       this.prevCloudColor = Vec3.ZERO;
+-      this.format = DefaultVertexFormat.BLOCK;
+       this.lastViewDistance = -1;
+       this.frustumPoints = new Vector4f[8];
+       this.frustumPos = new Vector3d(0.0D, 0.0D, 0.0D);
        this.needsUpdate = true;
        this.rainSizeX = new float[1024];
        this.rainSizeZ = new float[1024];
@@ -77,33 +176,79 @@
  
        for(int var3 = 0; var3 < 32; ++var3) {
           for(int var4 = 0; var4 < 32; ++var4) {
-@@ -315,11 +319,11 @@
+@@ -259,26 +241,24 @@
+          int var11 = Mth.floor(var3);
+          int var12 = Mth.floor(var5);
+          int var13 = Mth.floor(var7);
+          Tesselator var14 = Tesselator.getInstance();
+          BufferBuilder var15 = var14.getBuilder();
+-         RenderSystem.enableAlphaTest();
+          RenderSystem.disableCull();
+-         RenderSystem.normal3f(0.0F, 1.0F, 0.0F);
+          RenderSystem.enableBlend();
+          RenderSystem.defaultBlendFunc();
+-         RenderSystem.defaultAlphaFunc();
+          RenderSystem.enableDepthTest();
+          byte var16 = 5;
+          if (Minecraft.useFancyGraphics()) {
+             var16 = 10;
+          }
+ 
+          RenderSystem.depthMask(Minecraft.useShaderTransparency());
+          byte var17 = -1;
+          float var18 = (float)this.ticks + var2;
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShader(GameRenderer::getParticleShader);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+          BlockPos.MutableBlockPos var19 = new BlockPos.MutableBlockPos();
+ 
+          for(int var20 = var13 - var16; var20 <= var13 + var16; ++var20) {
+             for(int var21 = var11 - var16; var21 <= var11 + var16; ++var21) {
+                int var22 = (var20 - var13 + 16) * 32 + var21 - var11 + 16;
+@@ -314,12 +294,12 @@
+                            if (var17 >= 0) {
                                var14.end();
                             }
  
                             var17 = 0;
-                            this.minecraft.getTextureManager().bind(RAIN_LOCATION);
+-                           this.minecraft.getTextureManager().bind(RAIN_LOCATION);
 -                           var15.begin(7, DefaultVertexFormat.PARTICLE);
++                           RenderSystem.setShaderTexture(0, RAIN_LOCATION);
 +                           var15.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
                          }
  
                          int var34 = this.ticks + var21 * var21 * 3121 + var21 * 45238971 + var20 * var20 * 418711 + var20 * 13761 & 31;
                          var35 = -((float)var34 + var2) / 32.0F * (3.0F + var32.nextFloat());
                          double var36 = (double)((float)var21 + 0.5F) - var3;
-@@ -338,11 +342,11 @@
+@@ -337,12 +317,12 @@
+                            if (var17 >= 0) {
                                var14.end();
                             }
  
                             var17 = 1;
-                            this.minecraft.getTextureManager().bind(SNOW_LOCATION);
+-                           this.minecraft.getTextureManager().bind(SNOW_LOCATION);
 -                           var15.begin(7, DefaultVertexFormat.PARTICLE);
++                           RenderSystem.setShaderTexture(0, SNOW_LOCATION);
 +                           var15.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
                          }
  
                          float var49 = -((float)(this.ticks & 511) + var2) / 512.0F;
                          var35 = (float)(var32.nextDouble() + (double)var18 * 0.01D * (double)((float)var32.nextGaussian()));
                          float var50 = (float)(var32.nextDouble() + (double)(var18 * (float)var32.nextGaussian()) * 0.001D);
-@@ -390,11 +394,11 @@
+@@ -370,12 +350,10 @@
+             var14.end();
+          }
+ 
+          RenderSystem.enableCull();
+          RenderSystem.disableBlend();
+-         RenderSystem.defaultAlphaFunc();
+-         RenderSystem.disableAlphaTest();
+          var1.turnOffLightLayer();
+       }
+    }
+ 
+    public void tickRain(Camera var1) {
+@@ -390,11 +368,11 @@
           for(int var8 = 0; var8 < var7; ++var8) {
              int var9 = var3.nextInt(21) - 10;
              int var10 = var3.nextInt(21) - 10;
@@ -116,43 +261,83 @@
                    break;
                 }
  
-@@ -550,11 +554,11 @@
+@@ -433,14 +411,10 @@
+       }
+ 
+    }
+ 
+    public void onResourceManagerReload(ResourceManager var1) {
+-      this.textureManager.bind(FORCEFIELD_LOCATION);
+-      RenderSystem.texParameter(3553, 10242, 10497);
+-      RenderSystem.texParameter(3553, 10243, 10497);
+-      RenderSystem.bindTexture(0);
+       this.initOutline();
+       if (Minecraft.useShaderTransparency()) {
+          this.initTransparency();
+       }
+ 
+@@ -550,68 +524,56 @@
        BufferBuilder var2 = var1.getBuilder();
        if (this.darkBuffer != null) {
           this.darkBuffer.close();
        }
  
 -      this.darkBuffer = new VertexBuffer(this.skyFormat);
+-      this.drawSkyHemisphere(var2, -16.0F, true);
+-      var2.end();
 +      this.darkBuffer = new VertexBuffer();
-       this.drawSkyHemisphere(var2, -16.0F, true);
-       var2.end();
++      buildSkyDisc(var2, -16.0F);
        this.darkBuffer.upload(var2);
     }
  
-@@ -563,20 +567,20 @@
+    private void createLightSky() {
+       Tesselator var1 = Tesselator.getInstance();
        BufferBuilder var2 = var1.getBuilder();
        if (this.skyBuffer != null) {
           this.skyBuffer.close();
        }
  
 -      this.skyBuffer = new VertexBuffer(this.skyFormat);
+-      this.drawSkyHemisphere(var2, 16.0F, false);
+-      var2.end();
 +      this.skyBuffer = new VertexBuffer();
-       this.drawSkyHemisphere(var2, 16.0F, false);
-       var2.end();
++      buildSkyDisc(var2, 16.0F);
        this.skyBuffer.upload(var2);
     }
  
-    private void drawSkyHemisphere(BufferBuilder var1, float var2, boolean var3) {
-       boolean var4 = true;
-       boolean var5 = true;
+-   private void drawSkyHemisphere(BufferBuilder var1, float var2, boolean var3) {
+-      boolean var4 = true;
+-      boolean var5 = true;
 -      var1.begin(7, DefaultVertexFormat.POSITION);
-+      var1.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
++   private static void buildSkyDisc(BufferBuilder var0, float var1) {
++      float var2 = Math.signum(var1) * 512.0F;
++      float var3 = 512.0F;
++      var0.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION);
++      var0.vertex(0.0D, (double)var1, 0.0D).endVertex();
  
-       for(int var6 = -384; var6 <= 384; var6 += 64) {
-          for(int var7 = -384; var7 <= 384; var7 += 64) {
-             float var8 = (float)var6;
-             float var9 = (float)(var6 + 64);
-@@ -599,19 +603,19 @@
+-      for(int var6 = -384; var6 <= 384; var6 += 64) {
+-         for(int var7 = -384; var7 <= 384; var7 += 64) {
+-            float var8 = (float)var6;
+-            float var9 = (float)(var6 + 64);
+-            if (var3) {
+-               var9 = (float)var6;
+-               var8 = (float)(var6 + 64);
+-            }
+-
+-            var1.vertex((double)var8, (double)var2, (double)var7).endVertex();
+-            var1.vertex((double)var9, (double)var2, (double)var7).endVertex();
+-            var1.vertex((double)var9, (double)var2, (double)(var7 + 64)).endVertex();
+-            var1.vertex((double)var8, (double)var2, (double)(var7 + 64)).endVertex();
+-         }
++      for(int var4 = -180; var4 <= 180; var4 += 45) {
++         var0.vertex((double)(var2 * Mth.cos((float)var4 * 0.017453292F)), (double)var1, (double)(512.0F * Mth.sin((float)var4 * 0.017453292F))).endVertex();
+       }
+ 
++      var0.end();
+    }
+ 
+    private void createStars() {
+       Tesselator var1 = Tesselator.getInstance();
        BufferBuilder var2 = var1.getBuilder();
        if (this.starBuffer != null) {
           this.starBuffer.close();
@@ -174,7 +359,7 @@
           double var4 = (double)(var2.nextFloat() * 2.0F - 1.0F);
           double var6 = (double)(var2.nextFloat() * 2.0F - 1.0F);
           double var8 = (double)(var2.nextFloat() * 2.0F - 1.0F);
-@@ -661,10 +665,11 @@
+@@ -661,10 +623,11 @@
        this.lastCameraChunkY = Integer.MIN_VALUE;
        this.lastCameraChunkZ = Integer.MIN_VALUE;
        this.entityRenderDispatcher.setLevel(var1);
@@ -186,7 +371,7 @@
           this.chunksToCompile.clear();
           this.renderChunks.clear();
           if (this.viewArea != null) {
-@@ -767,135 +772,141 @@
+@@ -767,135 +730,141 @@
        if (this.minecraft.options.renderDistance != this.lastViewDistance) {
           this.allChanged();
        }
@@ -401,7 +586,7 @@
           }
        }
     }
-@@ -903,11 +914,11 @@
+@@ -903,11 +872,11 @@
     @Nullable
     private ChunkRenderDispatcher.RenderChunk getRelativeFrom(BlockPos var1, ChunkRenderDispatcher.RenderChunk var2, Direction var3) {
        BlockPos var4 = var2.getRelativeOrigin(var3);
@@ -414,7 +599,7 @@
           return null;
        }
     }
-@@ -934,12 +945,21 @@
+@@ -934,12 +903,22 @@
           this.frustumPoints[var11].perspectiveDivide();
        }
  
@@ -431,13 +616,14 @@
 +
     public void renderLevel(PoseStack var1, float var2, long var3, boolean var5, Camera var6, GameRenderer var7, LightTexture var8, Matrix4f var9) {
 -      BlockEntityRenderDispatcher.instance.prepare(this.level, this.minecraft.getTextureManager(), this.minecraft.font, var6, this.minecraft.hitResult);
++      RenderSystem.setShaderGameTime(this.level.getGameTime(), var2);
 +      this.blockEntityRenderDispatcher.prepare(this.level, var6, this.minecraft.hitResult);
        this.entityRenderDispatcher.prepare(this.level, var6, this.minecraft.crosshairPickEntity);
        ProfilerFiller var10 = this.level.getProfiler();
        var10.popPush("light_updates");
        this.minecraft.level.getChunkSource().getLightEngine().runUpdates(Integer.MAX_VALUE, true, true);
        Vec3 var11 = var6.getPosition();
-@@ -952,12 +972,11 @@
+@@ -952,29 +931,30 @@
        Frustum var20;
        if (var19) {
           var20 = this.capturedFrustum;
@@ -451,20 +637,203 @@
        this.minecraft.getProfiler().popPush("captureFrustum");
        if (this.captureFrustum) {
           this.captureFrustum(var18, var9, var11.x, var11.y, var11.z, var19 ? new Frustum(var18, var9) : var20);
-@@ -1056,11 +1075,11 @@
+          this.captureFrustum = false;
+       }
  
-                                     BlockEntity var62 = (BlockEntity)var57.next();
-                                     BlockPos var63 = var62.getBlockPos();
+       var10.popPush("clear");
+       FogRenderer.setupColor(var6, var2, this.minecraft.level, this.minecraft.options.renderDistance, var7.getDarkenWorldAmount(var2));
++      FogRenderer.levelFogColor();
+       RenderSystem.clear(16640, Minecraft.ON_OSX);
+       float var21 = var7.getRenderDistance();
+       boolean var22 = this.minecraft.level.effects().isFoggyAt(Mth.floor(var12), Mth.floor(var14)) || this.minecraft.gui.getBossOverlay().shouldCreateWorldFog();
+       if (this.minecraft.options.renderDistance >= 4) {
+          FogRenderer.setupFog(var6, FogRenderer.FogMode.FOG_SKY, var21, var22);
+          var10.popPush("sky");
+-         this.renderSky(var1, var2);
++         RenderSystem.setShader(GameRenderer::getPositionShader);
++         this.renderSky(var1, var9, var2);
+       }
+ 
+       var10.popPush("fog");
+       FogRenderer.setupFog(var6, FogRenderer.FogMode.FOG_TERRAIN, Math.max(var21 - 16.0F, 32.0F), var22);
+       var10.popPush("terrain_setup");
+@@ -994,13 +974,13 @@
+       long var31 = this.frameTimes.registerValueAndGetMean(var29);
+       long var33 = var31 * 3L / 2L;
+       long var35 = Mth.clamp(var33, var27, 33333333L);
+       this.compileChunksUntil(var3 + var35);
+       var10.popPush("terrain");
+-      this.renderChunkLayer(RenderType.solid(), var1, var12, var14, var16);
+-      this.renderChunkLayer(RenderType.cutoutMipped(), var1, var12, var14, var16);
+-      this.renderChunkLayer(RenderType.cutout(), var1, var12, var14, var16);
++      this.renderChunkLayer(RenderType.solid(), var1, var12, var14, var16, var9);
++      this.renderChunkLayer(RenderType.cutoutMipped(), var1, var12, var14, var16, var9);
++      this.renderChunkLayer(RenderType.cutout(), var1, var12, var14, var16, var9);
+       if (this.level.effects().constantAmbientLight()) {
+          Lighting.setupNetherLevel(var1.last().pose());
+       } else {
+          Lighting.setupLevel(var1.last().pose());
+       }
+@@ -1041,32 +1021,34 @@
+                      var38.endBatch(RenderType.entitySmoothCutout(TextureAtlas.LOCATION_BLOCKS));
+                      var10.popPush("blockentities");
+                      ObjectListIterator var53 = this.renderChunks.iterator();
+ 
+                      while(true) {
+-                        List var60;
++                        List var61;
+                         do {
+                            if (!var53.hasNext()) {
+                               synchronized(this.globalBlockEntities) {
+                                  Iterator var57 = this.globalBlockEntities.iterator();
+ 
+                                  while(true) {
+                                     if (!var57.hasNext()) {
+                                        break;
+                                     }
+ 
+-                                    BlockEntity var62 = (BlockEntity)var57.next();
+-                                    BlockPos var63 = var62.getBlockPos();
++                                    BlockEntity var63 = (BlockEntity)var57.next();
++                                    BlockPos var64 = var63.getBlockPos();
                                      var1.pushPose();
-                                     var1.translate((double)var63.getX() - var12, (double)var63.getY() - var14, (double)var63.getZ() - var16);
+-                                    var1.translate((double)var63.getX() - var12, (double)var63.getY() - var14, (double)var63.getZ() - var16);
 -                                    BlockEntityRenderDispatcher.instance.render(var62, var2, var1, var38);
-+                                    this.blockEntityRenderDispatcher.render(var62, var2, var1, var38);
++                                    var1.translate((double)var64.getX() - var12, (double)var64.getY() - var14, (double)var64.getZ() - var16);
++                                    this.blockEntityRenderDispatcher.render(var63, var2, var1, var38);
                                      var1.popPose();
                                   }
                                }
  
                                this.checkPoseStack(var1);
-@@ -1171,19 +1190,19 @@
+                               var38.endBatch(RenderType.solid());
++                              var38.endBatch(RenderType.endPortal());
++                              var38.endBatch(RenderType.endGateway());
+                               var38.endBatch(Sheets.solidBlockSheet());
+                               var38.endBatch(Sheets.cutoutBlockSheet());
+                               var38.endBatch(Sheets.bedSheet());
+                               var38.endBatch(Sheets.shulkerBoxSheet());
+                               var38.endBatch(Sheets.signSheet());
+@@ -1080,44 +1062,47 @@
+                               var10.popPush("destroyProgress");
+                               ObjectIterator var54 = this.destructionProgress.long2ObjectEntrySet().iterator();
+ 
+                               while(var54.hasNext()) {
+                                  Entry var58 = (Entry)var54.next();
+-                                 BlockPos var64 = BlockPos.of(var58.getLongKey());
+-                                 double var65 = (double)var64.getX() - var12;
+-                                 double var70 = (double)var64.getY() - var14;
+-                                 double var73 = (double)var64.getZ() - var16;
+-                                 if (var65 * var65 + var70 * var70 + var73 * var73 <= 1024.0D) {
+-                                    SortedSet var74 = (SortedSet)var58.getValue();
+-                                    if (var74 != null && !var74.isEmpty()) {
+-                                       int var75 = ((BlockDestructionProgress)var74.last()).getProgress();
++                                 BlockPos var65 = BlockPos.of(var58.getLongKey());
++                                 double var66 = (double)var65.getX() - var12;
++                                 double var71 = (double)var65.getY() - var14;
++                                 double var74 = (double)var65.getZ() - var16;
++                                 if (var66 * var66 + var71 * var71 + var74 * var74 <= 1024.0D) {
++                                    SortedSet var75 = (SortedSet)var58.getValue();
++                                    if (var75 != null && !var75.isEmpty()) {
++                                       int var76 = ((BlockDestructionProgress)var75.last()).getProgress();
+                                        var1.pushPose();
+-                                       var1.translate((double)var64.getX() - var12, (double)var64.getY() - var14, (double)var64.getZ() - var16);
++                                       var1.translate((double)var65.getX() - var12, (double)var65.getY() - var14, (double)var65.getZ() - var16);
+                                        PoseStack.Pose var50 = var1.last();
+-                                       SheetedDecalTextureGenerator var51 = new SheetedDecalTextureGenerator(this.renderBuffers.crumblingBufferSource().getBuffer((RenderType)ModelBakery.DESTROY_TYPES.get(var75)), var50.pose(), var50.normal());
+-                                       this.minecraft.getBlockRenderer().renderBreakingTexture(this.level.getBlockState(var64), var64, this.level, var1, var51);
++                                       SheetedDecalTextureGenerator var51 = new SheetedDecalTextureGenerator(this.renderBuffers.crumblingBufferSource().getBuffer((RenderType)ModelBakery.DESTROY_TYPES.get(var76)), var50.pose(), var50.normal());
++                                       this.minecraft.getBlockRenderer().renderBreakingTexture(this.level.getBlockState(var65), var65, this.level, var1, var51);
+                                        var1.popPose();
+                                     }
+                                  }
+                               }
+ 
+                               this.checkPoseStack(var1);
+                               HitResult var55 = this.minecraft.hitResult;
+                               if (var5 && var55 != null && var55.getType() == HitResult.Type.BLOCK) {
+                                  var10.popPush("outline");
+                                  BlockPos var59 = ((BlockHitResult)var55).getBlockPos();
+-                                 BlockState var66 = this.level.getBlockState(var59);
+-                                 if (!var66.isAir() && this.level.getWorldBorder().isWithinBounds(var59)) {
+-                                    VertexConsumer var68 = var38.getBuffer(RenderType.lines());
+-                                    this.renderHitOutline(var1, var68, var6.getEntity(), var12, var14, var16, var59, var66);
++                                 BlockState var67 = this.level.getBlockState(var59);
++                                 if (!var67.isAir() && this.level.getWorldBorder().isWithinBounds(var59)) {
++                                    VertexConsumer var69 = var38.getBuffer(RenderType.lines());
++                                    this.renderHitOutline(var1, var69, var6.getEntity(), var12, var14, var16, var59, var67);
+                                  }
+                               }
+ 
+-                              RenderSystem.pushMatrix();
+-                              RenderSystem.multMatrix(var1.last().pose());
++                              PoseStack var60 = RenderSystem.getModelViewStack();
++                              var60.pushPose();
++                              var60.mulPoseMatrix(var1.last().pose());
++                              RenderSystem.applyModelViewMatrix();
+                               this.minecraft.debugRenderer.render(var1, var38, var12, var14, var16);
+-                              RenderSystem.popMatrix();
++                              var60.popPose();
++                              RenderSystem.applyModelViewMatrix();
+                               var38.endBatch(Sheets.translucentCullBlockSheet());
+                               var38.endBatch(Sheets.bannerSheet());
+                               var38.endBatch(Sheets.shieldSheet());
+                               var38.endBatch(RenderType.armorGlint());
+                               var38.endBatch(RenderType.armorEntityGlint());
+@@ -1132,96 +1117,102 @@
+                                  var38.endBatch(RenderType.lines());
+                                  var38.endBatch();
+                                  this.translucentTarget.clear(Minecraft.ON_OSX);
+                                  this.translucentTarget.copyDepthFrom(this.minecraft.getMainRenderTarget());
+                                  var10.popPush("translucent");
+-                                 this.renderChunkLayer(RenderType.translucent(), var1, var12, var14, var16);
++                                 this.renderChunkLayer(RenderType.translucent(), var1, var12, var14, var16, var9);
+                                  var10.popPush("string");
+-                                 this.renderChunkLayer(RenderType.tripwire(), var1, var12, var14, var16);
++                                 this.renderChunkLayer(RenderType.tripwire(), var1, var12, var14, var16, var9);
+                                  this.particlesTarget.clear(Minecraft.ON_OSX);
+                                  this.particlesTarget.copyDepthFrom(this.minecraft.getMainRenderTarget());
+                                  RenderStateShard.PARTICLES_TARGET.setupRenderState();
+                                  var10.popPush("particles");
+                                  this.minecraft.particleEngine.render(var1, var38, var8, var6, var2);
+                                  RenderStateShard.PARTICLES_TARGET.clearRenderState();
+                               } else {
+                                  var10.popPush("translucent");
+-                                 this.renderChunkLayer(RenderType.translucent(), var1, var12, var14, var16);
++                                 if (this.translucentTarget != null) {
++                                    this.translucentTarget.clear(Minecraft.ON_OSX);
++                                 }
++
++                                 this.renderChunkLayer(RenderType.translucent(), var1, var12, var14, var16, var9);
+                                  var38.endBatch(RenderType.lines());
+                                  var38.endBatch();
+                                  var10.popPush("string");
+-                                 this.renderChunkLayer(RenderType.tripwire(), var1, var12, var14, var16);
++                                 this.renderChunkLayer(RenderType.tripwire(), var1, var12, var14, var16, var9);
+                                  var10.popPush("particles");
+                                  this.minecraft.particleEngine.render(var1, var38, var8, var6, var2);
+                               }
+ 
+-                              RenderSystem.pushMatrix();
+-                              RenderSystem.multMatrix(var1.last().pose());
++                              var60.pushPose();
++                              var60.mulPoseMatrix(var1.last().pose());
++                              RenderSystem.applyModelViewMatrix();
+                               if (this.minecraft.options.getCloudsType() != CloudStatus.OFF) {
+                                  if (this.transparencyChain != null) {
+                                     this.cloudsTarget.clear(Minecraft.ON_OSX);
+                                     RenderStateShard.CLOUDS_TARGET.setupRenderState();
+                                     var10.popPush("clouds");
+-                                    this.renderClouds(var1, var2, var12, var14, var16);
++                                    this.renderClouds(var1, var9, var2, var12, var14, var16);
+                                     RenderStateShard.CLOUDS_TARGET.clearRenderState();
+                                  } else {
+                                     var10.popPush("clouds");
+-                                    this.renderClouds(var1, var2, var12, var14, var16);
++                                    RenderSystem.setShader(GameRenderer::getPositionTexColorNormalShader);
++                                    this.renderClouds(var1, var9, var2, var12, var14, var16);
+                                  }
+                               }
  
                                if (this.transparencyChain != null) {
                                   RenderStateShard.WEATHER_TARGET.setupRenderState();
@@ -485,47 +854,261 @@
                                }
  
                                this.renderDebug(var6);
-                               RenderSystem.shadeModel(7424);
-@@ -1217,11 +1236,11 @@
+-                              RenderSystem.shadeModel(7424);
+                               RenderSystem.depthMask(true);
+                               RenderSystem.disableBlend();
+-                              RenderSystem.popMatrix();
++                              var60.popPose();
++                              RenderSystem.applyModelViewMatrix();
+                               FogRenderer.setupNoFog();
+                               return;
+                            }
+ 
+                            LevelRenderer.RenderChunkInfo var56 = (LevelRenderer.RenderChunkInfo)var53.next();
+-                           var60 = var56.chunk.getCompiledChunk().getRenderableBlockEntities();
+-                        } while(var60.isEmpty());
++                           var61 = var56.chunk.getCompiledChunk().getRenderableBlockEntities();
++                        } while(var61.isEmpty());
+ 
+-                        Iterator var61 = var60.iterator();
++                        Iterator var62 = var61.iterator();
+ 
+-                        while(var61.hasNext()) {
+-                           BlockEntity var67 = (BlockEntity)var61.next();
+-                           BlockPos var69 = var67.getBlockPos();
+-                           Object var71 = var38;
++                        while(var62.hasNext()) {
++                           BlockEntity var68 = (BlockEntity)var62.next();
++                           BlockPos var70 = var68.getBlockPos();
++                           Object var72 = var38;
+                            var1.pushPose();
+-                           var1.translate((double)var69.getX() - var12, (double)var69.getY() - var14, (double)var69.getZ() - var16);
+-                           SortedSet var72 = (SortedSet)this.destructionProgress.get(var69.asLong());
+-                           if (var72 != null && !var72.isEmpty()) {
+-                              var47 = ((BlockDestructionProgress)var72.last()).getProgress();
++                           var1.translate((double)var70.getX() - var12, (double)var70.getY() - var14, (double)var70.getZ() - var16);
++                           SortedSet var73 = (SortedSet)this.destructionProgress.get(var70.asLong());
++                           if (var73 != null && !var73.isEmpty()) {
++                              var47 = ((BlockDestructionProgress)var73.last()).getProgress();
+                               if (var47 >= 0) {
+                                  PoseStack.Pose var48 = var1.last();
+                                  SheetedDecalTextureGenerator var49 = new SheetedDecalTextureGenerator(this.renderBuffers.crumblingBufferSource().getBuffer((RenderType)ModelBakery.DESTROY_TYPES.get(var47)), var48.pose(), var48.normal());
+-                                 var71 = (var2x) -> {
++                                 var72 = (var2x) -> {
+                                     VertexConsumer var3 = var38.getBuffer(var2x);
                                      return var2x.affectsCrumbling() ? VertexMultiConsumer.create(var49, var3) : var3;
                                   };
                                }
                             }
  
 -                           BlockEntityRenderDispatcher.instance.render(var67, var2, var1, (MultiBufferSource)var71);
-+                           this.blockEntityRenderDispatcher.render(var67, var2, var1, (MultiBufferSource)var71);
++                           this.blockEntityRenderDispatcher.render(var68, var2, var1, (MultiBufferSource)var72);
                             var1.popPose();
                          }
                       }
                    }
  
-@@ -1318,11 +1337,11 @@
-             var2.pushPose();
-             BlockPos var14 = var12.getOrigin();
-             var2.translate((double)var14.getX() - var3, (double)var14.getY() - var5, (double)var14.getZ() - var7);
-             var20.bind();
-             this.format.setupBufferState(0L);
+@@ -1268,28 +1259,29 @@
+       double var15 = Mth.lerp((double)var8, var1.zOld, var1.getZ());
+       float var17 = Mth.lerp(var8, var1.yRotO, var1.yRot);
+       this.entityRenderDispatcher.render(var1, var11 - var2, var13 - var4, var15 - var6, var17, var8, var9, var10, this.entityRenderDispatcher.getPackedLightCoords(var1, var8));
+    }
+ 
+-   private void renderChunkLayer(RenderType var1, PoseStack var2, double var3, double var5, double var7) {
++   private void renderChunkLayer(RenderType var1, PoseStack var2, double var3, double var5, double var7, Matrix4f var9) {
++      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
+       var1.setupRenderState();
+       if (var1 == RenderType.translucent()) {
+          this.minecraft.getProfiler().push("translucent_sort");
+-         double var9 = var3 - this.xTransparentOld;
+-         double var11 = var5 - this.yTransparentOld;
+-         double var13 = var7 - this.zTransparentOld;
+-         if (var9 * var9 + var11 * var11 + var13 * var13 > 1.0D) {
++         double var10 = var3 - this.xTransparentOld;
++         double var12 = var5 - this.yTransparentOld;
++         double var14 = var7 - this.zTransparentOld;
++         if (var10 * var10 + var12 * var12 + var14 * var14 > 1.0D) {
+             this.xTransparentOld = var3;
+             this.yTransparentOld = var5;
+             this.zTransparentOld = var7;
+-            int var15 = 0;
+-            ObjectListIterator var16 = this.renderChunks.iterator();
++            int var16 = 0;
++            ObjectListIterator var17 = this.renderChunks.iterator();
+ 
+-            while(var16.hasNext()) {
+-               LevelRenderer.RenderChunkInfo var17 = (LevelRenderer.RenderChunkInfo)var16.next();
+-               if (var15 < 15 && var17.chunk.resortTransparency(var1, this.chunkRenderDispatcher)) {
+-                  ++var15;
++            while(var17.hasNext()) {
++               LevelRenderer.RenderChunkInfo var18 = (LevelRenderer.RenderChunkInfo)var17.next();
++               if (var16 < 15 && var18.chunk.resortTransparency(var1, this.chunkRenderDispatcher)) {
++                  ++var16;
+                }
+             }
+          }
+ 
+          this.minecraft.getProfiler().pop();
+@@ -1297,39 +1289,93 @@
+ 
+       this.minecraft.getProfiler().push("filterempty");
+       this.minecraft.getProfiler().popPush(() -> {
+          return "render_" + var1;
+       });
+-      boolean var18 = var1 != RenderType.translucent();
+-      ObjectListIterator var10 = this.renderChunks.listIterator(var18 ? 0 : this.renderChunks.size());
++      boolean var20 = var1 != RenderType.translucent();
++      ObjectListIterator var11 = this.renderChunks.listIterator(var20 ? 0 : this.renderChunks.size());
++      VertexFormat var21 = var1.format();
++      ShaderInstance var13 = RenderSystem.getShader();
++      BufferUploader.reset();
+ 
++      for(int var22 = 0; var22 < 12; ++var22) {
++         int var15 = RenderSystem.getShaderTexture(var22);
++         var13.setSampler("Sampler" + var22, var15);
++      }
++
++      if (var13.MODEL_VIEW_MATRIX != null) {
++         var13.MODEL_VIEW_MATRIX.set(var2.last().pose());
++      }
++
++      if (var13.PROJECTION_MATRIX != null) {
++         var13.PROJECTION_MATRIX.set(var9);
++      }
++
++      if (var13.COLOR_MODULATOR != null) {
++         var13.COLOR_MODULATOR.set(RenderSystem.getShaderColor());
++      }
++
++      if (var13.FOG_START != null) {
++         var13.FOG_START.set(RenderSystem.getShaderFogStart());
++      }
++
++      if (var13.FOG_END != null) {
++         var13.FOG_END.set(RenderSystem.getShaderFogEnd());
++      }
++
++      if (var13.FOG_COLOR != null) {
++         var13.FOG_COLOR.set(RenderSystem.getShaderFogColor());
++      }
++
++      if (var13.TEXTURE_MATRIX != null) {
++         var13.TEXTURE_MATRIX.set(RenderSystem.getTextureMatrix());
++      }
++
++      if (var13.GAME_TIME != null) {
++         var13.GAME_TIME.set(RenderSystem.getShaderGameTime());
++      }
++
++      RenderSystem.setupShaderLights(var13);
++      var13.apply();
++      Uniform var23 = var13.CHUNK_OFFSET;
++      boolean var24 = false;
++
+       while(true) {
+-         if (var18) {
+-            if (!var10.hasNext()) {
++         if (var20) {
++            if (!var11.hasNext()) {
+                break;
+             }
+-         } else if (!var10.hasPrevious()) {
++         } else if (!var11.hasPrevious()) {
+             break;
+          }
+ 
+-         LevelRenderer.RenderChunkInfo var19 = var18 ? (LevelRenderer.RenderChunkInfo)var10.next() : (LevelRenderer.RenderChunkInfo)var10.previous();
+-         ChunkRenderDispatcher.RenderChunk var12 = var19.chunk;
+-         if (!var12.getCompiledChunk().isEmpty(var1)) {
+-            VertexBuffer var20 = var12.getBuffer(var1);
+-            var2.pushPose();
+-            BlockPos var14 = var12.getOrigin();
+-            var2.translate((double)var14.getX() - var3, (double)var14.getY() - var5, (double)var14.getZ() - var7);
+-            var20.bind();
+-            this.format.setupBufferState(0L);
 -            var20.draw(var2.last().pose(), 7);
-+            var20.draw(var2.last().pose());
-             var2.popPose();
+-            var2.popPose();
++         LevelRenderer.RenderChunkInfo var25 = var20 ? (LevelRenderer.RenderChunkInfo)var11.next() : (LevelRenderer.RenderChunkInfo)var11.previous();
++         ChunkRenderDispatcher.RenderChunk var26 = var25.chunk;
++         if (!var26.getCompiledChunk().isEmpty(var1)) {
++            VertexBuffer var27 = var26.getBuffer(var1);
++            BlockPos var19 = var26.getOrigin();
++            if (var23 != null) {
++               var23.set((float)((double)var19.getX() - var3), (float)((double)var19.getY() - var5), (float)((double)var19.getZ() - var7));
++               var23.upload();
++            }
++
++            var27.drawChunkLayer();
++            var24 = true;
           }
        }
  
++      if (var23 != null) {
++         var23.set(Vector3f.ZERO);
++      }
++
++      var13.clear();
++      if (var24) {
++         var21.clearBufferState();
++      }
++
        VertexBuffer.unbind();
-@@ -1354,11 +1373,11 @@
-             int var14;
-             int var16;
+-      RenderSystem.clearCurrentColor();
+-      this.format.clearBufferState();
++      VertexBuffer.unbindVertexArray();
+       this.minecraft.getProfiler().pop();
+       var1.clearRenderState();
+    }
+ 
+    private void renderDebug(Camera var1) {
+@@ -1342,94 +1388,106 @@
+          RenderSystem.depthMask(true);
+          RenderSystem.disableCull();
+          RenderSystem.enableBlend();
+          RenderSystem.defaultBlendFunc();
+          RenderSystem.disableTexture();
++         ObjectListIterator var10 = this.renderChunks.iterator();
+ 
+-         for(ObjectListIterator var10 = this.renderChunks.iterator(); var10.hasNext(); RenderSystem.popMatrix()) {
++         while(var10.hasNext()) {
+             LevelRenderer.RenderChunkInfo var11 = (LevelRenderer.RenderChunkInfo)var10.next();
+             ChunkRenderDispatcher.RenderChunk var12 = var11.chunk;
+-            RenderSystem.pushMatrix();
+             BlockPos var13 = var12.getOrigin();
+-            RenderSystem.translated((double)var13.getX() - var4, (double)var13.getY() - var6, (double)var13.getZ() - var8);
+-            int var14;
+-            int var16;
++            PoseStack var14 = RenderSystem.getModelViewStack();
++            var14.pushPose();
++            var14.translate((double)var13.getX() - var4, (double)var13.getY() - var6, (double)var13.getZ() - var8);
++            RenderSystem.applyModelViewMatrix();
++            int var15;
              int var17;
-             Direction var18;
+-            Direction var18;
++            int var18;
++            Direction var19;
              if (this.minecraft.chunkPath) {
 -               var3.begin(1, DefaultVertexFormat.POSITION_COLOR);
 +               var3.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR);
                 RenderSystem.lineWidth(10.0F);
-                var14 = var11.step == 0 ? 0 : Mth.hsvToRgb((float)var11.step / 50.0F, 0.9F, 0.9F);
-                int var15 = var14 >> 16 & 255;
-                var16 = var14 >> 8 & 255;
-                var17 = var14 & 255;
-@@ -1371,11 +1390,11 @@
+-               var14 = var11.step == 0 ? 0 : Mth.hsvToRgb((float)var11.step / 50.0F, 0.9F, 0.9F);
+-               int var15 = var14 >> 16 & 255;
+-               var16 = var14 >> 8 & 255;
+-               var17 = var14 & 255;
+-               var18 = var11.sourceDirection;
+-               if (var18 != null) {
+-                  var3.vertex(8.0D, 8.0D, 8.0D).color(var15, var16, var17, 255).endVertex();
+-                  var3.vertex((double)(8 - 16 * var18.getStepX()), (double)(8 - 16 * var18.getStepY()), (double)(8 - 16 * var18.getStepZ())).color(var15, var16, var17, 255).endVertex();
++               var15 = var11.step == 0 ? 0 : Mth.hsvToRgb((float)var11.step / 50.0F, 0.9F, 0.9F);
++               int var16 = var15 >> 16 & 255;
++               var17 = var15 >> 8 & 255;
++               var18 = var15 & 255;
++               var19 = var11.sourceDirection;
++               if (var19 != null) {
++                  var3.vertex(8.0D, 8.0D, 8.0D).color(var16, var17, var18, 255).endVertex();
++                  var3.vertex((double)(8 - 16 * var19.getStepX()), (double)(8 - 16 * var19.getStepY()), (double)(8 - 16 * var19.getStepZ())).color(var16, var17, var18, 255).endVertex();
+                }
+ 
                 var2.end();
                 RenderSystem.lineWidth(1.0F);
              }
@@ -534,28 +1117,131 @@
 -               var3.begin(1, DefaultVertexFormat.POSITION_COLOR);
 +               var3.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR);
                 RenderSystem.lineWidth(10.0F);
-                var14 = 0;
-                Direction[] var24 = DIRECTIONS;
-                var16 = var24.length;
+-               var14 = 0;
+-               Direction[] var24 = DIRECTIONS;
+-               var16 = var24.length;
++               var15 = 0;
++               Direction[] var26 = DIRECTIONS;
++               var17 = var26.length;
++               var18 = 0;
  
-@@ -1396,11 +1415,11 @@
-                }
+-               for(var17 = 0; var17 < var16; ++var17) {
+-                  var18 = var24[var17];
+-                  Direction[] var19 = DIRECTIONS;
+-                  int var20 = var19.length;
++               while(true) {
++                  if (var18 >= var17) {
++                     var2.end();
++                     RenderSystem.lineWidth(1.0F);
++                     if (var15 > 0) {
++                        var3.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
++                        float var27 = 0.5F;
++                        float var28 = 0.2F;
++                        var3.vertex(0.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(15.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var3.vertex(0.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
++                        var2.end();
++                     }
++                     break;
++                  }
  
-                var2.end();
-                RenderSystem.lineWidth(1.0F);
-                if (var14 > 0) {
+-                  for(int var21 = 0; var21 < var20; ++var21) {
+-                     Direction var22 = var19[var21];
+-                     boolean var23 = var12.getCompiledChunk().facesCanSeeEachother(var18, var22);
+-                     if (!var23) {
+-                        ++var14;
+-                        var3.vertex((double)(8 + 8 * var18.getStepX()), (double)(8 + 8 * var18.getStepY()), (double)(8 + 8 * var18.getStepZ())).color(1, 0, 0, 1).endVertex();
+-                        var3.vertex((double)(8 + 8 * var22.getStepX()), (double)(8 + 8 * var22.getStepY()), (double)(8 + 8 * var22.getStepZ())).color(1, 0, 0, 1).endVertex();
++                  var19 = var26[var18];
++                  Direction[] var20 = DIRECTIONS;
++                  int var21 = var20.length;
++
++                  for(int var22 = 0; var22 < var21; ++var22) {
++                     Direction var23 = var20[var22];
++                     boolean var24 = var12.getCompiledChunk().facesCanSeeEachother(var19, var23);
++                     if (!var24) {
++                        ++var15;
++                        var3.vertex((double)(8 + 8 * var19.getStepX()), (double)(8 + 8 * var19.getStepY()), (double)(8 + 8 * var19.getStepZ())).color(1, 0, 0, 1).endVertex();
++                        var3.vertex((double)(8 + 8 * var23.getStepX()), (double)(8 + 8 * var23.getStepY()), (double)(8 + 8 * var23.getStepZ())).color(1, 0, 0, 1).endVertex();
+                      }
+                   }
+-               }
+ 
+-               var2.end();
+-               RenderSystem.lineWidth(1.0F);
+-               if (var14 > 0) {
 -                  var3.begin(7, DefaultVertexFormat.POSITION_COLOR);
-+                  var3.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-                   float var25 = 0.5F;
-                   float var26 = 0.2F;
-                   var3.vertex(0.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
-                   var3.vertex(15.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
-                   var3.vertex(15.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
-@@ -1443,20 +1462,20 @@
+-                  float var25 = 0.5F;
+-                  float var26 = 0.2F;
+-                  var3.vertex(0.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 0.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 15.5D, 0.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 15.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(15.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var3.vertex(0.5D, 0.5D, 15.5D).color(0.9F, 0.9F, 0.0F, 0.2F).endVertex();
+-                  var2.end();
++                  ++var18;
+                }
+             }
++
++            var14.popPose();
++            RenderSystem.applyModelViewMatrix();
+          }
+ 
+          RenderSystem.depthMask(true);
+          RenderSystem.disableBlend();
+          RenderSystem.enableCull();
+@@ -1440,24 +1498,26 @@
+          RenderSystem.disableCull();
+          RenderSystem.disableTexture();
+          RenderSystem.enableBlend();
           RenderSystem.defaultBlendFunc();
           RenderSystem.lineWidth(10.0F);
-          RenderSystem.pushMatrix();
-          RenderSystem.translatef((float)(this.frustumPos.x - var1.getPosition().x), (float)(this.frustumPos.y - var1.getPosition().y), (float)(this.frustumPos.z - var1.getPosition().z));
+-         RenderSystem.pushMatrix();
+-         RenderSystem.translatef((float)(this.frustumPos.x - var1.getPosition().x), (float)(this.frustumPos.y - var1.getPosition().y), (float)(this.frustumPos.z - var1.getPosition().z));
++         PoseStack var25 = RenderSystem.getModelViewStack();
++         var25.pushPose();
++         var25.translate((double)((float)(this.frustumPos.x - var1.getPosition().x)), (double)((float)(this.frustumPos.y - var1.getPosition().y)), (double)((float)(this.frustumPos.z - var1.getPosition().z)));
++         RenderSystem.applyModelViewMatrix();
           RenderSystem.depthMask(true);
 -         var3.begin(7, DefaultVertexFormat.POSITION_COLOR);
 +         var3.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
@@ -568,13 +1254,47 @@
           var2.end();
           RenderSystem.depthMask(false);
 -         var3.begin(1, DefaultVertexFormat.POSITION);
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
 +         var3.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION);
-          RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
           this.addFrustumVertex(var3, 0);
           this.addFrustumVertex(var3, 1);
           this.addFrustumVertex(var3, 1);
           this.addFrustumVertex(var3, 2);
-@@ -1560,11 +1579,11 @@
+          this.addFrustumVertex(var3, 2);
+@@ -1479,11 +1539,12 @@
+          this.addFrustumVertex(var3, 2);
+          this.addFrustumVertex(var3, 6);
+          this.addFrustumVertex(var3, 3);
+          this.addFrustumVertex(var3, 7);
+          var2.end();
+-         RenderSystem.popMatrix();
++         var25.popPose();
++         RenderSystem.applyModelViewMatrix();
+          RenderSystem.depthMask(true);
+          RenderSystem.disableBlend();
+          RenderSystem.enableCull();
+          RenderSystem.enableTexture();
+          RenderSystem.lineWidth(1.0F);
+@@ -1529,15 +1590,15 @@
+       }
+ 
+    }
+ 
+    private void renderEndSky(PoseStack var1) {
+-      RenderSystem.disableAlphaTest();
+       RenderSystem.enableBlend();
+       RenderSystem.defaultBlendFunc();
+       RenderSystem.depthMask(false);
+-      this.textureManager.bind(END_SKY_LOCATION);
++      RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
++      RenderSystem.setShaderTexture(0, END_SKY_LOCATION);
+       Tesselator var2 = Tesselator.getInstance();
+       BufferBuilder var3 = var2.getBuilder();
+ 
+       for(int var4 = 0; var4 < 6; ++var4) {
+          var1.pushPose();
+@@ -1560,11 +1621,11 @@
           if (var4 == 5) {
              var1.mulPose(Vector3f.ZP.rotationDegrees(-90.0F));
           }
@@ -587,123 +1307,344 @@
           var3.vertex(var5, 100.0F, -100.0F, 100.0F).uv(16.0F, 16.0F).color(40, 40, 40, 255).endVertex();
           var3.vertex(var5, 100.0F, -100.0F, -100.0F).uv(16.0F, 0.0F).color(40, 40, 40, 255).endVertex();
           var2.end();
-@@ -1580,22 +1599,22 @@
-    public void renderSky(PoseStack var1, float var2) {
+@@ -1572,224 +1633,200 @@
+       }
+ 
+       RenderSystem.depthMask(true);
+       RenderSystem.enableTexture();
+       RenderSystem.disableBlend();
+-      RenderSystem.enableAlphaTest();
+    }
+ 
+-   public void renderSky(PoseStack var1, float var2) {
++   public void renderSky(PoseStack var1, Matrix4f var2, float var3) {
        if (this.minecraft.level.effects().skyType() == DimensionSpecialEffects.SkyType.END) {
           this.renderEndSky(var1);
        } else if (this.minecraft.level.effects().skyType() == DimensionSpecialEffects.SkyType.NORMAL) {
           RenderSystem.disableTexture();
 -         Vec3 var3 = this.level.getSkyColor(this.minecraft.gameRenderer.getMainCamera().getBlockPosition(), var2);
-+         Vec3 var3 = this.level.getSkyColor(this.minecraft.gameRenderer.getMainCamera().getPosition(), var2);
-          float var4 = (float)var3.x;
-          float var5 = (float)var3.y;
-          float var6 = (float)var3.z;
+-         float var4 = (float)var3.x;
+-         float var5 = (float)var3.y;
+-         float var6 = (float)var3.z;
++         Vec3 var4 = this.level.getSkyColor(this.minecraft.gameRenderer.getMainCamera().getPosition(), var3);
++         float var5 = (float)var4.x;
++         float var6 = (float)var4.y;
++         float var7 = (float)var4.z;
           FogRenderer.levelFogColor();
-          BufferBuilder var7 = Tesselator.getInstance().getBuilder();
+-         BufferBuilder var7 = Tesselator.getInstance().getBuilder();
++         BufferBuilder var8 = Tesselator.getInstance().getBuilder();
           RenderSystem.depthMask(false);
-          RenderSystem.enableFog();
-          RenderSystem.color3f(var4, var5, var6);
-          this.skyBuffer.bind();
-          this.skyFormat.setupBufferState(0L);
+-         RenderSystem.enableFog();
+-         RenderSystem.color3f(var4, var5, var6);
+-         this.skyBuffer.bind();
+-         this.skyFormat.setupBufferState(0L);
 -         this.skyBuffer.draw(var1.last().pose(), 7);
-+         this.skyBuffer.draw(var1.last().pose());
-          VertexBuffer.unbind();
-          this.skyFormat.clearBufferState();
-          RenderSystem.disableFog();
-          RenderSystem.disableAlphaTest();
+-         VertexBuffer.unbind();
+-         this.skyFormat.clearBufferState();
+-         RenderSystem.disableFog();
+-         RenderSystem.disableAlphaTest();
++         RenderSystem.setShaderColor(var5, var6, var7);
++         ShaderInstance var9 = RenderSystem.getShader();
++         this.skyBuffer.drawWithShader(var1.last().pose(), var2, var9);
           RenderSystem.enableBlend();
-@@ -1616,11 +1635,11 @@
+          RenderSystem.defaultBlendFunc();
+-         float[] var8 = this.level.effects().getSunriseColor(this.level.getTimeOfDay(var2), var2);
+-         float var9;
++         float[] var10 = this.level.effects().getSunriseColor(this.level.getTimeOfDay(var3), var3);
+          float var11;
+-         float var16;
+-         float var17;
++         float var13;
+          float var18;
+-         if (var8 != null) {
++         float var19;
++         float var20;
++         if (var10 != null) {
++            RenderSystem.setShader(GameRenderer::getPositionColorShader);
+             RenderSystem.disableTexture();
+-            RenderSystem.shadeModel(7425);
++            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F);
+             var1.pushPose();
+             var1.mulPose(Vector3f.XP.rotationDegrees(90.0F));
+-            var9 = Mth.sin(this.level.getSunAngle(var2)) < 0.0F ? 180.0F : 0.0F;
+-            var1.mulPose(Vector3f.ZP.rotationDegrees(var9));
++            var11 = Mth.sin(this.level.getSunAngle(var3)) < 0.0F ? 180.0F : 0.0F;
++            var1.mulPose(Vector3f.ZP.rotationDegrees(var11));
              var1.mulPose(Vector3f.ZP.rotationDegrees(90.0F));
-             float var10 = var8[0];
-             var11 = var8[1];
-             float var12 = var8[2];
-             Matrix4f var13 = var1.last().pose();
+-            float var10 = var8[0];
+-            var11 = var8[1];
+-            float var12 = var8[2];
+-            Matrix4f var13 = var1.last().pose();
 -            var7.begin(6, DefaultVertexFormat.POSITION_COLOR);
-+            var7.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_COLOR);
-             var7.vertex(var13, 0.0F, 100.0F, 0.0F).color(var10, var11, var12, var8[3]).endVertex();
-             boolean var14 = true;
+-            var7.vertex(var13, 0.0F, 100.0F, 0.0F).color(var10, var11, var12, var8[3]).endVertex();
+-            boolean var14 = true;
++            float var12 = var10[0];
++            var13 = var10[1];
++            float var14 = var10[2];
++            Matrix4f var15 = var1.last().pose();
++            var8.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_COLOR);
++            var8.vertex(var15, 0.0F, 100.0F, 0.0F).color(var12, var13, var14, var10[3]).endVertex();
++            boolean var16 = true;
  
-             for(int var15 = 0; var15 <= 16; ++var15) {
-                var16 = (float)var15 * 6.2831855F / 16.0F;
-@@ -1643,11 +1662,11 @@
-          var1.mulPose(Vector3f.YP.rotationDegrees(-90.0F));
-          var1.mulPose(Vector3f.XP.rotationDegrees(this.level.getTimeOfDay(var2) * 360.0F));
-          Matrix4f var21 = var1.last().pose();
-          var11 = 30.0F;
-          this.textureManager.bind(SUN_LOCATION);
--         var7.begin(7, DefaultVertexFormat.POSITION_TEX);
-+         var7.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-          var7.vertex(var21, -var11, 100.0F, -var11).uv(0.0F, 0.0F).endVertex();
-          var7.vertex(var21, var11, 100.0F, -var11).uv(1.0F, 0.0F).endVertex();
-          var7.vertex(var21, var11, 100.0F, var11).uv(1.0F, 1.0F).endVertex();
-          var7.vertex(var21, -var11, 100.0F, var11).uv(0.0F, 1.0F).endVertex();
-          var7.end();
-@@ -1659,11 +1678,11 @@
-          int var24 = var22 / 4 % 2;
-          float var25 = (float)(var23 + 0) / 4.0F;
-          var16 = (float)(var24 + 0) / 2.0F;
-          var17 = (float)(var23 + 1) / 4.0F;
-          var18 = (float)(var24 + 1) / 2.0F;
--         var7.begin(7, DefaultVertexFormat.POSITION_TEX);
-+         var7.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-          var7.vertex(var21, -var11, -100.0F, var11).uv(var17, var18).endVertex();
-          var7.vertex(var21, var11, -100.0F, var11).uv(var25, var18).endVertex();
-          var7.vertex(var21, var11, -100.0F, -var11).uv(var25, var16).endVertex();
-          var7.vertex(var21, -var11, -100.0F, -var11).uv(var17, var16).endVertex();
-          var7.end();
-@@ -1672,11 +1691,11 @@
-          float var19 = this.level.getStarBrightness(var2) * var9;
-          if (var19 > 0.0F) {
-             RenderSystem.color4f(var19, var19, var19, var19);
-             this.starBuffer.bind();
-             this.skyFormat.setupBufferState(0L);
--            this.starBuffer.draw(var1.last().pose(), 7);
-+            this.starBuffer.draw(var1.last().pose());
-             VertexBuffer.unbind();
-             this.skyFormat.clearBufferState();
+-            for(int var15 = 0; var15 <= 16; ++var15) {
+-               var16 = (float)var15 * 6.2831855F / 16.0F;
+-               var17 = Mth.sin(var16);
+-               var18 = Mth.cos(var16);
+-               var7.vertex(var13, var17 * 120.0F, var18 * 120.0F, -var18 * 40.0F * var8[3]).color(var8[0], var8[1], var8[2], 0.0F).endVertex();
++            for(int var17 = 0; var17 <= 16; ++var17) {
++               var18 = (float)var17 * 6.2831855F / 16.0F;
++               var19 = Mth.sin(var18);
++               var20 = Mth.cos(var18);
++               var8.vertex(var15, var19 * 120.0F, var20 * 120.0F, -var20 * 40.0F * var10[3]).color(var10[0], var10[1], var10[2], 0.0F).endVertex();
+             }
+ 
+-            var7.end();
+-            BufferUploader.end(var7);
++            var8.end();
++            BufferUploader.end(var8);
+             var1.popPose();
+-            RenderSystem.shadeModel(7424);
           }
  
-          RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
-@@ -1690,11 +1709,11 @@
-          if (var20 < 0.0D) {
+          RenderSystem.enableTexture();
+          RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+          var1.pushPose();
+-         var9 = 1.0F - this.level.getRainLevel(var2);
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, var9);
++         var11 = 1.0F - this.level.getRainLevel(var3);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, var11);
+          var1.mulPose(Vector3f.YP.rotationDegrees(-90.0F));
+-         var1.mulPose(Vector3f.XP.rotationDegrees(this.level.getTimeOfDay(var2) * 360.0F));
+-         Matrix4f var21 = var1.last().pose();
+-         var11 = 30.0F;
+-         this.textureManager.bind(SUN_LOCATION);
+-         var7.begin(7, DefaultVertexFormat.POSITION_TEX);
+-         var7.vertex(var21, -var11, 100.0F, -var11).uv(0.0F, 0.0F).endVertex();
+-         var7.vertex(var21, var11, 100.0F, -var11).uv(1.0F, 0.0F).endVertex();
+-         var7.vertex(var21, var11, 100.0F, var11).uv(1.0F, 1.0F).endVertex();
+-         var7.vertex(var21, -var11, 100.0F, var11).uv(0.0F, 1.0F).endVertex();
+-         var7.end();
+-         BufferUploader.end(var7);
+-         var11 = 20.0F;
+-         this.textureManager.bind(MOON_LOCATION);
+-         int var22 = this.level.getMoonPhase();
+-         int var23 = var22 % 4;
+-         int var24 = var22 / 4 % 2;
+-         float var25 = (float)(var23 + 0) / 4.0F;
+-         var16 = (float)(var24 + 0) / 2.0F;
+-         var17 = (float)(var23 + 1) / 4.0F;
+-         var18 = (float)(var24 + 1) / 2.0F;
+-         var7.begin(7, DefaultVertexFormat.POSITION_TEX);
+-         var7.vertex(var21, -var11, -100.0F, var11).uv(var17, var18).endVertex();
+-         var7.vertex(var21, var11, -100.0F, var11).uv(var25, var18).endVertex();
+-         var7.vertex(var21, var11, -100.0F, -var11).uv(var25, var16).endVertex();
+-         var7.vertex(var21, -var11, -100.0F, -var11).uv(var17, var16).endVertex();
+-         var7.end();
+-         BufferUploader.end(var7);
++         var1.mulPose(Vector3f.XP.rotationDegrees(this.level.getTimeOfDay(var3) * 360.0F));
++         Matrix4f var23 = var1.last().pose();
++         var13 = 30.0F;
++         RenderSystem.setShader(GameRenderer::getPositionTexShader);
++         RenderSystem.setShaderTexture(0, SUN_LOCATION);
++         var8.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
++         var8.vertex(var23, -var13, 100.0F, -var13).uv(0.0F, 0.0F).endVertex();
++         var8.vertex(var23, var13, 100.0F, -var13).uv(1.0F, 0.0F).endVertex();
++         var8.vertex(var23, var13, 100.0F, var13).uv(1.0F, 1.0F).endVertex();
++         var8.vertex(var23, -var13, 100.0F, var13).uv(0.0F, 1.0F).endVertex();
++         var8.end();
++         BufferUploader.end(var8);
++         var13 = 20.0F;
++         RenderSystem.setShaderTexture(0, MOON_LOCATION);
++         int var24 = this.level.getMoonPhase();
++         int var25 = var24 % 4;
++         int var26 = var24 / 4 % 2;
++         float var27 = (float)(var25 + 0) / 4.0F;
++         var18 = (float)(var26 + 0) / 2.0F;
++         var19 = (float)(var25 + 1) / 4.0F;
++         var20 = (float)(var26 + 1) / 2.0F;
++         var8.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
++         var8.vertex(var23, -var13, -100.0F, var13).uv(var19, var20).endVertex();
++         var8.vertex(var23, var13, -100.0F, var13).uv(var27, var20).endVertex();
++         var8.vertex(var23, var13, -100.0F, -var13).uv(var27, var18).endVertex();
++         var8.vertex(var23, -var13, -100.0F, -var13).uv(var19, var18).endVertex();
++         var8.end();
++         BufferUploader.end(var8);
+          RenderSystem.disableTexture();
+-         float var19 = this.level.getStarBrightness(var2) * var9;
+-         if (var19 > 0.0F) {
+-            RenderSystem.color4f(var19, var19, var19, var19);
+-            this.starBuffer.bind();
+-            this.skyFormat.setupBufferState(0L);
+-            this.starBuffer.draw(var1.last().pose(), 7);
+-            VertexBuffer.unbind();
+-            this.skyFormat.clearBufferState();
++         float var21 = this.level.getStarBrightness(var3) * var11;
++         if (var21 > 0.0F) {
++            RenderSystem.setShaderColor(var21, var21, var21, var21);
++            this.starBuffer.drawWithShader(var1.last().pose(), var2, GameRenderer.getPositionShader());
+          }
+ 
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+          RenderSystem.disableBlend();
+-         RenderSystem.enableAlphaTest();
+-         RenderSystem.enableFog();
+          var1.popPose();
+          RenderSystem.disableTexture();
+-         RenderSystem.color3f(0.0F, 0.0F, 0.0F);
+-         double var20 = this.minecraft.player.getEyePosition(var2).y - this.level.getLevelData().getHorizonHeight();
+-         if (var20 < 0.0D) {
++         RenderSystem.setShaderColor(0.0F, 0.0F, 0.0F);
++         double var22 = this.minecraft.player.getEyePosition(var3).y - this.level.getLevelData().getHorizonHeight();
++         if (var22 < 0.0D) {
              var1.pushPose();
              var1.translate(0.0D, 12.0D, 0.0D);
-             this.darkBuffer.bind();
-             this.skyFormat.setupBufferState(0L);
+-            this.darkBuffer.bind();
+-            this.skyFormat.setupBufferState(0L);
 -            this.darkBuffer.draw(var1.last().pose(), 7);
-+            this.darkBuffer.draw(var1.last().pose());
-             VertexBuffer.unbind();
-             this.skyFormat.clearBufferState();
+-            VertexBuffer.unbind();
+-            this.skyFormat.clearBufferState();
++            this.darkBuffer.drawWithShader(var1.last().pose(), var2, var9);
              var1.popPose();
           }
  
-@@ -1751,11 +1770,11 @@
-             BufferBuilder var29 = Tesselator.getInstance().getBuilder();
+          if (this.level.effects().hasGround()) {
+-            RenderSystem.color3f(var4 * 0.2F + 0.04F, var5 * 0.2F + 0.04F, var6 * 0.6F + 0.1F);
++            RenderSystem.setShaderColor(var5 * 0.2F + 0.04F, var6 * 0.2F + 0.04F, var7 * 0.6F + 0.1F);
+          } else {
+-            RenderSystem.color3f(var4, var5, var6);
++            RenderSystem.setShaderColor(var5, var6, var7);
+          }
+ 
+          RenderSystem.enableTexture();
+          RenderSystem.depthMask(true);
+-         RenderSystem.disableFog();
+       }
+    }
+ 
+-   public void renderClouds(PoseStack var1, float var2, double var3, double var5, double var7) {
+-      float var9 = this.level.effects().getCloudHeight();
+-      if (!Float.isNaN(var9)) {
++   public void renderClouds(PoseStack var1, Matrix4f var2, float var3, double var4, double var6, double var8) {
++      float var10 = this.level.effects().getCloudHeight();
++      if (!Float.isNaN(var10)) {
+          RenderSystem.disableCull();
+          RenderSystem.enableBlend();
+-         RenderSystem.enableAlphaTest();
+          RenderSystem.enableDepthTest();
+-         RenderSystem.defaultAlphaFunc();
+          RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+-         RenderSystem.enableFog();
+          RenderSystem.depthMask(true);
+-         float var10 = 12.0F;
+-         float var11 = 4.0F;
+-         double var12 = 2.0E-4D;
+-         double var14 = (double)(((float)this.ticks + var2) * 0.03F);
+-         double var16 = (var3 + var14) / 12.0D;
+-         double var18 = (double)(var9 - (float)var5 + 0.33F);
+-         double var20 = var7 / 12.0D + 0.33000001311302185D;
+-         var16 -= (double)(Mth.floor(var16 / 2048.0D) * 2048);
+-         var20 -= (double)(Mth.floor(var20 / 2048.0D) * 2048);
+-         float var22 = (float)(var16 - (double)Mth.floor(var16));
+-         float var23 = (float)(var18 / 4.0D - (double)Mth.floor(var18 / 4.0D)) * 4.0F;
+-         float var24 = (float)(var20 - (double)Mth.floor(var20));
+-         Vec3 var25 = this.level.getCloudColor(var2);
+-         int var26 = (int)Math.floor(var16);
+-         int var27 = (int)Math.floor(var18 / 4.0D);
+-         int var28 = (int)Math.floor(var20);
+-         if (var26 != this.prevCloudX || var27 != this.prevCloudY || var28 != this.prevCloudZ || this.minecraft.options.getCloudsType() != this.prevCloudsType || this.prevCloudColor.distanceToSqr(var25) > 2.0E-4D) {
+-            this.prevCloudX = var26;
+-            this.prevCloudY = var27;
+-            this.prevCloudZ = var28;
+-            this.prevCloudColor = var25;
++         float var11 = 12.0F;
++         float var12 = 4.0F;
++         double var13 = 2.0E-4D;
++         double var15 = (double)(((float)this.ticks + var3) * 0.03F);
++         double var17 = (var4 + var15) / 12.0D;
++         double var19 = (double)(var10 - (float)var6 + 0.33F);
++         double var21 = var8 / 12.0D + 0.33000001311302185D;
++         var17 -= (double)(Mth.floor(var17 / 2048.0D) * 2048);
++         var21 -= (double)(Mth.floor(var21 / 2048.0D) * 2048);
++         float var23 = (float)(var17 - (double)Mth.floor(var17));
++         float var24 = (float)(var19 / 4.0D - (double)Mth.floor(var19 / 4.0D)) * 4.0F;
++         float var25 = (float)(var21 - (double)Mth.floor(var21));
++         Vec3 var26 = this.level.getCloudColor(var3);
++         int var27 = (int)Math.floor(var17);
++         int var28 = (int)Math.floor(var19 / 4.0D);
++         int var29 = (int)Math.floor(var21);
++         if (var27 != this.prevCloudX || var28 != this.prevCloudY || var29 != this.prevCloudZ || this.minecraft.options.getCloudsType() != this.prevCloudsType || this.prevCloudColor.distanceToSqr(var26) > 2.0E-4D) {
++            this.prevCloudX = var27;
++            this.prevCloudY = var28;
++            this.prevCloudZ = var29;
++            this.prevCloudColor = var26;
+             this.prevCloudsType = this.minecraft.options.getCloudsType();
+             this.generateClouds = true;
+          }
+ 
+          if (this.generateClouds) {
+             this.generateClouds = false;
+-            BufferBuilder var29 = Tesselator.getInstance().getBuilder();
++            BufferBuilder var30 = Tesselator.getInstance().getBuilder();
              if (this.cloudBuffer != null) {
                 this.cloudBuffer.close();
              }
  
 -            this.cloudBuffer = new VertexBuffer(DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+-            this.buildClouds(var29, var16, var18, var20, var25);
+-            var29.end();
+-            this.cloudBuffer.upload(var29);
 +            this.cloudBuffer = new VertexBuffer();
-             this.buildClouds(var29, var16, var18, var20, var25);
-             var29.end();
-             this.cloudBuffer.upload(var29);
++            this.buildClouds(var30, var17, var19, var21, var26);
++            var30.end();
++            this.cloudBuffer.upload(var30);
           }
  
-@@ -1773,11 +1792,11 @@
+-         this.textureManager.bind(CLOUDS_LOCATION);
++         RenderSystem.setShader(GameRenderer::getPositionTexColorNormalShader);
++         RenderSystem.setShaderTexture(0, CLOUDS_LOCATION);
++         FogRenderer.levelFogColor();
+          var1.pushPose();
+          var1.scale(12.0F, 1.0F, 12.0F);
+-         var1.translate((double)(-var22), (double)var23, (double)(-var24));
++         var1.translate((double)(-var23), (double)var24, (double)(-var25));
+          if (this.cloudBuffer != null) {
+-            this.cloudBuffer.bind();
+-            DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL.setupBufferState(0L);
+-            int var31 = this.prevCloudsType == CloudStatus.FANCY ? 0 : 1;
++            int var33 = this.prevCloudsType == CloudStatus.FANCY ? 0 : 1;
+ 
+-            for(int var30 = var31; var30 < 2; ++var30) {
+-               if (var30 == 0) {
++            for(int var31 = var33; var31 < 2; ++var31) {
++               if (var31 == 0) {
                    RenderSystem.colorMask(false, false, false, false);
                 } else {
                    RenderSystem.colorMask(true, true, true, true);
                 }
  
 -               this.cloudBuffer.draw(var1.last().pose(), 7);
-+               this.cloudBuffer.draw(var1.last().pose());
++               ShaderInstance var32 = RenderSystem.getShader();
++               this.cloudBuffer.drawWithShader(var1.last().pose(), var2, var32);
              }
- 
-             VertexBuffer.unbind();
-             DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL.clearBufferState();
+-
+-            VertexBuffer.unbind();
+-            DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL.clearBufferState();
           }
-@@ -1809,11 +1828,11 @@
+ 
+          var1.popPose();
+-         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+-         RenderSystem.disableAlphaTest();
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+          RenderSystem.enableCull();
+          RenderSystem.disableBlend();
+-         RenderSystem.disableFog();
+       }
+    }
+ 
+    private void buildClouds(BufferBuilder var1, double var2, double var4, double var6, Vec3 var8) {
+       float var9 = 4.0F;
+@@ -1809,11 +1846,11 @@
        float var23 = var17 * 0.7F;
        float var24 = var18 * 0.7F;
        float var25 = var16 * 0.8F;
@@ -716,7 +1657,7 @@
           for(int var29 = -3; var29 <= 4; ++var29) {
              for(int var30 = -3; var30 <= 4; ++var30) {
                 float var31 = (float)(var29 * 8);
-@@ -1914,20 +1933,20 @@
+@@ -1914,122 +1951,117 @@
           }
        }
  
@@ -738,105 +1679,158 @@
           RenderSystem.enableBlend();
           RenderSystem.enableDepthTest();
           RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
-          this.textureManager.bind(FORCEFIELD_LOCATION);
+-         this.textureManager.bind(FORCEFIELD_LOCATION);
++         RenderSystem.setShaderTexture(0, FORCEFIELD_LOCATION);
           RenderSystem.depthMask(Minecraft.useShaderTransparency());
-@@ -1943,72 +1962,72 @@
-          RenderSystem.enableAlphaTest();
+-         RenderSystem.pushMatrix();
+-         int var14 = var3.getStatus().getColor();
+-         float var15 = (float)(var14 >> 16 & 255) / 255.0F;
+-         float var16 = (float)(var14 >> 8 & 255) / 255.0F;
+-         float var17 = (float)(var14 & 255) / 255.0F;
+-         RenderSystem.color4f(var15, var16, var17, (float)var6);
++         PoseStack var14 = RenderSystem.getModelViewStack();
++         var14.pushPose();
++         RenderSystem.applyModelViewMatrix();
++         int var15 = var3.getStatus().getColor();
++         float var16 = (float)(var15 >> 16 & 255) / 255.0F;
++         float var17 = (float)(var15 >> 8 & 255) / 255.0F;
++         float var18 = (float)(var15 & 255) / 255.0F;
++         RenderSystem.setShaderColor(var16, var17, var18, (float)var6);
+          RenderSystem.polygonOffset(-3.0F, -3.0F);
+          RenderSystem.enablePolygonOffset();
+-         RenderSystem.defaultAlphaFunc();
+-         RenderSystem.enableAlphaTest();
           RenderSystem.disableCull();
-          float var18 = (float)(Util.getMillis() % 3000L) / 3000.0F;
-          float var19 = 0.0F;
+-         float var18 = (float)(Util.getMillis() % 3000L) / 3000.0F;
+-         float var19 = 0.0F;
++         float var19 = (float)(Util.getMillis() % 3000L) / 3000.0F;
           float var20 = 0.0F;
 -         float var21 = 128.0F;
 -         var2.begin(7, DefaultVertexFormat.POSITION_TEX);
 -         double var22 = Math.max((double)Mth.floor(var12 - var4), var3.getMinZ());
 -         double var24 = Math.min((double)Mth.ceil(var12 + var4), var3.getMaxZ());
-+         float var21 = (float)var12;
+-         float var26;
+-         double var27;
+-         double var29;
+-         float var31;
++         float var21 = 0.0F;
++         float var22 = (float)var12;
 +         var2.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-+         double var22 = Math.max((double)Mth.floor(var10 - var4), var3.getMinZ());
-+         double var24 = Math.min((double)Mth.ceil(var10 + var4), var3.getMaxZ());
-          float var26;
-          double var27;
-          double var29;
-          float var31;
++         double var23 = Math.max((double)Mth.floor(var10 - var4), var3.getMinZ());
++         double var25 = Math.min((double)Mth.ceil(var10 + var4), var3.getMaxZ());
++         float var32;
++         float var27;
++         double var28;
++         double var30;
           if (var8 > var3.getMaxX() - var4) {
-             var26 = 0.0F;
+-            var26 = 0.0F;
++            var27 = 0.0F;
  
-             for(var27 = var22; var27 < var24; var26 += 0.5F) {
-                var29 = Math.min(1.0D, var24 - var27);
-                var31 = (float)var29 * 0.5F;
+-            for(var27 = var22; var27 < var24; var26 += 0.5F) {
+-               var29 = Math.min(1.0D, var24 - var27);
+-               var31 = (float)var29 * 0.5F;
 -               this.vertex(var2, var8, var10, var12, var3.getMaxX(), 256, var27, var18 + var26, var18 + 0.0F);
 -               this.vertex(var2, var8, var10, var12, var3.getMaxX(), 256, var27 + var29, var18 + var31 + var26, var18 + 0.0F);
 -               this.vertex(var2, var8, var10, var12, var3.getMaxX(), 0, var27 + var29, var18 + var31 + var26, var18 + 128.0F);
 -               this.vertex(var2, var8, var10, var12, var3.getMaxX(), 0, var27, var18 + var26, var18 + 128.0F);
-+               var2.vertex(var3.getMaxX() - var8, -var12, var27 - var10).uv(var18 + var26, var18 + 0.0F).endVertex();
-+               var2.vertex(var3.getMaxX() - var8, -var12, var27 + var29 - var10).uv(var18 + var31 + var26, var18 + 0.0F).endVertex();
-+               var2.vertex(var3.getMaxX() - var8, var12, var27 + var29 - var10).uv(var18 + var31 + var26, var18 + var21).endVertex();
-+               var2.vertex(var3.getMaxX() - var8, var12, var27 - var10).uv(var18 + var26, var18 + var21).endVertex();
-                ++var27;
+-               ++var27;
++            for(var28 = var23; var28 < var25; var27 += 0.5F) {
++               var30 = Math.min(1.0D, var25 - var28);
++               var32 = (float)var30 * 0.5F;
++               var2.vertex(var3.getMaxX() - var8, -var12, var28 - var10).uv(var19 + var27, var19 + 0.0F).endVertex();
++               var2.vertex(var3.getMaxX() - var8, -var12, var28 + var30 - var10).uv(var19 + var32 + var27, var19 + 0.0F).endVertex();
++               var2.vertex(var3.getMaxX() - var8, var12, var28 + var30 - var10).uv(var19 + var32 + var27, var19 + var22).endVertex();
++               var2.vertex(var3.getMaxX() - var8, var12, var28 - var10).uv(var19 + var27, var19 + var22).endVertex();
++               ++var28;
              }
           }
  
           if (var8 < var3.getMinX() + var4) {
-             var26 = 0.0F;
+-            var26 = 0.0F;
++            var27 = 0.0F;
  
-             for(var27 = var22; var27 < var24; var26 += 0.5F) {
-                var29 = Math.min(1.0D, var24 - var27);
-                var31 = (float)var29 * 0.5F;
+-            for(var27 = var22; var27 < var24; var26 += 0.5F) {
+-               var29 = Math.min(1.0D, var24 - var27);
+-               var31 = (float)var29 * 0.5F;
 -               this.vertex(var2, var8, var10, var12, var3.getMinX(), 256, var27, var18 + var26, var18 + 0.0F);
 -               this.vertex(var2, var8, var10, var12, var3.getMinX(), 256, var27 + var29, var18 + var31 + var26, var18 + 0.0F);
 -               this.vertex(var2, var8, var10, var12, var3.getMinX(), 0, var27 + var29, var18 + var31 + var26, var18 + 128.0F);
 -               this.vertex(var2, var8, var10, var12, var3.getMinX(), 0, var27, var18 + var26, var18 + 128.0F);
-+               var2.vertex(var3.getMinX() - var8, -var12, var27 - var10).uv(var18 + var26, var18 + 0.0F).endVertex();
-+               var2.vertex(var3.getMinX() - var8, -var12, var27 + var29 - var10).uv(var18 + var31 + var26, var18 + 0.0F).endVertex();
-+               var2.vertex(var3.getMinX() - var8, var12, var27 + var29 - var10).uv(var18 + var31 + var26, var18 + var21).endVertex();
-+               var2.vertex(var3.getMinX() - var8, var12, var27 - var10).uv(var18 + var26, var18 + var21).endVertex();
-                ++var27;
+-               ++var27;
++            for(var28 = var23; var28 < var25; var27 += 0.5F) {
++               var30 = Math.min(1.0D, var25 - var28);
++               var32 = (float)var30 * 0.5F;
++               var2.vertex(var3.getMinX() - var8, -var12, var28 - var10).uv(var19 + var27, var19 + 0.0F).endVertex();
++               var2.vertex(var3.getMinX() - var8, -var12, var28 + var30 - var10).uv(var19 + var32 + var27, var19 + 0.0F).endVertex();
++               var2.vertex(var3.getMinX() - var8, var12, var28 + var30 - var10).uv(var19 + var32 + var27, var19 + var22).endVertex();
++               var2.vertex(var3.getMinX() - var8, var12, var28 - var10).uv(var19 + var27, var19 + var22).endVertex();
++               ++var28;
              }
           }
  
-          var22 = Math.max((double)Mth.floor(var8 - var4), var3.getMinX());
-          var24 = Math.min((double)Mth.ceil(var8 + var4), var3.getMaxX());
+-         var22 = Math.max((double)Mth.floor(var8 - var4), var3.getMinX());
+-         var24 = Math.min((double)Mth.ceil(var8 + var4), var3.getMaxX());
 -         if (var12 > var3.getMaxZ() - var4) {
+-            var26 = 0.0F;
++         var23 = Math.max((double)Mth.floor(var8 - var4), var3.getMinX());
++         var25 = Math.min((double)Mth.ceil(var8 + var4), var3.getMaxX());
 +         if (var10 > var3.getMaxZ() - var4) {
-             var26 = 0.0F;
++            var27 = 0.0F;
  
-             for(var27 = var22; var27 < var24; var26 += 0.5F) {
-                var29 = Math.min(1.0D, var24 - var27);
-                var31 = (float)var29 * 0.5F;
+-            for(var27 = var22; var27 < var24; var26 += 0.5F) {
+-               var29 = Math.min(1.0D, var24 - var27);
+-               var31 = (float)var29 * 0.5F;
 -               this.vertex(var2, var8, var10, var12, var27, 256, var3.getMaxZ(), var18 + var26, var18 + 0.0F);
 -               this.vertex(var2, var8, var10, var12, var27 + var29, 256, var3.getMaxZ(), var18 + var31 + var26, var18 + 0.0F);
 -               this.vertex(var2, var8, var10, var12, var27 + var29, 0, var3.getMaxZ(), var18 + var31 + var26, var18 + 128.0F);
 -               this.vertex(var2, var8, var10, var12, var27, 0, var3.getMaxZ(), var18 + var26, var18 + 128.0F);
-+               var2.vertex(var27 - var8, -var12, var3.getMaxZ() - var10).uv(var18 + var26, var18 + 0.0F).endVertex();
-+               var2.vertex(var27 + var29 - var8, -var12, var3.getMaxZ() - var10).uv(var18 + var31 + var26, var18 + 0.0F).endVertex();
-+               var2.vertex(var27 + var29 - var8, var12, var3.getMaxZ() - var10).uv(var18 + var31 + var26, var18 + var21).endVertex();
-+               var2.vertex(var27 - var8, var12, var3.getMaxZ() - var10).uv(var18 + var26, var18 + var21).endVertex();
-                ++var27;
+-               ++var27;
++            for(var28 = var23; var28 < var25; var27 += 0.5F) {
++               var30 = Math.min(1.0D, var25 - var28);
++               var32 = (float)var30 * 0.5F;
++               var2.vertex(var28 - var8, -var12, var3.getMaxZ() - var10).uv(var19 + var27, var19 + 0.0F).endVertex();
++               var2.vertex(var28 + var30 - var8, -var12, var3.getMaxZ() - var10).uv(var19 + var32 + var27, var19 + 0.0F).endVertex();
++               var2.vertex(var28 + var30 - var8, var12, var3.getMaxZ() - var10).uv(var19 + var32 + var27, var19 + var22).endVertex();
++               var2.vertex(var28 - var8, var12, var3.getMaxZ() - var10).uv(var19 + var27, var19 + var22).endVertex();
++               ++var28;
              }
           }
  
 -         if (var12 < var3.getMinZ() + var4) {
+-            var26 = 0.0F;
 +         if (var10 < var3.getMinZ() + var4) {
-             var26 = 0.0F;
++            var27 = 0.0F;
  
-             for(var27 = var22; var27 < var24; var26 += 0.5F) {
-                var29 = Math.min(1.0D, var24 - var27);
-                var31 = (float)var29 * 0.5F;
+-            for(var27 = var22; var27 < var24; var26 += 0.5F) {
+-               var29 = Math.min(1.0D, var24 - var27);
+-               var31 = (float)var29 * 0.5F;
 -               this.vertex(var2, var8, var10, var12, var27, 256, var3.getMinZ(), var18 + var26, var18 + 0.0F);
 -               this.vertex(var2, var8, var10, var12, var27 + var29, 256, var3.getMinZ(), var18 + var31 + var26, var18 + 0.0F);
 -               this.vertex(var2, var8, var10, var12, var27 + var29, 0, var3.getMinZ(), var18 + var31 + var26, var18 + 128.0F);
 -               this.vertex(var2, var8, var10, var12, var27, 0, var3.getMinZ(), var18 + var26, var18 + 128.0F);
-+               var2.vertex(var27 - var8, -var12, var3.getMinZ() - var10).uv(var18 + var26, var18 + 0.0F).endVertex();
-+               var2.vertex(var27 + var29 - var8, -var12, var3.getMinZ() - var10).uv(var18 + var31 + var26, var18 + 0.0F).endVertex();
-+               var2.vertex(var27 + var29 - var8, var12, var3.getMinZ() - var10).uv(var18 + var31 + var26, var18 + var21).endVertex();
-+               var2.vertex(var27 - var8, var12, var3.getMinZ() - var10).uv(var18 + var26, var18 + var21).endVertex();
-                ++var27;
+-               ++var27;
++            for(var28 = var23; var28 < var25; var27 += 0.5F) {
++               var30 = Math.min(1.0D, var25 - var28);
++               var32 = (float)var30 * 0.5F;
++               var2.vertex(var28 - var8, -var12, var3.getMinZ() - var10).uv(var19 + var27, var19 + 0.0F).endVertex();
++               var2.vertex(var28 + var30 - var8, -var12, var3.getMinZ() - var10).uv(var19 + var32 + var27, var19 + 0.0F).endVertex();
++               var2.vertex(var28 + var30 - var8, var12, var3.getMinZ() - var10).uv(var19 + var32 + var27, var19 + var22).endVertex();
++               var2.vertex(var28 - var8, var12, var3.getMinZ() - var10).uv(var19 + var27, var19 + var22).endVertex();
++               ++var28;
              }
           }
  
           var2.end();
-@@ -2022,14 +2041,10 @@
-          RenderSystem.popMatrix();
+          BufferUploader.end(var2);
+          RenderSystem.enableCull();
+-         RenderSystem.disableAlphaTest();
+          RenderSystem.polygonOffset(0.0F, 0.0F);
+          RenderSystem.disablePolygonOffset();
+-         RenderSystem.enableAlphaTest();
+          RenderSystem.disableBlend();
+-         RenderSystem.popMatrix();
++         var14.popPose();
++         RenderSystem.applyModelViewMatrix();
           RenderSystem.depthMask(true);
        }
     }
@@ -850,7 +1844,91 @@
     }
  
     public static void renderVoxelShape(PoseStack var0, VertexConsumer var1, VoxelShape var2, double var3, double var5, double var7, float var9, float var10, float var11, float var12) {
-@@ -2137,22 +2152,22 @@
+@@ -2047,14 +2079,21 @@
+       }
+ 
+    }
+ 
+    private static void renderShape(PoseStack var0, VertexConsumer var1, VoxelShape var2, double var3, double var5, double var7, float var9, float var10, float var11, float var12) {
+-      Matrix4f var13 = var0.last().pose();
++      PoseStack.Pose var13 = var0.last();
+       var2.forAllEdges((var12x, var14, var16, var18, var20, var22) -> {
+-         var1.vertex(var13, (float)(var12x + var3), (float)(var14 + var5), (float)(var16 + var7)).color(var9, var10, var11, var12).endVertex();
+-         var1.vertex(var13, (float)(var18 + var3), (float)(var20 + var5), (float)(var22 + var7)).color(var9, var10, var11, var12).endVertex();
++         float var24 = (float)(var18 - var12x);
++         float var25 = (float)(var20 - var14);
++         float var26 = (float)(var22 - var16);
++         float var27 = Mth.sqrt(var24 * var24 + var25 * var25 + var26 * var26);
++         var24 /= var27;
++         var25 /= var27;
++         var26 /= var27;
++         var1.vertex(var13.pose(), (float)(var12x + var3), (float)(var14 + var5), (float)(var16 + var7)).color(var9, var10, var11, var12).normal(var13.normal(), var24, var25, var26).endVertex();
++         var1.vertex(var13.pose(), (float)(var18 + var3), (float)(var20 + var5), (float)(var22 + var7)).color(var9, var10, var11, var12).normal(var13.normal(), var24, var25, var26).endVertex();
+       });
+    }
+ 
+    public static void renderLineBox(PoseStack var0, VertexConsumer var1, AABB var2, float var3, float var4, float var5, float var6) {
+       renderLineBox(var0, var1, var2.minX, var2.minY, var2.minZ, var2.maxX, var2.maxY, var2.maxZ, var3, var4, var5, var6, var3, var4, var5);
+@@ -2070,34 +2109,34 @@
+       float var23 = (float)var4;
+       float var24 = (float)var6;
+       float var25 = (float)var8;
+       float var26 = (float)var10;
+       float var27 = (float)var12;
+-      var1.vertex(var21, var22, var23, var24).color(var14, var19, var20, var17).endVertex();
+-      var1.vertex(var21, var25, var23, var24).color(var14, var19, var20, var17).endVertex();
+-      var1.vertex(var21, var22, var23, var24).color(var18, var15, var20, var17).endVertex();
+-      var1.vertex(var21, var22, var26, var24).color(var18, var15, var20, var17).endVertex();
+-      var1.vertex(var21, var22, var23, var24).color(var18, var19, var16, var17).endVertex();
+-      var1.vertex(var21, var22, var23, var27).color(var18, var19, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var23, var24).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var26, var24).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var26, var24).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var22, var26, var24).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var22, var26, var24).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var22, var26, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var22, var26, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var22, var23, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var22, var23, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var23, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var23, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var23, var24).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var22, var26, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var26, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var23, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var26, var27).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var26, var24).color(var14, var15, var16, var17).endVertex();
+-      var1.vertex(var21, var25, var26, var27).color(var14, var15, var16, var17).endVertex();
++      var1.vertex(var21, var22, var23, var24).color(var14, var19, var20, var17).normal(1.0F, 0.0F, 0.0F).endVertex();
++      var1.vertex(var21, var25, var23, var24).color(var14, var19, var20, var17).normal(1.0F, 0.0F, 0.0F).endVertex();
++      var1.vertex(var21, var22, var23, var24).color(var18, var15, var20, var17).normal(0.0F, 1.0F, 0.0F).endVertex();
++      var1.vertex(var21, var22, var26, var24).color(var18, var15, var20, var17).normal(0.0F, 1.0F, 0.0F).endVertex();
++      var1.vertex(var21, var22, var23, var24).color(var18, var19, var16, var17).normal(0.0F, 0.0F, 1.0F).endVertex();
++      var1.vertex(var21, var22, var23, var27).color(var18, var19, var16, var17).normal(0.0F, 0.0F, 1.0F).endVertex();
++      var1.vertex(var21, var25, var23, var24).color(var14, var15, var16, var17).normal(0.0F, 1.0F, 0.0F).endVertex();
++      var1.vertex(var21, var25, var26, var24).color(var14, var15, var16, var17).normal(0.0F, 1.0F, 0.0F).endVertex();
++      var1.vertex(var21, var25, var26, var24).color(var14, var15, var16, var17).normal(-1.0F, 0.0F, 0.0F).endVertex();
++      var1.vertex(var21, var22, var26, var24).color(var14, var15, var16, var17).normal(-1.0F, 0.0F, 0.0F).endVertex();
++      var1.vertex(var21, var22, var26, var24).color(var14, var15, var16, var17).normal(0.0F, 0.0F, 1.0F).endVertex();
++      var1.vertex(var21, var22, var26, var27).color(var14, var15, var16, var17).normal(0.0F, 0.0F, 1.0F).endVertex();
++      var1.vertex(var21, var22, var26, var27).color(var14, var15, var16, var17).normal(0.0F, -1.0F, 0.0F).endVertex();
++      var1.vertex(var21, var22, var23, var27).color(var14, var15, var16, var17).normal(0.0F, -1.0F, 0.0F).endVertex();
++      var1.vertex(var21, var22, var23, var27).color(var14, var15, var16, var17).normal(1.0F, 0.0F, 0.0F).endVertex();
++      var1.vertex(var21, var25, var23, var27).color(var14, var15, var16, var17).normal(1.0F, 0.0F, 0.0F).endVertex();
++      var1.vertex(var21, var25, var23, var27).color(var14, var15, var16, var17).normal(0.0F, 0.0F, -1.0F).endVertex();
++      var1.vertex(var21, var25, var23, var24).color(var14, var15, var16, var17).normal(0.0F, 0.0F, -1.0F).endVertex();
++      var1.vertex(var21, var22, var26, var27).color(var14, var15, var16, var17).normal(1.0F, 0.0F, 0.0F).endVertex();
++      var1.vertex(var21, var25, var26, var27).color(var14, var15, var16, var17).normal(1.0F, 0.0F, 0.0F).endVertex();
++      var1.vertex(var21, var25, var23, var27).color(var14, var15, var16, var17).normal(0.0F, 1.0F, 0.0F).endVertex();
++      var1.vertex(var21, var25, var26, var27).color(var14, var15, var16, var17).normal(0.0F, 1.0F, 0.0F).endVertex();
++      var1.vertex(var21, var25, var26, var24).color(var14, var15, var16, var17).normal(0.0F, 0.0F, 1.0F).endVertex();
++      var1.vertex(var21, var25, var26, var27).color(var14, var15, var16, var17).normal(0.0F, 0.0F, 1.0F).endVertex();
+    }
+ 
+    public static void addChainedFilledBoxVertices(BufferBuilder var0, double var1, double var3, double var5, double var7, double var9, double var11, float var13, float var14, float var15, float var16) {
+       var0.vertex(var1, var3, var5).color(var13, var14, var15, var16).endVertex();
+       var0.vertex(var1, var3, var5).color(var13, var14, var15, var16).endVertex();
+@@ -2137,22 +2176,22 @@
  
     private void setBlockDirty(BlockPos var1, boolean var2) {
        for(int var3 = var1.getZ() - 1; var3 <= var1.getZ() + 1; ++var3) {
@@ -875,7 +1953,7 @@
        }
  
     }
-@@ -2226,11 +2241,11 @@
+@@ -2226,11 +2265,11 @@
           CrashReport var17 = CrashReport.forThrowable(var19, "Exception while adding particle");
           CrashReportCategory var18 = var17.addCategory("Particle being added");
           var18.setDetail("ID", (Object)Registry.PARTICLE_TYPE.getKey(var1.getType()));
@@ -888,7 +1966,7 @@
        }
     }
  
-@@ -2446,10 +2461,22 @@
+@@ -2446,10 +2485,22 @@
           this.level.playLocalSound(var3, SoundEvents.BOOK_PAGE_TURN, SoundSource.BLOCKS, 1.0F, this.level.random.nextFloat() * 0.1F + 0.9F, false);
           break;
        case 1044:
@@ -911,7 +1989,7 @@
           break;
        case 1501:
           this.level.playLocalSound(var3, SoundEvents.LAVA_EXTINGUISH, SoundSource.BLOCKS, 0.5F, 2.6F + (var5.nextFloat() - var5.nextFloat()) * 0.8F, false);
-@@ -2479,10 +2506,13 @@
+@@ -2479,10 +2530,13 @@
              var12 = (double)var3.getZ() + (5.0D + var5.nextDouble() * 6.0D) / 16.0D;
              this.level.addParticle(ParticleTypes.SMOKE, var34, var10, var12, 0.0D, 0.0D, 0.0D);
           }
@@ -925,7 +2003,7 @@
           var7 = var33.getStepX();
           int var35 = var33.getStepY();
           int var36 = var33.getStepZ();
-@@ -2507,11 +2537,11 @@
+@@ -2507,11 +2561,11 @@
           if (!var32.isAir()) {
              SoundType var38 = var32.getSoundType();
              this.level.playLocalSound(var3, var38.getBreakSound(), SoundSource.BLOCKS, (var38.getVolume() + 1.0F) / 2.0F, var38.getPitch() * 0.8F, false);
