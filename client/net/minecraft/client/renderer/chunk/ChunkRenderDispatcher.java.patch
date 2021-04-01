@@ -31,19 +31,43 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.ChunkStatus;
  import net.minecraft.world.level.chunk.LevelChunk;
-@@ -54,10 +54,11 @@
+@@ -54,10 +54,12 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class ChunkRenderDispatcher {
     private static final Logger LOGGER = LogManager.getLogger();
++   private static final int MAX_WORKERS_32_BIT = 4;
 +   private static final VertexFormat VERTEX_FORMAT;
     private final PriorityQueue<ChunkRenderDispatcher.RenderChunk.ChunkCompileTask> toBatch = Queues.newPriorityQueue();
     private final Queue<ChunkBufferBuilderPack> freeBuffers;
     private final Queue<Runnable> toUpload = Queues.newConcurrentLinkedQueue();
     private volatile int toBatchCount;
     private volatile int freeBufferCount;
-@@ -208,10 +209,14 @@
+@@ -139,10 +141,22 @@
+ 
+    public String getStats() {
+       return String.format("pC: %03d, pU: %02d, aB: %02d", this.toBatchCount, this.toUpload.size(), this.freeBufferCount);
+    }
+ 
++   public int getToBatchCount() {
++      return this.toBatchCount;
++   }
++
++   public int getToUpload() {
++      return this.toUpload.size();
++   }
++
++   public int getFreeBufferCount() {
++      return this.freeBufferCount;
++   }
++
+    public void setCamera(Vec3 var1) {
+       this.camera = var1;
+    }
+ 
+    public Vec3 getCameraPosition() {
+@@ -208,10 +222,14 @@
        this.clearBatchQueue();
        this.mailbox.close();
        this.freeBuffers.clear();
@@ -58,7 +82,7 @@
           public boolean facesCanSeeEachother(Direction var1, Direction var2) {
              return false;
           }
-@@ -220,11 +225,11 @@
+@@ -220,11 +238,11 @@
        private final Set<RenderType> hasLayer = new ObjectArraySet();
        private boolean isCompletelyEmpty = true;
        private final List<BlockEntity> renderableBlockEntities = Lists.newArrayList();
@@ -71,7 +95,27 @@
        }
  
        public boolean hasNoRenderableLayers() {
-@@ -271,11 +276,11 @@
+@@ -251,10 +269,12 @@
+       private ChunkTaskResult() {
+       }
+    }
+ 
+    public class RenderChunk {
++      public static final int SIZE = 16;
++      public final int index;
+       public final AtomicReference<ChunkRenderDispatcher.CompiledChunk> compiled;
+       @Nullable
+       private ChunkRenderDispatcher.RenderChunk.RebuildTask lastRebuildTask;
+       @Nullable
+       private ChunkRenderDispatcher.RenderChunk.ResortTransparencyTask lastResortTransparencyTask;
+@@ -265,31 +285,32 @@
+       private boolean dirty;
+       private final BlockPos.MutableBlockPos origin;
+       private final BlockPos.MutableBlockPos[] relativeOrigins;
+       private boolean playerChanged;
+ 
+-      public RenderChunk() {
++      public RenderChunk(int var2) {
           this.compiled = new AtomicReference(ChunkRenderDispatcher.CompiledChunk.UNCOMPILED);
           this.globalBlockEntities = Sets.newHashSet();
           this.buffers = (Map)RenderType.chunkBufferLayers().stream().collect(Collectors.toMap((var0) -> {
@@ -84,9 +128,12 @@
           this.dirty = true;
           this.origin = new BlockPos.MutableBlockPos(-1, -1, -1);
           this.relativeOrigins = (BlockPos.MutableBlockPos[])Util.make(new BlockPos.MutableBlockPos[6], (var0) -> {
-@@ -285,11 +290,11 @@
+             for(int var1 = 0; var1 < var0.length; ++var1) {
+                var0[var1] = new BlockPos.MutableBlockPos();
+             }
  
           });
++         this.index = var2;
        }
  
        private boolean doesChunkExistAt(BlockPos var1) {
@@ -97,7 +144,7 @@
        public boolean hasAllNeighbors() {
           boolean var1 = true;
           if (this.getDistToPlayerSqr() <= 576.0D) {
-@@ -335,11 +340,11 @@
+@@ -335,11 +356,11 @@
           double var6 = this.bb.minZ + 8.0D - var1.getPosition().z;
           return var2 * var2 + var4 * var4 + var6 * var6;
        }
@@ -110,7 +157,7 @@
        public ChunkRenderDispatcher.CompiledChunk getCompiledChunk() {
           return (ChunkRenderDispatcher.CompiledChunk)this.compiled.get();
        }
-@@ -475,17 +480,17 @@
+@@ -475,17 +496,17 @@
              } else {
                 Vec3 var2 = ChunkRenderDispatcher.this.getCameraPosition();
                 float var3 = (float)var2.x;
@@ -132,7 +179,7 @@
                       return CompletableFuture.completedFuture(ChunkRenderDispatcher.ChunkTaskResult.CANCELLED);
                    } else {
                       CompletableFuture var8 = ChunkRenderDispatcher.this.uploadChunkLayer(var1.builder(RenderType.translucent()), RenderChunk.this.getBuffer(RenderType.translucent())).thenApply((var0) -> {
-@@ -542,11 +547,11 @@
+@@ -542,11 +563,11 @@
                 } else {
                    ArrayList var8 = Lists.newArrayList();
                    var6.hasLayer.forEach((var3x) -> {
@@ -145,7 +192,7 @@
                       }
  
                       if (this.isCancelled.get()) {
-@@ -576,60 +581,59 @@
+@@ -576,60 +597,59 @@
                 Iterator var15 = BlockPos.betweenClosed(var7, var8).iterator();
  
                 while(var15.hasNext()) {
@@ -229,7 +276,7 @@
                 Stream var10000 = var4.hasLayer.stream();
                 var5.getClass();
                 var10000.map(var5::builder).forEach(BufferBuilder::end);
-@@ -639,11 +643,11 @@
+@@ -639,11 +659,11 @@
              var4.visibilitySet = var9.resolve();
              return var10;
           }

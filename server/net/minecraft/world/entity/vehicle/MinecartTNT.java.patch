@@ -1,6 +1,18 @@
 --- net/minecraft/world/entity/vehicle/MinecartTNT.java
 +++ net/minecraft/world/entity/vehicle/MinecartTNT.java
-@@ -91,22 +91,22 @@
+@@ -18,10 +18,11 @@
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.material.FluidState;
+ 
+ public class MinecartTNT extends AbstractMinecart {
++   private static final byte EVENT_PRIME = 10;
+    private int fuse = -1;
+ 
+    public MinecartTNT(EntityType<? extends MinecartTNT> var1, Level var2) {
+       super(var1, var2);
+    }
+@@ -91,31 +92,40 @@
           if (var3 > 5.0D) {
              var3 = 5.0D;
           }
@@ -28,3 +40,36 @@
     public void activateMinecart(int var1, int var2, int var3, boolean var4) {
        if (var4 && this.fuse < 0) {
           this.primeFuse();
+       }
+ 
+    }
+ 
++   public void handleEntityEvent(byte var1) {
++      if (var1 == 10) {
++         this.primeFuse();
++      } else {
++         super.handleEntityEvent(var1);
++      }
++
++   }
++
+    public void primeFuse() {
+       this.fuse = 80;
+       if (!this.level.isClientSide) {
+          this.level.broadcastEntityEvent(this, (byte)10);
+          if (!this.isSilent()) {
+@@ -123,10 +133,14 @@
+          }
+       }
+ 
+    }
+ 
++   public int getFuse() {
++      return this.fuse;
++   }
++
+    public boolean isPrimed() {
+       return this.fuse > -1;
+    }
+ 
+    public float getBlockExplosionResistance(Explosion var1, BlockGetter var2, BlockPos var3, BlockState var4, FluidState var5, float var6) {

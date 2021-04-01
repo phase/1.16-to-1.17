@@ -12,7 +12,23 @@
  import net.minecraft.core.Registry;
  import net.minecraft.core.particles.ParticleOptions;
  import net.minecraft.core.particles.ParticleTypes;
-@@ -48,11 +47,13 @@
+@@ -34,25 +33,29 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class AreaEffectCloud extends Entity {
+    private static final Logger LOGGER = LogManager.getLogger();
++   private static final int TIME_BETWEEN_APPLICATIONS = 5;
+    private static final EntityDataAccessor<Float> DATA_RADIUS;
+    private static final EntityDataAccessor<Integer> DATA_COLOR;
+    private static final EntityDataAccessor<Boolean> DATA_WAITING;
+    private static final EntityDataAccessor<ParticleOptions> DATA_PARTICLE;
++   private static final float MAX_RADIUS = 32.0F;
+    private Potion potion;
+    private final List<MobEffectInstance> effects;
+    private final Map<Entity, Integer> victims;
+    private int duration;
+    private int waitTime;
     private int reapplicationDelay;
     private boolean fixedColor;
     private int durationOnUse;
@@ -26,7 +42,20 @@
     public AreaEffectCloud(EntityType<? extends AreaEffectCloud> var1, Level var2) {
        super(var1, var2);
        this.potion = Potions.EMPTY;
-@@ -189,25 +190,25 @@
+@@ -77,11 +80,11 @@
+       this.getEntityData().define(DATA_PARTICLE, ParticleTypes.ENTITY_EFFECT);
+    }
+ 
+    public void setRadius(float var1) {
+       if (!this.level.isClientSide) {
+-         this.getEntityData().set(DATA_RADIUS, var1);
++         this.getEntityData().set(DATA_RADIUS, Mth.clamp(var1, 0.0F, 32.0F));
+       }
+ 
+    }
+ 
+    public void refreshDimensions() {
+@@ -189,25 +192,25 @@
  
              for(int var19 = 0; (float)var19 < var17; ++var19) {
                 var6 = this.random.nextFloat() * 6.2831855F;
@@ -56,7 +85,7 @@
  
           boolean var16 = this.tickCount < this.waitTime;
           if (var1 != var16) {
-@@ -219,88 +220,82 @@
+@@ -219,88 +222,82 @@
           }
  
           if (this.radiusPerTick != 0.0F) {
@@ -175,7 +204,46 @@
                       }
                    }
                 }
-@@ -398,11 +393,11 @@
+@@ -308,18 +305,38 @@
+          }
+       }
+ 
+    }
+ 
++   public float getRadiusOnUse() {
++      return this.radiusOnUse;
++   }
++
+    public void setRadiusOnUse(float var1) {
+       this.radiusOnUse = var1;
+    }
+ 
++   public float getRadiusPerTick() {
++      return this.radiusPerTick;
++   }
++
+    public void setRadiusPerTick(float var1) {
+       this.radiusPerTick = var1;
+    }
+ 
++   public int getDurationOnUse() {
++      return this.durationOnUse;
++   }
++
++   public void setDurationOnUse(int var1) {
++      this.durationOnUse = var1;
++   }
++
++   public int getWaitTime() {
++      return this.waitTime;
++   }
++
+    public void setWaitTime(int var1) {
+       this.waitTime = var1;
+    }
+ 
+    public void setOwner(@Nullable LivingEntity var1) {
+@@ -398,11 +415,11 @@
  
        if (this.fixedColor) {
           var1.putInt("Color", this.getColor());
@@ -188,3 +256,18 @@
  
        if (!this.effects.isEmpty()) {
           ListTag var2 = new ListTag();
+@@ -424,10 +441,14 @@
+       }
+ 
+       super.onSyncedDataUpdated(var1);
+    }
+ 
++   public Potion getPotion() {
++      return this.potion;
++   }
++
+    public PushReaction getPistonPushReaction() {
+       return PushReaction.IGNORE;
+    }
+ 
+    public Packet<?> getAddEntityPacket() {

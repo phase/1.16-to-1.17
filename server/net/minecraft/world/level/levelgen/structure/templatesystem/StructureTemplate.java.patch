@@ -21,10 +21,24 @@
  import net.minecraft.nbt.IntTag;
  import net.minecraft.nbt.ListTag;
  import net.minecraft.nbt.NbtUtils;
-@@ -50,19 +52,19 @@
+@@ -48,21 +50,33 @@
+ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.shapes.BitSetDiscreteVoxelShape;
  import net.minecraft.world.phys.shapes.DiscreteVoxelShape;
  
  public class StructureTemplate {
++   public static final String PALETTE_TAG = "palette";
++   public static final String PALETTE_LIST_TAG = "palettes";
++   public static final String ENTITIES_TAG = "entities";
++   public static final String BLOCKS_TAG = "blocks";
++   public static final String BLOCK_TAG_POS = "pos";
++   public static final String BLOCK_TAG_STATE = "state";
++   public static final String BLOCK_TAG_NBT = "nbt";
++   public static final String ENTITY_TAG_POS = "pos";
++   public static final String ENTITY_TAG_BLOCKPOS = "blockPos";
++   public static final String ENTITY_TAG_NBT = "nbt";
++   public static final String SIZE_TAG = "size";
++   static final int CHUNK_SIZE = 16;
     private final List<StructureTemplate.Palette> palettes = Lists.newArrayList();
     private final List<StructureTemplate.StructureEntityInfo> entityInfoList = Lists.newArrayList();
 -   private BlockPos size;
@@ -44,7 +58,7 @@
  
     public void setAuthor(String var1) {
        this.author = var1;
-@@ -70,11 +72,11 @@
+@@ -70,11 +84,11 @@
  
     public String getAuthor() {
        return this.author;
@@ -57,7 +71,7 @@
           ArrayList var7 = Lists.newArrayList();
           ArrayList var8 = Lists.newArrayList();
           ArrayList var9 = Lists.newArrayList();
-@@ -102,11 +104,11 @@
+@@ -102,11 +116,11 @@
                 }
  
                 var13 = (BlockPos)var12.next();
@@ -70,7 +84,7 @@
              StructureTemplate.StructureBlockInfo var17;
              if (var16 != null) {
                 CompoundTag var18 = var16.save(new CompoundTag());
-@@ -212,115 +214,105 @@
+@@ -212,115 +226,105 @@
  
     public static BlockPos calculateRelativePosition(StructurePlaceSettings var0, BlockPos var1) {
        return transform(var1, var0.getMirror(), var0.getRotation(), var0.getRotationPivot());
@@ -242,7 +256,7 @@
                          }
                       }
  
-@@ -329,50 +321,52 @@
+@@ -329,50 +333,52 @@
                       }
  
                       return true;
@@ -327,7 +341,14 @@
                 }
              }
           } else {
-@@ -463,15 +457,15 @@
+@@ -457,21 +463,21 @@
+       }
+    }
+ 
+    private static Optional<Entity> createEntityIgnoreException(ServerLevelAccessor var0, CompoundTag var1) {
+       try {
+-         return EntityType.create(var1, var0.getLevel());
++         return EntityType.create((CompoundTag)var1, (Level)var0.getLevel());
        } catch (Exception var3) {
           return Optional.empty();
        }
@@ -345,7 +366,7 @@
        }
     }
  
-@@ -565,57 +559,19 @@
+@@ -565,57 +571,19 @@
     public BoundingBox getBoundingBox(StructurePlaceSettings var1, BlockPos var2) {
        return this.getBoundingBox(var2, var1.getRotation(), var1.getRotationPivot(), var1.getMirror());
     }
@@ -404,13 +425,13 @@
 +      Vec3i var5 = var4.offset(-1, -1, -1);
 +      BlockPos var6 = transform(BlockPos.ZERO, var3, var1, var2);
 +      BlockPos var7 = transform(BlockPos.ZERO.offset(var5), var3, var1, var2);
-+      return BoundingBox.createProper(var6, var7).move(var0);
++      return BoundingBox.fromCorners(var6, var7).move(var0);
     }
  
     public CompoundTag save(CompoundTag var1) {
        if (this.palettes.isEmpty()) {
           var1.put("blocks", new ListTag());
-@@ -705,11 +661,11 @@
+@@ -705,11 +673,11 @@
  
     public void load(CompoundTag var1) {
        this.palettes.clear();

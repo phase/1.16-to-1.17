@@ -1,6 +1,76 @@
 --- net/minecraft/world/entity/projectile/ProjectileUtil.java
 +++ net/minecraft/world/entity/projectile/ProjectileUtil.java
-@@ -89,18 +89,18 @@
+@@ -18,10 +18,13 @@
+ import net.minecraft.world.phys.EntityHitResult;
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public final class ProjectileUtil {
++   public ProjectileUtil() {
++   }
++
+    public static HitResult getHitResult(Entity var0, Predicate<Entity> var1) {
+       Vec3 var2 = var0.getDeltaMovement();
+       Level var3 = var0.level;
+       Vec3 var4 = var0.position();
+       Vec3 var5 = var4.add(var2);
+@@ -37,10 +40,55 @@
+ 
+       return (HitResult)var6;
+    }
+ 
+    @Nullable
++   public static EntityHitResult getEntityHitResult(Entity var0, Vec3 var1, Vec3 var2, AABB var3, Predicate<Entity> var4, double var5) {
++      Level var7 = var0.level;
++      double var8 = var5;
++      Entity var10 = null;
++      Vec3 var11 = null;
++      Iterator var12 = var7.getEntities(var0, var3, var4).iterator();
++
++      while(true) {
++         while(var12.hasNext()) {
++            Entity var13 = (Entity)var12.next();
++            AABB var14 = var13.getBoundingBox().inflate((double)var13.getPickRadius());
++            Optional var15 = var14.clip(var1, var2);
++            if (var14.contains(var1)) {
++               if (var8 >= 0.0D) {
++                  var10 = var13;
++                  var11 = (Vec3)var15.orElse(var1);
++                  var8 = 0.0D;
++               }
++            } else if (var15.isPresent()) {
++               Vec3 var16 = (Vec3)var15.get();
++               double var17 = var1.distanceToSqr(var16);
++               if (var17 < var8 || var8 == 0.0D) {
++                  if (var13.getRootVehicle() == var0.getRootVehicle()) {
++                     if (var8 == 0.0D) {
++                        var10 = var13;
++                        var11 = var16;
++                     }
++                  } else {
++                     var10 = var13;
++                     var11 = var16;
++                     var8 = var17;
++                  }
++               }
++            }
++         }
++
++         if (var10 == null) {
++            return null;
++         }
++
++         return new EntityHitResult(var10, var11);
++      }
++   }
++
++   @Nullable
+    public static EntityHitResult getEntityHitResult(Level var0, Entity var1, Vec3 var2, Vec3 var3, AABB var4, Predicate<Entity> var5) {
+       double var6 = Double.MAX_VALUE;
+       Entity var8 = null;
+       Iterator var9 = var0.getEntities(var1, var4, var5).iterator();
+ 
+@@ -89,18 +137,18 @@
           var0.yRot = Mth.lerp(var1, var0.yRotO, var0.yRot);
        }
     }

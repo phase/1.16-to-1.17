@@ -12,7 +12,7 @@
  import java.util.function.Consumer;
  import java.util.function.Predicate;
  import javax.annotation.Nullable;
-@@ -16,10 +17,11 @@
+@@ -16,18 +17,29 @@
  import net.minecraft.client.Minecraft;
  import net.minecraft.client.gui.Font;
  import net.minecraft.client.gui.GuiComponent;
@@ -24,7 +24,38 @@
  import net.minecraft.network.chat.Style;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.util.FormattedCharSequence;
-@@ -462,15 +464,16 @@
+ import net.minecraft.util.Mth;
+ 
+ public class EditBox extends AbstractWidget implements Widget, GuiEventListener {
++   public static final int BACKWARDS = -1;
++   public static final int FORWARDS = 1;
++   private static final int CURSOR_INSERT_WIDTH = 1;
++   private static final int CURSOR_INSERT_COLOR = -3092272;
++   private static final String CURSOR_APPEND_CHARACTER = "_";
++   private static final long NARRATE_DELAY_TYPING_MS = 500L;
++   public static final int DEFAULT_TEXT_COLOR = 14737632;
++   private static final int BORDER_COLOR_FOCUSED = -1;
++   private static final int BORDER_COLOR = -6250336;
++   private static final int BACKGROUND_COLOR = -16777216;
+    private final Font font;
+    private String value;
+    private int maxLength;
+    private int frame;
+    private boolean bordered;
+@@ -233,11 +245,11 @@
+ 
+       this.onValueChange(this.value);
+    }
+ 
+    public void setCursorPosition(int var1) {
+-      this.cursorPos = Mth.clamp(var1, 0, this.value.length());
++      this.cursorPos = Mth.clamp((int)var1, (int)0, (int)this.value.length());
+    }
+ 
+    public void moveCursorToStart() {
+       this.moveCursorTo(0);
+    }
+@@ -462,20 +474,22 @@
           var1 = this.x + this.width;
        }
  
@@ -32,7 +63,7 @@
        BufferBuilder var6 = var7.getBuilder();
 -      RenderSystem.color4f(0.0F, 0.0F, 255.0F, 255.0F);
 +      RenderSystem.setShader(GameRenderer::getPositionShader);
-+      RenderSystem.setShaderColor(0.0F, 0.0F, 255.0F, 255.0F);
++      RenderSystem.setShaderColor(0.0F, 0.0F, 1.0F, 1.0F);
        RenderSystem.disableTexture();
        RenderSystem.enableColorLogicOp();
        RenderSystem.logicOp(GlStateManager.LogicOp.OR_REVERSE);
@@ -43,3 +74,35 @@
        var6.vertex((double)var3, (double)var2, 0.0D).endVertex();
        var6.vertex((double)var1, (double)var2, 0.0D).endVertex();
        var7.end();
++      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+       RenderSystem.disableColorLogicOp();
+       RenderSystem.enableTexture();
+    }
+ 
+    public void setMaxLength(int var1) {
+@@ -538,11 +552,11 @@
+       return this.isBordered() ? this.width - 8 : this.width;
+    }
+ 
+    public void setHighlightPos(int var1) {
+       int var2 = this.value.length();
+-      this.highlightPos = Mth.clamp(var1, 0, var2);
++      this.highlightPos = Mth.clamp((int)var1, (int)0, (int)var2);
+       if (this.font != null) {
+          if (this.displayPos > var2) {
+             this.displayPos = var2;
+          }
+ 
+@@ -557,11 +571,11 @@
+             this.displayPos += this.highlightPos - var5;
+          } else if (this.highlightPos <= this.displayPos) {
+             this.displayPos -= this.displayPos - this.highlightPos;
+          }
+ 
+-         this.displayPos = Mth.clamp(this.displayPos, 0, var2);
++         this.displayPos = Mth.clamp((int)this.displayPos, (int)0, (int)var2);
+       }
+ 
+    }
+ 
+    public void setCanLoseFocus(boolean var1) {

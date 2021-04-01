@@ -1,6 +1,40 @@
 --- net/minecraft/server/network/ServerConnectionListener.java
 +++ net/minecraft/server/network/ServerConnectionListener.java
-@@ -72,11 +72,11 @@
+@@ -5,10 +5,12 @@
+ import io.netty.bootstrap.ServerBootstrap;
+ import io.netty.channel.Channel;
+ import io.netty.channel.ChannelException;
+ import io.netty.channel.ChannelFuture;
+ import io.netty.channel.ChannelHandler;
++import io.netty.channel.ChannelHandlerContext;
++import io.netty.channel.ChannelInboundHandlerAdapter;
+ import io.netty.channel.ChannelInitializer;
+ import io.netty.channel.ChannelOption;
+ import io.netty.channel.EventLoopGroup;
+ import io.netty.channel.epoll.Epoll;
+ import io.netty.channel.epoll.EpollEventLoopGroup;
+@@ -16,16 +18,20 @@
+ import io.netty.channel.local.LocalAddress;
+ import io.netty.channel.local.LocalServerChannel;
+ import io.netty.channel.nio.NioEventLoopGroup;
+ import io.netty.channel.socket.nio.NioServerSocketChannel;
+ import io.netty.handler.timeout.ReadTimeoutHandler;
++import io.netty.util.HashedWheelTimer;
++import io.netty.util.Timeout;
++import io.netty.util.Timer;
+ import java.io.IOException;
+ import java.net.InetAddress;
+ import java.net.SocketAddress;
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.concurrent.TimeUnit;
+ import javax.annotation.Nullable;
+ import net.minecraft.CrashReport;
+ import net.minecraft.ReportedException;
+ import net.minecraft.network.Connection;
+ import net.minecraft.network.PacketDecoder;
+@@ -72,11 +78,11 @@
              var5 = SERVER_EVENT_GROUP;
              LOGGER.info("Using default channel type");
           }
@@ -13,7 +47,7 @@
                 } catch (ChannelException var4) {
                 }
  
-@@ -93,11 +93,11 @@
+@@ -93,11 +99,11 @@
  
     public SocketAddress startMemoryChannel() {
        ChannelFuture var1;
@@ -26,3 +60,47 @@
                 ServerConnectionListener.this.connections.add(var2);
                 var1.pipeline().addLast("packet_handler", var2);
              }
+@@ -164,6 +170,43 @@
+    }
+ 
+    public MinecraftServer getServer() {
+       return this.server;
+    }
++
++   static class LatencySimulator extends ChannelInboundHandlerAdapter {
++      private static final Timer TIMER = new HashedWheelTimer();
++      private final int delay;
++      private final int jitter;
++      private final List<ServerConnectionListener.LatencySimulator.DelayedMessage> queuedMessages = Lists.newArrayList();
++
++      public LatencySimulator(int var1, int var2) {
++         this.delay = var1;
++         this.jitter = var2;
++      }
++
++      public void channelRead(ChannelHandlerContext var1, Object var2) {
++         this.delayDownstream(var1, var2);
++      }
++
++      private void delayDownstream(ChannelHandlerContext var1, Object var2) {
++         int var3 = this.delay + (int)(Math.random() * (double)this.jitter);
++         this.queuedMessages.add(new ServerConnectionListener.LatencySimulator.DelayedMessage(var1, var2));
++         TIMER.newTimeout(this::onTimeout, (long)var3, TimeUnit.MILLISECONDS);
++      }
++
++      private void onTimeout(Timeout var1) {
++         ServerConnectionListener.LatencySimulator.DelayedMessage var2 = (ServerConnectionListener.LatencySimulator.DelayedMessage)this.queuedMessages.remove(0);
++         var2.ctx.fireChannelRead(var2.msg);
++      }
++
++      static class DelayedMessage {
++         public final ChannelHandlerContext ctx;
++         public final Object msg;
++
++         public DelayedMessage(ChannelHandlerContext var1, Object var2) {
++            this.ctx = var1;
++            this.msg = var2;
++         }
++      }
++   }
+ }

@@ -1,6 +1,6 @@
 --- net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java
 +++ net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java
-@@ -1,63 +1,45 @@
+@@ -1,63 +1,49 @@
  package net.minecraft.network.protocol.game;
  
  import com.google.common.collect.Lists;
@@ -35,13 +35,16 @@
 -   public void read(FriendlyByteBuf var1) throws IOException {
 -      this.recipes = Lists.newArrayList();
 -      int var2 = var1.readVarInt();
--
++   public void write(FriendlyByteBuf var1) {
++      var1.writeCollection(this.recipes, ClientboundUpdateRecipesPacket::toNetwork);
++   }
+ 
 -      for(int var3 = 0; var3 < var2; ++var3) {
 -         this.recipes.add(fromNetwork(var1));
 -      }
 -
-+   public void write(FriendlyByteBuf var1) {
-+      var1.writeCollection(this.recipes, ClientboundUpdateRecipesPacket::toNetwork);
++   public void handle(ClientGamePacketListener var1) {
++      var1.handleUpdateRecipes(this);
     }
  
 -   public void write(FriendlyByteBuf var1) throws IOException {
@@ -53,8 +56,8 @@
 -         toNetwork(var3, var1);
 -      }
 -
-+   public void handle(ClientGamePacketListener var1) {
-+      var1.handleUpdateRecipes(this);
++   public List<Recipe<?>> getRecipes() {
++      return this.recipes;
     }
  
     public static Recipe<?> fromNetwork(FriendlyByteBuf var0) {

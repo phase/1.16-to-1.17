@@ -65,7 +65,19 @@
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.border.BorderChangeListener;
-@@ -108,11 +110,10 @@
+@@ -93,10 +95,11 @@
+    public static final File USERBANLIST_FILE = new File("banned-players.json");
+    public static final File IPBANLIST_FILE = new File("banned-ips.json");
+    public static final File OPLIST_FILE = new File("ops.json");
+    public static final File WHITELIST_FILE = new File("whitelist.json");
+    private static final Logger LOGGER = LogManager.getLogger();
++   private static final int SEND_PLAYER_INFO_INTERVAL = 600;
+    private static final SimpleDateFormat BAN_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd 'at' HH:mm:ss z");
+    private final MinecraftServer server;
+    private final List<ServerPlayer> players = Lists.newArrayList();
+    private final Map<UUID, ServerPlayer> playersByUUID = Maps.newHashMap();
+    private final UserBanList bans;
+@@ -108,12 +111,12 @@
     private final PlayerDataStorage playerIo;
     private boolean doWhiteList;
     private final RegistryAccess.RegistryHolder registryHolder;
@@ -73,11 +85,13 @@
     private int viewDistance;
 -   private GameType overrideGameMode;
     private boolean allowCheatsForAllPlayers;
++   private static final boolean ALLOW_LOGOUTIVATOR = false;
     private int sendAllPlayerInfoIn;
  
     public PlayerList(MinecraftServer var1, RegistryAccess.RegistryHolder var2, PlayerDataStorage var3, int var4) {
        this.bans = new UserBanList(USERBANLIST_FILE);
-@@ -153,30 +154,29 @@
+       this.ipBans = new IpBanList(IPBANLIST_FILE);
+@@ -153,30 +156,29 @@
        } else {
           var10 = var9;
        }
@@ -112,7 +126,7 @@
        var2.getRecipeBook().sendInitialRecipeBook(var2);
        this.updateEntireScoreboard(var10.getScoreboard(), var2);
        this.server.invalidateStatus();
-@@ -199,11 +199,11 @@
+@@ -199,11 +201,11 @@
  
        var10.addNewPlayer(var2);
        this.server.getCustomBossEvents().onPlayerConnect(var2);
@@ -125,7 +139,7 @@
        Iterator var24 = var2.getActiveEffects().iterator();
  
        while(var24.hasNext()) {
-@@ -240,31 +240,31 @@
+@@ -240,31 +242,31 @@
                 }
              }
  
@@ -161,7 +175,7 @@
        for(int var9 = 0; var9 < 19; ++var9) {
           Objective var10 = var1.getDisplayObjective(var9);
           if (var10 != null && !var3.contains(var10)) {
-@@ -283,27 +283,27 @@
+@@ -283,27 +285,27 @@
     }
  
     public void setLevel(ServerLevel var1) {
@@ -194,7 +208,7 @@
           public void onBorderSetDamagePerBlock(WorldBorder var1, double var2) {
           }
  
-@@ -345,37 +345,30 @@
+@@ -345,37 +347,30 @@
        ServerLevel var2 = var1.getLevel();
        var1.awardStat(Stats.LEAVE_GAME);
        this.save(var1);
@@ -243,7 +257,7 @@
        this.broadcastAll(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.REMOVE_PLAYER, new ServerPlayer[]{var1}));
     }
  
-@@ -426,24 +419,16 @@
+@@ -426,24 +421,16 @@
        while(var8.hasNext()) {
           ServerPlayer var6 = (ServerPlayer)var8.next();
           var6.connection.disconnect(new TranslatableComponent("multiplayer.disconnect.duplicate_login"));
@@ -270,7 +284,7 @@
        boolean var5 = var1.isRespawnForced();
        ServerLevel var6 = this.server.getLevel(var1.getRespawnDimension());
        Optional var7;
-@@ -451,73 +436,65 @@
+@@ -451,73 +438,65 @@
           var7 = Player.findRespawnPositionAndUseSpawnBlock(var6, var3, var4, var5, var2);
        } else {
           var7 = Optional.empty();
@@ -385,7 +399,7 @@
     public void sendPlayerPermissionLevel(ServerPlayer var1) {
        GameProfile var2 = var1.getGameProfile();
        int var3 = this.server.getProfilePermissions(var2);
-@@ -531,19 +508,24 @@
+@@ -531,19 +510,24 @@
        }
  
     }
@@ -414,7 +428,7 @@
           }
        }
  
-@@ -699,11 +681,11 @@
+@@ -699,11 +683,11 @@
     public void reloadWhiteList() {
     }
  
@@ -427,7 +441,7 @@
        if (var2.isRaining()) {
           var1.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0F));
           var1.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, var2.getRainLevel(1.0F)));
-@@ -711,13 +693,13 @@
+@@ -711,13 +695,13 @@
        }
  
     }
@@ -443,7 +457,7 @@
     public int getPlayerCount() {
        return this.players.size();
     }
-@@ -758,24 +740,10 @@
+@@ -758,24 +742,10 @@
  
     public CompoundTag getSingleplayerData() {
        return null;
@@ -468,7 +482,7 @@
     }
  
     public void removeAll() {
-@@ -785,13 +753,33 @@
+@@ -785,13 +755,33 @@
  
     }
  
@@ -503,7 +517,7 @@
        ServerStatsCounter var3 = var2 == null ? null : (ServerStatsCounter)this.stats.get(var2);
        if (var3 == null) {
           File var4 = this.server.getWorldPath(LevelResource.PLAYER_STATS_DIR).toFile();
-@@ -857,11 +845,11 @@
+@@ -857,11 +847,11 @@
        while(var1.hasNext()) {
           PlayerAdvancements var2 = (PlayerAdvancements)var1.next();
           var2.reload(this.server.getAdvancements());

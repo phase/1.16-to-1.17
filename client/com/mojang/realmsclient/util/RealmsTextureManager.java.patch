@@ -1,9 +1,14 @@
 --- com/mojang/realmsclient/util/RealmsTextureManager.java
 +++ com/mojang/realmsclient/util/RealmsTextureManager.java
-@@ -35,43 +35,38 @@
+@@ -33,45 +33,43 @@
+    private static final Map<String, Boolean> SKIN_FETCH_STATUS = Maps.newHashMap();
+    private static final Map<String, String> FETCHED_SKINS = Maps.newHashMap();
     private static final Logger LOGGER = LogManager.getLogger();
     private static final ResourceLocation TEMPLATE_ICON_LOCATION = new ResourceLocation("textures/gui/presets/isles.png");
  
++   public RealmsTextureManager() {
++   }
++
     public static void bindWorldTemplate(String var0, @Nullable String var1) {
        if (var1 == null) {
 -         Minecraft.getInstance().getTextureManager().bind(TEMPLATE_ICON_LOCATION);
@@ -54,48 +59,51 @@
           }
  
        } else {
-@@ -85,15 +80,20 @@
-                   String var3 = var2.getUrl();
-                   HttpURLConnection var4 = null;
-                   RealmsTextureManager.LOGGER.debug("Downloading http texture from {}", var3);
- 
+@@ -89,44 +87,43 @@
                    try {
--                     var4 = (HttpURLConnection)(new URL(var3)).openConnection(Minecraft.getInstance().getProxy());
--                     var4.setDoInput(true);
--                     var4.setDoOutput(false);
--                     var4.connect();
+                      var4 = (HttpURLConnection)(new URL(var3)).openConnection(Minecraft.getInstance().getProxy());
+                      var4.setDoInput(true);
+                      var4.setDoOutput(false);
+                      var4.connect();
 -                     if (var4.getResponseCode() / 100 == 2) {
-+                     try {
-+                        var4 = (HttpURLConnection)(new URL(var3)).openConnection(Minecraft.getInstance().getProxy());
-+                        var4.setDoInput(true);
-+                        var4.setDoOutput(false);
-+                        var4.connect();
-+                        if (var4.getResponseCode() / 100 != 2) {
-+                           RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
-+                           return;
-+                        }
-+
-                         BufferedImage var5;
-                         try {
-                            var5 = ImageIO.read(var4.getInputStream());
-                         } catch (Exception var17) {
-                            RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
-@@ -105,25 +105,21 @@
-                         var5 = (new SkinProcessor()).process(var5);
-                         ByteArrayOutputStream var6 = new ByteArrayOutputStream();
-                         ImageIO.write(var5, "png", var6);
-                         RealmsTextureManager.FETCHED_SKINS.put(var0, (new Base64()).encodeToString(var6.toByteArray()));
-                         RealmsTextureManager.SKIN_FETCH_STATUS.put(var0, true);
--                        return;
-+                     } catch (Exception var19) {
-+                        RealmsTextureManager.LOGGER.error("Couldn't download http texture", var19);
+-                        BufferedImage var5;
+-                        try {
+-                           var5 = ImageIO.read(var4.getInputStream());
+-                        } catch (Exception var17) {
+-                           RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
+-                           return;
+-                        } finally {
+-                           IOUtils.closeQuietly(var4.getInputStream());
+-                        }
++                     if (var4.getResponseCode() / 100 != 2) {
 +                        RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
++                        return;
++                     }
+ 
+-                        var5 = (new SkinProcessor()).process(var5);
+-                        ByteArrayOutputStream var6 = new ByteArrayOutputStream();
+-                        ImageIO.write(var5, "png", var6);
+-                        RealmsTextureManager.FETCHED_SKINS.put(var0, (new Base64()).encodeToString(var6.toByteArray()));
+-                        RealmsTextureManager.SKIN_FETCH_STATUS.put(var0, true);
++                     BufferedImage var5;
++                     try {
++                        var5 = ImageIO.read(var4.getInputStream());
++                     } catch (Exception var17) {
++                        RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
+                         return;
++                     } finally {
++                        IOUtils.closeQuietly(var4.getInputStream());
                       }
  
 -                     RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
--                  } catch (Exception var19) {
--                     RealmsTextureManager.LOGGER.error("Couldn't download http texture", var19);
--                     RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
++                     var5 = (new SkinProcessor()).process(var5);
++                     ByteArrayOutputStream var6 = new ByteArrayOutputStream();
++                     ImageIO.write(var5, "png", var6);
++                     RealmsTextureManager.FETCHED_SKINS.put(var0, (new Base64()).encodeToString(var6.toByteArray()));
++                     RealmsTextureManager.SKIN_FETCH_STATUS.put(var0, true);
+                   } catch (Exception var19) {
+                      RealmsTextureManager.LOGGER.error("Couldn't download http texture", var19);
+                      RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
 -                     return;
                    } finally {
                       if (var4 != null) {
@@ -107,9 +115,13 @@
                 } else {
                    RealmsTextureManager.SKIN_FETCH_STATUS.put(var0, true);
                 }
++
              }
           };
-@@ -170,11 +166,11 @@
+          var2.setDaemon(true);
+          var2.start();
+       }
+@@ -170,11 +167,11 @@
        } catch (IOException var12) {
           var12.printStackTrace();
        }

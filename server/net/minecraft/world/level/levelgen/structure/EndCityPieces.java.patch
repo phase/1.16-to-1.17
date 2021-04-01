@@ -1,6 +1,191 @@
 --- net/minecraft/world/level/levelgen/structure/EndCityPieces.java
 +++ net/minecraft/world/level/levelgen/structure/EndCityPieces.java
-@@ -280,11 +280,10 @@
+@@ -7,10 +7,11 @@
+ import java.util.Random;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.util.Tuple;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.decoration.ItemFrame;
+ import net.minecraft.world.entity.monster.Shulker;
+ import net.minecraft.world.item.ItemStack;
+@@ -20,23 +21,51 @@
+ import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
+ import net.minecraft.world.level.levelgen.feature.StructurePieceType;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnoreProcessor;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+ import net.minecraft.world.level.storage.loot.BuiltInLootTables;
+ 
+ public class EndCityPieces {
+-   private static final StructurePlaceSettings OVERWRITE;
+-   private static final StructurePlaceSettings INSERT;
+-   private static final EndCityPieces.SectionGenerator HOUSE_TOWER_GENERATOR;
++   private static final int MAX_GEN_DEPTH = 8;
++   private static final EndCityPieces.SectionGenerator HOUSE_TOWER_GENERATOR = new EndCityPieces.SectionGenerator() {
++      public void init() {
++      }
++
++      public boolean generate(StructureManager var1, int var2, EndCityPieces.EndCityPiece var3, BlockPos var4, List<StructurePiece> var5, Random var6) {
++         if (var2 > 8) {
++            return false;
++         } else {
++            Rotation var7 = var3.placeSettings.getRotation();
++            EndCityPieces.EndCityPiece var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var3, var4, "base_floor", var7, true));
++            int var9 = var6.nextInt(3);
++            if (var9 == 0) {
++               EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 4, -1), "base_roof", var7, true));
++            } else if (var9 == 1) {
++               var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 0, -1), "second_floor_2", var7, false));
++               var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 8, -1), "second_roof", var7, false));
++               EndCityPieces.recursiveChildren(var1, EndCityPieces.TOWER_GENERATOR, var2 + 1, var8, (BlockPos)null, var5, var6);
++            } else if (var9 == 2) {
++               var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 0, -1), "second_floor_2", var7, false));
++               var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 4, -1), "third_floor_2", var7, false));
++               var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 8, -1), "third_roof", var7, true));
++               EndCityPieces.recursiveChildren(var1, EndCityPieces.TOWER_GENERATOR, var2 + 1, var8, (BlockPos)null, var5, var6);
++            }
++
++            return true;
++         }
++      }
++   };
+    private static final List<Tuple<Rotation, BlockPos>> TOWER_BRIDGES;
+    private static final EndCityPieces.SectionGenerator TOWER_GENERATOR;
+    private static final EndCityPieces.SectionGenerator TOWER_BRIDGE_GENERATOR;
+    private static final List<Tuple<Rotation, BlockPos>> FAT_TOWER_BRIDGES;
+    private static final EndCityPieces.SectionGenerator FAT_TOWER_GENERATOR;
+ 
++   public EndCityPieces() {
++   }
++
+    private static EndCityPieces.EndCityPiece addPiece(StructureManager var0, EndCityPieces.EndCityPiece var1, BlockPos var2, String var3, Rotation var4, boolean var5) {
+       EndCityPieces.EndCityPiece var6 = new EndCityPieces.EndCityPiece(var0, var3, var1.templatePosition, var4, var5);
+       BlockPos var7 = var1.template.calculateConnectedPosition(var1.placeSettings, var2, var6.placeSettings, BlockPos.ZERO);
+       var6.move(var7.getX(), var7.getY(), var7.getZ());
+       return var6;
+@@ -70,11 +99,11 @@
+             Iterator var10 = var7.iterator();
+ 
+             while(var10.hasNext()) {
+                StructurePiece var11 = (StructurePiece)var10.next();
+                var11.genDepth = var9;
+-               StructurePiece var12 = StructurePiece.findCollisionPiece(var5, var11.getBoundingBox());
++               StructurePiece var12 = StructureStart.findCollisionPiece(var5, var11.getBoundingBox());
+                if (var12 != null && var12.genDepth != var3.genDepth) {
+                   var8 = true;
+                   break;
+                }
+             }
+@@ -88,40 +117,10 @@
+          return false;
+       }
+    }
+ 
+    static {
+-      OVERWRITE = (new StructurePlaceSettings()).setIgnoreEntities(true).addProcessor(BlockIgnoreProcessor.STRUCTURE_BLOCK);
+-      INSERT = (new StructurePlaceSettings()).setIgnoreEntities(true).addProcessor(BlockIgnoreProcessor.STRUCTURE_AND_AIR);
+-      HOUSE_TOWER_GENERATOR = new EndCityPieces.SectionGenerator() {
+-         public void init() {
+-         }
+-
+-         public boolean generate(StructureManager var1, int var2, EndCityPieces.EndCityPiece var3, BlockPos var4, List<StructurePiece> var5, Random var6) {
+-            if (var2 > 8) {
+-               return false;
+-            } else {
+-               Rotation var7 = var3.placeSettings.getRotation();
+-               EndCityPieces.EndCityPiece var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var3, var4, "base_floor", var7, true));
+-               int var9 = var6.nextInt(3);
+-               if (var9 == 0) {
+-                  EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 4, -1), "base_roof", var7, true));
+-               } else if (var9 == 1) {
+-                  var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 0, -1), "second_floor_2", var7, false));
+-                  var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 8, -1), "second_roof", var7, false));
+-                  EndCityPieces.recursiveChildren(var1, EndCityPieces.TOWER_GENERATOR, var2 + 1, var8, (BlockPos)null, var5, var6);
+-               } else if (var9 == 2) {
+-                  var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 0, -1), "second_floor_2", var7, false));
+-                  var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 4, -1), "third_floor_2", var7, false));
+-                  var8 = EndCityPieces.addHelper(var5, EndCityPieces.addPiece(var1, var8, new BlockPos(-1, 8, -1), "third_roof", var7, true));
+-                  EndCityPieces.recursiveChildren(var1, EndCityPieces.TOWER_GENERATOR, var2 + 1, var8, (BlockPos)null, var5, var6);
+-               }
+-
+-               return true;
+-            }
+-         }
+-      };
+       TOWER_BRIDGES = Lists.newArrayList((Object[])(new Tuple(Rotation.NONE, new BlockPos(1, -1, 0)), new Tuple(Rotation.CLOCKWISE_90, new BlockPos(6, -1, 1)), new Tuple(Rotation.COUNTERCLOCKWISE_90, new BlockPos(0, -1, 5)), new Tuple(Rotation.CLOCKWISE_180, new BlockPos(5, -1, 6))));
+       TOWER_GENERATOR = new EndCityPieces.SectionGenerator() {
+          public void init() {
+          }
+ 
+@@ -237,57 +236,51 @@
+ 
+       boolean generate(StructureManager var1, int var2, EndCityPieces.EndCityPiece var3, BlockPos var4, List<StructurePiece> var5, Random var6);
+    }
+ 
+    public static class EndCityPiece extends TemplateStructurePiece {
+-      private final String templateName;
+-      private final Rotation rotation;
+-      private final boolean overwrite;
+-
+       public EndCityPiece(StructureManager var1, String var2, BlockPos var3, Rotation var4, boolean var5) {
+-         super(StructurePieceType.END_CITY_PIECE, 0);
+-         this.templateName = var2;
+-         this.templatePosition = var3;
+-         this.rotation = var4;
+-         this.overwrite = var5;
+-         this.loadTemplate(var1);
++         super(StructurePieceType.END_CITY_PIECE, 0, var1, makeResourceLocation(var2), var2, makeSettings(var5, var4), var3);
+       }
+ 
+-      public EndCityPiece(StructureManager var1, CompoundTag var2) {
+-         super(StructurePieceType.END_CITY_PIECE, var2);
+-         this.templateName = var2.getString("Template");
+-         this.rotation = Rotation.valueOf(var2.getString("Rot"));
+-         this.overwrite = var2.getBoolean("OW");
+-         this.loadTemplate(var1);
++      public EndCityPiece(ServerLevel var1, CompoundTag var2) {
++         super(StructurePieceType.END_CITY_PIECE, var2, var1, (var1x) -> {
++            return makeSettings(var2.getBoolean("OW"), Rotation.valueOf(var2.getString("Rot")));
++         });
+       }
+ 
+-      private void loadTemplate(StructureManager var1) {
+-         StructureTemplate var2 = var1.getOrCreate(new ResourceLocation("end_city/" + this.templateName));
+-         StructurePlaceSettings var3 = (this.overwrite ? EndCityPieces.OVERWRITE : EndCityPieces.INSERT).copy().setRotation(this.rotation);
+-         this.setup(var2, this.templatePosition, var3);
++      private static StructurePlaceSettings makeSettings(boolean var0, Rotation var1) {
++         BlockIgnoreProcessor var2 = var0 ? BlockIgnoreProcessor.STRUCTURE_BLOCK : BlockIgnoreProcessor.STRUCTURE_AND_AIR;
++         return (new StructurePlaceSettings()).setIgnoreEntities(true).addProcessor(var2).setRotation(var1);
+       }
+ 
+-      protected void addAdditionalSaveData(CompoundTag var1) {
+-         super.addAdditionalSaveData(var1);
+-         var1.putString("Template", this.templateName);
+-         var1.putString("Rot", this.rotation.name());
+-         var1.putBoolean("OW", this.overwrite);
++      protected ResourceLocation makeTemplateLocation() {
++         return makeResourceLocation(this.templateName);
+       }
+ 
++      private static ResourceLocation makeResourceLocation(String var0) {
++         return new ResourceLocation("end_city/" + var0);
++      }
++
++      protected void addAdditionalSaveData(ServerLevel var1, CompoundTag var2) {
++         super.addAdditionalSaveData(var1, var2);
++         var2.putString("Rot", this.placeSettings.getRotation().name());
++         var2.putBoolean("OW", this.placeSettings.getProcessors().get(0) == BlockIgnoreProcessor.STRUCTURE_BLOCK);
++      }
++
+       protected void handleDataMarker(String var1, BlockPos var2, ServerLevelAccessor var3, Random var4, BoundingBox var5) {
+          if (var1.startsWith("Chest")) {
+             BlockPos var6 = var2.below();
+             if (var5.isInside(var6)) {
                 RandomizableContainerBlockEntity.setLootTable(var3, var4, var6, BuiltInLootTables.END_CITY_TREASURE);
              }
           } else if (var1.startsWith("Sentry")) {
@@ -9,6 +194,10 @@
 -            var7.setAttachPosition(var2);
              var3.addFreshEntity(var7);
           } else if (var1.startsWith("Elytra")) {
-             ItemFrame var8 = new ItemFrame(var3.getLevel(), var2, this.rotation.rotate(Direction.SOUTH));
+-            ItemFrame var8 = new ItemFrame(var3.getLevel(), var2, this.rotation.rotate(Direction.SOUTH));
++            ItemFrame var8 = new ItemFrame(var3.getLevel(), var2, this.placeSettings.getRotation().rotate(Direction.SOUTH));
              var8.setItem(new ItemStack(Items.ELYTRA), false);
              var3.addFreshEntity(var8);
+          }
+ 
+       }

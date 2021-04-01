@@ -1,19 +1,51 @@
 --- net/minecraft/util/thread/ProcessorMailbox.java
 +++ net/minecraft/util/thread/ProcessorMailbox.java
-@@ -3,11 +3,11 @@
+@@ -1,20 +1,29 @@
+ package net.minecraft.util.thread;
+ 
++import com.google.common.collect.ImmutableList;
  import it.unimi.dsi.fastutil.ints.Int2BooleanFunction;
++import java.util.List;
  import java.util.concurrent.ConcurrentLinkedQueue;
  import java.util.concurrent.Executor;
  import java.util.concurrent.RejectedExecutionException;
  import java.util.concurrent.atomic.AtomicInteger;
 -import net.minecraft.SharedConstants;
 +import net.minecraft.Util;
++import net.minecraft.util.profiling.registry.MeasuredMetric;
++import net.minecraft.util.profiling.registry.MeasurementCategory;
++import net.minecraft.util.profiling.registry.MeasurementRegistry;
++import net.minecraft.util.profiling.registry.Metric;
++import net.minecraft.util.profiling.registry.ProfilerMeasured;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
- public class ProcessorMailbox<T> implements ProcessorHandle<T>, AutoCloseable, Runnable {
+-public class ProcessorMailbox<T> implements ProcessorHandle<T>, AutoCloseable, Runnable {
++public class ProcessorMailbox<T> implements ProfilerMeasured, ProcessorHandle<T>, AutoCloseable, Runnable {
     private static final Logger LOGGER = LogManager.getLogger();
-@@ -72,26 +72,11 @@
++   private static final int CLOSED_BIT = 1;
++   private static final int SCHEDULED_BIT = 2;
+    private final AtomicInteger status = new AtomicInteger(0);
+-   public final StrictQueue<? super T, ? extends Runnable> queue;
++   private final StrictQueue<? super T, ? extends Runnable> queue;
+    private final Executor dispatcher;
+    private final String name;
+ 
+    public static ProcessorMailbox<Runnable> create(Executor var0, String var1) {
+       return new ProcessorMailbox(new StrictQueue.QueueStrictQueue(new ConcurrentLinkedQueue()), var0, var1);
+@@ -22,10 +31,11 @@
+ 
+    public ProcessorMailbox(StrictQueue<? super T, ? extends Runnable> var1, Executor var2, String var3) {
+       this.dispatcher = var2;
+       this.queue = var1;
+       this.name = var3;
++      MeasurementRegistry.INSTANCE.add(this);
+    }
+ 
+    private boolean setAsScheduled() {
+       int var1;
+       do {
+@@ -72,26 +82,11 @@
        } else {
           Runnable var1 = (Runnable)this.queue.pop();
           if (var1 == null) {
@@ -41,3 +73,25 @@
        }
     }
  
+@@ -133,13 +128,21 @@
+       }
+ 
+       return var2;
+    }
+ 
++   public int size() {
++      return this.queue.size();
++   }
++
+    public String toString() {
+       return this.name + " " + this.status.get() + " " + this.queue.isEmpty();
+    }
+ 
+    public String name() {
+       return this.name;
+    }
++
++   public List<MeasuredMetric> metrics() {
++      return ImmutableList.of(new MeasuredMetric(new Metric(this.name + "-queuesize"), this.queue::size, MeasurementCategory.MAIL_BOX));
++   }
+ }

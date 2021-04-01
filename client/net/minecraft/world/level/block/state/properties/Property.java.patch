@@ -1,0 +1,47 @@
+--- net/minecraft/world/level/block/state/properties/Property.java
++++ net/minecraft/world/level/block/state/properties/Property.java
+@@ -1,10 +1,11 @@
+ package net.minecraft.world.level.block.state.properties;
+ 
+ import com.google.common.base.MoreObjects;
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.DataResult;
++import com.mojang.serialization.DynamicOps;
+ import java.util.Collection;
+ import java.util.Optional;
+ import java.util.stream.Stream;
+ import net.minecraft.world.level.block.state.StateHolder;
+ 
+@@ -36,10 +37,14 @@
+ 
+    public Stream<Property.Value<T>> getAllValues() {
+       return this.getPossibleValues().stream().map(this::value);
+    }
+ 
++   public Codec<T> codec() {
++      return this.codec;
++   }
++
+    public Codec<Property.Value<T>> valueCodec() {
+       return this.valueCodec;
+    }
+ 
+    public String getName() {
+@@ -81,10 +86,17 @@
+ 
+    public int generateHashCode() {
+       return 31 * this.clazz.hashCode() + this.name.hashCode();
+    }
+ 
++   public <U, S extends StateHolder<?, S>> DataResult<S> parseValue(DynamicOps<U> var1, S var2, U var3) {
++      DataResult var4 = this.codec.parse(var1, var3);
++      return var4.map((var2x) -> {
++         return (StateHolder)var2.setValue(this, var2x);
++      }).setPartial(var2);
++   }
++
+    public static final class Value<T extends Comparable<T>> {
+       private final Property<T> property;
+       private final T value;
+ 
+       private Value(Property<T> var1, T var2) {

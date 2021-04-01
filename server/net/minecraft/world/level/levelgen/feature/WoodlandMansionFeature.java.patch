@@ -12,7 +12,19 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeSource;
  import net.minecraft.world.level.block.Blocks;
-@@ -32,12 +33,12 @@
+@@ -18,11 +19,10 @@
+ import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.levelgen.Heightmap;
+ import net.minecraft.world.level.levelgen.WorldgenRandom;
+ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+ import net.minecraft.world.level.levelgen.structure.BoundingBox;
+-import net.minecraft.world.level.levelgen.structure.StructurePiece;
+ import net.minecraft.world.level.levelgen.structure.StructureStart;
+ import net.minecraft.world.level.levelgen.structure.WoodlandMansionPieces;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
+ 
+ public class WoodlandMansionFeature extends StructureFeature<NoneFeatureConfiguration> {
+@@ -32,12 +32,12 @@
  
     protected boolean linearSeparation() {
        return false;
@@ -27,7 +39,7 @@
        Biome var13;
        do {
           if (!var12.hasNext()) {
-@@ -53,15 +54,15 @@
+@@ -53,15 +53,15 @@
     public StructureFeature.StructureStartFactory<NoneFeatureConfiguration> getStartFactory() {
        return WoodlandMansionFeature.WoodlandMansionStart::new;
     }
@@ -35,8 +47,8 @@
     public static class WoodlandMansionStart extends StructureStart<NoneFeatureConfiguration> {
 -      public WoodlandMansionStart(StructureFeature<NoneFeatureConfiguration> var1, int var2, int var3, BoundingBox var4, int var5, long var6) {
 -         super(var1, var2, var3, var4, var5, var6);
-+      public WoodlandMansionStart(StructureFeature<NoneFeatureConfiguration> var1, ChunkPos var2, BoundingBox var3, int var4, long var5) {
-+         super(var1, var2, var3, var4, var5);
++      public WoodlandMansionStart(StructureFeature<NoneFeatureConfiguration> var1, ChunkPos var2, int var3, long var4) {
++         super(var1, var2, var3, var4);
        }
  
 -      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, NoneFeatureConfiguration var7) {
@@ -46,7 +58,7 @@
           byte var10 = 5;
           if (var8 == Rotation.CLOCKWISE_90) {
              var9 = -5;
-@@ -70,19 +71,19 @@
+@@ -70,54 +70,41 @@
              var10 = -5;
           } else if (var8 == Rotation.COUNTERCLOCKWISE_90) {
              var10 = -5;
@@ -70,6 +82,52 @@
 +            BlockPos var18 = new BlockPos(var4.getBlockX(8), var17 + 1, var4.getBlockZ(8));
              LinkedList var19 = Lists.newLinkedList();
              WoodlandMansionPieces.generateMansion(var3, var18, var8, var19, this.random);
-             this.pieces.addAll(var19);
-             this.calculateBoundingBox();
+-            this.pieces.addAll(var19);
+-            this.calculateBoundingBox();
++            var19.forEach(this::addPiece);
           }
+       }
+ 
+       public void placeInChunk(WorldGenLevel var1, StructureFeatureManager var2, ChunkGenerator var3, Random var4, BoundingBox var5, ChunkPos var6) {
+          super.placeInChunk(var1, var2, var3, var4, var5, var6);
+-         int var7 = this.boundingBox.y0;
++         BoundingBox var7 = this.getBoundingBox();
++         int var8 = var7.minY();
+ 
+-         for(int var8 = var5.x0; var8 <= var5.x1; ++var8) {
+-            for(int var9 = var5.z0; var9 <= var5.z1; ++var9) {
+-               BlockPos var10 = new BlockPos(var8, var7, var9);
+-               if (!var1.isEmptyBlock(var10) && this.boundingBox.isInside(var10)) {
+-                  boolean var11 = false;
+-                  Iterator var12 = this.pieces.iterator();
+-
+-                  while(var12.hasNext()) {
+-                     StructurePiece var13 = (StructurePiece)var12.next();
+-                     if (var13.getBoundingBox().isInside(var10)) {
+-                        var11 = true;
++         for(int var9 = var5.minX(); var9 <= var5.maxX(); ++var9) {
++            for(int var10 = var5.minZ(); var10 <= var5.maxZ(); ++var10) {
++               BlockPos var11 = new BlockPos(var9, var8, var10);
++               if (!var1.isEmptyBlock(var11) && var7.isInside(var11) && this.isInsidePiece(var11)) {
++                  for(int var12 = var8 - 1; var12 > 1; --var12) {
++                     BlockPos var13 = new BlockPos(var9, var12, var10);
++                     if (!var1.isEmptyBlock(var13) && !var1.getBlockState(var13).getMaterial().isLiquid()) {
+                         break;
+                      }
+-                  }
+ 
+-                  if (var11) {
+-                     for(int var14 = var7 - 1; var14 > 1; --var14) {
+-                        BlockPos var15 = new BlockPos(var8, var14, var9);
+-                        if (!var1.isEmptyBlock(var15) && !var1.getBlockState(var15).getMaterial().isLiquid()) {
+-                           break;
+-                        }
+-
+-                        var1.setBlock(var15, Blocks.COBBLESTONE.defaultBlockState(), 2);
+-                     }
++                     var1.setBlock(var13, Blocks.COBBLESTONE.defaultBlockState(), 2);
+                   }
+                }
+             }
+          }
+ 

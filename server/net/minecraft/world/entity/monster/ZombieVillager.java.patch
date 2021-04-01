@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/monster/ZombieVillager.java
 +++ net/minecraft/world/entity/monster/ZombieVillager.java
-@@ -39,12 +39,13 @@
+@@ -39,17 +39,22 @@
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.trading.MerchantOffers;
  import net.minecraft.world.level.Level;
@@ -15,7 +15,16 @@
  public class ZombieVillager extends Zombie implements VillagerDataHolder {
     private static final EntityDataAccessor<Boolean> DATA_CONVERTING_ID;
     private static final EntityDataAccessor<VillagerData> DATA_VILLAGER_DATA;
-@@ -128,20 +129,21 @@
++   private static final int VILLAGER_CONVERSION_WAIT_MIN = 3600;
++   private static final int VILLAGER_CONVERSION_WAIT_MAX = 6000;
++   private static final int MAX_SPECIAL_BLOCKS_COUNT = 14;
++   private static final int SPECIAL_BLOCK_RADIUS = 4;
+    private int villagerConversionTime;
+    private UUID conversionStarter;
+    private Tag gossips;
+    private CompoundTag tradeOffers;
+    private int villagerXp;
+@@ -128,20 +133,21 @@
        super.tick();
     }
  
@@ -39,7 +48,28 @@
              return InteractionResult.CONSUME;
           }
        } else {
-@@ -178,11 +180,11 @@
+@@ -168,21 +174,32 @@
+       this.removeEffect(MobEffects.WEAKNESS);
+       this.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, var2, Math.min(this.level.getDifficulty().getId() - 1, 0)));
+       this.level.broadcastEntityEvent(this, (byte)16);
+    }
+ 
++   public void handleEntityEvent(byte var1) {
++      if (var1 == 16) {
++         if (!this.isSilent()) {
++            this.level.playLocalSound(this.getX(), this.getEyeY(), this.getZ(), SoundEvents.ZOMBIE_VILLAGER_CURE, this.getSoundSource(), 1.0F + this.random.nextFloat(), this.random.nextFloat() * 0.7F + 0.3F, false);
++         }
++
++      } else {
++         super.handleEntityEvent(var1);
++      }
++   }
++
+    private void finishConversion(ServerLevel var1) {
+       Villager var2 = (Villager)this.convertTo(EntityType.VILLAGER, false);
+       EquipmentSlot[] var3 = EquipmentSlot.values();
+       int var4 = var3.length;
+ 
        for(int var5 = 0; var5 < var4; ++var5) {
           EquipmentSlot var6 = var3[var5];
           ItemStack var7 = this.getItemBySlot(var6);
@@ -52,7 +82,7 @@
                 if (var8 > 1.0D) {
                    this.spawnAtLocation(var7);
                 }
-@@ -223,12 +225,12 @@
+@@ -223,12 +240,12 @@
           BlockPos.MutableBlockPos var3 = new BlockPos.MutableBlockPos();
  
           for(int var4 = (int)this.getX() - 4; var4 < (int)this.getX() + 4 && var2 < 14; ++var4) {
@@ -67,3 +97,18 @@
                       }
  
                       ++var2;
+@@ -290,10 +307,14 @@
+ 
+    public VillagerData getVillagerData() {
+       return (VillagerData)this.entityData.get(DATA_VILLAGER_DATA);
+    }
+ 
++   public int getVillagerXp() {
++      return this.villagerXp;
++   }
++
+    public void setVillagerXp(int var1) {
+       this.villagerXp = var1;
+    }
+ 
+    static {

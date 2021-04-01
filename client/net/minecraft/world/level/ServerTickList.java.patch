@@ -12,9 +12,13 @@
  import java.util.function.Predicate;
  import javax.annotation.Nullable;
  import net.minecraft.CrashReport;
-@@ -28,11 +27,11 @@
+@@ -25,14 +24,15 @@
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.levelgen.structure.BoundingBox;
  
  public class ServerTickList<T> implements TickList<T> {
++   public static final int MAX_TICK_BLOCKS_PER_TICK = 65536;
     protected final Predicate<T> ignore;
     private final Function<T, ResourceLocation> toId;
     private final Set<TickNextTickData<T>> tickNextTickSet = Sets.newHashSet();
@@ -25,7 +29,7 @@
     private final List<TickNextTickData<T>> alreadyTicked = Lists.newArrayList();
     private final Consumer<TickNextTickData<T>> ticker;
  
-@@ -79,11 +78,11 @@
+@@ -79,11 +79,11 @@
                    this.alreadyTicked.add(var4);
                    this.ticker.accept(var4);
                 } catch (Throwable var8) {
@@ -38,7 +42,7 @@
              } else {
                 this.scheduleTick(var4.pos, var4.getType(), 0);
              }
-@@ -98,15 +97,15 @@
+@@ -98,15 +98,15 @@
     public boolean willTickThisTick(BlockPos var1, T var2) {
        return this.currentlyTicking.contains(new TickNextTickData(var1, var2));
     }
@@ -57,3 +61,16 @@
     public List<TickNextTickData<T>> fetchTicksInArea(BoundingBox var1, boolean var2, boolean var3) {
        List var4 = this.fetchTicksInArea((List)null, this.tickNextTickList, var1, var2);
        if (var2 && var4 != null) {
+@@ -126,11 +126,11 @@
+       Iterator var5 = var2.iterator();
+ 
+       while(var5.hasNext()) {
+          TickNextTickData var6 = (TickNextTickData)var5.next();
+          BlockPos var7 = var6.pos;
+-         if (var7.getX() >= var3.x0 && var7.getX() < var3.x1 && var7.getZ() >= var3.z0 && var7.getZ() < var3.z1) {
++         if (var7.getX() >= var3.minX() && var7.getX() < var3.maxX() && var7.getZ() >= var3.minZ() && var7.getZ() < var3.maxZ()) {
+             if (var4) {
+                var5.remove();
+             }
+ 
+             if (var1 == null) {

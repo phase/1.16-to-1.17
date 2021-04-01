@@ -1,6 +1,6 @@
 --- net/minecraft/client/renderer/debug/PathfindingRenderer.java
 +++ net/minecraft/client/renderer/debug/PathfindingRenderer.java
-@@ -4,10 +4,11 @@
+@@ -4,14 +4,16 @@
  import com.mojang.blaze3d.systems.RenderSystem;
  import com.mojang.blaze3d.vertex.BufferBuilder;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -11,8 +11,32 @@
  import java.util.Locale;
  import java.util.Map;
  import net.minecraft.Util;
++import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.client.renderer.MultiBufferSource;
-@@ -56,20 +57,18 @@
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.level.pathfinder.Node;
+ import net.minecraft.world.level.pathfinder.Path;
+@@ -19,10 +21,18 @@
+ 
+ public class PathfindingRenderer implements DebugRenderer.SimpleDebugRenderer {
+    private final Map<Integer, Path> pathMap = Maps.newHashMap();
+    private final Map<Integer, Float> pathMaxDist = Maps.newHashMap();
+    private final Map<Integer, Long> creationMap = Maps.newHashMap();
++   private static final long TIMEOUT = 5000L;
++   private static final float MAX_RENDER_DIST = 80.0F;
++   private static final boolean SHOW_OPEN_CLOSED = true;
++   private static final boolean SHOW_OPEN_CLOSED_COST_MALUS = false;
++   private static final boolean SHOW_OPEN_CLOSED_NODE_TYPE_WITH_TEXT = false;
++   private static final boolean SHOW_OPEN_CLOSED_NODE_TYPE_WITH_BOX = true;
++   private static final boolean SHOW_GROUND_LABELS = true;
++   private static final float TEXT_SCALE = 0.02F;
+ 
+    public PathfindingRenderer() {
+    }
+ 
+    public void addPath(int var1, Path var2, float var3) {
+@@ -56,20 +66,18 @@
  
        }
     }
@@ -34,13 +58,14 @@
     private static void doRenderPath(Path var0, float var1, boolean var2, boolean var3, double var4, double var6, double var8) {
        renderPathLine(var0, var4, var6, var8);
        BlockPos var10 = var0.getTarget();
-@@ -125,11 +124,11 @@
+@@ -125,11 +133,12 @@
     }
  
     public static void renderPathLine(Path var0, double var1, double var3, double var5) {
        Tesselator var7 = Tesselator.getInstance();
        BufferBuilder var8 = var7.getBuilder();
 -      var8.begin(3, DefaultVertexFormat.POSITION_COLOR);
++      RenderSystem.setShader(GameRenderer::getPositionColorShader);
 +      var8.begin(VertexFormat.Mode.LINE_STRIP, DefaultVertexFormat.POSITION_COLOR);
  
        for(int var9 = 0; var9 < var0.getNodeCount(); ++var9) {

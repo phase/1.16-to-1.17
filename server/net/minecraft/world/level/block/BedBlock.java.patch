@@ -1,6 +1,49 @@
 --- net/minecraft/world/level/block/BedBlock.java
 +++ net/minecraft/world/level/block/BedBlock.java
-@@ -154,11 +154,11 @@
+@@ -4,10 +4,11 @@
+ import java.util.Optional;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.network.chat.TranslatableComponent;
++import net.minecraft.util.Mth;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+@@ -44,11 +45,13 @@
+ import org.apache.commons.lang3.ArrayUtils;
+ 
+ public class BedBlock extends HorizontalDirectionalBlock implements EntityBlock {
+    public static final EnumProperty<BedPart> PART;
+    public static final BooleanProperty OCCUPIED;
++   protected static final int HEIGHT = 9;
+    protected static final VoxelShape BASE;
++   private static final int LEG_WIDTH = 3;
+    protected static final VoxelShape LEG_NORTH_WEST;
+    protected static final VoxelShape LEG_SOUTH_WEST;
+    protected static final VoxelShape LEG_NORTH_EAST;
+    protected static final VoxelShape LEG_SOUTH_EAST;
+    protected static final VoxelShape NORTH_SHAPE;
+@@ -61,10 +64,16 @@
+       super(var2);
+       this.color = var1;
+       this.registerDefaultState((BlockState)((BlockState)((BlockState)this.stateDefinition.any()).setValue(PART, BedPart.FOOT)).setValue(OCCUPIED, false));
+    }
+ 
++   @Nullable
++   public static Direction getBedOrientation(BlockGetter var0, BlockPos var1) {
++      BlockState var2 = var0.getBlockState(var1);
++      return var2.getBlock() instanceof BedBlock ? (Direction)var2.getValue(FACING) : null;
++   }
++
+    public InteractionResult use(BlockState var1, Level var2, BlockPos var3, Player var4, InteractionHand var5, BlockHitResult var6) {
+       if (var2.isClientSide) {
+          return InteractionResult.CONSUME;
+       } else {
+          if (var1.getValue(PART) != BedPart.HEAD) {
+@@ -154,11 +163,11 @@
        if (!var1.isClientSide && var4.isCreative()) {
           BedPart var5 = (BedPart)var3.getValue(PART);
           if (var5 == BedPart.FOOT) {
@@ -13,7 +56,23 @@
              }
           }
        }
-@@ -265,12 +265,12 @@
+@@ -191,10 +200,15 @@
+    public static Direction getConnectedDirection(BlockState var0) {
+       Direction var1 = (Direction)var0.getValue(FACING);
+       return var0.getValue(PART) == BedPart.HEAD ? var1.getOpposite() : var1;
+    }
+ 
++   public static DoubleBlockCombiner.BlockType getBlockType(BlockState var0) {
++      BedPart var1 = (BedPart)var0.getValue(PART);
++      return var1 == BedPart.HEAD ? DoubleBlockCombiner.BlockType.FIRST : DoubleBlockCombiner.BlockType.SECOND;
++   }
++
+    private static boolean isBunkBed(BlockGetter var0, BlockPos var1) {
+       return var0.getBlockState(var1.below()).getBlock() instanceof BedBlock;
+    }
+ 
+    public static Optional<Vec3> findStandUpPosition(EntityType<?> var0, CollisionGetter var1, BlockPos var2, float var3) {
+@@ -265,12 +279,12 @@
  
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
        var1.add(FACING, PART, OCCUPIED);
@@ -28,7 +87,7 @@
     public void setPlacedBy(Level var1, BlockPos var2, BlockState var3, @Nullable LivingEntity var4, ItemStack var5) {
        super.setPlacedBy(var1, var2, var3, var4, var5);
        if (!var1.isClientSide) {
-@@ -280,10 +280,14 @@
+@@ -280,10 +294,19 @@
           var3.updateNeighbourShapes(var1, var2, 3);
        }
  
@@ -36,6 +95,11 @@
  
 +   public DyeColor getColor() {
 +      return this.color;
++   }
++
++   public long getSeed(BlockState var1, BlockPos var2) {
++      BlockPos var3 = var2.relative((Direction)var1.getValue(FACING), var1.getValue(PART) == BedPart.HEAD ? 0 : 1);
++      return Mth.getSeed(var3.getX(), var2.getY(), var3.getZ());
 +   }
 +
     public boolean isPathfindable(BlockState var1, BlockGetter var2, BlockPos var3, PathComputationType var4) {

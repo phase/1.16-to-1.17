@@ -1,6 +1,18 @@
 --- net/minecraft/world/level/biome/Biome.java
 +++ net/minecraft/world/level/biome/Biome.java
-@@ -173,11 +173,11 @@
+@@ -90,10 +90,11 @@
+    public static final Codec<List<Supplier<Biome>>> LIST_CODEC;
+    private final Map<Integer, List<StructureFeature<?>>> structuresByStep;
+    private static final PerlinSimplexNoise TEMPERATURE_NOISE;
+    private static final PerlinSimplexNoise FROZEN_TEMPERATURE_NOISE;
+    public static final PerlinSimplexNoise BIOME_INFO_NOISE;
++   private static final int TEMPERATURE_CACHE_SIZE = 1024;
+    private final Biome.ClimateSettings climateSettings;
+    private final BiomeGenerationSettings generationSettings;
+    private final MobSpawnSettings mobSettings;
+    private final float depth;
+    private final float scale;
+@@ -173,11 +174,11 @@
  
     public boolean shouldFreeze(LevelReader var1, BlockPos var2, boolean var3) {
        if (this.getTemperature(var2) >= 0.15F) {
@@ -13,7 +25,7 @@
              if (var5.getType() == Fluids.WATER && var4.getBlock() instanceof LiquidBlock) {
                 if (!var3) {
                    return true;
-@@ -192,15 +192,19 @@
+@@ -192,15 +193,19 @@
  
           return false;
        }
@@ -35,7 +47,7 @@
                 return true;
              }
           }
-@@ -223,18 +227,20 @@
+@@ -223,18 +228,20 @@
              List var12 = (List)this.structuresByStep.getOrDefault(var10, Collections.emptyList());
  
              for(Iterator var13 = var12.iterator(); var13.hasNext(); ++var11) {
@@ -62,7 +74,7 @@
                    CrashReport var20 = CrashReport.forThrowable(var21, "Feature placement");
                    var20.addCategory("Feature").setDetail("Id", (Object)Registry.STRUCTURE_FEATURE.getKey(var14)).setDetail("Description", () -> {
                       return var14.toString();
-@@ -412,10 +418,14 @@
+@@ -412,10 +419,14 @@
           this.altitude = var3;
           this.weirdness = var4;
           this.offset = var5;
@@ -77,7 +89,7 @@
              return true;
           } else if (var1 != null && this.getClass() == var1.getClass()) {
              Biome.ClimateParameters var2 = (Biome.ClimateParameters)var1;
-@@ -624,11 +634,12 @@
+@@ -624,11 +635,12 @@
        OCEAN("ocean"),
        DESERT("desert"),
        RIVER("river"),

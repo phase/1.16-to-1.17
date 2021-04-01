@@ -1,10 +1,12 @@
 --- net/minecraft/world/entity/LivingEntity.java
 +++ net/minecraft/world/entity/LivingEntity.java
-@@ -49,10 +49,11 @@
+@@ -48,11 +48,13 @@
+ import net.minecraft.sounds.SoundEvent;
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.sounds.SoundSource;
  import net.minecraft.stats.Stats;
  import net.minecraft.tags.BlockTags;
++import net.minecraft.tags.EntityTypeTags;
  import net.minecraft.tags.FluidTags;
 +import net.minecraft.tags.ItemTags;
  import net.minecraft.tags.Tag;
@@ -12,7 +14,7 @@
  import net.minecraft.world.InteractionHand;
  import net.minecraft.world.damagesource.CombatRules;
  import net.minecraft.world.damagesource.CombatTracker;
-@@ -77,10 +78,11 @@
+@@ -77,10 +79,11 @@
  import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.entity.projectile.AbstractArrow;
@@ -24,7 +26,7 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.UseAnim;
-@@ -89,17 +91,19 @@
+@@ -89,17 +92,20 @@
  import net.minecraft.world.item.enchantment.Enchantments;
  import net.minecraft.world.item.enchantment.FrostWalkerEnchantment;
  import net.minecraft.world.level.ClipContext;
@@ -34,6 +36,7 @@
  import net.minecraft.world.level.block.BedBlock;
 -import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.HoneyBlock;
  import net.minecraft.world.level.block.LadderBlock;
 +import net.minecraft.world.level.block.PowderSnowBlock;
  import net.minecraft.world.level.block.SoundType;
@@ -45,7 +48,7 @@
  import net.minecraft.world.level.storage.loot.LootContext;
  import net.minecraft.world.level.storage.loot.LootTable;
  import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
-@@ -111,10 +115,11 @@
+@@ -111,25 +117,46 @@
  import org.apache.logging.log4j.Logger;
  
  public abstract class LivingEntity extends Entity {
@@ -53,11 +56,46 @@
     private static final UUID SPEED_MODIFIER_SOUL_SPEED_UUID = UUID.fromString("87f46a96-686f-4796-b035-22e16ee9e038");
 +   private static final UUID SPEED_MODIFIER_POWDER_SNOW_UUID = UUID.fromString("1eaf83ff-7207-4596-b37a-d7a07b3ec4ce");
     private static final AttributeModifier SPEED_MODIFIER_SPRINTING;
++   public static final int HAND_SLOTS = 2;
++   public static final int ARMOR_SLOTS = 4;
++   public static final int EQUIPMENT_SLOT_OFFSET = 98;
++   public static final int ARMOR_SLOT_OFFSET = 100;
++   public static final int SWING_DURATION = 6;
++   public static final int PLAYER_HURT_EXPERIENCE_TIME = 100;
++   private static final int DAMAGE_SOURCE_TIMEOUT = 40;
++   public static final double MIN_MOVEMENT_DISTANCE = 0.003D;
++   public static final double DEFAULT_BASE_GRAVITY = 0.08D;
++   public static final int DEATH_DURATION = 20;
++   private static final int WAIT_TICKS_BEFORE_ITEM_USE_EFFECTS = 7;
++   private static final int TICKS_PER_ELYTRA_FREE_FALL_EVENT = 10;
++   private static final int FREE_FALL_EVENTS_PER_ELYTRA_BREAK = 2;
++   public static final int USE_ITEM_INTERVAL = 4;
++   protected static final int LIVING_ENTITY_FLAG_IS_USING = 1;
++   protected static final int LIVING_ENTITY_FLAG_OFF_HAND = 2;
++   protected static final int LIVING_ENTITY_FLAG_SPIN_ATTACK = 4;
     protected static final EntityDataAccessor<Byte> DATA_LIVING_ENTITY_FLAGS;
     private static final EntityDataAccessor<Float> DATA_HEALTH_ID;
     private static final EntityDataAccessor<Integer> DATA_EFFECT_COLOR_ID;
     private static final EntityDataAccessor<Boolean> DATA_EFFECT_AMBIENCE_ID;
-@@ -186,10 +191,11 @@
+    private static final EntityDataAccessor<Integer> DATA_ARROW_COUNT_ID;
+    private static final EntityDataAccessor<Integer> DATA_STINGER_COUNT_ID;
+    private static final EntityDataAccessor<Optional<BlockPos>> SLEEPING_POS_ID;
++   protected static final float DEFAULT_EYE_HEIGHT = 1.74F;
+    protected static final EntityDimensions SLEEPING_DIMENSIONS;
++   public static final float EXTRA_RENDER_CULLING_SIZE_WITH_BIG_HAT = 0.5F;
+    private final AttributeMap attributes;
+    private final CombatTracker combatTracker = new CombatTracker(this);
+    private final Map<MobEffect, MobEffectInstance> activeEffects = Maps.newHashMap();
+    private final NonNullList<ItemStack> lastHandItemStacks;
+    private final NonNullList<ItemStack> lastArmorItemStacks;
+    public boolean swinging;
++   private boolean discardFriction;
+    public InteractionHand swingingArm;
+    public int swingTime;
+    public int removeArrowTime;
+    public int removeStingerTime;
+    public int hurtTime;
+@@ -186,10 +213,11 @@
     protected ItemStack useItem;
     protected int useItemRemaining;
     protected int fallFlyTicks;
@@ -69,7 +107,34 @@
     protected int autoSpinAttackTicks;
     private float swimAmount;
     private float swimAmountO;
-@@ -306,11 +312,11 @@
+@@ -197,10 +225,11 @@
+ 
+    protected LivingEntity(EntityType<? extends LivingEntity> var1, Level var2) {
+       super(var1, var2);
+       this.lastHandItemStacks = NonNullList.withSize(2, ItemStack.EMPTY);
+       this.lastArmorItemStacks = NonNullList.withSize(4, ItemStack.EMPTY);
++      this.discardFriction = false;
+       this.invulnerableDuration = 20;
+       this.flyingSpeed = 0.02F;
+       this.effectsDirty = true;
+       this.useItem = ItemStack.EMPTY;
+       this.lastClimbablePos = Optional.empty();
+@@ -275,10 +304,14 @@
+ 
+    public boolean canBreatheUnderwater() {
+       return this.getMobType() == MobType.UNDEAD;
+    }
+ 
++   public float getSwimAmount(float var1) {
++      return Mth.lerp(var1, this.swimAmountO, this.swimAmount);
++   }
++
+    public void baseTick() {
+       this.oAttackAnim = this.attackAnim;
+       if (this.firstTick) {
+          this.getSleepingPos().ifPresent(this::setPosToBed);
+       }
+@@ -306,11 +339,11 @@
  
        if (this.fireImmune() || this.level.isClientSide) {
           this.clearFire();
@@ -82,7 +147,7 @@
              if (!this.canBreatheUnderwater() && !MobEffectUtil.hasWaterBreathing(this) && !var11) {
                 this.setAirSupply(this.decreaseAirSupply(this.getAirSupply()));
                 if (this.getAirSupply() == -20) {
-@@ -342,11 +348,11 @@
+@@ -342,11 +375,11 @@
                 this.onChangedBlock(var12);
              }
           }
@@ -95,7 +160,7 @@
  
        if (this.hurtTime > 0) {
           --this.hurtTime;
-@@ -439,10 +445,36 @@
+@@ -439,10 +472,36 @@
           }
        }
  
@@ -132,7 +197,7 @@
        if (var2 > 0) {
           FrostWalkerEnchantment.onEntityMoved(this, this.level, var1, var2);
        }
-@@ -471,11 +503,11 @@
+@@ -471,11 +530,11 @@
     }
  
     protected void tickDeath() {
@@ -145,7 +210,7 @@
              double var2 = this.random.nextGaussian() * 0.02D;
              double var4 = this.random.nextGaussian() * 0.02D;
              double var6 = this.random.nextGaussian() * 0.02D;
-@@ -558,20 +590,14 @@
+@@ -558,20 +617,22 @@
  
     public void setNoActionTime(int var1) {
        this.noActionTime = var1;
@@ -160,7 +225,14 @@
 -         } else if (var3 == Items.ELYTRA) {
 -            var2 = SoundEvents.ARMOR_EQUIP_ELYTRA;
 -         }
--
++   public boolean shouldDiscardFriction() {
++      return this.discardFriction;
++   }
+ 
++   public void setDiscardFriction(boolean var1) {
++      this.discardFriction = var1;
++   }
++
 +   protected void equipEventAndSound(ItemStack var1) {
 +      SoundEvent var2 = var1.getEquipSound();
 +      if (!var1.isEmpty() && var2 != null && !this.isSpectator()) {
@@ -170,7 +242,7 @@
     }
  
     public void addAdditionalSaveData(CompoundTag var1) {
-@@ -740,14 +766,13 @@
+@@ -740,14 +801,13 @@
  
           var2 *= 0.7D * (double)var4;
        }
@@ -188,7 +260,7 @@
        }
  
        return var2;
-@@ -759,10 +784,14 @@
+@@ -759,10 +819,14 @@
  
     public boolean canAttack(LivingEntity var1, TargetingConditions var2) {
        return var2.test(this, var1);
@@ -203,7 +275,30 @@
  
        MobEffectInstance var2;
        do {
-@@ -922,11 +951,11 @@
+@@ -841,10 +905,22 @@
+       }
+ 
+       return true;
+    }
+ 
++   public void forceAddEffect(MobEffectInstance var1) {
++      if (this.canBeAffected(var1)) {
++         MobEffectInstance var2 = (MobEffectInstance)this.activeEffects.put(var1.getEffect(), var1);
++         if (var2 == null) {
++            this.onEffectAdded(var1);
++         } else {
++            this.onEffectUpdated(var1, true);
++         }
++
++      }
++   }
++
+    public boolean isInvertedHealAndHarm() {
+       return this.getMobType() == MobType.UNDEAD;
+    }
+ 
+    @Nullable
+@@ -922,11 +998,11 @@
              this.stopSleeping();
           }
  
@@ -216,7 +311,7 @@
              });
              var2 *= 0.75F;
           }
-@@ -1000,10 +1029,12 @@
+@@ -1000,10 +1076,12 @@
                    var13 = 36;
                 } else if (var1.isFire()) {
                    var13 = 37;
@@ -229,7 +324,7 @@
                 }
  
                 this.level.broadcastEntityEvent(this, var13);
-@@ -1079,11 +1110,11 @@
+@@ -1079,11 +1157,11 @@
           int var5 = var4.length;
  
           for(int var6 = 0; var6 < var5; ++var6) {
@@ -242,11 +337,23 @@
                 break;
              }
           }
-@@ -1148,11 +1179,11 @@
+@@ -1147,12 +1225,23 @@
+       }
  
        return false;
     }
  
++   private void breakItem(ItemStack var1) {
++      if (!var1.isEmpty()) {
++         if (!this.isSilent()) {
++            this.level.playLocalSound(this.getX(), this.getY(), this.getZ(), SoundEvents.ITEM_BREAK, this.getSoundSource(), 0.8F, 0.8F + this.level.random.nextFloat() * 0.4F, false);
++         }
++
++         this.spawnItemParticles(var1, 5);
++      }
++
++   }
++
     public void die(DamageSource var1) {
 -      if (!this.removed && !this.dead) {
 +      if (!this.isRemoved() && !this.dead) {
@@ -255,7 +362,7 @@
           if (this.deathScore >= 0 && var3 != null) {
              var3.awardKillScore(this, this.deathScore, var1);
           }
-@@ -1220,18 +1251,12 @@
+@@ -1220,18 +1309,12 @@
  
     protected void dropEquipment() {
     }
@@ -276,7 +383,7 @@
     }
  
     protected void dropCustomDeathLoot(DamageSource var1, int var2, boolean var3) {
-@@ -1305,15 +1330,14 @@
+@@ -1305,15 +1388,14 @@
        if (this.isSpectator()) {
           return false;
        } else {
@@ -294,7 +401,7 @@
           } else {
              return false;
           }
-@@ -1334,23 +1358,23 @@
+@@ -1334,23 +1416,23 @@
  
        return false;
     }
@@ -326,7 +433,24 @@
  
     protected int calculateFallDamage(float var1, float var2) {
        MobEffectInstance var3 = this.getEffect(MobEffects.JUMP);
-@@ -1440,10 +1464,11 @@
+@@ -1370,10 +1452,16 @@
+          }
+ 
+       }
+    }
+ 
++   public void animateHurt() {
++      this.hurtDuration = 10;
++      this.hurtTime = this.hurtDuration;
++      this.hurtDir = 0.0F;
++   }
++
+    public int getArmorValue() {
+       return Mth.floor(this.getAttributeValue(Attributes.ARMOR));
+    }
+ 
+    protected void hurtArmor(DamageSource var1, float var2) {
+@@ -1440,10 +1528,11 @@
           if (var2 != 0.0F) {
              float var5 = this.getHealth();
              this.setHealth(var5 - var2);
@@ -338,7 +462,163 @@
     }
  
     public CombatTracker getCombatTracker() {
-@@ -1559,16 +1584,16 @@
+@@ -1509,10 +1598,155 @@
+          }
+       }
+ 
+    }
+ 
++   public void handleEntityEvent(byte var1) {
++      switch(var1) {
++      case 2:
++      case 33:
++      case 36:
++      case 37:
++      case 44:
++      case 57:
++         this.animationSpeed = 1.5F;
++         this.invulnerableTime = 20;
++         this.hurtDuration = 10;
++         this.hurtTime = this.hurtDuration;
++         this.hurtDir = 0.0F;
++         if (var1 == 33) {
++            this.playSound(SoundEvents.THORNS_HIT, this.getSoundVolume(), (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F);
++         }
++
++         DamageSource var16;
++         if (var1 == 37) {
++            var16 = DamageSource.ON_FIRE;
++         } else if (var1 == 36) {
++            var16 = DamageSource.DROWN;
++         } else if (var1 == 44) {
++            var16 = DamageSource.SWEET_BERRY_BUSH;
++         } else if (var1 == 57) {
++            var16 = DamageSource.FREEZE;
++         } else {
++            var16 = DamageSource.GENERIC;
++         }
++
++         SoundEvent var17 = this.getHurtSound(var16);
++         if (var17 != null) {
++            this.playSound(var17, this.getSoundVolume(), (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F);
++         }
++
++         this.hurt(DamageSource.GENERIC, 0.0F);
++         this.lastDamageSource = var16;
++         this.lastDamageStamp = this.level.getGameTime();
++         break;
++      case 3:
++         SoundEvent var15 = this.getDeathSound();
++         if (var15 != null) {
++            this.playSound(var15, this.getSoundVolume(), (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F);
++         }
++
++         if (!(this instanceof Player)) {
++            this.setHealth(0.0F);
++            this.die(DamageSource.GENERIC);
++         }
++         break;
++      case 4:
++      case 5:
++      case 6:
++      case 7:
++      case 8:
++      case 9:
++      case 10:
++      case 11:
++      case 12:
++      case 13:
++      case 14:
++      case 15:
++      case 16:
++      case 17:
++      case 18:
++      case 19:
++      case 20:
++      case 21:
++      case 22:
++      case 23:
++      case 24:
++      case 25:
++      case 26:
++      case 27:
++      case 28:
++      case 31:
++      case 32:
++      case 34:
++      case 35:
++      case 38:
++      case 39:
++      case 40:
++      case 41:
++      case 42:
++      case 43:
++      case 45:
++      case 53:
++      case 56:
++      default:
++         super.handleEntityEvent(var1);
++         break;
++      case 29:
++         this.playSound(SoundEvents.SHIELD_BLOCK, 1.0F, 0.8F + this.level.random.nextFloat() * 0.4F);
++         break;
++      case 30:
++         this.playSound(SoundEvents.SHIELD_BREAK, 0.8F, 0.8F + this.level.random.nextFloat() * 0.4F);
++         break;
++      case 46:
++         boolean var2 = true;
++
++         for(int var3 = 0; var3 < 128; ++var3) {
++            double var4 = (double)var3 / 127.0D;
++            float var6 = (this.random.nextFloat() - 0.5F) * 0.2F;
++            float var7 = (this.random.nextFloat() - 0.5F) * 0.2F;
++            float var8 = (this.random.nextFloat() - 0.5F) * 0.2F;
++            double var9 = Mth.lerp(var4, this.xo, this.getX()) + (this.random.nextDouble() - 0.5D) * (double)this.getBbWidth() * 2.0D;
++            double var11 = Mth.lerp(var4, this.yo, this.getY()) + this.random.nextDouble() * (double)this.getBbHeight();
++            double var13 = Mth.lerp(var4, this.zo, this.getZ()) + (this.random.nextDouble() - 0.5D) * (double)this.getBbWidth() * 2.0D;
++            this.level.addParticle(ParticleTypes.PORTAL, var9, var11, var13, (double)var6, (double)var7, (double)var8);
++         }
++
++         return;
++      case 47:
++         this.breakItem(this.getItemBySlot(EquipmentSlot.MAINHAND));
++         break;
++      case 48:
++         this.breakItem(this.getItemBySlot(EquipmentSlot.OFFHAND));
++         break;
++      case 49:
++         this.breakItem(this.getItemBySlot(EquipmentSlot.HEAD));
++         break;
++      case 50:
++         this.breakItem(this.getItemBySlot(EquipmentSlot.CHEST));
++         break;
++      case 51:
++         this.breakItem(this.getItemBySlot(EquipmentSlot.LEGS));
++         break;
++      case 52:
++         this.breakItem(this.getItemBySlot(EquipmentSlot.FEET));
++         break;
++      case 54:
++         HoneyBlock.showJumpParticles(this);
++         break;
++      case 55:
++         this.swapHandItems();
++      }
++
++   }
++
++   private void swapHandItems() {
++      ItemStack var1 = this.getItemBySlot(EquipmentSlot.OFFHAND);
++      this.setItemSlot(EquipmentSlot.OFFHAND, this.getItemBySlot(EquipmentSlot.MAINHAND));
++      this.setItemSlot(EquipmentSlot.MAINHAND, var1);
++   }
++
+    protected void outOfWorld() {
+       this.hurt(DamageSource.OUT_OF_WORLD, 4.0F);
+    }
+ 
+    protected void updateSwingTime() {
+@@ -1559,16 +1793,16 @@
        return this.getItemBySlot(EquipmentSlot.OFFHAND);
     }
  
@@ -358,7 +638,7 @@
     public ItemStack getItemInHand(InteractionHand var1) {
        if (var1 == InteractionHand.MAIN_HAND) {
           return this.getItemBySlot(EquipmentSlot.MAINHAND);
-@@ -1649,17 +1674,17 @@
+@@ -1649,19 +1883,23 @@
  
     }
  
@@ -375,10 +655,31 @@
 +      this.dismountTo(var2.x, var2.y, var2.z);
     }
  
++   public boolean shouldShowName() {
++      return this.isCustomNameVisible();
++   }
++
     protected float getJumpPower() {
        return 0.42F * this.getBlockJumpFactor();
     }
-@@ -1812,11 +1837,11 @@
+ 
+    protected void jumpFromGround() {
+@@ -1678,10 +1916,14 @@
+       }
+ 
+       this.hasImpulse = true;
+    }
+ 
++   protected void goDownInWater() {
++      this.setDeltaMovement(this.getDeltaMovement().add(0.0D, -0.03999999910593033D, 0.0D));
++   }
++
+    protected void jumpInLiquid(Tag<Fluid> var1) {
+       this.setDeltaMovement(this.getDeltaMovement().add(0.0D, 0.03999999910593033D, 0.0D));
+    }
+ 
+    protected float getWaterSlowDown() {
+@@ -1812,20 +2054,24 @@
              double var10 = var25.y;
              if (this.hasEffect(MobEffects.LEVITATION)) {
                 var10 += (0.05D * (double)(this.getEffect(MobEffects.LEVITATION).getAmplifier() + 1) - var25.y) * 0.2D;
@@ -391,7 +692,21 @@
                    var10 = 0.0D;
                 }
              } else if (!this.isNoGravity()) {
-@@ -1847,11 +1872,11 @@
+                var10 -= var2;
+             }
+ 
+-            this.setDeltaMovement(var25.x * (double)var8, var10 * 0.9800000190734863D, var25.z * (double)var8);
++            if (this.shouldDiscardFriction()) {
++               this.setDeltaMovement(var25.x, var10, var25.z);
++            } else {
++               this.setDeltaMovement(var25.x * (double)var8, var10 * 0.9800000190734863D, var25.z * (double)var8);
++            }
+          }
+       }
+ 
+       this.calculateEntityAnimation(this, this instanceof FlyingAnimal);
+    }
+@@ -1847,11 +2093,11 @@
     public Vec3 handleRelativeFrictionAndCalculateMovement(Vec3 var1, float var2) {
        this.moveRelative(this.getFrictionInfluencedSpeed(var2), var1);
        this.setDeltaMovement(this.handleOnClimbable(this.getDeltaMovement()));
@@ -404,24 +719,42 @@
  
        return var3;
     }
-@@ -2244,10 +2269,25 @@
+@@ -1942,10 +2188,12 @@
+          if (!this.glowing) {
+             boolean var3 = this.hasEffect(MobEffects.GLOWING);
+             if (this.getSharedFlag(6) != var3) {
+                this.setSharedFlag(6, var3);
+             }
++
++            this.glowing = var3;
+          }
+ 
+          if (this.isSleeping() && !this.checkBedExists()) {
+             this.stopSleeping();
+          }
+@@ -2244,10 +2492,30 @@
        this.zza *= 0.98F;
        this.updateFallFlying();
        AABB var14 = this.getBoundingBox();
        this.travel(new Vec3((double)this.xxa, (double)this.yya, (double)this.zza));
        this.level.getProfiler().pop();
 +      this.level.getProfiler().push("freezing");
-+      int var9 = this.getTicksFrozen();
-+      if (this.isInPowderSnow && this.canFreeze()) {
-+         this.setTicksFrozen(Math.min(this.getTicksRequiredToFreeze(), var9 + 1));
-+      } else {
-+         this.setTicksFrozen(Math.max(0, var9 - 2));
++      boolean var9 = this.getType().is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES);
++      int var15;
++      if (!this.level.isClientSide) {
++         var15 = this.getTicksFrozen();
++         if (this.isInPowderSnow && this.canFreeze()) {
++            this.setTicksFrozen(Math.min(this.getTicksRequiredToFreeze(), var15 + 1));
++         } else {
++            this.setTicksFrozen(Math.max(0, var15 - 2));
++         }
 +      }
 +
 +      this.removeFrost();
 +      this.tryAddFrost();
-+      if (this.tickCount % 60 == 0 && this.isFullyFrozen() && this.canFreeze()) {
-+         this.hurt(DamageSource.FREEZE, 1.0F);
++      if (!this.level.isClientSide && this.tickCount % 40 == 0 && this.isFullyFrozen() && this.canFreeze()) {
++         var15 = var9 ? 5 : 1;
++         this.hurt(DamageSource.FREEZE, (float)var15);
 +      }
 +
 +      this.level.getProfiler().pop();
@@ -430,7 +763,7 @@
           --this.autoSpinAttackTicks;
           this.checkAutoSpinAttack(var14, this.getBoundingBox());
        }
-@@ -2266,16 +2306,22 @@
+@@ -2266,16 +2534,22 @@
  
     private void updateFallFlying() {
        boolean var1 = this.getSharedFlag(7);
@@ -458,7 +791,32 @@
              var1 = false;
           }
        } else {
-@@ -2387,11 +2433,11 @@
+@@ -2374,10 +2648,24 @@
+       this.oRun = this.run;
+       this.run = 0.0F;
+       this.fallDistance = 0.0F;
+    }
+ 
++   public void lerpTo(double var1, double var3, double var5, float var7, float var8, int var9, boolean var10) {
++      this.lerpX = var1;
++      this.lerpY = var3;
++      this.lerpZ = var5;
++      this.lerpYRot = (double)var7;
++      this.lerpXRot = (double)var8;
++      this.lerpSteps = var9;
++   }
++
++   public void lerpHeadTo(float var1, int var2) {
++      this.lyHeadRot = (double)var1;
++      this.lerpHeadSteps = var2;
++   }
++
+    public void setJumping(boolean var1) {
+       this.jumping = var1;
+    }
+ 
+    public void onItemPickup(ItemEntity var1) {
+@@ -2387,11 +2675,11 @@
        }
  
     }
@@ -471,7 +829,21 @@
  
     }
  
-@@ -2408,11 +2454,11 @@
+@@ -2403,16 +2691,25 @@
+ 
+    public float getViewYRot(float var1) {
+       return var1 == 1.0F ? this.yHeadRot : Mth.lerp(var1, this.yHeadRotO, this.yHeadRot);
+    }
+ 
++   public float getAttackAnim(float var1) {
++      float var2 = this.attackAnim - this.oAttackAnim;
++      if (var2 < 0.0F) {
++         ++var2;
++      }
++
++      return this.oAttackAnim + var2 * var1;
++   }
++
     public boolean isEffectiveAi() {
        return !this.level.isClientSide;
     }
@@ -484,7 +856,22 @@
     public boolean isPushable() {
        return this.isAlive() && !this.isSpectator() && !this.onClimbable();
     }
-@@ -2675,11 +2721,11 @@
+@@ -2664,10 +2961,14 @@
+ 
+    public boolean isVisuallySwimming() {
+       return super.isVisuallySwimming() || !this.isFallFlying() && this.getPose() == Pose.FALL_FLYING;
+    }
+ 
++   public int getFallFlyingTicks() {
++      return this.fallFlyTicks;
++   }
++
+    public boolean randomTeleport(double var1, double var3, double var5, boolean var7) {
+       double var8 = this.getX();
+       double var10 = this.getY();
+       double var12 = this.getZ();
+       double var14 = var3;
+@@ -2675,11 +2976,11 @@
        BlockPos var17 = new BlockPos(var1, var3, var5);
        Level var18 = this.level;
        if (var18.hasChunkAt(var17)) {
@@ -497,7 +884,38 @@
              if (var21.getMaterial().blocksMotion()) {
                 var19 = true;
              } else {
-@@ -2826,15 +2872,18 @@
+@@ -2718,10 +3019,13 @@
+ 
+    public boolean attackable() {
+       return true;
+    }
+ 
++   public void setRecordPlayingNearby(BlockPos var1, boolean var2) {
++   }
++
+    public boolean canTakeItem(ItemStack var1) {
+       return false;
+    }
+ 
+    public Packet<?> getAddEntityPacket() {
+@@ -2808,10 +3112,16 @@
+       this.setPose(Pose.STANDING);
+       this.setPos(var1.x, var1.y, var1.z);
+       this.clearSleepingPos();
+    }
+ 
++   @Nullable
++   public Direction getBedOrientation() {
++      BlockPos var1 = (BlockPos)this.getSleepingPos().orElse((Object)null);
++      return var1 != null ? BedBlock.getBedOrientation(this.level, var1) : null;
++   }
++
+    public boolean isInWall() {
+       return !this.isSleeping() && super.isInWall();
+    }
+ 
+    protected final float getEyeHeight(Pose var1, EntityDimensions var2) {
+@@ -2826,15 +3136,18 @@
        return ItemStack.EMPTY;
     }
  
@@ -517,12 +935,21 @@
        return var2;
     }
  
-@@ -2879,10 +2928,61 @@
+@@ -2879,10 +3192,86 @@
  
     public void broadcastBreakEvent(InteractionHand var1) {
        this.broadcastBreakEvent(var1 == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
     }
  
++   public AABB getBoundingBoxForCulling() {
++      if (this.getItemBySlot(EquipmentSlot.HEAD).is(Items.DRAGON_HEAD)) {
++         float var1 = 0.5F;
++         return this.getBoundingBox().inflate(0.5D, 0.5D, 0.5D);
++      } else {
++         return super.getBoundingBoxForCulling();
++      }
++   }
++
 +   public static EquipmentSlot getEquipmentSlotForItem(ItemStack var0) {
 +      Item var1 = var0.getItem();
 +      if (!var0.is(Items.CARVED_PUMPKIN) && (!(var1 instanceof BlockItem) || !(((BlockItem)var1).getBlock() instanceof AbstractSkullBlock))) {
@@ -570,8 +997,24 @@
 +      if (this.isSpectator()) {
 +         return false;
 +      } else {
-+         return !this.getItemBySlot(EquipmentSlot.HEAD).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.CHEST).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.LEGS).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.FEET).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES);
++         boolean var1 = !this.getItemBySlot(EquipmentSlot.HEAD).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.CHEST).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.LEGS).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.FEET).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES);
++         return var1 && super.canFreeze();
 +      }
++   }
++
++   public void recreateFromPacket(ClientboundAddMobPacket var1) {
++      double var2 = var1.getX();
++      double var4 = var1.getY();
++      double var6 = var1.getZ();
++      float var8 = (float)(var1.getyRot() * 360) / 256.0F;
++      float var9 = (float)(var1.getxRot() * 360) / 256.0F;
++      this.setPacketCoordinates(var2, var4, var6);
++      this.yBodyRot = (float)(var1.getyHeadRot() * 360) / 256.0F;
++      this.yHeadRot = (float)(var1.getyHeadRot() * 360) / 256.0F;
++      this.setId(var1.getId());
++      this.setUUID(var1.getUUID());
++      this.absMoveTo(var2, var4, var6, var8, var9);
++      this.setDeltaMovement((double)((float)var1.getXd() / 8000.0F), (double)((float)var1.getYd() / 8000.0F), (double)((float)var1.getZd() / 8000.0F));
 +   }
 +
     static {

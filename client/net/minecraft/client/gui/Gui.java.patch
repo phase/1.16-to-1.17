@@ -26,7 +26,7 @@
  import net.minecraft.client.renderer.texture.TextureAtlasSprite;
  import net.minecraft.client.resources.MobEffectTextureManager;
  import net.minecraft.core.BlockPos;
-@@ -80,10 +83,12 @@
+@@ -80,11 +83,19 @@
  
  public class Gui extends GuiComponent {
     private static final ResourceLocation VIGNETTE_LOCATION = new ResourceLocation("textures/misc/vignette.png");
@@ -35,11 +35,18 @@
 +   private static final ResourceLocation SPYGLASS_SCOPE_LOCATION = new ResourceLocation("textures/misc/spyglass_scope.png");
 +   private static final ResourceLocation POWDER_SNOW_OUTLINE_LOCATION = new ResourceLocation("textures/misc/powder_snow_outline.png");
     private static final Component DEMO_EXPIRED_TEXT = new TranslatableComponent("demo.demoExpired");
++   private static final int COLOR_WHITE = 16777215;
++   private static final float MIN_CROSSHAIR_ATTACK_SPEED = 5.0F;
++   private static final int NUM_HEARTS_PER_ROW = 10;
++   private static final int LINE_HEIGHT = 10;
++   private static final String SPACER = ": ";
++   private static final float PORTAL_OVERLAY_ALPHA_MIN = 0.2F;
     private final Random random = new Random();
     private final Minecraft minecraft;
     private final ItemRenderer itemRenderer;
     private final ChatComponent chat;
-@@ -113,10 +118,11 @@
+    private int tickCount;
+@@ -113,10 +124,11 @@
     private long lastHealthTime;
     private long healthBlinkTime;
     private int screenWidth;
@@ -51,9 +58,13 @@
        this.lastToolHighlight = ItemStack.EMPTY;
        this.chatListeners = Maps.newHashMap();
        this.minecraft = var1;
-@@ -160,38 +166,52 @@
+@@ -157,41 +169,56 @@
+       RenderSystem.enableBlend();
+       if (Minecraft.useFancyGraphics()) {
+          this.renderVignette(this.minecraft.getCameraEntity());
        } else {
           RenderSystem.enableDepthTest();
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
           RenderSystem.defaultBlendFunc();
        }
  
@@ -115,7 +126,7 @@
           }
  
           this.renderVehicleHealth(var1);
-@@ -209,27 +229,25 @@
+@@ -209,27 +236,25 @@
              this.spectatorGui.renderTooltip(var1);
           }
        }
@@ -148,7 +159,7 @@
        if (this.minecraft.isDemo()) {
           this.renderDemoOverlay(var1);
        }
-@@ -240,118 +258,116 @@
+@@ -240,118 +265,116 @@
        }
  
        if (!this.minecraft.options.hideGui) {
@@ -217,7 +228,7 @@
 -            if (var13 > 8) {
 -               RenderSystem.pushMatrix();
 -               RenderSystem.translatef((float)(this.screenWidth / 2), (float)(this.screenHeight / 2), 0.0F);
-+            var14 = Mth.clamp(var14, 0, 255);
++            var14 = Mth.clamp((int)var14, (int)0, (int)255);
 +            if (var14 > 8) {
 +               var1.pushPose();
 +               var1.translate((double)(this.screenWidth / 2), (double)(this.screenHeight / 2), 0.0D);
@@ -311,7 +322,7 @@
     private void drawBackdrop(PoseStack var1, Font var2, int var3, int var4, int var5) {
        int var6 = this.minecraft.options.getBackgroundColor(0.0F);
        if (var6 != 0) {
-@@ -368,18 +384,21 @@
+@@ -368,18 +391,21 @@
     private void renderCrosshair(PoseStack var1) {
        Options var2 = this.minecraft.options;
        if (var2.getCameraType().isFirstPerson()) {
@@ -339,7 +350,7 @@
                 boolean var3 = true;
                 this.blit(var1, (this.screenWidth - 15) / 2, (this.screenHeight - 15) / 2, 0, 0, 15, 15);
                 if (this.minecraft.options.attackIndicator == AttackIndicatorStatus.CROSSHAIR) {
-@@ -426,11 +445,11 @@
+@@ -426,11 +452,11 @@
           RenderSystem.enableBlend();
           int var3 = 0;
           int var4 = 0;
@@ -352,7 +363,7 @@
           while(var7.hasNext()) {
              MobEffectInstance var8 = (MobEffectInstance)var7.next();
              MobEffect var9 = var8.getEffect();
-@@ -448,11 +467,11 @@
+@@ -448,11 +474,11 @@
                    ++var4;
                    var10 -= 25 * var4;
                    var11 += 26;
@@ -365,7 +376,7 @@
                    this.blit(var1, var10, var11, 165, 166, 24, 24);
                 } else {
                    this.blit(var1, var10, var11, 141, 166, 24, 24);
-@@ -462,91 +481,91 @@
+@@ -462,91 +488,92 @@
                    }
                 }
  
@@ -381,6 +392,7 @@
           }
  
           var6.forEach(Runnable::run);
++         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
        }
     }
  
@@ -484,7 +496,7 @@
        int var5 = (int)(var3 * 183.0F);
        int var6 = this.screenHeight - 32 + 3;
        this.blit(var1, var2, var6, 0, 84, 182, 5);
-@@ -557,11 +576,11 @@
+@@ -557,11 +584,11 @@
        this.minecraft.getProfiler().pop();
     }
  
@@ -497,7 +509,7 @@
        int var6;
        if (var3 > 0) {
           boolean var4 = true;
-@@ -608,21 +627,19 @@
+@@ -608,21 +635,19 @@
           if (var6 > 255) {
              var6 = 255;
           }
@@ -519,7 +531,7 @@
  
        this.minecraft.getProfiler().pop();
     }
-@@ -813,14 +830,18 @@
+@@ -813,14 +838,18 @@
           int var25;
           int var26;
           int var27;
@@ -542,7 +554,7 @@
              byte var24 = 0;
              if (var4) {
                 var24 = 1;
-@@ -963,31 +984,76 @@
+@@ -963,31 +992,78 @@
  
           }
        }
@@ -564,6 +576,7 @@
 -      var2.vertex((double)this.screenWidth, 0.0D, -90.0D).uv(1.0F, 0.0F).endVertex();
 -      var2.vertex(0.0D, 0.0D, -90.0D).uv(0.0F, 0.0F).endVertex();
 -      var1.end();
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
 +      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, var2);
 +      RenderSystem.setShaderTexture(0, var1);
 +      Tesselator var3 = Tesselator.getInstance();
@@ -585,6 +598,7 @@
 +      RenderSystem.disableDepthTest();
 +      RenderSystem.depthMask(false);
 +      RenderSystem.defaultBlendFunc();
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
 +      RenderSystem.setShaderTexture(0, SPYGLASS_SCOPE_LOCATION);
 +      Tesselator var2 = Tesselator.getInstance();
 +      BufferBuilder var3 = var2.getBuilder();
@@ -633,31 +647,37 @@
           float var2 = Mth.clamp(1.0F - var1.getBrightness(), 0.0F, 1.0F);
           this.vignetteBrightness = (float)((double)this.vignetteBrightness + (double)(var2 - this.vignetteBrightness) * 0.01D);
        }
-@@ -1006,76 +1072,79 @@
+@@ -1006,76 +1082,83 @@
  
        RenderSystem.disableDepthTest();
        RenderSystem.depthMask(false);
        RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
        if (var3 > 0.0F) {
 -         RenderSystem.color4f(0.0F, var3, var3, 1.0F);
++         var3 = Mth.clamp(var3, 0.0F, 1.0F);
 +         RenderSystem.setShaderColor(0.0F, var3, var3, 1.0F);
        } else {
 -         RenderSystem.color4f(this.vignetteBrightness, this.vignetteBrightness, this.vignetteBrightness, 1.0F);
-+         RenderSystem.setShaderColor(this.vignetteBrightness, this.vignetteBrightness, this.vignetteBrightness, 1.0F);
++         float var8 = this.vignetteBrightness;
++         var8 = Mth.clamp(var8, 0.0F, 1.0F);
++         RenderSystem.setShaderColor(var8, var8, var8, 1.0F);
        }
  
 -      this.minecraft.getTextureManager().bind(VIGNETTE_LOCATION);
+-      Tesselator var8 = Tesselator.getInstance();
+-      BufferBuilder var9 = var8.getBuilder();
+-      var9.begin(7, DefaultVertexFormat.POSITION_TEX);
 +      RenderSystem.setShader(GameRenderer::getPositionTexShader);
 +      RenderSystem.setShaderTexture(0, VIGNETTE_LOCATION);
-       Tesselator var8 = Tesselator.getInstance();
-       BufferBuilder var9 = var8.getBuilder();
--      var9.begin(7, DefaultVertexFormat.POSITION_TEX);
++      Tesselator var10 = Tesselator.getInstance();
++      BufferBuilder var9 = var10.getBuilder();
 +      var9.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
        var9.vertex(0.0D, (double)this.screenHeight, -90.0D).uv(0.0F, 1.0F).endVertex();
        var9.vertex((double)this.screenWidth, (double)this.screenHeight, -90.0D).uv(1.0F, 1.0F).endVertex();
        var9.vertex((double)this.screenWidth, 0.0D, -90.0D).uv(1.0F, 0.0F).endVertex();
        var9.vertex(0.0D, 0.0D, -90.0D).uv(0.0F, 0.0F).endVertex();
-       var8.end();
+-      var8.end();
++      var10.end();
        RenderSystem.depthMask(true);
        RenderSystem.enableDepthTest();
 -      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
@@ -680,6 +700,7 @@
 -      this.minecraft.getTextureManager().bind(TextureAtlas.LOCATION_BLOCKS);
 +      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, var1);
 +      RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_BLOCKS);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
        TextureAtlasSprite var2 = this.minecraft.getBlockRenderer().getBlockModelShaper().getParticleIcon(Blocks.NETHER_PORTAL.defaultBlockState());
        float var3 = var2.getU0();
        float var4 = var2.getV0();
@@ -735,7 +756,7 @@
           this.itemRenderer.renderGuiItemDecorations(this.minecraft.font, var5, var1, var2);
        }
     }
-@@ -1098,14 +1167,14 @@
+@@ -1098,14 +1181,14 @@
        if (var1 != null) {
           this.updateVignetteBrightness(var1);
        }
@@ -752,7 +773,7 @@
              }
           } else {
              this.toolHighlightTimer = 40;
-@@ -1124,38 +1193,42 @@
+@@ -1124,38 +1207,42 @@
        this.overlayMessageString = var1;
        this.overlayMessageTime = 60;
        this.animateOverlayMessageColor = var2;
@@ -818,7 +839,7 @@
     public UUID guessChatUUID(Component var1) {
        String var2 = StringDecomposer.getPlainText(var1);
        String var3 = StringUtils.substringBetween(var2, "<", ">");
-@@ -1198,10 +1271,12 @@
+@@ -1198,10 +1285,12 @@
  
     public void onDisconnected() {
        this.tabList.reset();

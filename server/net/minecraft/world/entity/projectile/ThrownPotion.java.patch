@@ -1,6 +1,29 @@
 --- net/minecraft/world/entity/projectile/ThrownPotion.java
 +++ net/minecraft/world/entity/projectile/ThrownPotion.java
-@@ -94,11 +94,11 @@
+@@ -21,18 +21,21 @@
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.item.alchemy.Potion;
+ import net.minecraft.world.item.alchemy.PotionUtils;
+ import net.minecraft.world.item.alchemy.Potions;
+ import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.AbstractCandleBlock;
+ import net.minecraft.world.level.block.CampfireBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.EntityHitResult;
+ import net.minecraft.world.phys.HitResult;
+ 
+-public class ThrownPotion extends ThrowableItemProjectile {
++public class ThrownPotion extends ThrowableItemProjectile implements ItemSupplier {
++   public static final double SPLASH_RANGE = 4.0D;
++   private static final double SPLASH_RANGE_SQ = 16.0D;
+    public static final Predicate<LivingEntity> WATER_SENSITIVE = LivingEntity::isSensitiveToWater;
+ 
+    public ThrownPotion(EntityType<? extends ThrownPotion> var1, Level var2) {
+       super(var1, var2);
+    }
+@@ -94,11 +97,11 @@
              }
           }
  
@@ -13,7 +36,7 @@
  
     private void applyWater() {
        AABB var1 = this.getBoundingBox().inflate(4.0D, 2.0D, 4.0D);
-@@ -187,20 +187,20 @@
+@@ -187,20 +190,22 @@
  
        this.level.addFreshEntity(var3);
     }
@@ -27,6 +50,8 @@
        BlockState var3 = this.level.getBlockState(var1);
        if (var3.is(BlockTags.FIRE)) {
           this.level.removeBlock(var1, false);
++      } else if (AbstractCandleBlock.isLit(var3)) {
++         AbstractCandleBlock.extinguish((Player)null, var3, this.level, var1);
        } else if (CampfireBlock.isLitCampfire(var3)) {
           this.level.levelEvent((Player)null, 1009, var1, 0);
 -         CampfireBlock.dowse(this.level, var1, var3);

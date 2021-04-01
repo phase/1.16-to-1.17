@@ -68,7 +68,7 @@
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.ServerItemCooldowns;
  import net.minecraft.world.item.WrittenBookItem;
-@@ -132,16 +138,16 @@
+@@ -132,16 +138,18 @@
  import net.minecraft.world.scores.Team;
  import net.minecraft.world.scores.criteria.ObjectiveCriteria;
  import org.apache.logging.log4j.LogManager;
@@ -77,6 +77,8 @@
 -public class ServerPlayer extends Player implements ContainerListener {
 +public class ServerPlayer extends Player {
     private static final Logger LOGGER = LogManager.getLogger();
++   private static final int NEUTRAL_MOB_DEATH_NOTIFICATION_RADII_XZ = 32;
++   private static final int NEUTRAL_MOB_DEATH_NOTIFICATION_RADII_Y = 10;
     public ServerGamePacketListenerImpl connection;
     public final MinecraftServer server;
     public final ServerPlayerGameMode gameMode;
@@ -87,7 +89,7 @@
     private float lastRecordedHealthAndAbsorption = Float.MIN_VALUE;
     private int lastRecordedFoodLevel = Integer.MIN_VALUE;
     private int lastRecordedAirLevel = Integer.MIN_VALUE;
-@@ -152,45 +158,95 @@
+@@ -152,45 +160,95 @@
     private int lastSentFood = -99999999;
     private boolean lastFoodSaturationZero = true;
     private int lastSentExp = -99999999;
@@ -193,7 +195,7 @@
     private void fudgeSpawnLocation(ServerLevel var1) {
        BlockPos var2 = var1.getSharedSpawnPos();
        if (var1.dimensionType().hasSkyLight() && var1.getServer().getWorldData().getGameType() != GameType.ADVENTURE) {
-@@ -223,11 +279,11 @@
+@@ -223,11 +281,11 @@
              }
           }
        } else {
@@ -206,7 +208,7 @@
        }
  
     }
-@@ -236,18 +292,10 @@
+@@ -236,18 +294,10 @@
        return var1 <= 16 ? var1 - 1 : 17;
     }
  
@@ -225,7 +227,7 @@
           this.enteredNetherPosition = new Vec3(var2.getDouble("x"), var2.getDouble("y"), var2.getDouble("z"));
        }
  
-@@ -274,12 +322,11 @@
+@@ -274,12 +324,11 @@
  
     }
  
@@ -239,7 +241,7 @@
           CompoundTag var2 = new CompoundTag();
           var2.putDouble("x", this.enteredNetherPosition.x);
           var2.putDouble("y", this.enteredNetherPosition.y);
-@@ -287,11 +334,11 @@
+@@ -287,11 +336,11 @@
           var1.put("enteredNetherPosition", var2);
        }
  
@@ -252,7 +254,7 @@
           var6.save(var5);
           var4.putUUID("Attach", var3.getUUID());
           var4.put("Entity", var5);
-@@ -336,22 +383,27 @@
+@@ -336,22 +385,27 @@
     public void onEnchantmentPerformed(ItemStack var1, int var2) {
        super.onEnchantmentPerformed(var1, var2);
        this.lastSentExp = -1;
@@ -284,7 +286,7 @@
     protected void onInsideBlock(BlockState var1) {
        CriteriaTriggers.ENTER_BLOCK.trigger(this, var1);
     }
-@@ -371,28 +423,19 @@
+@@ -371,28 +425,19 @@
        if (!this.level.isClientSide && !this.containerMenu.stillValid(this)) {
           this.closeContainer();
           this.containerMenu = this.inventoryMenu;
@@ -320,7 +322,7 @@
                 this.setCamera(this);
              }
           } else {
-@@ -408,16 +451,16 @@
+@@ -408,16 +453,16 @@
        this.advancements.flushDirty(this);
     }
  
@@ -340,7 +342,7 @@
                 if (var6 != null) {
                    this.connection.send(var6);
                 }
-@@ -486,19 +529,19 @@
+@@ -486,19 +531,19 @@
  
     public void die(DamageSource var1) {
        boolean var2 = this.level.getGameRules().getBoolean(GameRules.RULE_SHOWDEATHMESSAGES);
@@ -362,7 +364,7 @@
           });
           Team var4 = this.getTeam();
           if (var4 != null && var4.getDeathMessageVisibility() != Team.Visibility.ALWAYS) {
-@@ -509,11 +552,11 @@
+@@ -509,11 +554,11 @@
              }
           } else {
              this.server.getPlayerList().broadcastMessage(var3, ChatType.SYSTEM, Util.NIL_UUID);
@@ -375,7 +377,7 @@
        this.removeEntitiesOnShoulder();
        if (this.level.getGameRules().getBoolean(GameRules.RULE_FORGIVE_DEAD_PLAYERS)) {
           this.tellNeutralMobsThatIDied();
-@@ -534,17 +577,17 @@
+@@ -534,17 +579,17 @@
        this.level.broadcastEntityEvent(this, (byte)3);
        this.awardStat(Stats.DEATHS);
        this.resetStat(Stats.CUSTOM.get(Stats.TIME_SINCE_DEATH));
@@ -395,7 +397,7 @@
           ((NeutralMob)var1x).playerDied(this);
        });
     }
-@@ -632,11 +675,11 @@
+@@ -632,11 +677,11 @@
        this.isChangingDimension = true;
        ServerLevel var2 = this.getLevel();
        ResourceKey var3 = var2.dimension();
@@ -408,7 +410,7 @@
              this.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.WIN_GAME, this.seenCredits ? 0.0F : 1.0F));
              this.seenCredits = true;
           }
-@@ -646,12 +689,12 @@
+@@ -646,12 +691,12 @@
           LevelData var4 = var1.getLevelData();
           this.connection.send(new ClientboundRespawnPacket(var1.dimensionType(), var1.dimension(), BiomeManager.obfuscateSeed(var1.getSeed()), this.gameMode.getGameModeForPlayer(), this.gameMode.getPreviousGameModeForPlayer(), var1.isDebug(), var1.isFlat(), true));
           this.connection.send(new ClientboundChangeDifficultyPacket(var4.getDifficulty(), var4.isDifficultyLocked()));
@@ -423,7 +425,7 @@
              var2.getProfiler().push("moving");
              if (var3 == Level.OVERWORLD && var1.dimension() == Level.NETHER) {
                 this.enteredNetherPosition = this.position();
-@@ -665,12 +708,11 @@
+@@ -665,12 +710,11 @@
              var1.addDuringPortalTeleport(this);
              this.setRot(var6.yRot, var6.xRot);
              this.moveTo(var6.pos.x, var6.pos.y, var6.pos.z);
@@ -437,7 +439,7 @@
              Iterator var7 = this.getActiveEffects().iterator();
  
              while(var7.hasNext()) {
-@@ -782,10 +824,14 @@
+@@ -782,10 +826,14 @@
  
                 Either var9 = super.startSleepInBed(var1).ifRight((var1x) -> {
                    this.awardStat(Stats.SLEEP_IN_BED);
@@ -452,7 +454,7 @@
              }
           }
        } else {
-@@ -841,17 +887,25 @@
+@@ -841,17 +889,25 @@
     public void stopRiding() {
        Entity var1 = this.getVehicle();
        super.stopRiding();
@@ -480,7 +482,7 @@
     protected void checkFallDamage(double var1, boolean var3, BlockState var4, BlockPos var5) {
     }
  
-@@ -861,18 +915,19 @@
+@@ -861,18 +917,19 @@
        }
  
     }
@@ -502,7 +504,7 @@
  
     private void nextContainerCounter() {
        this.containerCounter = this.containerCounter % 100 + 1;
-@@ -885,20 +940,20 @@
+@@ -885,20 +942,20 @@
           if (this.containerMenu != this.inventoryMenu) {
              this.closeContainer();
           }
@@ -525,7 +527,7 @@
           }
        }
     }
-@@ -912,17 +967,16 @@
+@@ -912,17 +969,16 @@
           this.closeContainer();
        }
  
@@ -546,7 +548,7 @@
           }
  
           this.connection.send(new ClientboundOpenBookPacket(var2));
-@@ -933,48 +987,18 @@
+@@ -933,48 +989,18 @@
     public void openCommandBlock(CommandBlockEntity var1) {
        var1.setSendToClient(true);
        this.broadcast(var1);
@@ -596,7 +598,7 @@
  
     public void setPlayerInput(float var1, float var2, boolean var3, boolean var4) {
        if (this.isPassenger()) {
-@@ -1046,11 +1070,11 @@
+@@ -1046,11 +1072,11 @@
     public void resetSentInfo() {
        this.lastSentHealth = -1.0E8F;
     }
@@ -609,7 +611,7 @@
     protected void completeUsingItem() {
        if (!this.useItem.isEmpty() && this.isUsingItem()) {
           this.connection.send(new ClientboundEntityEventPacket(this, (byte)9));
-@@ -1069,21 +1093,23 @@
+@@ -1069,21 +1095,23 @@
        super.lookAt(var1, var4);
        this.connection.send(new ClientboundPlayerLookAtPacket(var1, var2, var3));
     }
@@ -635,7 +637,7 @@
           this.experienceProgress = var1.experienceProgress;
           this.setScore(var1.getScore());
        }
-@@ -1146,31 +1172,35 @@
+@@ -1146,31 +1174,35 @@
        this.getLevel().getChunkSource().broadcastAndSend(this, new ClientboundAnimatePacket(var1, 5));
     }
  
@@ -682,7 +684,7 @@
     public boolean isSpectator() {
        return this.gameMode.getGameModeForPlayer() == GameType.SPECTATOR;
     }
-@@ -1182,19 +1212,21 @@
+@@ -1182,19 +1214,21 @@
     public void sendMessage(Component var1, UUID var2) {
        this.sendMessage(var1, ChatType.SYSTEM, var2);
     }
@@ -712,7 +714,7 @@
     public String getIpAddress() {
        String var1 = this.connection.connection.getRemoteAddress().toString();
        var1 = var1.substring(var1.indexOf("/") + 1);
-@@ -1203,22 +1235,35 @@
+@@ -1203,22 +1237,39 @@
     }
  
     public void updateOptions(ServerboundClientInformationPacket var1) {
@@ -723,6 +725,10 @@
        this.getEntityData().set(DATA_PLAYER_MAIN_HAND, (byte)(var1.getMainHand() == HumanoidArm.LEFT ? 0 : 1));
     }
  
++   public boolean canChatInColor() {
++      return this.canChatColor;
++   }
++
     public ChatVisiblity getChatVisibility() {
        return this.chatVisibility;
     }
@@ -750,7 +756,7 @@
     }
  
     public void resetLastActionTime() {
-@@ -1241,11 +1286,11 @@
+@@ -1241,11 +1292,11 @@
        }
  
     }
@@ -763,7 +769,7 @@
     protected void updateInvisibilityStatus() {
        if (this.isSpectator()) {
           this.removeEffectParticles();
-@@ -1321,18 +1366,17 @@
+@@ -1321,18 +1372,17 @@
           ServerLevel var10 = this.getLevel();
           LevelData var11 = var1.getLevelData();
           this.connection.send(new ClientboundRespawnPacket(var1.dimensionType(), var1.dimension(), BiomeManager.obfuscateSeed(var1.getSeed()), this.gameMode.getGameModeForPlayer(), this.gameMode.getPreviousGameModeForPlayer(), var1.isDebug(), var1.isFlat(), true));
@@ -784,7 +790,7 @@
        }
  
     }
-@@ -1419,10 +1463,53 @@
+@@ -1419,10 +1469,53 @@
  
           return var4;
        }

@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/feature/StrongholdFeature.java
 +++ net/minecraft/world/level/levelgen/feature/StrongholdFeature.java
-@@ -2,19 +2,20 @@
+@@ -2,19 +2,19 @@
  
  import com.mojang.serialization.Codec;
  import java.util.List;
@@ -12,7 +12,7 @@
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.WorldgenRandom;
  import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
- import net.minecraft.world.level.levelgen.structure.BoundingBox;
+-import net.minecraft.world.level.levelgen.structure.BoundingBox;
 +import net.minecraft.world.level.levelgen.structure.NoiseAffectingStructureStart;
  import net.minecraft.world.level.levelgen.structure.StrongholdPieces;
  import net.minecraft.world.level.levelgen.structure.StructurePiece;
@@ -22,7 +22,7 @@
  public class StrongholdFeature extends StructureFeature<NoneFeatureConfiguration> {
     public StrongholdFeature(Codec<NoneFeatureConfiguration> var1) {
        super(var1);
-@@ -22,32 +23,32 @@
+@@ -22,44 +22,42 @@
  
     public StructureFeature.StructureStartFactory<NoneFeatureConfiguration> getStartFactory() {
        return StrongholdFeature.StrongholdStart::new;
@@ -41,9 +41,9 @@
 -      public StrongholdStart(StructureFeature<NoneFeatureConfiguration> var1, int var2, int var3, BoundingBox var4, int var5, long var6) {
 -         super(var1, var2, var3, var4, var5, var6);
 -         this.seed = var6;
-+      public StrongholdStart(StructureFeature<NoneFeatureConfiguration> var1, ChunkPos var2, BoundingBox var3, int var4, long var5) {
-+         super(var1, var2, var3, var4, var5);
-+         this.seed = var5;
++      public StrongholdStart(StructureFeature<NoneFeatureConfiguration> var1, ChunkPos var2, int var3, long var4) {
++         super(var1, var2, var3, var4);
++         this.seed = var4;
        }
  
 -      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, NoneFeatureConfiguration var7) {
@@ -52,27 +52,32 @@
  
           StrongholdPieces.StartPiece var9;
           do {
-             this.pieces.clear();
-             this.boundingBox = BoundingBox.getUnknownBox();
+-            this.pieces.clear();
+-            this.boundingBox = BoundingBox.getUnknownBox();
 -            this.random.setLargeFeatureSeed(this.seed + (long)(var8++), var4, var5);
++            this.clearPieces();
 +            this.random.setLargeFeatureSeed(this.seed + (long)(var8++), var4.x, var4.z);
              StrongholdPieces.resetPieces();
 -            var9 = new StrongholdPieces.StartPiece(this.random, (var4 << 4) + 2, (var5 << 4) + 2);
+-            this.pieces.add(var9);
+-            var9.addChildren(var9, this.pieces, this.random);
 +            var9 = new StrongholdPieces.StartPiece(this.random, var4.getBlockX(2), var4.getBlockZ(2));
-             this.pieces.add(var9);
-             var9.addChildren(var9, this.pieces, this.random);
++            this.addPiece(var9);
++            var9.addChildren(var9, this, this.random);
              List var10 = var9.pendingChildren;
  
              while(!var10.isEmpty()) {
-@@ -55,11 +56,11 @@
+                int var11 = this.random.nextInt(var10.size());
                 StructurePiece var12 = (StructurePiece)var10.remove(var11);
-                var12.addChildren(var9, this.pieces, this.random);
+-               var12.addChildren(var9, this.pieces, this.random);
++               var12.addChildren(var9, this, this.random);
              }
  
-             this.calculateBoundingBox();
+-            this.calculateBoundingBox();
 -            this.moveBelowSeaLevel(var2.getSeaLevel(), this.random, 10);
+-         } while(this.pieces.isEmpty() || var9.portalRoomPiece == null);
 +            this.moveBelowSeaLevel(var2.getSeaLevel(), var2.getMinY(), this.random, 10);
-          } while(this.pieces.isEmpty() || var9.portalRoomPiece == null);
++         } while(this.hasNoPieces() || var9.portalRoomPiece == null);
  
        }
     }

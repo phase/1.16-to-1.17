@@ -1,12 +1,10 @@
 --- net/minecraft/server/level/progress/ProcessorChunkProgressListener.java
 +++ net/minecraft/server/level/progress/ProcessorChunkProgressListener.java
-@@ -7,28 +7,50 @@
- import net.minecraft.world.level.chunk.ChunkStatus;
+@@ -8,15 +8,21 @@
  
  public class ProcessorChunkProgressListener implements ChunkProgressListener {
     private final ChunkProgressListener delegate;
     private final ProcessorMailbox<Runnable> mailbox;
-+   private volatile boolean isRunning;
  
 -   public ProcessorChunkProgressListener(ChunkProgressListener var1, Executor var2) {
 +   private ProcessorChunkProgressListener(ChunkProgressListener var1, Executor var2) {
@@ -21,42 +19,23 @@
 +   }
 +
     public void updateSpawnPos(ChunkPos var1) {
--      this.mailbox.tell(() -> {
--         this.delegate.updateSpawnPos(var1);
--      });
-+      if (this.isRunning) {
-+         this.mailbox.tell(() -> {
-+            this.delegate.updateSpawnPos(var1);
-+         });
-+      }
+       this.mailbox.tell(() -> {
+          this.delegate.updateSpawnPos(var1);
+       });
     }
- 
-    public void onStatusChange(ChunkPos var1, @Nullable ChunkStatus var2) {
--      this.mailbox.tell(() -> {
--         this.delegate.onStatusChange(var1, var2);
--      });
-+      if (this.isRunning) {
-+         this.mailbox.tell(() -> {
-+            this.delegate.onStatusChange(var1, var2);
-+         });
-+      }
+@@ -25,10 +31,15 @@
+       this.mailbox.tell(() -> {
+          this.delegate.onStatusChange(var1, var2);
+       });
     }
  
 +   public void start() {
-+      if (!this.isRunning) {
-+         this.isRunning = true;
-+         ChunkProgressListener var10001 = this.delegate;
-+         this.mailbox.tell(var10001::start);
-+      }
++      ChunkProgressListener var10001 = this.delegate;
++      this.mailbox.tell(var10001::start);
 +   }
 +
     public void stop() {
--      ChunkProgressListener var10001 = this.delegate;
--      this.mailbox.tell(var10001::stop);
-+      if (this.isRunning) {
-+         this.isRunning = false;
-+         ChunkProgressListener var10001 = this.delegate;
-+         this.mailbox.tell(var10001::stop);
-+      }
+       ChunkProgressListener var10001 = this.delegate;
+       this.mailbox.tell(var10001::stop);
     }
  }

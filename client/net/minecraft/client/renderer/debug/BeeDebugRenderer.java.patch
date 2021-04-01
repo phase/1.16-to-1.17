@@ -1,10 +1,54 @@
 --- net/minecraft/client/renderer/debug/BeeDebugRenderer.java
 +++ net/minecraft/client/renderer/debug/BeeDebugRenderer.java
-@@ -48,20 +48,18 @@
+@@ -24,10 +24,36 @@
+ import net.minecraft.network.protocol.game.DebugEntityNameGenerator;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.level.pathfinder.Path;
+ 
+ public class BeeDebugRenderer implements DebugRenderer.SimpleDebugRenderer {
++   private static final boolean SHOW_GOAL_FOR_ALL_BEES = true;
++   private static final boolean SHOW_NAME_FOR_ALL_BEES = true;
++   private static final boolean SHOW_HIVE_FOR_ALL_BEES = true;
++   private static final boolean SHOW_FLOWER_POS_FOR_ALL_BEES = true;
++   private static final boolean SHOW_TRAVEL_TICKS_FOR_ALL_BEES = true;
++   private static final boolean SHOW_PATH_FOR_ALL_BEES = false;
++   private static final boolean SHOW_GOAL_FOR_SELECTED_BEE = true;
++   private static final boolean SHOW_NAME_FOR_SELECTED_BEE = true;
++   private static final boolean SHOW_HIVE_FOR_SELECTED_BEE = true;
++   private static final boolean SHOW_FLOWER_POS_FOR_SELECTED_BEE = true;
++   private static final boolean SHOW_TRAVEL_TICKS_FOR_SELECTED_BEE = true;
++   private static final boolean SHOW_PATH_FOR_SELECTED_BEE = true;
++   private static final boolean SHOW_HIVE_MEMBERS = true;
++   private static final boolean SHOW_BLACKLISTS = true;
++   private static final int MAX_RENDER_DIST_FOR_HIVE_OVERLAY = 30;
++   private static final int MAX_RENDER_DIST_FOR_BEE_OVERLAY = 30;
++   private static final int MAX_TARGETING_DIST = 8;
++   private static final int HIVE_TIMEOUT = 20;
++   private static final float TEXT_SCALE = 0.02F;
++   private static final int WHITE = -1;
++   private static final int YELLOW = -256;
++   private static final int ORANGE = -23296;
++   private static final int GREEN = -16711936;
++   private static final int GRAY = -3355444;
++   private static final int PINK = -98404;
++   private static final int RED = -65536;
+    private final Minecraft minecraft;
+    private final Map<BlockPos, BeeDebugRenderer.HiveInfo> hives = Maps.newHashMap();
+    private final Map<UUID, BeeDebugRenderer.BeeInfo> beeInfosPerEntity = Maps.newHashMap();
+    private UUID lastLookedAtUuid;
+ 
+@@ -47,21 +73,25 @@
+ 
     public void addOrUpdateBeeInfo(BeeDebugRenderer.BeeInfo var1) {
        this.beeInfosPerEntity.put(var1.uuid, var1);
     }
  
++   public void removeBeeInfo(int var1) {
++      this.beeInfosPerEntity.values().removeIf((var1x) -> {
++         return var1x.id == var1;
++      });
++   }
++
     public void render(PoseStack var1, MultiBufferSource var2, double var3, double var5, double var7) {
 -      RenderSystem.pushMatrix();
        RenderSystem.enableBlend();
@@ -20,4 +64,19 @@
           this.updateLastLookedAtUuid();
        }
  
+    }
+@@ -260,10 +290,14 @@
+ 
+    private Camera getCamera() {
+       return this.minecraft.gameRenderer.getMainCamera();
+    }
+ 
++   private Set<String> getHiveMemberNames(BeeDebugRenderer.HiveInfo var1) {
++      return (Set)this.getHiveMembers(var1.pos).stream().map(DebugEntityNameGenerator::getEntityName).collect(Collectors.toSet());
++   }
++
+    private String getPosDescription(BeeDebugRenderer.BeeInfo var1, BlockPos var2) {
+       float var3 = Mth.sqrt(var2.distSqr(var1.pos.x(), var1.pos.y(), var1.pos.z(), true));
+       double var4 = (double)Math.round(var3 * 10.0F) / 10.0D;
+       return var2.toShortString() + " (dist " + var4 + ")";
     }

@@ -60,16 +60,24 @@
  import net.minecraft.world.level.material.FluidState;
  import net.minecraft.world.level.material.Fluids;
  import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-@@ -69,14 +72,13 @@
+@@ -68,15 +71,21 @@
+    protected static final Logger LOGGER = LogManager.getLogger();
     public static final Codec<ResourceKey<Level>> RESOURCE_KEY_CODEC;
     public static final ResourceKey<Level> OVERWORLD;
     public static final ResourceKey<Level> NETHER;
     public static final ResourceKey<Level> END;
++   public static final int MAX_LEVEL_SIZE = 30000000;
++   public static final int LONG_PARTICLE_CLIP_RANGE = 512;
++   public static final int SHORT_PARTICLE_CLIP_RANGE = 32;
     private static final Direction[] DIRECTIONS;
 -   public final List<BlockEntity> blockEntityList = Lists.newArrayList();
 -   public final List<BlockEntity> tickableBlockEntities = Lists.newArrayList();
 -   protected final List<BlockEntity> pendingBlockEntities = Lists.newArrayList();
 -   protected final List<BlockEntity> blockEntitiesToUnload = Lists.newArrayList();
++   public static final int MAX_BRIGHTNESS = 15;
++   public static final int TICKS_PER_DAY = 24000;
++   public static final int MAX_ENTITY_SPAWN_Y = 20000000;
++   public static final int MIN_ENTITY_SPAWN_Y = -20000000;
 +   protected final List<TickingBlockEntity> blockEntityTickers = Lists.newArrayList();
 +   private final List<TickingBlockEntity> pendingBlockEntityTickers = Lists.newArrayList();
 +   private boolean tickingBlockEntities;
@@ -78,7 +86,7 @@
     private int skyDarken;
     protected int randValue = (new Random()).nextInt();
     protected final int addend = 1013904223;
-@@ -87,11 +89,10 @@
+@@ -87,11 +96,10 @@
     public final Random random = new Random();
     private final DimensionType dimensionType;
     protected final WritableLevelData levelData;
@@ -90,7 +98,7 @@
     private final ResourceKey<Level> dimension;
  
     protected Level(WritableLevelData var1, ResourceKey<Level> var2, final DimensionType var3, Supplier<ProfilerFiller> var4, boolean var5, boolean var6, long var7) {
-@@ -126,12 +127,12 @@
+@@ -126,12 +134,12 @@
     @Nullable
     public MinecraftServer getServer() {
        return null;
@@ -105,7 +113,7 @@
     public static boolean isInSpawnableBounds(BlockPos var0) {
        return !isOutsideSpawnableHeight(var0.getY()) && isInWorldBoundsHorizontal(var0);
     }
-@@ -142,26 +143,19 @@
+@@ -142,26 +150,19 @@
  
     private static boolean isOutsideSpawnableHeight(int var0) {
        return var0 < -20000000 || var0 >= 20000000;
@@ -134,7 +142,7 @@
        if (var5 == null && var4) {
           throw new IllegalStateException("Should always be able to create a chunk!");
        } else {
-@@ -172,11 +166,11 @@
+@@ -172,11 +173,11 @@
     public boolean setBlock(BlockPos var1, BlockState var2, int var3) {
        return this.setBlock(var1, var2, var3, 512);
     }
@@ -147,7 +155,7 @@
           return false;
        } else {
           LevelChunk var5 = this.getChunkAt(var1);
-@@ -240,18 +234,26 @@
+@@ -240,18 +241,26 @@
           if (!(var5.getBlock() instanceof BaseFireBlock)) {
              this.levelEvent(2001, var1, Block.getId(var5));
           }
@@ -176,7 +184,7 @@
     }
  
     public abstract void sendBlockUpdated(BlockPos var1, BlockState var2, BlockState var3, int var4);
-@@ -309,23 +311,23 @@
+@@ -309,23 +318,23 @@
                    return String.format("ID #%s (%s // %s)", Registry.BLOCK.getKey(var2), var2.getDescriptionId(), var2.getClass().getCanonicalName());
                 } catch (Throwable var2x) {
                    return "ID #" + Registry.BLOCK.getKey(var2);
@@ -204,7 +212,7 @@
           var4 = this.getSeaLevel() + 1;
        }
  
-@@ -335,20 +337,20 @@
+@@ -335,20 +344,20 @@
     public LevelLightEngine getLightEngine() {
        return this.getChunkSource().getLightEngine();
     }
@@ -228,7 +236,7 @@
           LevelChunk var2 = this.getChunkAt(var1);
           return var2.getFluidState(var1);
        }
-@@ -388,117 +390,39 @@
+@@ -388,117 +397,39 @@
     public float getSunAngle(float var1) {
        float var2 = this.getTimeOfDay(var1);
        return var2 * 6.2831855F;
@@ -359,7 +367,7 @@
        } catch (Throwable var6) {
           CrashReport var4 = CrashReport.forThrowable(var6, "Ticking entity");
           CrashReportCategory var5 = var4.addCategory("Entity being ticked");
-@@ -520,101 +444,41 @@
+@@ -520,101 +451,43 @@
        var13.explode();
        var13.finalizeExplosion(true);
        return var13;
@@ -368,7 +376,8 @@
 -   public String gatherChunkSourceStats() {
 -      return this.getChunkSource().gatherStats();
 -   }
--
++   public abstract String gatherChunkSourceStats();
+ 
     @Nullable
     public BlockEntity getBlockEntity(BlockPos var1) {
 -      if (isOutsideBuildHeight(var1)) {
@@ -471,7 +480,7 @@
     }
  
     public boolean loadedAndEntityCanStandOn(BlockPos var1, Entity var2) {
-@@ -649,97 +513,63 @@
+@@ -649,97 +522,63 @@
     @Nullable
     public BlockGetter getChunkForCollisions(int var1, int var2) {
        return this.getChunk(var1, var2, ChunkStatus.FULL, false);
@@ -600,7 +609,7 @@
        }
  
     }
-@@ -904,11 +734,11 @@
+@@ -904,11 +743,11 @@
     }
  
     @Nullable
@@ -613,7 +622,7 @@
  
     public void globalLevelEvent(int var1, BlockPos var2, int var3) {
     }
-@@ -923,11 +753,11 @@
+@@ -923,11 +762,11 @@
        var2.setDetail("Level dimension", () -> {
           return this.dimension().location().toString();
        });
@@ -626,7 +635,22 @@
        }
  
        return var2;
-@@ -1032,10 +862,33 @@
+@@ -1002,10 +841,14 @@
+ 
+    public boolean isStateAtPosition(BlockPos var1, Predicate<BlockState> var2) {
+       return var2.test(this.getBlockState(var1));
+    }
+ 
++   public boolean isFluidAtPosition(BlockPos var1, Predicate<FluidState> var2) {
++      return var2.test(this.getFluidState(var1));
++   }
++
+    public abstract RecipeManager getRecipeManager();
+ 
+    public abstract TagContainer getTagManager();
+ 
+    public BlockPos getBlockRandomPos(int var1, int var2, int var3, int var4) {
+@@ -1032,10 +875,33 @@
  
     public final boolean isDebug() {
        return this.isDebug;

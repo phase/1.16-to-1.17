@@ -1,21 +1,123 @@
 --- net/minecraft/world/level/levelgen/feature/trunkplacers/DarkOakTrunkPlacer.java
 +++ net/minecraft/world/level/levelgen/feature/trunkplacers/DarkOakTrunkPlacer.java
-@@ -30,14 +30,14 @@
+@@ -5,18 +5,18 @@
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Random;
+-import java.util.Set;
++import java.util.function.BiConsumer;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+-import net.minecraft.world.level.LevelSimulatedRW;
++import net.minecraft.world.level.LevelSimulatedReader;
++import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.levelgen.feature.TreeFeature;
+ import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
+ import net.minecraft.world.level.levelgen.feature.foliageplacers.FoliagePlacer;
+-import net.minecraft.world.level.levelgen.structure.BoundingBox;
+ 
+ public class DarkOakTrunkPlacer extends TrunkPlacer {
+    public static final Codec<DarkOakTrunkPlacer> CODEC = RecordCodecBuilder.create((var0) -> {
+       return trunkPlacerParts(var0).apply(var0, (Function3)(DarkOakTrunkPlacer::new));
+    });
+@@ -27,60 +27,60 @@
+ 
+    protected TrunkPlacerType<?> type() {
+       return TrunkPlacerType.DARK_OAK_TRUNK_PLACER;
     }
  
-    public List<FoliagePlacer.FoliageAttachment> placeTrunk(LevelSimulatedRW var1, Random var2, int var3, BlockPos var4, Set<BlockPos> var5, BoundingBox var6, TreeConfiguration var7) {
-       ArrayList var8 = Lists.newArrayList();
-       BlockPos var9 = var4.below();
+-   public List<FoliagePlacer.FoliageAttachment> placeTrunk(LevelSimulatedRW var1, Random var2, int var3, BlockPos var4, Set<BlockPos> var5, BoundingBox var6, TreeConfiguration var7) {
+-      ArrayList var8 = Lists.newArrayList();
+-      BlockPos var9 = var4.below();
 -      setDirtAt(var1, var9);
 -      setDirtAt(var1, var9.east());
 -      setDirtAt(var1, var9.south());
 -      setDirtAt(var1, var9.south().east());
-+      setDirtAt(var1, var2, var9, var7);
-+      setDirtAt(var1, var2, var9.east(), var7);
-+      setDirtAt(var1, var2, var9.south(), var7);
-+      setDirtAt(var1, var2, var9.south().east(), var7);
-       Direction var10 = Direction.Plane.HORIZONTAL.getRandomDirection(var2);
-       int var11 = var3 - var2.nextInt(4);
-       int var12 = 2 - var2.nextInt(3);
-       int var13 = var4.getX();
-       int var14 = var4.getY();
+-      Direction var10 = Direction.Plane.HORIZONTAL.getRandomDirection(var2);
+-      int var11 = var3 - var2.nextInt(4);
+-      int var12 = 2 - var2.nextInt(3);
+-      int var13 = var4.getX();
+-      int var14 = var4.getY();
+-      int var15 = var4.getZ();
+-      int var16 = var13;
+-      int var17 = var15;
+-      int var18 = var14 + var3 - 1;
++   public List<FoliagePlacer.FoliageAttachment> placeTrunk(LevelSimulatedReader var1, BiConsumer<BlockPos, BlockState> var2, Random var3, int var4, BlockPos var5, TreeConfiguration var6) {
++      ArrayList var7 = Lists.newArrayList();
++      BlockPos var8 = var5.below();
++      setDirtAt(var1, var2, var3, var8, var6);
++      setDirtAt(var1, var2, var3, var8.east(), var6);
++      setDirtAt(var1, var2, var3, var8.south(), var6);
++      setDirtAt(var1, var2, var3, var8.south().east(), var6);
++      Direction var9 = Direction.Plane.HORIZONTAL.getRandomDirection(var3);
++      int var10 = var4 - var3.nextInt(4);
++      int var11 = 2 - var3.nextInt(3);
++      int var12 = var5.getX();
++      int var13 = var5.getY();
++      int var14 = var5.getZ();
++      int var15 = var12;
++      int var16 = var14;
++      int var17 = var13 + var4 - 1;
+ 
++      int var18;
+       int var19;
+-      int var20;
+-      for(var19 = 0; var19 < var3; ++var19) {
+-         if (var19 >= var11 && var12 > 0) {
+-            var16 += var10.getStepX();
+-            var17 += var10.getStepZ();
+-            --var12;
++      for(var18 = 0; var18 < var4; ++var18) {
++         if (var18 >= var10 && var11 > 0) {
++            var15 += var9.getStepX();
++            var16 += var9.getStepZ();
++            --var11;
+          }
+ 
+-         var20 = var14 + var19;
+-         BlockPos var21 = new BlockPos(var16, var20, var17);
+-         if (TreeFeature.isAirOrLeaves(var1, var21)) {
+-            placeLog(var1, var2, var21, var5, var6, var7);
+-            placeLog(var1, var2, var21.east(), var5, var6, var7);
+-            placeLog(var1, var2, var21.south(), var5, var6, var7);
+-            placeLog(var1, var2, var21.east().south(), var5, var6, var7);
++         var19 = var13 + var18;
++         BlockPos var20 = new BlockPos(var15, var19, var16);
++         if (TreeFeature.isAirOrLeaves(var1, var20)) {
++            placeLog(var1, var2, var3, var20, var6);
++            placeLog(var1, var2, var3, var20.east(), var6);
++            placeLog(var1, var2, var3, var20.south(), var6);
++            placeLog(var1, var2, var3, var20.east().south(), var6);
+          }
+       }
+ 
+-      var8.add(new FoliagePlacer.FoliageAttachment(new BlockPos(var16, var18, var17), 0, true));
++      var7.add(new FoliagePlacer.FoliageAttachment(new BlockPos(var15, var17, var16), 0, true));
+ 
+-      for(var19 = -1; var19 <= 2; ++var19) {
+-         for(var20 = -1; var20 <= 2; ++var20) {
+-            if ((var19 < 0 || var19 > 1 || var20 < 0 || var20 > 1) && var2.nextInt(3) <= 0) {
+-               int var23 = var2.nextInt(3) + 2;
++      for(var18 = -1; var18 <= 2; ++var18) {
++         for(var19 = -1; var19 <= 2; ++var19) {
++            if ((var18 < 0 || var18 > 1 || var19 < 0 || var19 > 1) && var3.nextInt(3) <= 0) {
++               int var22 = var3.nextInt(3) + 2;
+ 
+-               for(int var22 = 0; var22 < var23; ++var22) {
+-                  placeLog(var1, var2, new BlockPos(var13 + var19, var18 - var22 - 1, var15 + var20), var5, var6, var7);
++               for(int var21 = 0; var21 < var22; ++var21) {
++                  placeLog(var1, var2, var3, new BlockPos(var12 + var18, var17 - var21 - 1, var14 + var19), var6);
+                }
+ 
+-               var8.add(new FoliagePlacer.FoliageAttachment(new BlockPos(var16 + var19, var18, var17 + var20), 0, false));
++               var7.add(new FoliagePlacer.FoliageAttachment(new BlockPos(var15 + var18, var17, var16 + var19), 0, false));
+             }
+          }
+       }
+ 
+-      return var8;
++      return var7;
+    }
+ }

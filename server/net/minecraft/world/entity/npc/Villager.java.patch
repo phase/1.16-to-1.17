@@ -1,6 +1,27 @@
 --- net/minecraft/world/entity/npc/Villager.java
 +++ net/minecraft/world/entity/npc/Villager.java
-@@ -40,11 +40,11 @@
+@@ -1,7 +1,8 @@
+ package net.minecraft.world.entity.npc;
+ 
++import com.google.common.annotations.VisibleForTesting;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
+ import com.google.common.collect.ImmutableSet;
+ import com.mojang.datafixers.util.Pair;
+ import com.mojang.serialization.DataResult;
+@@ -16,10 +17,11 @@
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.GlobalPos;
+ import net.minecraft.core.Registry;
++import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.ListTag;
+ import net.minecraft.nbt.NbtOps;
+ import net.minecraft.nbt.Tag;
+ import net.minecraft.network.chat.Component;
+@@ -40,11 +42,11 @@
  import net.minecraft.world.InteractionResult;
  import net.minecraft.world.SimpleContainer;
  import net.minecraft.world.damagesource.DamageSource;
@@ -13,7 +34,36 @@
  import net.minecraft.world.entity.ExperienceOrb;
  import net.minecraft.world.entity.LightningBolt;
  import net.minecraft.world.entity.LivingEntity;
-@@ -229,11 +229,11 @@
+@@ -85,16 +87,28 @@
+ import net.minecraft.world.phys.AABB;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class Villager extends AbstractVillager implements ReputationEventHandler, VillagerDataHolder {
+    private static final EntityDataAccessor<VillagerData> DATA_VILLAGER_DATA;
++   public static final int BREEDING_FOOD_THRESHOLD = 12;
+    public static final Map<Item, Integer> FOOD_POINTS;
++   private static final int TRADES_PER_LEVEL = 2;
+    private static final Set<Item> WANTED_ITEMS;
++   private static final int MAX_GOSSIP_TOPICS = 10;
++   private static final int GOSSIP_COOLDOWN = 1200;
++   private static final int GOSSIP_DECAY_INTERVAL = 24000;
++   private static final int REPUTATION_CHANGE_PER_EVENT = 25;
++   private static final int HOW_FAR_AWAY_TO_TALK_TO_OTHER_VILLAGERS_ABOUT_GOLEMS = 10;
++   private static final int HOW_MANY_VILLAGERS_NEED_TO_AGREE_TO_SPAWN_A_GOLEM = 5;
++   private static final long TIME_SINCE_SLEEPING_FOR_GOLEM_SPAWNING = 24000L;
++   @VisibleForTesting
++   public static final float SPEED_MODIFIER = 0.5F;
+    private int updateMerchantTimer;
+    private boolean increaseProfessionLevelOnUpdate;
+    @Nullable
+    private Player lastTradedPlayer;
++   private boolean chasing;
+    private byte foodLevel;
+    private final GossipContainer gossips;
+    private long lastGossipTime;
+    private long lastGossipDecayTime;
+    private int villagerXp;
+@@ -229,11 +243,11 @@
        this.maybeDecayGossip();
     }
  
@@ -26,7 +76,52 @@
              return InteractionResult.sidedSuccess(this.level.isClientSide);
           } else {
              boolean var4 = this.getOffers().isEmpty();
-@@ -668,11 +668,11 @@
+@@ -525,10 +539,18 @@
+          this.level.addFreshEntity(new ExperienceOrb(this.level, this.getX(), this.getY() + 0.5D, this.getZ(), var2));
+       }
+ 
+    }
+ 
++   public void setChasing(boolean var1) {
++      this.chasing = var1;
++   }
++
++   public boolean isChasing() {
++      return this.chasing;
++   }
++
+    public void setLastHurtByMob(@Nullable LivingEntity var1) {
+       if (var1 != null && this.level instanceof ServerLevel) {
+          ((ServerLevel)this.level).onReputationEvent(ReputationEventType.VILLAGER_HURT, var1, this);
+          if (this.isAlive() && var1 instanceof Player) {
+             this.level.broadcastEntityEvent(this, (byte)13);
+@@ -651,10 +673,25 @@
+ 
+    protected Component getTypeName() {
+       return new TranslatableComponent(this.getType().getDescriptionId() + '.' + Registry.VILLAGER_PROFESSION.getKey(this.getVillagerData().getProfession()).getPath());
+    }
+ 
++   public void handleEntityEvent(byte var1) {
++      if (var1 == 12) {
++         this.addParticlesAroundSelf(ParticleTypes.HEART);
++      } else if (var1 == 13) {
++         this.addParticlesAroundSelf(ParticleTypes.ANGRY_VILLAGER);
++      } else if (var1 == 14) {
++         this.addParticlesAroundSelf(ParticleTypes.HAPPY_VILLAGER);
++      } else if (var1 == 42) {
++         this.addParticlesAroundSelf(ParticleTypes.SPLASH);
++      } else {
++         super.handleEntityEvent(var1);
++      }
++
++   }
++
+    @Nullable
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor var1, DifficultyInstance var2, MobSpawnType var3, @Nullable SpawnGroupData var4, @Nullable CompoundTag var5) {
+       if (var3 == MobSpawnType.BREEDING) {
+          this.setVillagerData(this.getVillagerData().setProfession(VillagerProfession.NONE));
+       }
+@@ -668,11 +705,11 @@
        }
  
        return super.finalizeSpawn(var1, var2, var3, var4, var5);
@@ -39,7 +134,7 @@
        if (var4 < 0.5D) {
           var3 = VillagerType.byBiome(var1.getBiomeName(this.blockPosition()));
        } else if (var4 < 0.75D) {
-@@ -699,11 +699,11 @@
+@@ -699,11 +736,11 @@
           }
  
           var3.setPersistenceRequired();
@@ -52,7 +147,7 @@
        }
  
     }
-@@ -719,11 +719,11 @@
+@@ -719,11 +756,11 @@
  
           this.onItemPickup(var1);
           this.take(var1, var2.getCount());
@@ -65,7 +160,7 @@
           }
        }
  
-@@ -822,11 +822,11 @@
+@@ -822,11 +859,11 @@
                 if (var9.checkSpawnRules(var1, MobSpawnType.MOB_SUMMONED) && var9.checkSpawnObstruction(var1)) {
                    var1.addFreshEntityWithPassengers(var9);
                    return var9;

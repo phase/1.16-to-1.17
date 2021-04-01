@@ -1,6 +1,33 @@
 --- com/mojang/blaze3d/platform/NativeImage.java
 +++ com/mojang/blaze3d/platform/NativeImage.java
-@@ -135,22 +135,10 @@
+@@ -9,10 +9,11 @@
+ import java.nio.ByteBuffer;
+ import java.nio.IntBuffer;
+ import java.nio.channels.Channels;
+ import java.nio.channels.SeekableByteChannel;
+ import java.nio.channels.WritableByteChannel;
++import java.nio.file.FileSystems;
+ import java.nio.file.Files;
+ import java.nio.file.Path;
+ import java.nio.file.StandardOpenOption;
+ import java.util.Base64;
+ import java.util.EnumSet;
+@@ -30,10 +31,14 @@
+ import org.lwjgl.system.MemoryStack;
+ import org.lwjgl.system.MemoryUtil;
+ 
+ public final class NativeImage implements AutoCloseable {
+    private static final Logger LOGGER = LogManager.getLogger();
++   private static final int OFFSET_A = 24;
++   private static final int OFFSET_B = 16;
++   private static final int OFFSET_G = 8;
++   private static final int OFFSET_R = 0;
+    private static final Set<StandardOpenOption> OPEN_OPTIONS;
+    private final NativeImage.Format format;
+    private final int width;
+    private final int height;
+    private final boolean useStbFree;
+@@ -135,22 +140,10 @@
  
           return var8;
        }
@@ -23,7 +50,120 @@
        if (var0) {
           GlStateManager._texParameter(3553, 10241, var1 ? 9987 : 9729);
           GlStateManager._texParameter(3553, 10240, 9729);
-@@ -271,11 +259,10 @@
+@@ -213,10 +206,59 @@
+       } else {
+          throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
+       }
+    }
+ 
++   public void setPixelLuminance(int var1, int var2, byte var3) {
++      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
++      if (!this.format.hasLuminance()) {
++         throw new IllegalArgumentException(String.format("setPixelLuminance only works on image with luminance; have %s", this.format));
++      } else if (var1 <= this.width && var2 <= this.height) {
++         this.checkAllocated();
++         long var4 = (long)((var1 + var2 * this.width) * this.format.components() + this.format.luminanceOffset() / 8);
++         MemoryUtil.memPutByte(this.pixels + var4, var3);
++      } else {
++         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      }
++   }
++
++   public byte getRedOrLuminance(int var1, int var2) {
++      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
++      if (!this.format.hasLuminanceOrRed()) {
++         throw new IllegalArgumentException(String.format("no red or luminance in %s", this.format));
++      } else if (var1 <= this.width && var2 <= this.height) {
++         int var3 = (var1 + var2 * this.width) * this.format.components() + this.format.luminanceOrRedOffset() / 8;
++         return MemoryUtil.memGetByte(this.pixels + (long)var3);
++      } else {
++         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      }
++   }
++
++   public byte getGreenOrLuminance(int var1, int var2) {
++      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
++      if (!this.format.hasLuminanceOrGreen()) {
++         throw new IllegalArgumentException(String.format("no green or luminance in %s", this.format));
++      } else if (var1 <= this.width && var2 <= this.height) {
++         int var3 = (var1 + var2 * this.width) * this.format.components() + this.format.luminanceOrGreenOffset() / 8;
++         return MemoryUtil.memGetByte(this.pixels + (long)var3);
++      } else {
++         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      }
++   }
++
++   public byte getBlueOrLuminance(int var1, int var2) {
++      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
++      if (!this.format.hasLuminanceOrBlue()) {
++         throw new IllegalArgumentException(String.format("no blue or luminance in %s", this.format));
++      } else if (var1 <= this.width && var2 <= this.height) {
++         int var3 = (var1 + var2 * this.width) * this.format.components() + this.format.luminanceOrBlueOffset() / 8;
++         return MemoryUtil.memGetByte(this.pixels + (long)var3);
++      } else {
++         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      }
++   }
++
+    public byte getLuminanceOrAlpha(int var1, int var2) {
+       if (!this.format.hasLuminanceOrAlpha()) {
+          throw new IllegalArgumentException(String.format("no luminance or alpha in %s", this.format));
+       } else if (var1 <= this.width && var2 <= this.height) {
+          int var3 = (var1 + var2 * this.width) * this.format.components() + this.format.luminanceOrAlphaOffset() / 8;
+@@ -224,10 +266,52 @@
+       } else {
+          throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
+       }
+    }
+ 
++   public void blendPixel(int var1, int var2, int var3) {
++      if (this.format != NativeImage.Format.RGBA) {
++         throw new UnsupportedOperationException("Can only call blendPixel with RGBA format");
++      } else {
++         int var4 = this.getPixelRGBA(var1, var2);
++         float var5 = (float)getA(var3) / 255.0F;
++         float var6 = (float)getB(var3) / 255.0F;
++         float var7 = (float)getG(var3) / 255.0F;
++         float var8 = (float)getR(var3) / 255.0F;
++         float var9 = (float)getA(var4) / 255.0F;
++         float var10 = (float)getB(var4) / 255.0F;
++         float var11 = (float)getG(var4) / 255.0F;
++         float var12 = (float)getR(var4) / 255.0F;
++         float var14 = 1.0F - var5;
++         float var15 = var5 * var5 + var9 * var14;
++         float var16 = var6 * var5 + var10 * var14;
++         float var17 = var7 * var5 + var11 * var14;
++         float var18 = var8 * var5 + var12 * var14;
++         if (var15 > 1.0F) {
++            var15 = 1.0F;
++         }
++
++         if (var16 > 1.0F) {
++            var16 = 1.0F;
++         }
++
++         if (var17 > 1.0F) {
++            var17 = 1.0F;
++         }
++
++         if (var18 > 1.0F) {
++            var18 = 1.0F;
++         }
++
++         int var19 = (int)(var15 * 255.0F);
++         int var20 = (int)(var16 * 255.0F);
++         int var21 = (int)(var17 * 255.0F);
++         int var22 = (int)(var18 * 255.0F);
++         this.setPixelRGBA(var1, var2, combine(var19, var20, var21, var22));
++      }
++   }
++
+    @Deprecated
+    public int[] makePixelArray() {
+       if (this.format != NativeImage.Format.RGBA) {
+          throw new UnsupportedOperationException("can only call makePixelArray for RGBA images.");
+       } else {
+@@ -271,21 +355,25 @@
  
     private void _upload(int var1, int var2, int var3, int var4, int var5, int var6, int var7, boolean var8, boolean var9, boolean var10, boolean var11) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
@@ -35,3 +175,164 @@
        } else {
           GlStateManager._pixelStore(3314, this.getWidth());
        }
+ 
+       GlStateManager._pixelStore(3316, var4);
+       GlStateManager._pixelStore(3315, var5);
+       this.format.setUnpackPixelStoreState();
+       GlStateManager._texSubImage2D(3553, var1, var2, var3, var6, var7, this.format.glFormat(), 5121, this.pixels);
++      if (var9) {
++         GlStateManager._texParameter(3553, 10242, 33071);
++         GlStateManager._texParameter(3553, 10243, 33071);
++      }
++
+       if (var11) {
+          this.close();
+       }
+ 
+    }
+@@ -303,10 +391,31 @@
+          }
+       }
+ 
+    }
+ 
++   public void downloadDepthBuffer(float var1) {
++      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
++      if (this.format.components() != 1) {
++         throw new IllegalStateException("Depth buffer must be stored in NativeImage with 1 component.");
++      } else {
++         this.checkAllocated();
++         this.format.setPackPixelStoreState();
++         GlStateManager._readPixels(0, 0, this.width, this.height, 6402, 5121, this.pixels);
++      }
++   }
++
++   public void drawPixels() {
++      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
++      this.format.setUnpackPixelStoreState();
++      GlStateManager._glDrawPixels(this.width, this.height, this.format.glFormat(), 5121, this.pixels);
++   }
++
++   public void writeToFile(String var1) throws IOException {
++      this.writeToFile(FileSystems.getDefault().getPath(var1));
++   }
++
+    public void writeToFile(File var1) throws IOException {
+       this.writeToFile(var1.toPath());
+    }
+ 
+    public void copyFromFont(STBTTFontinfo var1, int var2, int var3, int var4, float var5, float var6, float var7, float var8, int var9, int var10) {
+@@ -416,17 +525,17 @@
+          int var3 = Math.min(this.getHeight(), Integer.MAX_VALUE / this.getWidth() / this.format.components());
+          if (var3 < this.getHeight()) {
+             LOGGER.warn("Dropping image height from {} to {} to fit the size into 32-bit signed int", this.getHeight(), var3);
+          }
+ 
+-         if (STBImageWrite.nstbi_write_png_to_func(var2.address(), 0L, this.getWidth(), var3, this.format.components(), this.pixels, 0) == 0) {
+-            var4 = false;
++         if (STBImageWrite.nstbi_write_png_to_func(var2.address(), 0L, this.getWidth(), var3, this.format.components(), this.pixels, 0) != 0) {
++            var2.throwIfException();
++            var4 = true;
+             return var4;
+          }
+ 
+-         var2.throwIfException();
+-         var4 = true;
++         var4 = false;
+       } finally {
+          var2.free();
+       }
+ 
+       return var4;
+@@ -635,22 +744,78 @@
+ 
+       public int glFormat() {
+          return this.glFormat;
+       }
+ 
++      public boolean hasRed() {
++         return this.hasRed;
++      }
++
++      public boolean hasGreen() {
++         return this.hasGreen;
++      }
++
++      public boolean hasBlue() {
++         return this.hasBlue;
++      }
++
++      public boolean hasLuminance() {
++         return this.hasLuminance;
++      }
++
+       public boolean hasAlpha() {
+          return this.hasAlpha;
+       }
+ 
++      public int redOffset() {
++         return this.redOffset;
++      }
++
++      public int greenOffset() {
++         return this.greenOffset;
++      }
++
++      public int blueOffset() {
++         return this.blueOffset;
++      }
++
++      public int luminanceOffset() {
++         return this.luminanceOffset;
++      }
++
+       public int alphaOffset() {
+          return this.alphaOffset;
+       }
+ 
++      public boolean hasLuminanceOrRed() {
++         return this.hasLuminance || this.hasRed;
++      }
++
++      public boolean hasLuminanceOrGreen() {
++         return this.hasLuminance || this.hasGreen;
++      }
++
++      public boolean hasLuminanceOrBlue() {
++         return this.hasLuminance || this.hasBlue;
++      }
++
+       public boolean hasLuminanceOrAlpha() {
+          return this.hasLuminance || this.hasAlpha;
+       }
+ 
++      public int luminanceOrRedOffset() {
++         return this.hasLuminance ? this.luminanceOffset : this.redOffset;
++      }
++
++      public int luminanceOrGreenOffset() {
++         return this.hasLuminance ? this.luminanceOffset : this.greenOffset;
++      }
++
++      public int luminanceOrBlueOffset() {
++         return this.hasLuminance ? this.luminanceOffset : this.blueOffset;
++      }
++
+       public int luminanceOrAlphaOffset() {
+          return this.hasLuminance ? this.luminanceOffset : this.alphaOffset;
+       }
+ 
+       public boolean supportedByStb() {
+@@ -683,11 +848,11 @@
+ 
+       private InternalGlFormat(int var3) {
+          this.glFormat = var3;
+       }
+ 
+-      int glFormat() {
++      public int glFormat() {
+          return this.glFormat;
+       }
+    }
+ 
+    static class WriteCallback extends STBIWriteCallback {

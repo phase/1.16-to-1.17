@@ -1,0 +1,48 @@
+--- net/minecraft/BlockUtil.java
++++ net/minecraft/BlockUtil.java
+@@ -1,15 +1,22 @@
+ package net.minecraft;
+ 
+ import com.google.common.annotations.VisibleForTesting;
+ import com.mojang.datafixers.util.Pair;
+ import it.unimi.dsi.fastutil.ints.IntArrayList;
++import java.util.Optional;
+ import java.util.function.Predicate;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
++import net.minecraft.world.level.BlockGetter;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.state.BlockState;
+ 
+ public class BlockUtil {
++   public BlockUtil() {
++   }
++
+    public static BlockUtil.FoundRectangle getLargestRectangleAround(BlockPos var0, Direction.Axis var1, int var2, Direction.Axis var3, int var4, Predicate<BlockPos> var5) {
+       BlockPos.MutableBlockPos var6 = var0.mutable();
+       Direction var7 = Direction.get(Direction.AxisDirection.NEGATIVE, var1);
+       Direction var8 = var7.getOpposite();
+       Direction var9 = Direction.get(Direction.AxisDirection.NEGATIVE, var3);
+@@ -106,10 +113,22 @@
+       }
+ 
+       return new Pair(new BlockUtil.IntBounds(var1, var2 - 1), var3);
+    }
+ 
++   public static Optional<BlockPos> getTopConnectedBlock(BlockGetter var0, BlockPos var1, Block var2, Direction var3, Block var4) {
++      BlockPos.MutableBlockPos var5 = var1.mutable();
++
++      BlockState var6;
++      do {
++         var5.move(var3);
++         var6 = var0.getBlockState(var5);
++      } while(var6.is(var2));
++
++      return var6.is(var4) ? Optional.of(var5) : Optional.empty();
++   }
++
+    public static class FoundRectangle {
+       public final BlockPos minCorner;
+       public final int axis1Size;
+       public final int axis2Size;
+ 

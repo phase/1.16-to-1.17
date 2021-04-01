@@ -20,7 +20,22 @@
  import java.util.Iterator;
  import java.util.List;
  import java.util.Map;
-@@ -47,12 +49,12 @@
+@@ -31,12 +33,14 @@
+ import org.apache.commons.io.IOUtils;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class EffectInstance implements Effect, AutoCloseable {
++   private static final String EFFECT_SHADER_PATH = "shaders/program/";
+    private static final Logger LOGGER = LogManager.getLogger();
+    private static final AbstractUniform DUMMY_UNIFORM = new AbstractUniform();
++   private static final boolean ALWAYS_REAPPLY = true;
+    private static EffectInstance lastAppliedEffect;
+    private static int lastProgramId = -1;
+    private final Map<String, IntSupplier> samplerMap = Maps.newHashMap();
+    private final List<String> samplerNames = Lists.newArrayList();
+    private final List<Integer> samplerLocations = Lists.newArrayList();
+@@ -47,12 +51,12 @@
     private final String name;
     private boolean dirty;
     private final BlendMode blend;
@@ -35,7 +50,7 @@
        ResourceLocation var3 = new ResourceLocation("shaders/program/" + var2 + ".json");
        this.name = var2;
        Resource var4 = null;
-@@ -123,11 +125,11 @@
+@@ -123,11 +127,11 @@
  
              this.blend = parseBlendNode(GsonHelper.getAsJsonObject(var5, "blend", (JsonObject)null));
              this.vertexProgram = getOrCreate(var1, Program.Type.VERTEX, var6);
@@ -48,7 +63,7 @@
                 var31 = this.attributeNames.iterator();
  
                 while(var31.hasNext()) {
-@@ -152,24 +154,31 @@
+@@ -152,24 +156,31 @@
        }
  
        this.markDirty();
@@ -90,7 +105,20 @@
     public static BlendMode parseBlendNode(JsonObject var0) {
        if (var0 == null) {
           return new BlendMode();
-@@ -413,9 +422,14 @@
+@@ -330,11 +341,11 @@
+       while(var6.hasNext()) {
+          Uniform var7 = (Uniform)var6.next();
+          String var8 = var7.getName();
+          int var5 = Uniform.glGetUniformLocation(this.programId, var8);
+          if (var5 == -1) {
+-            LOGGER.warn("Could not find uniform named {} in the specified shader program.", var8);
++            LOGGER.warn("Shader {} could not find uniform named {} in the specified shader program.", this.name, var8);
+          } else {
+             this.uniformLocations.add(var5);
+             var7.setLocation(var5);
+             this.uniformMap.put(var8, var7);
+          }
+@@ -413,9 +424,18 @@
  
     public Program getFragmentProgram() {
        return this.fragmentProgram;
@@ -99,6 +127,10 @@
 +   public void attachToProgram() {
 +      this.fragmentProgram.attachToEffect(this);
 +      this.vertexProgram.attachToEffect(this);
++   }
++
++   public String getName() {
++      return this.name;
 +   }
 +
     public int getId() {

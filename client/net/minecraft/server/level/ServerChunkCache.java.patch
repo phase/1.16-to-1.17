@@ -1,18 +1,19 @@
 --- net/minecraft/server/level/ServerChunkCache.java
 +++ net/minecraft/server/level/ServerChunkCache.java
-@@ -21,11 +21,10 @@
+@@ -21,11 +21,11 @@
  import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.SectionPos;
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.server.level.progress.ChunkProgressListener;
 -import net.minecraft.util.Mth;
++import net.minecraft.util.VisibleForDebug;
  import net.minecraft.util.profiling.ProfilerFiller;
  import net.minecraft.util.thread.BlockableEventLoop;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.ai.village.poi.PoiManager;
  import net.minecraft.world.level.BlockGetter;
-@@ -37,10 +36,11 @@
+@@ -37,10 +37,11 @@
  import net.minecraft.world.level.chunk.ChunkAccess;
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.chunk.ChunkSource;
@@ -24,10 +25,18 @@
  import net.minecraft.world.level.storage.LevelData;
  import net.minecraft.world.level.storage.LevelStorageSource;
  
-@@ -61,20 +61,20 @@
+@@ -55,26 +56,28 @@
+    public final ChunkMap chunkMap;
+    private final DimensionDataStorage dataStorage;
+    private long lastInhabitedUpdate;
+    private boolean spawnEnemies = true;
+    private boolean spawnFriendlies = true;
++   private static final int CACHE_SIZE = 4;
+    private final long[] lastChunkPos = new long[4];
     private final ChunkStatus[] lastChunkStatus = new ChunkStatus[4];
     private final ChunkAccess[] lastChunk = new ChunkAccess[4];
     @Nullable
++   @VisibleForDebug
     private NaturalSpawner.SpawnState lastSpawnState;
  
 -   public ServerChunkCache(ServerLevel var1, LevelStorageSource.LevelStorageAccess var2, DataFixer var3, StructureManager var4, Executor var5, ChunkGenerator var6, int var7, boolean var8, ChunkProgressListener var9, Supplier<DimensionDataStorage> var10) {
@@ -51,7 +60,7 @@
        this.clearCache();
     }
  
-@@ -274,21 +274,16 @@
+@@ -274,21 +277,16 @@
           this.clearCache();
           return true;
        }
@@ -74,7 +83,7 @@
  
     private boolean checkChunkFuture(long var1, Function<ChunkHolder, CompletableFuture<Either<LevelChunk, ChunkHolder.ChunkLoadingFailure>>> var3) {
        ChunkHolder var4 = this.getVisibleChunkIfPresent(var1);
-@@ -381,11 +376,11 @@
+@@ -381,11 +379,11 @@
        }
  
     }
@@ -87,7 +96,7 @@
     @VisibleForTesting
     public int getPendingTasksCount() {
        return this.mainThreadProcessor.getPendingTasksCount();
-@@ -398,12 +393,12 @@
+@@ -398,12 +396,12 @@
     public int getLoadedChunksCount() {
        return this.chunkMap.size();
     }
@@ -102,3 +111,15 @@
           var4.blockChanged(var1);
        }
  
+@@ -471,10 +469,11 @@
+    public PoiManager getPoiManager() {
+       return this.chunkMap.getPoiManager();
+    }
+ 
+    @Nullable
++   @VisibleForDebug
+    public NaturalSpawner.SpawnState getLastSpawnState() {
+       return this.lastSpawnState;
+    }
+ 
+    final class MainThreadExecutor extends BlockableEventLoop<Runnable> {

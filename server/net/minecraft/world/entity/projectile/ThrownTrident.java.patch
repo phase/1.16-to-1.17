@@ -1,19 +1,49 @@
 --- net/minecraft/world/entity/projectile/ThrownTrident.java
 +++ net/minecraft/world/entity/projectile/ThrownTrident.java
-@@ -60,11 +60,11 @@
-          if (var2 > 0 && !this.isAcceptibleReturnOwner()) {
+@@ -53,21 +53,21 @@
+       if (this.inGroundTime > 4) {
+          this.dealtDamage = true;
+       }
+ 
+       Entity var1 = this.getOwner();
+-      if ((this.dealtDamage || this.isNoPhysics()) && var1 != null) {
+-         byte var2 = (Byte)this.entityData.get(ID_LOYALTY);
+-         if (var2 > 0 && !this.isAcceptibleReturnOwner()) {
++      byte var2 = (Byte)this.entityData.get(ID_LOYALTY);
++      if (var2 > 0 && (this.dealtDamage || this.isNoPhysics()) && var1 != null) {
++         if (!this.isAcceptibleReturnOwner()) {
              if (!this.level.isClientSide && this.pickup == AbstractArrow.Pickup.ALLOWED) {
                 this.spawnAtLocation(this.getPickupItem(), 0.1F);
              }
  
 -            this.remove();
+-         } else if (var2 > 0) {
 +            this.discard();
-          } else if (var2 > 0) {
++         } else {
              this.setNoPhysics(true);
-             Vec3 var3 = new Vec3(var1.getX() - this.getX(), var1.getEyeY() - this.getY(), var1.getZ() - this.getZ());
+-            Vec3 var3 = new Vec3(var1.getX() - this.getX(), var1.getEyeY() - this.getY(), var1.getZ() - this.getZ());
++            Vec3 var3 = var1.getEyePosition().subtract(this.position());
              this.setPosRaw(this.getX(), this.getY() + var3.y * 0.015D * (double)var2, this.getZ());
              if (this.level.isClientSide) {
-@@ -130,11 +130,11 @@
+                this.yOld = this.getY();
+             }
+ 
+@@ -95,10 +95,14 @@
+ 
+    protected ItemStack getPickupItem() {
+       return this.tridentItem.copy();
+    }
+ 
++   public boolean isFoil() {
++      return (Boolean)this.entityData.get(ID_FOIL);
++   }
++
+    @Nullable
+    protected EntityHitResult findHitEntity(Vec3 var1, Vec3 var2) {
+       return this.dealtDamage ? null : super.findHitEntity(var1, var2);
+    }
+ 
+@@ -130,11 +134,11 @@
           }
        }
  
@@ -26,7 +56,7 @@
              LightningBolt var9 = (LightningBolt)EntityType.LIGHTNING_BOLT.create(this.level);
              var9.moveTo(Vec3.atBottomCenterOf(var8));
              var9.setCause(var10 instanceof ServerPlayer ? (ServerPlayer)var10 : null);
-@@ -145,10 +145,14 @@
+@@ -145,19 +149,27 @@
        }
  
        this.playSound(var6, var11, 1.0F);
@@ -36,8 +66,38 @@
 +      return EnchantmentHelper.hasChanneling(this.tridentItem);
 +   }
 +
++   protected boolean tryPickup(Player var1) {
++      return super.tryPickup(var1) || this.isNoPhysics() && this.ownedBy(var1);
++   }
++
     protected SoundEvent getDefaultHitGroundSoundEvent() {
        return SoundEvents.TRIDENT_HIT_GROUND;
     }
  
     public void playerTouch(Player var1) {
+-      Entity var2 = this.getOwner();
+-      if (var2 == null || var2.getUUID() == var1.getUUID()) {
++      if (this.ownedBy(var1) || this.getOwner() == null) {
+          super.playerTouch(var1);
+       }
++
+    }
+ 
+    public void readAdditionalSaveData(CompoundTag var1) {
+       super.readAdditionalSaveData(var1);
+       if (var1.contains("Trident", 10)) {
+@@ -184,10 +196,14 @@
+ 
+    protected float getWaterInertia() {
+       return 0.99F;
+    }
+ 
++   public boolean shouldRender(double var1, double var3, double var5) {
++      return true;
++   }
++
+    static {
+       ID_LOYALTY = SynchedEntityData.defineId(ThrownTrident.class, EntityDataSerializers.BYTE);
+       ID_FOIL = SynchedEntityData.defineId(ThrownTrident.class, EntityDataSerializers.BOOLEAN);
+    }
+ }

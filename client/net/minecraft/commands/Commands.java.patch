@@ -24,7 +24,23 @@
  import net.minecraft.server.commands.SaveOnCommand;
  import net.minecraft.server.commands.SayCommand;
  import net.minecraft.server.commands.ScheduleCommand;
-@@ -130,10 +130,11 @@
+@@ -105,10 +105,15 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class Commands {
+    private static final Logger LOGGER = LogManager.getLogger();
++   public static final int LEVEL_ALL = 0;
++   public static final int LEVEL_MODERATORS = 1;
++   public static final int LEVEL_GAMEMASTERS = 2;
++   public static final int LEVEL_ADMINS = 3;
++   public static final int LEVEL_OWNERS = 4;
+    private final CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher();
+ 
+    public Commands(Commands.CommandSelection var1) {
+       AdvancementCommands.register(this.dispatcher);
+       AttributeCommand.register(this.dispatcher);
+@@ -130,10 +135,11 @@
        FunctionCommand.register(this.dispatcher);
        GameModeCommand.register(this.dispatcher);
        GameRuleCommand.register(this.dispatcher);
@@ -36,7 +52,7 @@
        ListPlayersCommand.register(this.dispatcher);
        LocateCommand.register(this.dispatcher);
        LocateBiomeCommand.register(this.dispatcher);
-@@ -141,11 +142,10 @@
+@@ -141,11 +147,10 @@
        MsgCommand.register(this.dispatcher);
        ParticleCommand.register(this.dispatcher);
        PlaySoundCommand.register(this.dispatcher);
@@ -48,7 +64,21 @@
        ScoreboardCommand.register(this.dispatcher);
        SeedCommand.register(this.dispatcher, var1 != Commands.CommandSelection.INTEGRATED);
        SetBlockCommand.register(this.dispatcher);
-@@ -250,11 +250,11 @@
+@@ -203,12 +208,12 @@
+          var3.skip();
+       }
+ 
+       var1.getServer().getProfiler().push(var2);
+ 
+-      byte var18;
+       try {
++         byte var18;
+          try {
+             int var4 = this.dispatcher.execute(var3, var1);
+             return var4;
+          } catch (CommandRuntimeException var13) {
+             var1.sendFailure(var13.getComponent());
+@@ -250,23 +255,22 @@
              var1.sendFailure((new TranslatableComponent("command.failed")).withStyle((var1x) -> {
                 return var1x.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, var5));
              }));
@@ -61,3 +91,16 @@
              byte var19 = 0;
              return var19;
           }
+ 
+          var18 = 0;
++         return var18;
+       } finally {
+          var1.getServer().getProfiler().pop();
+       }
+-
+-      return var18;
+    }
+ 
+    public void sendCommands(ServerPlayer var1) {
+       HashMap var2 = Maps.newHashMap();
+       RootCommandNode var3 = new RootCommandNode();

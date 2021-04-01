@@ -12,7 +12,19 @@
  import net.minecraft.server.network.ServerLoginPacketListenerImpl;
  import net.minecraft.util.LazyLoadedValue;
  import net.minecraft.util.Mth;
-@@ -90,11 +91,11 @@
+@@ -45,10 +46,11 @@
+ import org.apache.logging.log4j.Logger;
+ import org.apache.logging.log4j.Marker;
+ import org.apache.logging.log4j.MarkerManager;
+ 
+ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
++   private static final float AVERAGE_PACKETS_SMOOTHING = 0.75F;
+    private static final Logger LOGGER = LogManager.getLogger();
+    public static final Marker ROOT_MARKER = MarkerManager.getMarker("NETWORK");
+    public static final Marker PACKET_MARKER;
+    public static final AttributeKey<ConnectionProtocol> ATTRIBUTE_PROTOCOL;
+    public static final LazyLoadedValue<NioEventLoopGroup> NETWORK_WORKER_GROUP;
+@@ -90,11 +92,11 @@
        this.channel.attr(ATTRIBUTE_PROTOCOL).set(var1);
        this.channel.config().setAutoRead(true);
        LOGGER.debug("Enabled auto read");
@@ -25,7 +37,7 @@
  
     public void exceptionCaught(ChannelHandlerContext var1, Throwable var2) {
        if (var2 instanceof SkipPacketException) {
-@@ -108,11 +109,13 @@
+@@ -108,11 +110,13 @@
                 this.disconnect(new TranslatableComponent("disconnect.timeout"));
              } else {
                 TranslatableComponent var4 = new TranslatableComponent("disconnect.genericReason", new Object[]{"Internal Exception: " + var2});
@@ -40,7 +52,7 @@
                    this.setReadOnly();
                 } else {
                    LOGGER.debug("Double fault", var2);
-@@ -122,11 +125,11 @@
+@@ -122,11 +126,11 @@
  
           }
        }
@@ -53,7 +65,7 @@
              genericsFtw(var2, this.packetListener);
           } catch (RunningOnDifferentThreadException var4) {
           }
-@@ -159,11 +162,11 @@
+@@ -159,11 +163,11 @@
  
     }
  
@@ -66,7 +78,7 @@
           LOGGER.debug("Disabled auto read");
           this.channel.config().setAutoRead(false);
        }
-@@ -194,10 +197,14 @@
+@@ -194,10 +198,14 @@
           });
        }
  
@@ -81,7 +93,26 @@
           synchronized(this.queue) {
              Connection.PacketHolder var2;
              while((var2 = (Connection.PacketHolder)this.queue.poll()) != null) {
-@@ -262,11 +269,11 @@
+@@ -249,10 +257,18 @@
+ 
+    public boolean isMemoryConnection() {
+       return this.channel instanceof LocalChannel || this.channel instanceof LocalServerChannel;
+    }
+ 
++   public PacketFlow getReceiving() {
++      return this.receiving;
++   }
++
++   public PacketFlow getSending() {
++      return this.receiving.getOpposite();
++   }
++
+    public static Connection connectToServer(InetAddress var0, int var1, boolean var2) {
+       final Connection var3 = new Connection(PacketFlow.CLIENTBOUND);
+       Class var4;
+       LazyLoadedValue var5;
+       if (Epoll.isAvailable() && var2) {
+@@ -262,11 +278,11 @@
           var4 = NioSocketChannel.class;
           var5 = NETWORK_WORKER_GROUP;
        }
@@ -94,7 +125,7 @@
              } catch (ChannelException var3x) {
              }
  
-@@ -277,11 +284,11 @@
+@@ -277,11 +293,11 @@
     }
  
     public static Connection connectToLocalServer(SocketAddress var0) {

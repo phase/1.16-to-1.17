@@ -1,0 +1,50 @@
+--- net/minecraft/client/renderer/block/model/BlockModel.java
++++ net/minecraft/client/renderer/block/model/BlockModel.java
+@@ -52,10 +52,12 @@
+ public class BlockModel implements UnbakedModel {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private static final FaceBakery FACE_BAKERY = new FaceBakery();
+    @VisibleForTesting
+    static final Gson GSON = (new GsonBuilder()).registerTypeAdapter(BlockModel.class, new BlockModel.Deserializer()).registerTypeAdapter(BlockElement.class, new BlockElement.Deserializer()).registerTypeAdapter(BlockElementFace.class, new BlockElementFace.Deserializer()).registerTypeAdapter(BlockFaceUV.class, new BlockFaceUV.Deserializer()).registerTypeAdapter(ItemTransform.class, new ItemTransform.Deserializer()).registerTypeAdapter(ItemTransforms.class, new ItemTransforms.Deserializer()).registerTypeAdapter(ItemOverride.class, new ItemOverride.Deserializer()).create();
++   private static final char REFERENCE_CHAR = '#';
++   public static final String PARTICLE_TEXTURE_REFERENCE = "particle";
+    private final List<BlockElement> elements;
+    @Nullable
+    private final BlockModel.GuiLight guiLight;
+    private final boolean hasAmbientOcclusion;
+    private final ItemTransforms transforms;
+@@ -100,10 +102,14 @@
+       } else {
+          return this.parent != null ? this.parent.getGuiLight() : BlockModel.GuiLight.SIDE;
+       }
+    }
+ 
++   public boolean isResolved() {
++      return this.parentLocation == null || this.parent != null && this.parent.isResolved();
++   }
++
+    public List<ItemOverride> getOverrides() {
+       return this.overrides;
+    }
+ 
+    private ItemOverrides getItemOverrides(ModelBakery var1, BlockModel var2) {
+@@ -314,11 +320,19 @@
+       public boolean lightLikeBlock() {
+          return this == SIDE;
+       }
+    }
+ 
++   public static class LoopException extends RuntimeException {
++      public LoopException(String var1) {
++         super(var1);
++      }
++   }
++
+    public static class Deserializer implements JsonDeserializer<BlockModel> {
++      private static final boolean DEFAULT_AMBIENT_OCCLUSION = true;
++
+       public Deserializer() {
+       }
+ 
+       public BlockModel deserialize(JsonElement var1, Type var2, JsonDeserializationContext var3) throws JsonParseException {
+          JsonObject var4 = var1.getAsJsonObject();

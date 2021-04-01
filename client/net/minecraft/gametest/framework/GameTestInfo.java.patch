@@ -1,12 +1,20 @@
 --- net/minecraft/gametest/framework/GameTestInfo.java
 +++ net/minecraft/gametest/framework/GameTestInfo.java
-@@ -10,28 +10,31 @@
+@@ -5,33 +5,39 @@
+ import it.unimi.dsi.fastutil.objects.Object2LongMap;
+ import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+ import it.unimi.dsi.fastutil.objects.ObjectIterator;
+ import it.unimi.dsi.fastutil.objects.Object2LongMap.Entry;
+ import java.util.Collection;
++import java.util.concurrent.TimeUnit;
  import javax.annotation.Nullable;
  import net.minecraft.core.BlockPos;
++import net.minecraft.core.Vec3i;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.world.level.block.Rotation;
  import net.minecraft.world.level.block.entity.StructureBlockEntity;
 +import net.minecraft.world.level.levelgen.structure.BoundingBox;
++import net.minecraft.world.phys.AABB;
  
  public class GameTestInfo {
     private final TestFunction testFunction;
@@ -35,7 +43,7 @@
        this.testFunction = var1;
        this.level = var3;
        this.timeoutTicks = var1.getMaxTicks();
-@@ -47,49 +50,65 @@
+@@ -47,49 +53,65 @@
        this.timer.start();
     }
  
@@ -128,11 +136,71 @@
  
     private void startTest() {
        if (this.started) {
-@@ -141,15 +160,12 @@
+@@ -104,18 +126,39 @@
+          }
+ 
+       }
+    }
+ 
++   public void setRunAtTickTime(long var1, Runnable var3) {
++      this.runAtTickTimeMap.put(var3, var1);
++   }
++
+    public String getTestName() {
+       return this.testFunction.getTestName();
+    }
+ 
+    public BlockPos getStructureBlockPos() {
+       return this.structureBlockPos;
+    }
+ 
++   @Nullable
++   public Vec3i getStructureSize() {
++      StructureBlockEntity var1 = this.getStructureBlockEntity();
++      return var1 == null ? null : var1.getStructureSize();
++   }
++
++   @Nullable
++   public AABB getStructureBounds() {
++      StructureBlockEntity var1 = this.getStructureBlockEntity();
++      return var1 == null ? null : StructureUtils.getStructureBounds(var1);
++   }
++
++   @Nullable
++   private StructureBlockEntity getStructureBlockEntity() {
++      return (StructureBlockEntity)this.level.getBlockEntity(this.structureBlockPos);
++   }
++
+    public ServerLevel getLevel() {
+       return this.level;
+    }
+ 
+    public boolean hasSucceeded() {
+@@ -132,24 +175,32 @@
+ 
+    public boolean isDone() {
+       return this.done;
+    }
+ 
++   public long getRunTime() {
++      return this.timer.elapsed(TimeUnit.MILLISECONDS);
++   }
++
+    private void finish() {
+       if (!this.done) {
+          this.done = true;
+          this.timer.stop();
        }
  
     }
  
++   public void succeed() {
++      if (this.error == null) {
++         this.finish();
++      }
++
++   }
++
     public void fail(Throwable var1) {
 -      this.finish();
        this.error = var1;
@@ -145,7 +213,7 @@
     @Nullable
     public Throwable getError() {
        return this.error;
-@@ -162,19 +178,28 @@
+@@ -162,19 +213,38 @@
     public void addListener(GameTestListener var1) {
        this.listeners.add(var1);
     }
@@ -172,17 +240,31 @@
 +      }
 +   }
 +
++   long getTick() {
++      return this.tickCount;
++   }
++
++   GameTestSequence createSequence() {
++      GameTestSequence var1 = new GameTestSequence(this);
++      this.sequences.add(var1);
++      return var1;
++   }
++
     public boolean isRequired() {
        return this.testFunction.isRequired();
     }
  
     public boolean isOptional() {
-@@ -190,6 +215,18 @@
+@@ -190,6 +260,22 @@
     }
  
     public TestFunction getTestFunction() {
        return this.testFunction;
     }
++
++   public int getTimeoutTicks() {
++      return this.timeoutTicks;
++   }
 +
 +   public boolean isFlaky() {
 +      return this.testFunction.isFlaky();

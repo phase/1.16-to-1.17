@@ -1,0 +1,40 @@
+--- net/minecraft/util/HeapDumper.java
++++ net/minecraft/util/HeapDumper.java
+@@ -1,0 +1,37 @@
++package net.minecraft.util;
++
++import com.sun.management.HotSpotDiagnosticMXBean;
++import java.io.IOException;
++import java.lang.management.ManagementFactory;
++import javax.annotation.Nullable;
++import javax.management.MBeanServer;
++
++public class HeapDumper {
++   private static final String HOTSPOT_BEAN_NAME = "com.sun.management:type=HotSpotDiagnostic";
++   @Nullable
++   private static HotSpotDiagnosticMXBean hotspotMBean;
++
++   public HeapDumper() {
++   }
++
++   private static HotSpotDiagnosticMXBean getHotspotMBean() {
++      if (hotspotMBean == null) {
++         try {
++            MBeanServer var0 = ManagementFactory.getPlatformMBeanServer();
++            hotspotMBean = (HotSpotDiagnosticMXBean)ManagementFactory.newPlatformMXBeanProxy(var0, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class);
++         } catch (IOException var1) {
++            throw new RuntimeException(var1);
++         }
++      }
++
++      return hotspotMBean;
++   }
++
++   public static void dumpHeap(String var0, boolean var1) {
++      try {
++         getHotspotMBean().dumpHeap(var0, var1);
++      } catch (IOException var3) {
++         throw new RuntimeException(var3);
++      }
++   }
++}

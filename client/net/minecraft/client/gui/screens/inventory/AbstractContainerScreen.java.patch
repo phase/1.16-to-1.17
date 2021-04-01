@@ -12,7 +12,19 @@
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.util.Mth;
  import net.minecraft.world.entity.player.Inventory;
-@@ -29,11 +30,11 @@
+@@ -22,18 +23,23 @@
+ import net.minecraft.world.inventory.Slot;
+ import net.minecraft.world.item.ItemStack;
+ 
+ public abstract class AbstractContainerScreen<T extends AbstractContainerMenu> extends Screen implements MenuAccess<T> {
+    public static final ResourceLocation INVENTORY_LOCATION = new ResourceLocation("textures/gui/container/inventory.png");
++   private static final float SNAPBACK_SPEED = 100.0F;
++   private static final int QUICKDROP_DELAY = 500;
++   private static final int DOUBLECLICK_SPEED = 250;
++   public static final int SLOT_ITEM_BLIT_OFFSET = 100;
++   private static final int HOVER_ITEM_BLIT_OFFSET = 200;
+    protected int imageWidth = 176;
+    protected int imageHeight = 166;
     protected int titleLabelX;
     protected int titleLabelY;
     protected int inventoryLabelX;
@@ -25,7 +37,7 @@
     @Nullable
     private Slot clickedSlot;
     @Nullable
-@@ -67,11 +68,11 @@
+@@ -67,11 +73,11 @@
        this.draggingItem = ItemStack.EMPTY;
        this.snapbackItem = ItemStack.EMPTY;
        this.quickCraftSlots = Sets.newHashSet();
@@ -38,7 +50,7 @@
        this.titleLabelY = 6;
        this.inventoryLabelX = 8;
        this.inventoryLabelY = this.imageHeight - 94;
-@@ -85,112 +86,117 @@
+@@ -85,112 +91,117 @@
  
     public void render(PoseStack var1, int var2, int var3, float var4) {
        int var5 = this.leftPos;
@@ -205,7 +217,7 @@
           var5 = var5.copy();
           var5.setCount(var5.getCount() / 2);
        } else if (this.isQuickCrafting && this.quickCraftSlots.contains(var2) && !var8.isEmpty()) {
-@@ -217,11 +223,11 @@
+@@ -217,11 +228,11 @@
        this.itemRenderer.blitOffset = 100.0F;
        if (var5.isEmpty() && var2.isActive()) {
           Pair var12 = var2.getNoItemIcon();
@@ -218,7 +230,7 @@
           }
        }
  
-@@ -229,20 +235,20 @@
+@@ -229,20 +240,20 @@
           if (var6) {
              fill(var1, var3, var4, var3 + 16, var4 + 16, -2130706433);
           }
@@ -241,7 +253,7 @@
              this.quickCraftingRemainder = var1.getMaxStackSize();
           } else {
              this.quickCraftingRemainder = var1.getCount();
-@@ -299,11 +305,11 @@
+@@ -299,11 +310,11 @@
  
              if (var12) {
                 var13 = -999;
@@ -254,7 +266,7 @@
              }
  
              if (var13 != -1) {
-@@ -314,11 +320,11 @@
+@@ -314,11 +325,11 @@
                       this.isSplittingStack = var5 == 1;
                    } else {
                       this.clickedSlot = null;
@@ -267,7 +279,7 @@
                       } else {
                          boolean var14 = var13 != -999 && (InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), 340) || InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), 344));
                          ClickType var15 = ClickType.PICKUP;
-@@ -355,11 +361,11 @@
+@@ -355,11 +366,11 @@
           return true;
        }
     }
@@ -280,7 +292,7 @@
              return;
           }
  
-@@ -376,11 +382,11 @@
+@@ -376,11 +387,11 @@
        return var1 < (double)var5 || var3 < (double)var6 || var1 >= (double)(var5 + this.imageWidth) || var3 >= (double)(var6 + this.imageHeight);
     }
  
@@ -293,7 +305,7 @@
              if (this.draggingItem.isEmpty()) {
                 if (var10 != this.clickedSlot && !this.clickedSlot.getItem().isEmpty()) {
                    this.draggingItem = this.clickedSlot.getItem().copy();
-@@ -465,11 +471,11 @@
+@@ -465,11 +476,11 @@
  
                 var11 = AbstractContainerMenu.canItemQuickReplace(var6, this.draggingItem, false);
                 if (var10 != -1 && !this.draggingItem.isEmpty() && var11) {
@@ -306,7 +318,7 @@
                       this.slotClicked(this.clickedSlot, this.clickedSlot.index, var5, ClickType.PICKUP);
                       this.snapbackStartX = Mth.floor(var1 - (double)var7);
                       this.snapbackStartY = Mth.floor(var3 - (double)var8);
-@@ -496,11 +502,11 @@
+@@ -496,11 +507,11 @@
                 var12 = (Slot)var13.next();
                 this.slotClicked(var12, var12.index, AbstractContainerMenu.getQuickcraftMask(1, this.quickCraftingType), ClickType.QUICK_CRAFT);
              }
@@ -319,7 +331,7 @@
              } else {
                 var11 = var10 != -999 && (InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), 340) || InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), 344));
                 if (var11) {
-@@ -510,11 +516,11 @@
+@@ -510,11 +521,11 @@
                 this.slotClicked(var6, var10, var5, var11 ? ClickType.QUICK_MOVE : ClickType.PICKUP);
              }
           }
@@ -332,7 +344,7 @@
  
        this.isQuickCrafting = false;
        return true;
-@@ -559,11 +565,11 @@
+@@ -559,11 +570,11 @@
           return true;
        }
     }
@@ -345,7 +357,7 @@
              return true;
           }
  
-@@ -588,11 +594,11 @@
+@@ -588,11 +599,11 @@
        return false;
     }
  

@@ -1,6 +1,13 @@
 --- net/minecraft/server/Main.java
 +++ net/minecraft/server/Main.java
-@@ -31,10 +31,11 @@
+@@ -25,16 +25,18 @@
+ import net.minecraft.Util;
+ import net.minecraft.commands.Commands;
+ import net.minecraft.core.RegistryAccess;
+ import net.minecraft.nbt.NbtOps;
+ import net.minecraft.network.chat.Component;
++import net.minecraft.obfuscate.DontObfuscate;
+ import net.minecraft.resources.RegistryReadOps;
  import net.minecraft.resources.ResourceKey;
  import net.minecraft.server.dedicated.DedicatedServer;
  import net.minecraft.server.dedicated.DedicatedServerProperties;
@@ -12,7 +19,7 @@
  import net.minecraft.server.packs.repository.PackSource;
  import net.minecraft.server.packs.repository.RepositorySource;
  import net.minecraft.server.packs.repository.ServerPacksSource;
-@@ -48,10 +49,11 @@
+@@ -48,10 +50,11 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelSettings;
  import net.minecraft.world.level.levelgen.WorldGenSettings;
@@ -24,7 +31,19 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
-@@ -112,56 +114,62 @@
+@@ -59,10 +62,11 @@
+    private static final Logger LOGGER = LogManager.getLogger();
+ 
+    public Main() {
+    }
+ 
++   @DontObfuscate
+    public static void main(String[] var0) {
+       OptionParser var1 = new OptionParser();
+       OptionSpecBuilder var2 = var1.accepts("nogui");
+       OptionSpecBuilder var3 = var1.accepts("initSettings", "Initializes 'server.properties' and 'eula.txt', then quits");
+       OptionSpecBuilder var4 = var1.accepts("demo");
+@@ -112,56 +116,62 @@
           GameProfileCache var26 = new GameProfileCache(var25, new File(var22, MinecraftServer.USERID_CACHE_FILE.getName()));
           String var27 = (String)Optional.ofNullable(var16.valueOf(var12)).orElse(var19.getProperties().levelName);
           LevelStorageSource var28 = LevelStorageSource.createDefault(var22.toPath());
@@ -34,7 +53,7 @@
 -         boolean var31 = var16.has(var8);
 -         if (var31) {
 +         LevelSummary var30 = var29.getSummary();
-+         if (var30 != null && var30.isPreWorldheight()) {
++         if (var30 != null && var30.isIncompatibleWorldHeight()) {
 +            LOGGER.info("Loading of old worlds is temporarily disabled.");
 +            return;
 +         }
@@ -114,7 +133,7 @@
              var17x.setDemo(var16.has(var4));
              var17x.setId((String)var16.valueOf(var14));
              boolean var18 = !var16.has(var2) && !var16.valuesOf(var15).contains("nogui");
-@@ -169,19 +177,19 @@
+@@ -169,19 +179,19 @@
                 var17x.showGui();
              }
  

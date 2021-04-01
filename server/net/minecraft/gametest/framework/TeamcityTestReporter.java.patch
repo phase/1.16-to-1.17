@@ -1,0 +1,38 @@
+--- net/minecraft/gametest/framework/TeamcityTestReporter.java
++++ net/minecraft/gametest/framework/TeamcityTestReporter.java
+@@ -1,0 +1,35 @@
++package net.minecraft.gametest.framework;
++
++import com.google.common.escape.Escaper;
++import com.google.common.escape.Escapers;
++import net.minecraft.Util;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++
++public class TeamcityTestReporter implements TestReporter {
++   private static final Logger LOGGER = LogManager.getLogger();
++   private static final Escaper ESCAPER = Escapers.builder().addEscape('\'', "|'").addEscape('\n', "|n").addEscape('\r', "|r").addEscape('|', "||").addEscape('[', "|[").addEscape(']', "|]").build();
++
++   public TeamcityTestReporter() {
++   }
++
++   public void onTestFailed(GameTestInfo var1) {
++      String var2 = ESCAPER.escape(var1.getTestName());
++      String var3 = ESCAPER.escape(var1.getError().getMessage());
++      String var4 = ESCAPER.escape(Util.describeError(var1.getError()));
++      LOGGER.info((String)"##teamcity[testStarted name='{}']", (Object)var2);
++      if (var1.isRequired()) {
++         LOGGER.info((String)"##teamcity[testFailed name='{}' message='{}' details='{}']", (Object)var2, var3, var4);
++      } else {
++         LOGGER.info((String)"##teamcity[testIgnored name='{}' message='{}' details='{}']", (Object)var2, var3, var4);
++      }
++
++      LOGGER.info((String)"##teamcity[testFinished name='{}' duration='{}']", (Object)var2, (Object)var1.getRunTime());
++   }
++
++   public void onTestSuccess(GameTestInfo var1) {
++      String var2 = ESCAPER.escape(var1.getTestName());
++      LOGGER.info((String)"##teamcity[testStarted name='{}']", (Object)var2);
++      LOGGER.info((String)"##teamcity[testFinished name='{}' duration='{}']", (Object)var2, (Object)var1.getRunTime());
++   }
++}

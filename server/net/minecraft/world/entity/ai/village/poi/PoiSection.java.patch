@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/ai/village/poi/PoiSection.java
 +++ net/minecraft/world/entity/ai/village/poi/PoiSection.java
-@@ -15,11 +15,10 @@
+@@ -15,14 +15,14 @@
  import java.util.Set;
  import java.util.function.BiConsumer;
  import java.util.function.Consumer;
@@ -10,9 +10,13 @@
  import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.SectionPos;
++import net.minecraft.util.VisibleForDebug;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
-@@ -86,16 +85,11 @@
+ 
+ public class PoiSection {
+    private static final Logger LOGGER = LogManager.getLogger();
+@@ -86,16 +86,11 @@
        if (var5 != null) {
           if (var3.equals(var5.getPoiType())) {
              return false;
@@ -30,7 +34,7 @@
        this.records.put(var4, var1);
        ((Set)this.byType.computeIfAbsent(var3, (var0) -> {
           return Sets.newHashSet();
-@@ -104,11 +98,11 @@
+@@ -104,18 +99,24 @@
     }
  
     public void remove(BlockPos var1) {
@@ -43,7 +47,20 @@
           LOGGER.debug("Removed POI of type {} @ {}", var2::getPoiType, var2::getPos);
           this.setDirty.run();
        }
-@@ -124,21 +118,21 @@
+    }
+ 
++   @Deprecated
++   @VisibleForDebug
++   public int getFreeTickets(BlockPos var1) {
++      return (Integer)this.getPoiRecord(var1).map(PoiRecord::getFreeTickets).orElse(0);
++   }
++
+    public boolean release(BlockPos var1) {
+       PoiRecord var2 = (PoiRecord)this.records.get(SectionPos.sectionRelativePos(var1));
+       if (var2 == null) {
+          throw (IllegalStateException)Util.pauseInIde(new IllegalStateException("POI never registered at " + var1));
+       } else {
+@@ -124,21 +125,21 @@
           return var3;
        }
     }

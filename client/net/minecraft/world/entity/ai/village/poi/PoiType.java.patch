@@ -1,6 +1,18 @@
 --- net/minecraft/world/entity/ai/village/poi/PoiType.java
 +++ net/minecraft/world/entity/ai/village/poi/PoiType.java
-@@ -52,10 +52,11 @@
+@@ -30,10 +30,11 @@
+    };
+    public static final Predicate<PoiType> ALL = (var0) -> {
+       return true;
+    };
+    private static final Set<BlockState> BEDS;
++   private static final Set<BlockState> CAULDRONS;
+    private static final Map<BlockState, PoiType> TYPE_BY_STATE;
+    public static final PoiType UNEMPLOYED;
+    public static final PoiType ARMORER;
+    public static final PoiType BUTCHER;
+    public static final PoiType CARTOGRAPHER;
+@@ -52,10 +53,11 @@
     public static final PoiType MEETING;
     public static final PoiType BEEHIVE;
     public static final PoiType BEE_NEST;
@@ -12,7 +24,59 @@
     private final Set<BlockState> matchingStates;
     private final int maxTickets;
     private final Predicate<PoiType> predicate;
-@@ -147,8 +148,9 @@
+@@ -81,18 +83,26 @@
+          return var1x == this;
+       };
+       this.validRange = var4;
+    }
+ 
++   public String getName() {
++      return this.name;
++   }
++
+    public int getMaxTickets() {
+       return this.maxTickets;
+    }
+ 
+    public Predicate<PoiType> getPredicate() {
+       return this.predicate;
+    }
+ 
++   public boolean is(BlockState var1) {
++      return this.matchingStates.contains(var1);
++   }
++
+    public int getValidRange() {
+       return this.validRange;
+    }
+ 
+    public String toString() {
+@@ -125,20 +135,23 @@
+       BEDS = (Set)ImmutableList.of(Blocks.RED_BED, Blocks.BLACK_BED, Blocks.BLUE_BED, Blocks.BROWN_BED, Blocks.CYAN_BED, Blocks.GRAY_BED, Blocks.GREEN_BED, Blocks.LIGHT_BLUE_BED, Blocks.LIGHT_GRAY_BED, Blocks.LIME_BED, Blocks.MAGENTA_BED, Blocks.ORANGE_BED, new Block[]{Blocks.PINK_BED, Blocks.PURPLE_BED, Blocks.WHITE_BED, Blocks.YELLOW_BED}).stream().flatMap((var0) -> {
+          return var0.getStateDefinition().getPossibleStates().stream();
+       }).filter((var0) -> {
+          return var0.getValue(BedBlock.PART) == BedPart.HEAD;
+       }).collect(ImmutableSet.toImmutableSet());
++      CAULDRONS = (Set)ImmutableList.of(Blocks.CAULDRON, Blocks.LAVA_CAULDRON, Blocks.WATER_CAULDRON, Blocks.POWDER_SNOW_CAULDRON).stream().flatMap((var0) -> {
++         return var0.getStateDefinition().getPossibleStates().stream();
++      }).collect(ImmutableSet.toImmutableSet());
+       TYPE_BY_STATE = Maps.newHashMap();
+       UNEMPLOYED = register("unemployed", ImmutableSet.of(), 1, ALL_JOBS, 1);
+       ARMORER = register("armorer", getBlockStates(Blocks.BLAST_FURNACE), 1, 1);
+       BUTCHER = register("butcher", getBlockStates(Blocks.SMOKER), 1, 1);
+       CARTOGRAPHER = register("cartographer", getBlockStates(Blocks.CARTOGRAPHY_TABLE), 1, 1);
+       CLERIC = register("cleric", getBlockStates(Blocks.BREWING_STAND), 1, 1);
+       FARMER = register("farmer", getBlockStates(Blocks.COMPOSTER), 1, 1);
+       FISHERMAN = register("fisherman", getBlockStates(Blocks.BARREL), 1, 1);
+       FLETCHER = register("fletcher", getBlockStates(Blocks.FLETCHING_TABLE), 1, 1);
+-      LEATHERWORKER = register("leatherworker", getBlockStates(Blocks.CAULDRON), 1, 1);
++      LEATHERWORKER = register("leatherworker", CAULDRONS, 1, 1);
+       LIBRARIAN = register("librarian", getBlockStates(Blocks.LECTERN), 1, 1);
+       MASON = register("mason", getBlockStates(Blocks.STONECUTTER), 1, 1);
+       NITWIT = register("nitwit", ImmutableSet.of(), 1, 1);
+       SHEPHERD = register("shepherd", getBlockStates(Blocks.LOOM), 1, 1);
+       TOOLSMITH = register("toolsmith", getBlockStates(Blocks.SMITHING_TABLE), 1, 1);
+@@ -147,8 +160,9 @@
        MEETING = register("meeting", getBlockStates(Blocks.BELL), 32, 6);
        BEEHIVE = register("beehive", getBlockStates(Blocks.BEEHIVE), 0, 1);
        BEE_NEST = register("bee_nest", getBlockStates(Blocks.BEE_NEST), 0, 1);

@@ -1,0 +1,68 @@
+--- com/mojang/brigadier/CommandDispatcher.java
++++ com/mojang/brigadier/CommandDispatcher.java
+@@ -15,10 +15,11 @@
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.LinkedHashMap;
+ import java.util.LinkedHashSet;
+ import java.util.List;
++import java.util.Locale;
+ import java.util.Map;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ 
+@@ -368,38 +369,39 @@
+       SuggestionContext var4 = var3.findSuggestionContext(var2);
+       CommandNode var5 = var4.parent;
+       int var6 = Math.min(var4.startPos, var2);
+       String var7 = var1.getReader().getString();
+       String var8 = var7.substring(0, var2);
+-      CompletableFuture[] var9 = new CompletableFuture[var5.getChildren().size()];
+-      int var10 = 0;
++      String var9 = var8.toLowerCase(Locale.ROOT);
++      CompletableFuture[] var10 = new CompletableFuture[var5.getChildren().size()];
++      int var11 = 0;
+ 
+-      CompletableFuture var13;
+-      for(Iterator var11 = var5.getChildren().iterator(); var11.hasNext(); var9[var10++] = var13) {
+-         CommandNode var12 = (CommandNode)var11.next();
+-         var13 = Suggestions.empty();
++      CompletableFuture var14;
++      for(Iterator var12 = var5.getChildren().iterator(); var12.hasNext(); var10[var11++] = var14) {
++         CommandNode var13 = (CommandNode)var12.next();
++         var14 = Suggestions.empty();
+ 
+          try {
+-            var13 = var12.listSuggestions(var3.build(var8), new SuggestionsBuilder(var8, var6));
+-         } catch (CommandSyntaxException var15) {
++            var14 = var13.listSuggestions(var3.build(var8), new SuggestionsBuilder(var8, var9, var6));
++         } catch (CommandSyntaxException var16) {
+          }
+       }
+ 
+-      CompletableFuture var16 = new CompletableFuture();
+-      CompletableFuture.allOf(var9).thenRun(() -> {
++      CompletableFuture var17 = new CompletableFuture();
++      CompletableFuture.allOf(var10).thenRun(() -> {
+          ArrayList var3 = new ArrayList();
+-         CompletableFuture[] var4 = var9;
+-         int var5 = var9.length;
++         CompletableFuture[] var4 = var10;
++         int var5 = var10.length;
+ 
+          for(int var6 = 0; var6 < var5; ++var6) {
+             CompletableFuture var7x = var4[var6];
+             var3.add(var7x.join());
+          }
+ 
+-         var16.complete(Suggestions.merge(var7, var3));
++         var17.complete(Suggestions.merge(var7, var3));
+       });
+-      return var16;
++      return var17;
+    }
+ 
+    public RootCommandNode<S> getRoot() {
+       return this.root;
+    }

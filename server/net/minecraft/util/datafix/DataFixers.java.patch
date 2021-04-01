@@ -1,6 +1,18 @@
 --- net/minecraft/util/datafix/DataFixers.java
 +++ net/minecraft/util/datafix/DataFixers.java
-@@ -30,12 +30,14 @@
+@@ -10,10 +10,11 @@
+ import java.util.Objects;
+ import java.util.function.BiFunction;
+ import java.util.function.UnaryOperator;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
++import net.minecraft.util.datafix.fixes.AbstractArrowPickupFix;
+ import net.minecraft.util.datafix.fixes.AddNewChoices;
+ import net.minecraft.util.datafix.fixes.AdvancementsFix;
+ import net.minecraft.util.datafix.fixes.AdvancementsRenameFix;
+ import net.minecraft.util.datafix.fixes.AttributesRename;
+ import net.minecraft.util.datafix.fixes.BedBlockEntityInjecter;
+@@ -30,12 +31,14 @@
  import net.minecraft.util.datafix.fixes.BlockEntityShulkerBoxColorFix;
  import net.minecraft.util.datafix.fixes.BlockEntitySignTextStrictJsonFix;
  import net.minecraft.util.datafix.fixes.BlockEntityUUIDFix;
@@ -15,50 +27,88 @@
  import net.minecraft.util.datafix.fixes.ChunkPalettedStorageFix;
  import net.minecraft.util.datafix.fixes.ChunkStatusFix;
  import net.minecraft.util.datafix.fixes.ChunkStatusFix2;
-@@ -183,10 +185,13 @@
+@@ -125,10 +128,11 @@
+ import net.minecraft.util.datafix.fixes.RemoveGolemGossipFix;
+ import net.minecraft.util.datafix.fixes.RenameBiomesFix;
+ import net.minecraft.util.datafix.fixes.RenamedCoralFansFix;
+ import net.minecraft.util.datafix.fixes.RenamedCoralFix;
+ import net.minecraft.util.datafix.fixes.ReorganizePoi;
++import net.minecraft.util.datafix.fixes.SavedDataFeaturePoolElementFix;
+ import net.minecraft.util.datafix.fixes.SavedDataUUIDFix;
+ import net.minecraft.util.datafix.fixes.SavedDataVillageCropFix;
+ import net.minecraft.util.datafix.fixes.StatsCounterFix;
+ import net.minecraft.util.datafix.fixes.StriderGravityFix;
+ import net.minecraft.util.datafix.fixes.StructureReferenceCountFix;
+@@ -183,10 +187,15 @@
  import net.minecraft.util.datafix.schemas.V2509;
  import net.minecraft.util.datafix.schemas.V2519;
  import net.minecraft.util.datafix.schemas.V2522;
  import net.minecraft.util.datafix.schemas.V2551;
  import net.minecraft.util.datafix.schemas.V2568;
++import net.minecraft.util.datafix.schemas.V2571;
 +import net.minecraft.util.datafix.schemas.V2684;
 +import net.minecraft.util.datafix.schemas.V2686;
 +import net.minecraft.util.datafix.schemas.V2688;
++import net.minecraft.util.datafix.schemas.V2704;
  import net.minecraft.util.datafix.schemas.V501;
  import net.minecraft.util.datafix.schemas.V700;
  import net.minecraft.util.datafix.schemas.V701;
  import net.minecraft.util.datafix.schemas.V702;
  import net.minecraft.util.datafix.schemas.V703;
-@@ -529,10 +534,34 @@
+@@ -198,10 +207,13 @@
+ public class DataFixers {
+    private static final BiFunction<Integer, Schema, Schema> SAME = Schema::new;
+    private static final BiFunction<Integer, Schema, Schema> SAME_NAMESPACED = NamespacedSchema::new;
+    private static final DataFixer DATA_FIXER = createFixerUpper();
+ 
++   public DataFixers() {
++   }
++
+    private static DataFixer createFixerUpper() {
+       DataFixerBuilder var0 = new DataFixerBuilder(SharedConstants.getCurrentVersion().getWorldVersion());
+       addFixers(var0);
+       return var0.build(Util.bootstrapExecutor());
+    }
+@@ -529,10 +541,44 @@
        Schema var124 = var0.addSchema(2558, SAME_NAMESPACED);
        var0.addFixer(new MissingDimensionFix(var124, false));
        var0.addFixer(new OptionsRenameFieldFix(var124, false, "Rename swapHands setting", "key_key.swapHands", "key_key.swapOffhand"));
        Schema var125 = var0.addSchema(2568, V2568::new);
        var0.addFixer(new AddNewChoices(var125, "Added Piglin Brute", References.ENTITY));
-+      Schema var126 = var0.addSchema(2679, SAME_NAMESPACED);
-+      var0.addFixer(new CauldronRenameFix(var126, false));
-+      Schema var127 = var0.addSchema(2680, SAME_NAMESPACED);
-+      var0.addFixer(ItemRenameFix.create(var127, "Renamed grass path item to dirt path", createRenamer("minecraft:grass_path", "minecraft:dirt_path")));
-+      var0.addFixer(BlockRenameFixWithJigsaw.create(var127, "Renamed grass path block to dirt path", createRenamer("minecraft:grass_path", "minecraft:dirt_path")));
-+      Schema var128 = var0.addSchema(2684, V2684::new);
-+      var0.addFixer(new AddNewChoices(var128, "Added Sculk Sensor", References.BLOCK_ENTITY));
-+      Schema var129 = var0.addSchema(2686, V2686::new);
-+      var0.addFixer(new AddNewChoices(var129, "Added Axolotl", References.ENTITY));
-+      Schema var130 = var0.addSchema(2688, V2688::new);
-+      var0.addFixer(new AddNewChoices(var130, "Added Glow Squid", References.ENTITY));
-+      var0.addFixer(new AddNewChoices(var130, "Added Glow Item Frame", References.ENTITY));
-+      Schema var131 = var0.addSchema(2690, SAME_NAMESPACED);
-+      ImmutableMap var132 = ImmutableMap.builder().put("minecraft:weathered_copper_block", "minecraft:oxidized_copper_block").put("minecraft:semi_weathered_copper_block", "minecraft:weathered_copper_block").put("minecraft:lightly_weathered_copper_block", "minecraft:exposed_copper_block").put("minecraft:weathered_cut_copper", "minecraft:oxidized_cut_copper").put("minecraft:semi_weathered_cut_copper", "minecraft:weathered_cut_copper").put("minecraft:lightly_weathered_cut_copper", "minecraft:exposed_cut_copper").put("minecraft:weathered_cut_copper_stairs", "minecraft:oxidized_cut_copper_stairs").put("minecraft:semi_weathered_cut_copper_stairs", "minecraft:weathered_cut_copper_stairs").put("minecraft:lightly_weathered_cut_copper_stairs", "minecraft:exposed_cut_copper_stairs").put("minecraft:weathered_cut_copper_slab", "minecraft:oxidized_cut_copper_slab").put("minecraft:semi_weathered_cut_copper_slab", "minecraft:weathered_cut_copper_slab").put("minecraft:lightly_weathered_cut_copper_slab", "minecraft:exposed_cut_copper_slab").put("minecraft:waxed_semi_weathered_copper", "minecraft:waxed_weathered_copper").put("minecraft:waxed_lightly_weathered_copper", "minecraft:waxed_exposed_copper").put("minecraft:waxed_semi_weathered_cut_copper", "minecraft:waxed_weathered_cut_copper").put("minecraft:waxed_lightly_weathered_cut_copper", "minecraft:waxed_exposed_cut_copper").put("minecraft:waxed_semi_weathered_cut_copper_stairs", "minecraft:waxed_weathered_cut_copper_stairs").put("minecraft:waxed_lightly_weathered_cut_copper_stairs", "minecraft:waxed_exposed_cut_copper_stairs").put("minecraft:waxed_semi_weathered_cut_copper_slab", "minecraft:waxed_weathered_cut_copper_slab").put("minecraft:waxed_lightly_weathered_cut_copper_slab", "minecraft:waxed_exposed_cut_copper_slab").build();
-+      var0.addFixer(ItemRenameFix.create(var131, "Renamed copper block items to new oxidized terms", createRenamer(var132)));
-+      var0.addFixer(BlockRenameFixWithJigsaw.create(var131, "Renamed copper blocks to new oxidized terms", createRenamer(var132)));
-+      Schema var133 = var0.addSchema(2691, SAME_NAMESPACED);
-+      ImmutableMap var134 = ImmutableMap.builder().put("minecraft:waxed_copper", "minecraft:waxed_copper_block").put("minecraft:oxidized_copper_block", "minecraft:oxidized_copper").put("minecraft:weathered_copper_block", "minecraft:weathered_copper").put("minecraft:exposed_copper_block", "minecraft:exposed_copper").build();
-+      var0.addFixer(ItemRenameFix.create(var133, "Rename copper item suffixes", createRenamer(var134)));
-+      var0.addFixer(BlockRenameFixWithJigsaw.create(var133, "Rename copper blocks suffixes", createRenamer(var134)));
-+      Schema var135 = var0.addSchema(2696, SAME_NAMESPACED);
-+      ImmutableMap var136 = ImmutableMap.builder().put("minecraft:grimstone", "minecraft:deepslate").put("minecraft:grimstone_slab", "minecraft:cobbled_deepslate_slab").put("minecraft:grimstone_stairs", "minecraft:cobbled_deepslate_stairs").put("minecraft:grimstone_wall", "minecraft:cobbled_deepslate_wall").put("minecraft:polished_grimstone", "minecraft:polished_deepslate").put("minecraft:polished_grimstone_slab", "minecraft:polished_deepslate_slab").put("minecraft:polished_grimstone_stairs", "minecraft:polished_deepslate_stairs").put("minecraft:polished_grimstone_wall", "minecraft:polished_deepslate_wall").put("minecraft:grimstone_tiles", "minecraft:deepslate_tiles").put("minecraft:grimstone_tile_slab", "minecraft:deepslate_tile_slab").put("minecraft:grimstone_tile_stairs", "minecraft:deepslate_tile_stairs").put("minecraft:grimstone_tile_wall", "minecraft:deepslate_tile_wall").put("minecraft:grimstone_bricks", "minecraft:deepslate_bricks").put("minecraft:grimstone_brick_slab", "minecraft:deepslate_brick_slab").put("minecraft:grimstone_brick_stairs", "minecraft:deepslate_brick_stairs").put("minecraft:grimstone_brick_wall", "minecraft:deepslate_brick_wall").put("minecraft:chiseled_grimstone", "minecraft:chiseled_deepslate").build();
-+      var0.addFixer(ItemRenameFix.create(var135, "Renamed grimstone block items to deepslate", createRenamer(var136)));
-+      var0.addFixer(BlockRenameFixWithJigsaw.create(var135, "Renamed grimstone blocks to deepslate", createRenamer(var136)));
++      Schema var126 = var0.addSchema(2571, V2571::new);
++      var0.addFixer(new AddNewChoices(var126, "Added Goat", References.ENTITY));
++      Schema var127 = var0.addSchema(2679, SAME_NAMESPACED);
++      var0.addFixer(new CauldronRenameFix(var127, false));
++      Schema var128 = var0.addSchema(2680, SAME_NAMESPACED);
++      var0.addFixer(ItemRenameFix.create(var128, "Renamed grass path item to dirt path", createRenamer("minecraft:grass_path", "minecraft:dirt_path")));
++      var0.addFixer(BlockRenameFixWithJigsaw.create(var128, "Renamed grass path block to dirt path", createRenamer("minecraft:grass_path", "minecraft:dirt_path")));
++      Schema var129 = var0.addSchema(2684, V2684::new);
++      var0.addFixer(new AddNewChoices(var129, "Added Sculk Sensor", References.BLOCK_ENTITY));
++      Schema var130 = var0.addSchema(2686, V2686::new);
++      var0.addFixer(new AddNewChoices(var130, "Added Axolotl", References.ENTITY));
++      Schema var131 = var0.addSchema(2688, V2688::new);
++      var0.addFixer(new AddNewChoices(var131, "Added Glow Squid", References.ENTITY));
++      var0.addFixer(new AddNewChoices(var131, "Added Glow Item Frame", References.ENTITY));
++      Schema var132 = var0.addSchema(2690, SAME_NAMESPACED);
++      ImmutableMap var133 = ImmutableMap.builder().put("minecraft:weathered_copper_block", "minecraft:oxidized_copper_block").put("minecraft:semi_weathered_copper_block", "minecraft:weathered_copper_block").put("minecraft:lightly_weathered_copper_block", "minecraft:exposed_copper_block").put("minecraft:weathered_cut_copper", "minecraft:oxidized_cut_copper").put("minecraft:semi_weathered_cut_copper", "minecraft:weathered_cut_copper").put("minecraft:lightly_weathered_cut_copper", "minecraft:exposed_cut_copper").put("minecraft:weathered_cut_copper_stairs", "minecraft:oxidized_cut_copper_stairs").put("minecraft:semi_weathered_cut_copper_stairs", "minecraft:weathered_cut_copper_stairs").put("minecraft:lightly_weathered_cut_copper_stairs", "minecraft:exposed_cut_copper_stairs").put("minecraft:weathered_cut_copper_slab", "minecraft:oxidized_cut_copper_slab").put("minecraft:semi_weathered_cut_copper_slab", "minecraft:weathered_cut_copper_slab").put("minecraft:lightly_weathered_cut_copper_slab", "minecraft:exposed_cut_copper_slab").put("minecraft:waxed_semi_weathered_copper", "minecraft:waxed_weathered_copper").put("minecraft:waxed_lightly_weathered_copper", "minecraft:waxed_exposed_copper").put("minecraft:waxed_semi_weathered_cut_copper", "minecraft:waxed_weathered_cut_copper").put("minecraft:waxed_lightly_weathered_cut_copper", "minecraft:waxed_exposed_cut_copper").put("minecraft:waxed_semi_weathered_cut_copper_stairs", "minecraft:waxed_weathered_cut_copper_stairs").put("minecraft:waxed_lightly_weathered_cut_copper_stairs", "minecraft:waxed_exposed_cut_copper_stairs").put("minecraft:waxed_semi_weathered_cut_copper_slab", "minecraft:waxed_weathered_cut_copper_slab").put("minecraft:waxed_lightly_weathered_cut_copper_slab", "minecraft:waxed_exposed_cut_copper_slab").build();
++      var0.addFixer(ItemRenameFix.create(var132, "Renamed copper block items to new oxidized terms", createRenamer(var133)));
++      var0.addFixer(BlockRenameFixWithJigsaw.create(var132, "Renamed copper blocks to new oxidized terms", createRenamer(var133)));
++      Schema var134 = var0.addSchema(2691, SAME_NAMESPACED);
++      ImmutableMap var135 = ImmutableMap.builder().put("minecraft:waxed_copper", "minecraft:waxed_copper_block").put("minecraft:oxidized_copper_block", "minecraft:oxidized_copper").put("minecraft:weathered_copper_block", "minecraft:weathered_copper").put("minecraft:exposed_copper_block", "minecraft:exposed_copper").build();
++      var0.addFixer(ItemRenameFix.create(var134, "Rename copper item suffixes", createRenamer(var135)));
++      var0.addFixer(BlockRenameFixWithJigsaw.create(var134, "Rename copper blocks suffixes", createRenamer(var135)));
++      Schema var136 = var0.addSchema(2696, SAME_NAMESPACED);
++      ImmutableMap var137 = ImmutableMap.builder().put("minecraft:grimstone", "minecraft:deepslate").put("minecraft:grimstone_slab", "minecraft:cobbled_deepslate_slab").put("minecraft:grimstone_stairs", "minecraft:cobbled_deepslate_stairs").put("minecraft:grimstone_wall", "minecraft:cobbled_deepslate_wall").put("minecraft:polished_grimstone", "minecraft:polished_deepslate").put("minecraft:polished_grimstone_slab", "minecraft:polished_deepslate_slab").put("minecraft:polished_grimstone_stairs", "minecraft:polished_deepslate_stairs").put("minecraft:polished_grimstone_wall", "minecraft:polished_deepslate_wall").put("minecraft:grimstone_tiles", "minecraft:deepslate_tiles").put("minecraft:grimstone_tile_slab", "minecraft:deepslate_tile_slab").put("minecraft:grimstone_tile_stairs", "minecraft:deepslate_tile_stairs").put("minecraft:grimstone_tile_wall", "minecraft:deepslate_tile_wall").put("minecraft:grimstone_bricks", "minecraft:deepslate_bricks").put("minecraft:grimstone_brick_slab", "minecraft:deepslate_brick_slab").put("minecraft:grimstone_brick_stairs", "minecraft:deepslate_brick_stairs").put("minecraft:grimstone_brick_wall", "minecraft:deepslate_brick_wall").put("minecraft:chiseled_grimstone", "minecraft:chiseled_deepslate").build();
++      var0.addFixer(ItemRenameFix.create(var136, "Renamed grimstone block items to deepslate", createRenamer(var137)));
++      var0.addFixer(BlockRenameFixWithJigsaw.create(var136, "Renamed grimstone blocks to deepslate", createRenamer(var137)));
++      Schema var138 = var0.addSchema(2700, SAME_NAMESPACED);
++      var0.addFixer(BlockRenameFixWithJigsaw.create(var138, "Renamed cave vines blocks", createRenamer(ImmutableMap.of("minecraft:cave_vines_head", "minecraft:cave_vines", "minecraft:cave_vines_body", "minecraft:cave_vines_plant"))));
++      Schema var139 = var0.addSchema(2701, SAME_NAMESPACED);
++      var0.addFixer(new SavedDataFeaturePoolElementFix(var139));
++      Schema var140 = var0.addSchema(2702, SAME_NAMESPACED);
++      var0.addFixer(new AbstractArrowPickupFix(var140));
++      Schema var141 = var0.addSchema(2704, V2704::new);
++      var0.addFixer(new AddNewChoices(var141, "Added Goat", References.ENTITY));
     }
  
     private static UnaryOperator<String> createRenamer(Map<String, String> var0) {

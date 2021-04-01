@@ -1,18 +1,15 @@
 --- net/minecraft/world/entity/monster/Shulker.java
 +++ net/minecraft/world/entity/monster/Shulker.java
-@@ -1,11 +1,10 @@
- package net.minecraft.world.entity.monster;
- 
- import java.util.EnumSet;
- import java.util.Iterator;
- import java.util.List;
--import java.util.Optional;
+@@ -7,27 +7,31 @@
  import java.util.UUID;
  import javax.annotation.Nullable;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.nbt.CompoundTag;
-@@ -15,19 +14,22 @@
++import net.minecraft.network.protocol.game.ClientboundAddMobPacket;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
  import net.minecraft.sounds.SoundEvent;
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.sounds.SoundSource;
@@ -36,7 +33,7 @@
  import net.minecraft.world.entity.ai.attributes.Attributes;
  import net.minecraft.world.entity.ai.control.BodyRotationControl;
  import net.minecraft.world.entity.ai.goal.Goal;
-@@ -37,28 +39,30 @@
+@@ -37,29 +41,39 @@
  import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
  import net.minecraft.world.entity.animal.AbstractGolem;
  import net.minecraft.world.entity.player.Player;
@@ -61,17 +58,26 @@
 -   protected static final EntityDataAccessor<Optional<BlockPos>> DATA_ATTACH_POS_ID;
     protected static final EntityDataAccessor<Byte> DATA_PEEK_ID;
     protected static final EntityDataAccessor<Byte> DATA_COLOR_ID;
++   private static final int TELEPORT_STEPS = 6;
++   private static final byte NO_COLOR = 16;
++   private static final byte DEFAULT_COLOR = 16;
++   private static final int MAX_TELEPORT_DISTANCE = 8;
++   private static final int OTHER_SHULKER_SCAN_RADIUS = 8;
++   private static final int OTHER_SHULKER_LIMIT = 5;
++   private static final float PEEK_PER_TICK = 0.05F;
     private float currentPeekAmountO;
     private float currentPeekAmount;
 -   private BlockPos oldAttachPosition = null;
 +   @Nullable
 +   private BlockPos clientOldAttachPosition;
     private int clientSideTeleportInterpolation;
++   private static final float MAX_LID_OPEN = 1.0F;
  
     public Shulker(EntityType<? extends Shulker> var1, Level var2) {
        super(var1, var2);
        this.xpReward = 5;
-@@ -67,17 +71,17 @@
+    }
+@@ -67,17 +81,17 @@
     protected void registerGoals() {
        this.goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 8.0F));
        this.goalSelector.addGoal(4, new Shulker.ShulkerAttackGoal());
@@ -92,7 +98,7 @@
     public SoundSource getSoundSource() {
        return SoundSource.HOSTILE;
     }
-@@ -102,11 +106,10 @@
+@@ -102,11 +116,10 @@
     }
  
     protected void defineSynchedData() {
@@ -104,11 +110,14 @@
     }
  
     public static AttributeSupplier.Builder createAttributes() {
-@@ -119,274 +122,320 @@
+@@ -117,286 +130,359 @@
+       return new Shulker.ShulkerBodyRotationControl(this);
+    }
  
     public void readAdditionalSaveData(CompoundTag var1) {
        super.readAdditionalSaveData(var1);
-       this.entityData.set(DATA_ATTACH_FACE_ID, Direction.from3DDataValue(var1.getByte("AttachFace")));
+-      this.entityData.set(DATA_ATTACH_FACE_ID, Direction.from3DDataValue(var1.getByte("AttachFace")));
++      this.setAttachFace(Direction.from3DDataValue(var1.getByte("AttachFace")));
        this.entityData.set(DATA_PEEK_ID, var1.getByte("Peek"));
 -      this.entityData.set(DATA_COLOR_ID, var1.getByte("Color"));
 -      if (var1.contains("APX")) {
@@ -126,7 +135,8 @@
  
     public void addAdditionalSaveData(CompoundTag var1) {
        super.addAdditionalSaveData(var1);
-       var1.putByte("AttachFace", (byte)((Direction)this.entityData.get(DATA_ATTACH_FACE_ID)).get3DDataValue());
+-      var1.putByte("AttachFace", (byte)((Direction)this.entityData.get(DATA_ATTACH_FACE_ID)).get3DDataValue());
++      var1.putByte("AttachFace", (byte)this.getAttachFace().get3DDataValue());
        var1.putByte("Peek", (Byte)this.entityData.get(DATA_PEEK_ID));
        var1.putByte("Color", (Byte)this.entityData.get(DATA_COLOR_ID));
 -      BlockPos var2 = this.getAttachPosition();
@@ -218,7 +228,7 @@
 -            } else {
 -               this.oldAttachPosition = var1;
 -            }
-+         this.entityData.set(DATA_ATTACH_FACE_ID, var1);
++         this.setAttachFace(var1);
 +      } else {
 +         this.teleportSomewhere();
 +      }
@@ -310,7 +320,7 @@
 +         this.clientSideTeleportInterpolation = 0;
 +      }
 +
-+      this.entityData.set(DATA_ATTACH_FACE_ID, Direction.DOWN);
++      this.setAttachFace(Direction.DOWN);
 +      return super.startRiding(var1, var2);
 +   }
 +
@@ -433,8 +443,9 @@
 +            if (var3.getY() > this.level.getMinBuildHeight() && this.level.isEmptyBlock(var3) && this.level.getWorldBorder().isWithinBounds(var3) && this.level.noCollision(this, (new AABB(var3)).deflate(1.0E-6D))) {
 +               Direction var4 = this.findAttachableSurface(var3);
                 if (var4 != null) {
+-                  this.entityData.set(DATA_ATTACH_FACE_ID, var4);
 +                  this.unRide();
-                   this.entityData.set(DATA_ATTACH_FACE_ID, var4);
++                  this.setAttachFace(var4);
                    this.playSound(SoundEvents.SHULKER_TELEPORT, 1.0F, 1.0F);
 -                  this.entityData.set(DATA_ATTACH_POS_ID, Optional.of(var3));
 +                  this.setPos((double)var3.getX() + 0.5D, (double)var3.getY(), (double)var3.getZ() + 0.5D);
@@ -460,8 +471,12 @@
 -         this.yBodyRot = 0.0F;
 -      }
 -
--   }
--
++   public void lerpTo(double var1, double var3, double var5, float var7, float var8, int var9, boolean var10) {
++      this.lerpSteps = 0;
++      this.setPos(var1, var3, var5);
++      this.setRot(var7, var8);
+    }
+ 
 -   public void onSyncedDataUpdated(EntityDataAccessor<?> var1) {
 -      if (DATA_ATTACH_POS_ID.equals(var1) && this.level.isClientSide && !this.isPassenger()) {
 -         BlockPos var2 = this.getAttachPosition();
@@ -542,12 +557,20 @@
 -   @Nullable
 -   public BlockPos getAttachPosition() {
 -      return (BlockPos)((Optional)this.entityData.get(DATA_ATTACH_POS_ID)).orElse((Object)null);
--   }
--
++   private void setAttachFace(Direction var1) {
++      this.entityData.set(DATA_ATTACH_FACE_ID, var1);
+    }
+ 
 -   public void setAttachPosition(@Nullable BlockPos var1) {
 -      this.entityData.set(DATA_ATTACH_POS_ID, Optional.ofNullable(var1));
--   }
--
++   public void onSyncedDataUpdated(EntityDataAccessor<?> var1) {
++      if (DATA_ATTACH_FACE_ID.equals(var1)) {
++         this.setBoundingBox(this.makeBoundingBox());
++      }
++
++      super.onSyncedDataUpdated(var1);
+    }
+ 
 -   public int getRawPeekAmount() {
 +   private int getRawPeekAmount() {
        return (Byte)this.entityData.get(DATA_PEEK_ID);
@@ -569,12 +592,45 @@
  
        this.entityData.set(DATA_PEEK_ID, (byte)var1);
     }
-@@ -408,14 +457,23 @@
+ 
++   public float getClientPeekAmount(float var1) {
++      return Mth.lerp(var1, this.currentPeekAmountO, this.currentPeekAmount);
++   }
++
+    protected float getStandingEyeHeight(Pose var1, EntityDimensions var2) {
+       return 0.5F;
+    }
+ 
++   public void recreateFromPacket(ClientboundAddMobPacket var1) {
++      super.recreateFromPacket(var1);
++      this.yBodyRot = 0.0F;
++   }
++
+    public int getMaxHeadXRot() {
+       return 180;
+    }
+ 
+    public int getMaxHeadYRot() {
+@@ -408,14 +494,37 @@
  
     public float getPickRadius() {
        return 0.0F;
     }
  
++   public Optional<Vec3> getRenderPosition(float var1) {
++      if (this.clientOldAttachPosition != null && this.clientSideTeleportInterpolation > 0) {
++         double var2 = (double)((float)this.clientSideTeleportInterpolation - var1) / 6.0D;
++         var2 *= var2;
++         BlockPos var4 = this.blockPosition();
++         double var5 = (double)(var4.getX() - this.clientOldAttachPosition.getX()) * var2;
++         double var7 = (double)(var4.getY() - this.clientOldAttachPosition.getY()) * var2;
++         double var9 = (double)(var4.getZ() - this.clientOldAttachPosition.getZ()) * var2;
++         return Optional.of(new Vec3(-var5, -var7, -var9));
++      } else {
++         return Optional.empty();
++      }
++   }
++
 +   private void setColor(DyeColor var1) {
 +      this.entityData.set(DATA_COLOR_ID, (byte)var1.getId());
 +   }
@@ -594,7 +650,7 @@
     }
  
     static class ShulkerDefenseAttackGoal extends NearestAttackableTargetGoal<LivingEntity> {
-@@ -509,11 +567,11 @@
+@@ -509,11 +618,11 @@
  
        private ShulkerPeekGoal() {
        }
@@ -607,7 +663,7 @@
        public boolean canContinueToUse() {
           return Shulker.this.getTarget() == null && this.peekTime > 0;
        }
-@@ -533,13 +591,13 @@
+@@ -533,13 +642,13 @@
        public void tick() {
           --this.peekTime;
        }

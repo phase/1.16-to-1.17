@@ -1,7 +1,100 @@
 --- net/minecraft/world/phys/AABB.java
 +++ net/minecraft/world/phys/AABB.java
-@@ -314,9 +314,9 @@
+@@ -7,10 +7,11 @@
+ import net.minecraft.core.Direction;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.level.levelgen.structure.BoundingBox;
  
+ public class AABB {
++   private static final double EPSILON = 1.0E-7D;
+    public final double minX;
+    public final double minY;
+    public final double minZ;
+    public final double maxX;
+    public final double maxY;
+@@ -36,17 +37,41 @@
+    public AABB(Vec3 var1, Vec3 var2) {
+       this(var1.x, var1.y, var1.z, var2.x, var2.y, var2.z);
+    }
+ 
+    public static AABB of(BoundingBox var0) {
+-      return new AABB((double)var0.x0, (double)var0.y0, (double)var0.z0, (double)(var0.x1 + 1), (double)(var0.y1 + 1), (double)(var0.z1 + 1));
++      return new AABB((double)var0.minX(), (double)var0.minY(), (double)var0.minZ(), (double)(var0.maxX() + 1), (double)(var0.maxY() + 1), (double)(var0.maxZ() + 1));
+    }
+ 
+    public static AABB unitCubeFromLowerCorner(Vec3 var0) {
+       return new AABB(var0.x, var0.y, var0.z, var0.x + 1.0D, var0.y + 1.0D, var0.z + 1.0D);
+    }
+ 
++   public AABB setMinX(double var1) {
++      return new AABB(var1, this.minY, this.minZ, this.maxX, this.maxY, this.maxZ);
++   }
++
++   public AABB setMinY(double var1) {
++      return new AABB(this.minX, var1, this.minZ, this.maxX, this.maxY, this.maxZ);
++   }
++
++   public AABB setMinZ(double var1) {
++      return new AABB(this.minX, this.minY, var1, this.maxX, this.maxY, this.maxZ);
++   }
++
++   public AABB setMaxX(double var1) {
++      return new AABB(this.minX, this.minY, this.minZ, var1, this.maxY, this.maxZ);
++   }
++
++   public AABB setMaxY(double var1) {
++      return new AABB(this.minX, this.minY, this.minZ, this.maxX, var1, this.maxZ);
++   }
++
++   public AABB setMaxZ(double var1) {
++      return new AABB(this.minX, this.minY, this.minZ, this.maxX, this.maxY, var1);
++   }
++
+    public double min(Direction.Axis var1) {
+       return var1.choose(this.minX, this.minY, this.minZ);
+    }
+ 
+    public double max(Direction.Axis var1) {
+@@ -204,10 +229,14 @@
+ 
+    public boolean intersects(double var1, double var3, double var5, double var7, double var9, double var11) {
+       return this.minX < var7 && this.maxX > var1 && this.minY < var9 && this.maxY > var3 && this.minZ < var11 && this.maxZ > var5;
+    }
+ 
++   public boolean intersects(Vec3 var1, Vec3 var2) {
++      return this.intersects(Math.min(var1.x, var2.x), Math.min(var1.y, var2.y), Math.min(var1.z, var2.z), Math.max(var1.x, var2.x), Math.max(var1.y, var2.y), Math.max(var1.z, var2.z));
++   }
++
+    public boolean contains(Vec3 var1) {
+       return this.contains(var1.x, var1.y, var1.z);
+    }
+ 
+    public boolean contains(double var1, double var3, double var5) {
+@@ -231,10 +260,14 @@
+ 
+    public double getZsize() {
+       return this.maxZ - this.minZ;
+    }
+ 
++   public AABB deflate(double var1, double var3, double var5) {
++      return this.inflate(-var1, -var3, -var5);
++   }
++
+    public AABB deflate(double var1) {
+       return this.inflate(-var1);
+    }
+ 
+    public Optional<Vec3> clip(Vec3 var1, Vec3 var2) {
+@@ -310,13 +343,17 @@
+ 
+    public String toString() {
+       return "AABB[" + this.minX + ", " + this.minY + ", " + this.minZ + "] -> [" + this.maxX + ", " + this.maxY + ", " + this.maxZ + "]";
+    }
+ 
++   public boolean hasNaN() {
++      return Double.isNaN(this.minX) || Double.isNaN(this.minY) || Double.isNaN(this.minZ) || Double.isNaN(this.maxX) || Double.isNaN(this.maxY) || Double.isNaN(this.maxZ);
++   }
++
     public Vec3 getCenter() {
        return new Vec3(Mth.lerp(0.5D, this.minX, this.maxX), Mth.lerp(0.5D, this.minY, this.maxY), Mth.lerp(0.5D, this.minZ, this.maxZ));
     }

@@ -1,6 +1,29 @@
 --- net/minecraft/client/resources/model/ModelBakery.java
 +++ net/minecraft/client/resources/model/ModelBakery.java
-@@ -149,10 +149,11 @@
+@@ -77,15 +77,22 @@
+    public static final Material WATER_FLOW;
+    public static final Material WATER_OVERLAY;
+    public static final Material BANNER_BASE;
+    public static final Material SHIELD_BASE;
+    public static final Material NO_PATTERN_SHIELD;
++   public static final int DESTROY_STAGE_COUNT = 10;
+    public static final List<ResourceLocation> DESTROY_STAGES;
+    public static final List<ResourceLocation> BREAKING_LOCATIONS;
+    public static final List<RenderType> DESTROY_TYPES;
+    private static final Set<Material> UNREFERENCED_TEXTURES;
++   static final int SINGLETON_MODEL_GROUP = -1;
++   private static final int INVISIBLE_MODEL_GROUP = 0;
+    private static final Logger LOGGER;
++   private static final String BUILTIN_SLASH = "builtin/";
++   private static final String BUILTIN_SLASH_GENERATED = "builtin/generated";
++   private static final String BUILTIN_BLOCK_ENTITY = "builtin/entity";
++   private static final String MISSING_MODEL_NAME = "missing";
+    public static final ModelResourceLocation MISSING_MODEL_LOCATION;
+    private static final String MISSING_MODEL_LOCATION_STRING;
+    @VisibleForTesting
+    public static final String MISSING_MODEL_MESH;
+    private static final Map<String, String> BUILTIN_MODELS;
+@@ -149,10 +156,11 @@
           this.loadTopLevel(new ModelResourceLocation(var14, "inventory"));
        }
  
@@ -12,7 +35,7 @@
        Set var15 = (Set)this.topLevelModels.values().stream().flatMap((var2x) -> {
           return var2x.getMaterials(this::getModel, var13).stream();
        }).collect(Collectors.toSet());
-@@ -185,11 +186,11 @@
+@@ -185,11 +193,11 @@
           Pair var4 = (Pair)var3.next();
           TextureAtlas var5 = (TextureAtlas)var4.getFirst();
           TextureAtlas.Preparations var6 = (TextureAtlas.Preparations)var4.getSecond();
@@ -25,7 +48,7 @@
  
        this.atlasSet = new AtlasSet((Collection)this.atlasPreparations.values().stream().map(Pair::getFirst).collect(Collectors.toList()));
        var2.popPush("baking");
-@@ -220,11 +221,11 @@
+@@ -220,11 +228,11 @@
              Iterator var5;
              do {
                 if (!var3.hasNext()) {
@@ -38,7 +61,84 @@
                          Entry var4;
                          do {
                             if (!var3.hasNext()) {
-@@ -689,11 +690,11 @@
+@@ -328,13 +336,13 @@
+             Pair var12 = Pair.of(var10, () -> {
+                return var11;
+             });
+             boolean var25 = false;
+ 
+-            label97: {
++            label98: {
+                try {
+-                  label112: {
++                  label107: {
+                      List var13;
+                      try {
+                         var25 = true;
+                         var13 = (List)this.resourceManager.getResources(var9).stream().map((var1x) -> {
+                            try {
+@@ -368,11 +376,11 @@
+                            }
+                         }).collect(Collectors.toList());
+                      } catch (IOException var26) {
+                         LOGGER.warn("Exception loading blockstate definition: {}: {}", var9, var26);
+                         var25 = false;
+-                        break label112;
++                        break label107;
+                      }
+ 
+                      Iterator var14 = var13.iterator();
+ 
+                      while(var14.hasNext()) {
+@@ -411,11 +419,11 @@
+                         });
+                         var8.putAll(var17);
+                      }
+ 
+                      var25 = false;
+-                     break label97;
++                     break label98;
+                   }
+                } catch (ModelBakery.BlockStateDefinitionException var27) {
+                   throw var27;
+                } catch (Exception var28) {
+                   throw new ModelBakery.BlockStateDefinitionException(String.format("Exception loading blockstate definition: '%s': %s", var9, var28));
+@@ -585,16 +593,16 @@
+       Resource var3 = null;
+ 
+       BlockModel var5;
+       try {
+          String var4 = var1.getPath();
+-         if (!"builtin/generated".equals(var4)) {
+-            if ("builtin/entity".equals(var4)) {
+-               var5 = BLOCK_ENTITY_MARKER;
+-               return var5;
+-            }
++         if ("builtin/generated".equals(var4)) {
++            var5 = GENERATION_MARKER;
++            return var5;
++         }
+ 
++         if (!"builtin/entity".equals(var4)) {
+             if (var4.startsWith("builtin/")) {
+                String var10 = var4.substring("builtin/".length());
+                String var6 = (String)BUILTIN_MODELS.get(var10);
+                if (var6 == null) {
+                   throw new FileNotFoundException(var1.toString());
+@@ -610,11 +618,11 @@
+             var5.name = var1.toString();
+             BlockModel var11 = var5;
+             return var11;
+          }
+ 
+-         var5 = GENERATION_MARKER;
++         var5 = BLOCK_ENTITY_MARKER;
+       } finally {
+          IOUtils.closeQuietly((Reader)var2);
+          IOUtils.closeQuietly(var3);
+       }
+ 
+@@ -689,11 +697,11 @@
        BLOCK_ENTITY_MARKER = (BlockModel)Util.make(BlockModel.fromString("{\"gui_light\": \"side\"}"), (var0) -> {
           var0.name = "block entity marker";
        });

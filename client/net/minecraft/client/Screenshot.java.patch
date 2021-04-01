@@ -1,0 +1,95 @@
+--- net/minecraft/client/Screenshot.java
++++ net/minecraft/client/Screenshot.java
+@@ -1,11 +1,15 @@
+ package net.minecraft.client;
+ 
+ import com.mojang.blaze3d.pipeline.RenderTarget;
+ import com.mojang.blaze3d.platform.NativeImage;
+ import com.mojang.blaze3d.systems.RenderSystem;
++import java.io.DataOutputStream;
+ import java.io.File;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.nio.ByteBuffer;
+ import java.text.DateFormat;
+ import java.text.SimpleDateFormat;
+ import java.util.Date;
+ import java.util.function.Consumer;
+ import javax.annotation.Nullable;
+@@ -20,10 +24,16 @@
+ import org.apache.logging.log4j.Logger;
+ 
+ public class Screenshot {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH.mm.ss");
++   private int rowHeight;
++   private final DataOutputStream outputStream;
++   private final byte[] bytes;
++   private final int width;
++   private final int height;
++   private File file;
+ 
+    public static void grab(File var0, int var1, int var2, RenderTarget var3, Consumer<Component> var4) {
+       grab(var0, (String)null, var1, var2, var3, var4);
+    }
+ 
+@@ -87,6 +97,59 @@
+          }
+ 
+          ++var2;
+       }
+    }
++
++   public Screenshot(File var1, int var2, int var3, int var4) throws IOException {
++      this.width = var2;
++      this.height = var3;
++      this.rowHeight = var4;
++      File var5 = new File(var1, "screenshots");
++      var5.mkdir();
++      String var6 = "huge_" + DATE_FORMAT.format(new Date());
++
++      for(int var7 = 1; (this.file = new File(var5, var6 + (var7 == 1 ? "" : "_" + var7) + ".tga")).exists(); ++var7) {
++      }
++
++      byte[] var8 = new byte[18];
++      var8[2] = 2;
++      var8[12] = (byte)(var2 % 256);
++      var8[13] = (byte)(var2 / 256);
++      var8[14] = (byte)(var3 % 256);
++      var8[15] = (byte)(var3 / 256);
++      var8[16] = 24;
++      this.bytes = new byte[var2 * var4 * 3];
++      this.outputStream = new DataOutputStream(new FileOutputStream(this.file));
++      this.outputStream.write(var8);
++   }
++
++   public void addRegion(ByteBuffer var1, int var2, int var3, int var4, int var5) {
++      int var6 = var4;
++      int var7 = var5;
++      if (var4 > this.width - var2) {
++         var6 = this.width - var2;
++      }
++
++      if (var5 > this.height - var3) {
++         var7 = this.height - var3;
++      }
++
++      this.rowHeight = var7;
++
++      for(int var8 = 0; var8 < var7; ++var8) {
++         var1.position((var5 - var7) * var4 * 3 + var8 * var4 * 3);
++         int var9 = (var2 + var8 * this.width) * 3;
++         var1.get(this.bytes, var9, var6 * 3);
++      }
++
++   }
++
++   public void saveRow() throws IOException {
++      this.outputStream.write(this.bytes, 0, this.width * 3 * this.rowHeight);
++   }
++
++   public File close() throws IOException {
++      this.outputStream.close();
++      return this.file;
++   }
+ }

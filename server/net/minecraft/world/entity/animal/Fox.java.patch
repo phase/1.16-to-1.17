@@ -1,6 +1,19 @@
 --- net/minecraft/world/entity/animal/Fox.java
 +++ net/minecraft/world/entity/animal/Fox.java
-@@ -26,14 +26,17 @@
+@@ -13,10 +13,12 @@
+ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.core.BlockPos;
++import net.minecraft.core.particles.ItemParticleOption;
++import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.ListTag;
+ import net.minecraft.nbt.NbtUtils;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+@@ -26,14 +28,17 @@
  import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.sounds.SoundEvent;
  import net.minecraft.sounds.SoundEvents;
@@ -19,19 +32,41 @@
  import net.minecraft.world.entity.EntitySelector;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.EquipmentSlot;
-@@ -76,10 +79,11 @@
+@@ -76,24 +81,33 @@
  import net.minecraft.world.level.ServerLevelAccessor;
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.Biomes;
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.Blocks;
-+import net.minecraft.world.level.block.CaveVinesBlock;
++import net.minecraft.world.level.block.CaveVines;
  import net.minecraft.world.level.block.SweetBerryBushBlock;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.pathfinder.BlockPathTypes;
  import net.minecraft.world.phys.Vec3;
  
-@@ -144,11 +148,11 @@
+ public class Fox extends Animal {
+    private static final EntityDataAccessor<Integer> DATA_TYPE_ID;
+    private static final EntityDataAccessor<Byte> DATA_FLAGS_ID;
++   private static final int FLAG_SITTING = 1;
++   public static final int FLAG_CROUCHING = 4;
++   public static final int FLAG_INTERESTED = 8;
++   public static final int FLAG_POUNCING = 16;
++   private static final int FLAG_SLEEPING = 32;
++   private static final int FLAG_FACEPLANTED = 64;
++   private static final int FLAG_DEFENDING = 128;
+    private static final EntityDataAccessor<Optional<UUID>> DATA_TRUSTED_ID_0;
+    private static final EntityDataAccessor<Optional<UUID>> DATA_TRUSTED_ID_1;
+    private static final Predicate<ItemEntity> ALLOWED_ITEMS;
+    private static final Predicate<Entity> TRUSTED_TARGET_SELECTOR;
+    private static final Predicate<Entity> STALKABLE_PREY;
+    private static final Predicate<Entity> AVOID_PLAYERS;
++   private static final int MIN_TICKS_BEFORE_EAT = 600;
+    private Goal landTargetGoal;
+    private Goal turtleEggTargetGoal;
+    private Goal fishTargetGoal;
+    private float interestedAngle;
+    private float interestedAngleO;
+@@ -144,11 +158,11 @@
        this.goalSelector.addGoal(6, new Fox.SeekShelterGoal(1.25D));
        this.goalSelector.addGoal(7, new Fox.FoxMeleeAttackGoal(1.2000000476837158D, true));
        this.goalSelector.addGoal(7, new Fox.SleepGoal());
@@ -44,8 +79,27 @@
        this.goalSelector.addGoal(11, new Fox.FoxSearchForItemsGoal());
        this.goalSelector.addGoal(12, new Fox.FoxLookAtPlayerGoal(this, Player.class, 24.0F));
        this.goalSelector.addGoal(13, new Fox.PerchAndSearchGoal());
-@@ -232,11 +236,11 @@
+@@ -228,15 +242,30 @@
+          this.setItemSlot(EquipmentSlot.MAINHAND, var3);
+       }
  
+    }
+ 
++   public void handleEntityEvent(byte var1) {
++      if (var1 == 45) {
++         ItemStack var2 = this.getItemBySlot(EquipmentSlot.MAINHAND);
++         if (!var2.isEmpty()) {
++            for(int var3 = 0; var3 < 8; ++var3) {
++               Vec3 var4 = (new Vec3(((double)this.random.nextFloat() - 0.5D) * 0.1D, Math.random() * 0.1D + 0.1D, 0.0D)).xRot(-this.xRot * 0.017453292F).yRot(-this.yRot * 0.017453292F);
++               this.level.addParticle(new ItemParticleOption(ParticleTypes.ITEM, var2), this.getX() + this.getLookAngle().x / 2.0D, this.getY(), this.getZ() + this.getLookAngle().z / 2.0D, var4.x, var4.y + 0.05D, var4.z);
++            }
++         }
++      } else {
++         super.handleEntityEvent(var1);
++      }
++
++   }
++
     public static AttributeSupplier.Builder createAttributes() {
        return Mob.createMobAttributes().add(Attributes.MOVEMENT_SPEED, 0.30000001192092896D).add(Attributes.MAX_HEALTH, 10.0D).add(Attributes.FOLLOW_RANGE, 32.0D).add(Attributes.ATTACK_DAMAGE, 2.0D);
     }
@@ -57,7 +111,7 @@
        return var3;
     }
  
-@@ -278,16 +282,16 @@
+@@ -278,16 +307,16 @@
           this.targetSelector.addGoal(6, this.turtleEggTargetGoal);
        }
  
@@ -78,7 +132,7 @@
     protected float getStandingEyeHeight(Pose var1, EntityDimensions var2) {
        return this.isBaby() ? var2.height * 0.85F : 0.4F;
     }
-@@ -440,11 +444,11 @@
+@@ -440,11 +469,11 @@
           this.spitOutItem(this.getItemBySlot(EquipmentSlot.MAINHAND));
           this.onItemPickup(var1);
           this.setItemSlot(EquipmentSlot.MAINHAND, var2.split(1));
@@ -91,7 +145,7 @@
  
     }
  
-@@ -485,11 +489,11 @@
+@@ -485,11 +514,11 @@
        }
  
     }
@@ -104,7 +158,56 @@
     protected void onOffspringSpawnedFromEgg(Player var1, Mob var2) {
        ((Fox)var2).addTrustedUUID(var1.getUUID());
     }
-@@ -861,11 +865,11 @@
+@@ -500,10 +529,14 @@
+ 
+    public void setIsPouncing(boolean var1) {
+       this.setFlag(16, var1);
+    }
+ 
++   public boolean isJumping() {
++      return this.jumping;
++   }
++
+    public boolean isFullyCrouched() {
+       return this.crouchAmount == 3.0F;
+    }
+ 
+    public void setIsCrouching(boolean var1) {
+@@ -520,10 +553,18 @@
+ 
+    public boolean isInterested() {
+       return this.getFlag(8);
+    }
+ 
++   public float getHeadRollAngle(float var1) {
++      return Mth.lerp(var1, this.interestedAngleO, this.interestedAngle) * 0.11F * 3.1415927F;
++   }
++
++   public float getCrouchAmount(float var1) {
++      return Mth.lerp(var1, this.crouchAmountO, this.crouchAmount);
++   }
++
+    public void setTarget(@Nullable LivingEntity var1) {
+       if (this.isDefending() && var1 == null) {
+          this.setDefending(false);
+       }
+ 
+@@ -619,10 +660,14 @@
+       }
+ 
+       return true;
+    }
+ 
++   public Vec3 getLeashOffset() {
++      return new Vec3(0.0D, (double)(0.55F * this.getEyeHeight()), (double)(this.getBbWidth() * 0.4F));
++   }
++
+    static {
+       DATA_TYPE_ID = SynchedEntityData.defineId(Fox.class, EntityDataSerializers.INT);
+       DATA_FLAGS_ID = SynchedEntityData.defineId(Fox.class, EntityDataSerializers.BYTE);
+       DATA_TRUSTED_ID_0 = SynchedEntityData.defineId(Fox.class, EntityDataSerializers.OPTIONAL_UUID);
+       DATA_TRUSTED_ID_1 = SynchedEntityData.defineId(Fox.class, EntityDataSerializers.OPTIONAL_UUID);
+@@ -861,20 +906,21 @@
        public void tick() {
           --this.countdown;
        }
@@ -117,20 +220,30 @@
        public FoxGroupData(Fox.Type var1) {
           super(false);
           this.type = var1;
-@@ -887,11 +891,11 @@
+       }
+    }
+ 
+    public class FoxEatBerriesGoal extends MoveToBlockGoal {
++      private static final int WAIT_TICKS = 40;
+       protected int ticksWaited;
+ 
+       public FoxEatBerriesGoal(double var2, int var4, int var5) {
+          super(Fox.this, var2, var4, var5);
+       }
+@@ -887,11 +933,11 @@
           return this.tryTicks % 100 == 0;
        }
  
        protected boolean isValidTarget(LevelReader var1, BlockPos var2) {
           BlockState var3 = var1.getBlockState(var2);
 -         return var3.is(Blocks.SWEET_BERRY_BUSH) && (Integer)var3.getValue(SweetBerryBushBlock.AGE) >= 2;
-+         return var3.is(Blocks.SWEET_BERRY_BUSH) && (Integer)var3.getValue(SweetBerryBushBlock.AGE) >= 2 || CaveVinesBlock.hasGlowBerries(var3);
++         return var3.is(Blocks.SWEET_BERRY_BUSH) && (Integer)var3.getValue(SweetBerryBushBlock.AGE) >= 2 || CaveVines.hasGlowBerries(var3);
        }
  
        public void tick() {
           if (this.isReachedTarget()) {
              if (this.ticksWaited >= 40) {
-@@ -908,27 +912,38 @@
+@@ -908,27 +954,38 @@
  
        protected void onReachedTarget() {
           if (Fox.this.level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
@@ -145,7 +258,7 @@
 -                  --var3;
 -               }
 +               this.pickSweetBerries(var1);
-+            } else if (CaveVinesBlock.hasGlowBerries(var1)) {
++            } else if (CaveVines.hasGlowBerries(var1)) {
 +               this.pickGlowBerry(var1);
 +            }
  
@@ -159,7 +272,7 @@
 -               Fox.this.level.setBlock(this.blockPos, (BlockState)var1.setValue(SweetBerryBushBlock.AGE, 1), 2);
 -            }
 +      private void pickGlowBerry(BlockState var1) {
-+         CaveVinesBlock.use(var1, Fox.this.level, this.blockPos);
++         CaveVines.use(var1, Fox.this.level, this.blockPos);
 +      }
 +
 +      private void pickSweetBerries(BlockState var1) {
@@ -183,3 +296,15 @@
        public boolean canUse() {
           return !Fox.this.isSleeping() && super.canUse();
        }
+@@ -987,10 +1044,11 @@
+          this.lookTime = 80 + Fox.this.getRandom().nextInt(20);
+       }
+    }
+ 
+    class SleepGoal extends Fox.FoxBehaviorGoal {
++      private static final int WAIT_TIME_BEFORE_SLEEP = 140;
+       private int countdown;
+ 
+       public SleepGoal() {
+          super(null);
+          this.countdown = Fox.this.random.nextInt(140);

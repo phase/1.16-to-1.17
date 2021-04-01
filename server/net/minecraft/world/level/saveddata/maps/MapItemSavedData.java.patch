@@ -12,7 +12,7 @@
  import java.util.Map;
  import javax.annotation.Nullable;
  import net.minecraft.core.BlockPos;
-@@ -19,90 +20,90 @@
+@@ -19,90 +20,97 @@
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.util.Mth;
  import net.minecraft.world.entity.decoration.ItemFrame;
@@ -35,6 +35,9 @@
 -   public boolean trackingPosition;
 -   public boolean unlimitedTracking;
 -   public byte scale;
++   private static final int MAP_SIZE = 128;
++   private static final int HALF_MAP_SIZE = 64;
++   public static final int MAX_SCALE = 4;
 +   public final int x;
 +   public final int z;
 +   public final ResourceKey<Level> dimension;
@@ -92,6 +95,10 @@
 -      var10002.getClass();
 -      this.dimension = (ResourceKey)var10001.resultOrPartial(var10002::error).orElseThrow(() -> {
 -         return new IllegalArgumentException("Invalid map dimension: " + var1.get("dimension"));
++   public static MapItemSavedData createForClient(byte var0, boolean var1, ResourceKey<Level> var2) {
++      return new MapItemSavedData(0, 0, var0, false, false, var1, var2);
++   }
++
 +   public static MapItemSavedData load(CompoundTag var0) {
 +      DataResult var10000 = DimensionType.parseLegacy(new Dynamic(NbtOps.INSTANCE, var0.get("dimension")));
 +      Logger var10001 = LOGGER;
@@ -110,7 +117,7 @@
 -         this.colors = new byte[16384];
 +      int var2 = var0.getInt("xCenter");
 +      int var3 = var0.getInt("zCenter");
-+      byte var4 = (byte)Mth.clamp(var0.getByte("scale"), 0, 4);
++      byte var4 = (byte)Mth.clamp((int)var0.getByte("scale"), (int)0, (int)4);
 +      boolean var5 = !var0.contains("trackingPosition", 1) || var0.getBoolean("trackingPosition");
 +      boolean var6 = var0.getBoolean("unlimitedTracking");
 +      boolean var7 = var0.getBoolean("locked");
@@ -152,7 +159,7 @@
     public CompoundTag save(CompoundTag var1) {
        DataResult var10000 = ResourceLocation.CODEC.encodeStart(NbtOps.INSTANCE, this.dimension.location());
        Logger var10001 = LOGGER;
-@@ -136,51 +137,54 @@
+@@ -136,51 +144,54 @@
  
        var1.put("frames", var6);
        return var1;
@@ -176,7 +183,7 @@
     }
  
 +   public MapItemSavedData scaled(int var1) {
-+      return createFresh((double)this.x, (double)this.z, (byte)Mth.clamp(this.scale + var1, 0, 4), this.trackingPosition, this.unlimitedTracking, this.dimension);
++      return createFresh((double)this.x, (double)this.z, (byte)Mth.clamp((int)(this.scale + var1), (int)0, (int)4), this.trackingPosition, this.unlimitedTracking, this.dimension);
 +   }
 +
     public void tickCarriedBy(Player var1, ItemStack var2) {
@@ -219,7 +226,7 @@
           MapFrame var6 = new MapFrame(var9, var8.getDirection().get2DDataValue() * 90, var8.getId());
           this.addDecoration(MapDecoration.Type.FRAME, var1.level, "frame-" + var8.getId(), (double)var9.getX(), (double)var9.getZ(), (double)(var8.getDirection().get2DDataValue() * 90), (Component)null);
           this.frameMarkers.put(var6.getId(), var6);
-@@ -198,10 +202,15 @@
+@@ -198,10 +209,15 @@
           }
        }
  
@@ -235,7 +242,7 @@
        if (var0.hasTag() && var0.getTag().contains("Decorations", 9)) {
           var4 = var0.getTag().getList("Decorations", 10);
        } else {
-@@ -233,25 +242,25 @@
+@@ -233,25 +249,25 @@
        byte var16;
        if (var12 >= -63.0F && var13 >= -63.0F && var12 <= 63.0F && var13 <= 63.0F) {
           var8 += var8 < 0.0D ? -8.0D : 8.0D;
@@ -265,7 +272,7 @@
  
              var1 = MapDecoration.Type.PLAYER_OFF_LIMITS;
           }
-@@ -272,30 +281,42 @@
+@@ -272,30 +288,42 @@
           if (var13 >= 63.0F) {
              var15 = 127;
           }
@@ -314,7 +321,7 @@
        if (var2 == null) {
           var2 = new MapItemSavedData.HoldingPlayer(var1);
           this.carriedByPlayers.put(var1, var2);
-@@ -310,34 +331,22 @@
+@@ -310,34 +338,22 @@
        double var5 = (double)var2.getZ() + 0.5D;
        int var7 = 1 << this.scale;
        double var8 = (var3 - (double)this.x) / (double)var7;
@@ -356,7 +363,7 @@
     }
  
     public void checkBanners(BlockGetter var1, int var2, int var3) {
-@@ -347,47 +356,109 @@
+@@ -347,47 +363,127 @@
           MapBanner var5 = (MapBanner)var4.next();
           if (var5.getPos().getX() == var2 && var5.getPos().getZ() == var3) {
              MapBanner var6 = MapBanner.fromWorld(var1, var5.getPos());
@@ -370,6 +377,10 @@
  
     }
  
++   public Collection<MapBanner> getBanners() {
++      return this.bannerMarkers.values();
++   }
++
     public void removedFromFrame(BlockPos var1, int var2) {
 -      this.decorations.remove("frame-" + var2);
 +      this.removeDecoration("frame-" + var2);
@@ -404,6 +415,20 @@
 +      } while(var2.getType() != MapDecoration.Type.MANSION && var2.getType() != MapDecoration.Type.MONUMENT);
 +
 +      return true;
++   }
++
++   public void addClientSideDecorations(List<MapDecoration> var1) {
++      this.decorations.clear();
++
++      for(int var2 = 0; var2 < var1.size(); ++var2) {
++         MapDecoration var3 = (MapDecoration)var1.get(var2);
++         this.decorations.put("icon-" + var2, var3);
++      }
++
++   }
++
++   public Iterable<MapDecoration> getDecorations() {
++      return this.decorations.values();
 +   }
 +
     public class HoldingPlayer {
@@ -476,7 +501,7 @@
              this.minDirtyY = Math.min(this.minDirtyY, var2);
              this.maxDirtyX = Math.max(this.maxDirtyX, var1);
              this.maxDirtyY = Math.max(this.maxDirtyY, var2);
-@@ -398,7 +469,27 @@
+@@ -398,7 +494,36 @@
              this.maxDirtyX = var1;
              this.maxDirtyY = var2;
           }
@@ -501,6 +526,15 @@
 +         this.width = var3;
 +         this.height = var4;
 +         this.mapColors = var5;
++      }
++
++      public void applyToMap(MapItemSavedData var1) {
++         for(int var2 = 0; var2 < this.width; ++var2) {
++            for(int var3 = 0; var3 < this.height; ++var3) {
++               var1.setColor(this.startX + var2, this.startY + var3, this.mapColors[var2 + var3 * this.width]);
++            }
++         }
++
 +      }
 +   }
  }

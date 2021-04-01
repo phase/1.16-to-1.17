@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/chunk/ChunkGenerator.java
 +++ net/minecraft/world/level/chunk/ChunkGenerator.java
-@@ -6,28 +6,31 @@
+@@ -6,28 +6,32 @@
  import java.util.BitSet;
  import java.util.Iterator;
  import java.util.List;
@@ -23,6 +23,7 @@
  import net.minecraft.network.protocol.game.DebugPackets;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.server.level.WorldGenRegion;
++import net.minecraft.util.random.WeightedRandomList;
  import net.minecraft.world.entity.MobCategory;
 -import net.minecraft.world.level.BlockGetter;
  import net.minecraft.world.level.ChunkPos;
@@ -34,7 +35,7 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeGenerationSettings;
  import net.minecraft.world.level.biome.BiomeManager;
-@@ -38,10 +41,11 @@
+@@ -38,10 +42,11 @@
  import net.minecraft.world.level.levelgen.GenerationStep;
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
@@ -46,7 +47,7 @@
  import net.minecraft.world.level.levelgen.feature.StructureFeature;
  import net.minecraft.world.level.levelgen.feature.configurations.StrongholdConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.StructureFeatureConfiguration;
-@@ -93,14 +97,14 @@
+@@ -93,14 +98,14 @@
  
              for(int var11 = 0; var11 < var18; ++var11) {
                 double var12 = (double)(4 * var17 + var17 * var10 * 6) + (var6.nextDouble() - 0.5D) * (double)var17 * 2.5D;
@@ -64,7 +65,7 @@
                 this.strongholdPositions.add(new ChunkPos(var14, var15));
                 var7 += 6.283185307179586D / (double)var5;
                 ++var9;
-@@ -121,34 +125,34 @@
+@@ -121,34 +126,34 @@
  
     public abstract ChunkGenerator withSeed(long var1);
  
@@ -110,7 +111,7 @@
           }
        }
  
-@@ -165,11 +169,11 @@
+@@ -165,11 +170,11 @@
           BlockPos.MutableBlockPos var9 = new BlockPos.MutableBlockPos();
           Iterator var10 = this.strongholdPositions.iterator();
  
@@ -123,7 +124,7 @@
                 var14 = new BlockPos(var9);
                 var7 = var12;
              } else if (var12 < var7) {
-@@ -184,25 +188,24 @@
+@@ -184,25 +189,24 @@
           return var6 == null ? null : var2.getNearestGeneratedFeature(var1, var1.structureFeatureManager(), var3, var4, var5, var1.getSeed(), var6);
        }
     }
@@ -161,7 +162,17 @@
  
     public abstract void buildSurfaceAndBedrock(WorldGenRegion var1, ChunkAccess var2);
  
-@@ -220,98 +223,104 @@
+@@ -211,107 +215,113 @@
+ 
+    public StructureSettings getSettings() {
+       return this.settings;
+    }
+ 
+-   public int getSpawnHeight() {
++   public int getSpawnHeight(LevelHeightAccessor var1) {
+       return 64;
+    }
+ 
     public BiomeSource getBiomeSource() {
        return this.runtimeBiomeSource;
     }
@@ -171,7 +182,8 @@
 +      return 384;
     }
  
-    public List<MobSpawnSettings.SpawnerData> getMobsAt(Biome var1, StructureFeatureManager var2, MobCategory var3, BlockPos var4) {
+-   public List<MobSpawnSettings.SpawnerData> getMobsAt(Biome var1, StructureFeatureManager var2, MobCategory var3, BlockPos var4) {
++   public WeightedRandomList<MobSpawnSettings.SpawnerData> getMobsAt(Biome var1, StructureFeatureManager var2, MobCategory var3, BlockPos var4) {
        return var1.getMobSettings().getMobs(var3);
     }
  
@@ -246,7 +258,7 @@
 -                  if (var15 != StructureStart.INVALID_START && var15.getBoundingBox().intersects(var7, var8, var7 + 15, var8 + 15)) {
 -                     var2.addReferenceForFeature(var9, var15.getFeature(), var12, var3);
 -                     DebugPackets.sendStructurePacket(var1, var15);
-+                  if (var16 != StructureStart.INVALID_START && var16.getBoundingBox().intersects(var8, var9, var8 + 15, var9 + 15)) {
++                  if (var16.isValid() && var16.getBoundingBox().intersects(var8, var9, var8 + 15, var9 + 15)) {
 +                     var2.addReferenceForFeature(var10, var16.getFeature(), var13, var3);
 +                     DebugPackets.sendStructurePacket(var1, var16);
                    }

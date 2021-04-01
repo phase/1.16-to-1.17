@@ -1,6 +1,20 @@
 --- net/minecraft/server/packs/resources/SimpleReloadInstance.java
 +++ net/minecraft/server/packs/resources/SimpleReloadInstance.java
-@@ -70,11 +70,11 @@
+@@ -12,10 +12,13 @@
+ import net.minecraft.Util;
+ import net.minecraft.util.Unit;
+ import net.minecraft.util.profiling.InactiveProfiler;
+ 
+ public class SimpleReloadInstance<S> implements ReloadInstance {
++   private static final int PREPARATION_PROGRESS_WEIGHT = 2;
++   private static final int EXTRA_RELOAD_PROGRESS_WEIGHT = 2;
++   private static final int LISTENER_PROGRESS_WEIGHT = 1;
+    protected final ResourceManager resourceManager;
+    protected final CompletableFuture<Unit> allPreparations = new CompletableFuture();
+    protected final CompletableFuture<List<S>> allDone;
+    private final Set<PreparableReloadListener> preparingListeners;
+    private final int listenerCount;
+@@ -70,18 +73,36 @@
              });
           });
           var7.add(var12);
@@ -13,3 +27,28 @@
     public CompletableFuture<Unit> done() {
        return this.allDone.thenApply((var0) -> {
           return Unit.INSTANCE;
+       });
+    }
+ 
++   public float getActualProgress() {
++      int var1 = this.listenerCount - this.preparingListeners.size();
++      float var2 = (float)(this.doneTaskCounter.get() * 2 + this.finishedReloads * 2 + var1 * 1);
++      float var3 = (float)(this.startedTaskCounter.get() * 2 + this.startedReloads * 2 + this.listenerCount * 1);
++      return var2 / var3;
++   }
++
++   public boolean isDone() {
++      return this.allDone.isDone();
++   }
++
++   public void checkExceptions() {
++      if (this.allDone.isCompletedExceptionally()) {
++         this.allDone.join();
++      }
++
++   }
++
+    public interface StateFactory<S> {
+       CompletableFuture<S> create(PreparableReloadListener.PreparationBarrier var1, ResourceManager var2, PreparableReloadListener var3, Executor var4, Executor var5);
+    }
+ }

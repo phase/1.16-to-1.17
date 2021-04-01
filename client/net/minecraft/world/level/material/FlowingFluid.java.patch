@@ -12,7 +12,45 @@
  import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.LevelReader;
  import net.minecraft.world.level.block.Block;
-@@ -190,11 +189,15 @@
+@@ -33,10 +32,11 @@
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+ public abstract class FlowingFluid extends Fluid {
+    public static final BooleanProperty FALLING;
+    public static final IntegerProperty LEVEL;
++   private static final int CACHE_SIZE = 200;
+    private static final ThreadLocal<Object2ByteLinkedOpenHashMap<Block.BlockStatePairKey>> OCCLUSION_CACHE;
+    private final Map<FluidState, VoxelShape> shapes = Maps.newIdentityHashMap();
+ 
+    public FlowingFluid() {
+    }
+@@ -51,11 +51,11 @@
+       BlockPos.MutableBlockPos var8 = new BlockPos.MutableBlockPos();
+       Iterator var9 = Direction.Plane.HORIZONTAL.iterator();
+ 
+       while(var9.hasNext()) {
+          Direction var10 = (Direction)var9.next();
+-         var8.setWithOffset(var2, var10);
++         var8.setWithOffset(var2, (Direction)var10);
+          FluidState var11 = var1.getFluidState(var8);
+          if (this.affectsFlow(var11)) {
+             float var12 = var11.getOwnHeight();
+             float var13 = 0.0F;
+             if (var12 == 0.0F) {
+@@ -89,11 +89,11 @@
+             if (!var17.hasNext()) {
+                return var16.normalize();
+             }
+ 
+             var18 = (Direction)var17.next();
+-            var8.setWithOffset(var2, var18);
++            var8.setWithOffset(var2, (Direction)var18);
+          } while(!this.isSolidFace(var1, var8, var18) && !this.isSolidFace(var1, var8.above(), var18));
+ 
+          var16 = var16.normalize().add(0.0D, -6.0D, 0.0D);
+       }
+ 
+@@ -190,11 +190,15 @@
        FluidState var15 = var14.getFluidState();
        if (!var15.isEmpty() && var15.getType().isSame(this) && this.canPassThroughWall(Direction.UP, var1, var2, var3, var12, var14)) {
           return this.getFlowing(8, true);
@@ -29,7 +67,7 @@
  
     private boolean canPassThroughWall(Direction var1, BlockGetter var2, BlockPos var3, BlockState var4, BlockPos var5, BlockState var6) {
        Object2ByteLinkedOpenHashMap var7;
-@@ -383,11 +386,11 @@
+@@ -383,11 +387,11 @@
  
     private boolean canHoldFluid(BlockGetter var1, BlockPos var2, BlockState var3, Fluid var4) {
        Block var5 = var3.getBlock();
@@ -42,3 +80,16 @@
              return !var6.blocksMotion();
           } else {
              return false;
+@@ -440,10 +444,12 @@
+ 
+    public float getOwnHeight(FluidState var1) {
+       return (float)var1.getAmount() / 9.0F;
+    }
+ 
++   public abstract int getAmount(FluidState var1);
++
+    public VoxelShape getShape(FluidState var1, BlockGetter var2, BlockPos var3) {
+       return var1.getAmount() == 9 && hasSameAbove(var1, var2, var3) ? Shapes.block() : (VoxelShape)this.shapes.computeIfAbsent(var1, (var2x) -> {
+          return Shapes.box(0.0D, 0.0D, 0.0D, 1.0D, (double)var2x.getHeight(var2, var3), 1.0D);
+       });
+    }

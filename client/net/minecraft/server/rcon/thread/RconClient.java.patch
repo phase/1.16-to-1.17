@@ -1,0 +1,42 @@
+--- net/minecraft/server/rcon/thread/RconClient.java
++++ net/minecraft/server/rcon/thread/RconClient.java
+@@ -11,10 +11,15 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class RconClient extends GenericThread {
+    private static final Logger LOGGER = LogManager.getLogger();
++   private static final int SERVERDATA_AUTH = 3;
++   private static final int SERVERDATA_EXECCOMMAND = 2;
++   private static final int SERVERDATA_RESPONSE_VALUE = 0;
++   private static final int SERVERDATA_AUTH_RESPONSE = 2;
++   private static final int SERVERDATA_AUTH_FAILURE = -1;
+    private boolean authed;
+    private final Socket client;
+    private final byte[] buf = new byte[1460];
+    private final String rconPassword;
+    private final ServerInterface serverInterface;
+@@ -37,17 +42,17 @@
+       while(true) {
+          try {
+             if (this.running) {
+                BufferedInputStream var1 = new BufferedInputStream(this.client.getInputStream());
+                int var2 = var1.read(this.buf, 0, 1460);
+-               if (10 > var2) {
+-                  return;
+-               }
++               if (10 <= var2) {
++                  byte var3 = 0;
++                  int var4 = PktUtils.intFromByteArray(this.buf, 0, var2);
++                  if (var4 != var2 - 4) {
++                     return;
++                  }
+ 
+-               byte var3 = 0;
+-               int var4 = PktUtils.intFromByteArray(this.buf, 0, var2);
+-               if (var4 == var2 - 4) {
+                   int var19 = var3 + 4;
+                   int var5 = PktUtils.intFromByteArray(this.buf, var19, var2);
+                   var19 += 4;
+                   int var6 = PktUtils.intFromByteArray(this.buf, var19);
+                   var19 += 4;

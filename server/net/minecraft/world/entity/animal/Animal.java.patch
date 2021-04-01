@@ -13,7 +13,7 @@
  import net.minecraft.world.entity.MobSpawnType;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.ItemStack;
-@@ -23,13 +23,14 @@
+@@ -23,13 +23,15 @@
  import net.minecraft.world.level.GameRules;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelAccessor;
@@ -24,12 +24,13 @@
  
 -public abstract class Animal extends AgableMob {
 +public abstract class Animal extends AgeableMob {
++   static final int PARENT_AGE_AFTER_BREEDING = 6000;
     private int inLove;
     private UUID loveCause;
  
     protected Animal(EntityType<? extends Animal> var1, Level var2) {
        super(var1, var2);
-@@ -110,26 +111,28 @@
+@@ -110,26 +112,28 @@
     protected int getExperienceReward(Player var1) {
        return 1 + this.level.random.nextInt(3);
     }
@@ -61,7 +62,7 @@
  
           if (this.level.isClientSide) {
              return InteractionResult.CONSUME;
-@@ -137,13 +140,13 @@
+@@ -137,13 +141,13 @@
        }
  
        return super.mobInteract(var1, var2);
@@ -78,7 +79,7 @@
     }
  
     public boolean canFallInLove() {
-@@ -194,11 +197,11 @@
+@@ -194,11 +198,11 @@
           return this.isInLove() && var1.isInLove();
        }
     }
@@ -91,3 +92,24 @@
           if (var4 == null && var2.getLoveCause() != null) {
              var4 = var2.getLoveCause();
           }
+@@ -220,6 +224,20 @@
+             var1.addFreshEntity(new ExperienceOrb(var1, this.getX(), this.getY(), this.getZ(), this.getRandom().nextInt(7) + 1));
+          }
+ 
+       }
+    }
++
++   public void handleEntityEvent(byte var1) {
++      if (var1 == 18) {
++         for(int var2 = 0; var2 < 7; ++var2) {
++            double var3 = this.random.nextGaussian() * 0.02D;
++            double var5 = this.random.nextGaussian() * 0.02D;
++            double var7 = this.random.nextGaussian() * 0.02D;
++            this.level.addParticle(ParticleTypes.HEART, this.getRandomX(1.0D), this.getRandomY() + 0.5D, this.getRandomZ(1.0D), var3, var5, var7);
++         }
++      } else {
++         super.handleEntityEvent(var1);
++      }
++
++   }
+ }

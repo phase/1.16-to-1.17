@@ -1,0 +1,169 @@
+--- net/minecraft/client/profiling/storage/MetricsPersister.java
++++ net/minecraft/client/profiling/storage/MetricsPersister.java
+@@ -1,0 +1,166 @@
++package net.minecraft.client.profiling.storage;
++
++import com.google.common.collect.ImmutableMap;
++import java.io.BufferedWriter;
++import java.io.IOException;
++import java.io.UncheckedIOException;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.FileSystem;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.Paths;
++import java.nio.file.spi.FileSystemProvider;
++import java.text.SimpleDateFormat;
++import java.util.Date;
++import java.util.IntSummaryStatistics;
++import java.util.Iterator;
++import java.util.List;
++import java.util.stream.Collectors;
++import net.minecraft.Util;
++import net.minecraft.client.profiling.metric.FpsSpikeRecording;
++import net.minecraft.client.profiling.metric.MetricSampler;
++import net.minecraft.client.profiling.metric.SamplerCategory;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.util.CsvOutput;
++import net.minecraft.util.profiling.ContinuousProfiler;
++import org.apache.commons.io.IOUtils;
++import org.apache.commons.lang3.StringUtils;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++
++public class MetricsPersister {
++   public static final Path PROFILING_RESULTS_DIR = Paths.get("debug/profiling");
++   public static final String METRICS_DIR_NAME = "metrics";
++   public static final String DEVIATIONS_DIR_NAME = "deviations";
++   public static final String PROFILING_RESULT_FILENAME = "profiling.txt";
++   private static final Logger LOGGER = LogManager.getLogger();
++   public static final FileSystemProvider ZIP_FILE_SYSTEM_PROVIDER = (FileSystemProvider)FileSystemProvider.installedProviders().stream().filter((var0) -> {
++      return var0.getScheme().equalsIgnoreCase("jar");
++   }).findFirst().orElseThrow(() -> {
++      return new IllegalStateException("No jar file system provider found");
++   });
++
++   public MetricsPersister() {
++   }
++
++   public Path saveReports(List<SamplerCategory> var1, List<FpsSpikeRecording> var2, ContinuousProfiler var3) {
++      try {
++         Files.createDirectories(PROFILING_RESULTS_DIR);
++      } catch (IOException var20) {
++         throw new UncheckedIOException(var20);
++      }
++
++      Path var4 = PROFILING_RESULTS_DIR.resolve((new SimpleDateFormat("yyyy-MM-dd_HH.mm.ss")).format(new Date()) + ".tmp");
++
++      try {
++         FileSystem var5 = ZIP_FILE_SYSTEM_PROVIDER.newFileSystem(var4, ImmutableMap.of("create", "true"));
++         Throwable var6 = null;
++
++         try {
++            Files.createDirectories(PROFILING_RESULTS_DIR);
++            Path var7 = var5.getPath("/");
++            Path var8 = var7.resolve("metrics");
++            Iterator var9 = var1.iterator();
++
++            while(var9.hasNext()) {
++               SamplerCategory var10 = (SamplerCategory)var9.next();
++               this.saveMetrics(var10, var8);
++            }
++
++            if (!var2.isEmpty()) {
++               this.saveSpikeLogs(var2, var7.resolve("deviations"));
++            }
++
++            this.saveProfilingTaskExecutionResult(var3, var7);
++            return this.renameZipFile(var4);
++         } catch (Throwable var21) {
++            var6 = var21;
++            throw var21;
++         } finally {
++            if (var5 != null) {
++               if (var6 != null) {
++                  try {
++                     var5.close();
++                  } catch (Throwable var19) {
++                     var6.addSuppressed(var19);
++                  }
++               } else {
++                  var5.close();
++               }
++            }
++
++         }
++      } catch (IOException var23) {
++         throw new UncheckedIOException(var23);
++      }
++   }
++
++   private void saveMetrics(SamplerCategory var1, Path var2) {
++      String var3 = var1.getName();
++      List var4 = var1.getMetricSamplers();
++      if (var4.isEmpty()) {
++         throw new IllegalArgumentException("Expected at least one sampler for category: " + var3);
++      } else {
++         IntSummaryStatistics var5 = (IntSummaryStatistics)var4.stream().collect(Collectors.summarizingInt(MetricSampler::numberOfValues));
++         if (var5.getMax() != var5.getMin()) {
++            throw new IllegalStateException(String.format("Expected all samples within category %s to contain same amount of samples, got %s", var1, var5));
++         } else {
++            Path var6 = var2.resolve(Util.sanitizeName(var3, ResourceLocation::validPathChar) + ".csv");
++            BufferedWriter var7 = null;
++
++            try {
++               Files.createDirectories(var6.getParent());
++               var7 = Files.newBufferedWriter(var6, StandardCharsets.UTF_8);
++               CsvOutput.Builder var8 = CsvOutput.builder();
++               Iterator var9 = var4.iterator();
++
++               while(var9.hasNext()) {
++                  MetricSampler var10 = (MetricSampler)var9.next();
++                  var8.addColumn(var10.getMetric().getName());
++               }
++
++               CsvOutput var17 = var8.build(var7);
++
++               while(((MetricSampler)var4.get(0)).hasMoreValues()) {
++                  Double[] var16 = (Double[])var4.stream().map(MetricSampler::readNextValue).toArray((var0) -> {
++                     return new Double[var0];
++                  });
++                  var17.writeRow((Object[])var16);
++               }
++
++               LOGGER.info("Flushed metrics to {}", var6);
++            } catch (Exception var14) {
++               LOGGER.error("Could not save profiler results to {}", var6, var14);
++            } finally {
++               IOUtils.closeQuietly(var7);
++            }
++
++         }
++      }
++   }
++
++   private void saveSpikeLogs(List<FpsSpikeRecording> var1, Path var2) {
++      SimpleDateFormat var3 = new SimpleDateFormat("yyyy-MM-dd_HH.mm.ss.SSS");
++      Iterator var4 = var1.iterator();
++
++      while(var4.hasNext()) {
++         FpsSpikeRecording var5 = (FpsSpikeRecording)var4.next();
++         String var6 = var3.format(var5.timestamp);
++         Path var7 = var2.resolve(String.format("%d@%s.txt", var5.tick, var6));
++         var5.profilerResultForSpikeFrame.saveResults(var7);
++      }
++
++   }
++
++   private void saveProfilingTaskExecutionResult(ContinuousProfiler var1, Path var2) {
++      var1.getResults().saveResults(var2.resolve("profiling.txt"));
++   }
++
++   private Path renameZipFile(Path var1) {
++      try {
++         return Files.move(var1, var1.resolveSibling(StringUtils.substringBefore(var1.getFileName().toString(), ".tmp") + ".zip"));
++      } catch (IOException var3) {
++         throw new UncheckedIOException(var3);
++      }
++   }
++}

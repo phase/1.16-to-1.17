@@ -13,3 +13,35 @@
     private final Set<ProcessorHandle<?>> sleeping;
     private final ProcessorMailbox<StrictQueue.IntRunnable> mailbox;
  
+@@ -34,10 +34,14 @@
+       }));
+       this.sleeping = Sets.newHashSet(var1);
+       this.mailbox = new ProcessorMailbox(new StrictQueue.FixedPriorityQueue(4), var2, "sorter");
+    }
+ 
++   public static <T> ChunkTaskPriorityQueueSorter.Message<T> message(Function<ProcessorHandle<Unit>, T> var0, long var1, IntSupplier var3) {
++      return new ChunkTaskPriorityQueueSorter.Message(var0, var1, var3);
++   }
++
+    public static ChunkTaskPriorityQueueSorter.Message<Runnable> message(Runnable var0, long var1, IntSupplier var3) {
+       return new ChunkTaskPriorityQueueSorter.Message((var1x) -> {
+          return () -> {
+             var0.run();
+             var1x.tell(Unit.INSTANCE);
+@@ -49,10 +53,16 @@
+       long var10001 = var0.getPos().toLong();
+       var0.getClass();
+       return message(var1, var10001, var0::getQueueLevel);
+    }
+ 
++   public static <T> ChunkTaskPriorityQueueSorter.Message<T> message(ChunkHolder var0, Function<ProcessorHandle<Unit>, T> var1) {
++      long var10001 = var0.getPos().toLong();
++      var0.getClass();
++      return message(var1, var10001, var0::getQueueLevel);
++   }
++
+    public static ChunkTaskPriorityQueueSorter.Release release(Runnable var0, long var1, boolean var3) {
+       return new ChunkTaskPriorityQueueSorter.Release(var0, var1, var3);
+    }
+ 
+    public <T> ProcessorHandle<ChunkTaskPriorityQueueSorter.Message<T>> getProcessor(ProcessorHandle<T> var1, boolean var2) {

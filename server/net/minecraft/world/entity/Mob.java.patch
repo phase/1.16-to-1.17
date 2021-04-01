@@ -12,7 +12,7 @@
  import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.entity.monster.Enemy;
  import net.minecraft.world.entity.player.Player;
-@@ -64,12 +65,10 @@
+@@ -64,18 +65,25 @@
  import net.minecraft.world.level.GameRules;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelAccessor;
@@ -25,7 +25,42 @@
  import net.minecraft.world.level.storage.loot.LootContext;
  
  public abstract class Mob extends LivingEntity {
-@@ -495,11 +494,11 @@
+    private static final EntityDataAccessor<Byte> DATA_MOB_FLAGS_ID;
++   private static final int MOB_FLAG_NO_AI = 1;
++   private static final int MOB_FLAG_LEFTHANDED = 2;
++   private static final int MOB_FLAG_AGGRESSIVE = 4;
++   public static final float MAX_WEARING_ARMOR_CHANCE = 0.15F;
++   public static final float MAX_PICKUP_LOOT_CHANCE = 0.55F;
++   public static final float MAX_ENCHANTED_ARMOR_CHANCE = 0.5F;
++   public static final float MAX_ENCHANTED_WEAPON_CHANCE = 0.25F;
++   public static final String LEASH_TAG = "Leash";
++   private static final int PICKUP_REACH = 1;
+    public int ambientSoundTime;
+    protected int xpReward;
+    protected LookControl lookControl;
+    protected MoveControl moveControl;
+    protected JumpControl jumpControl;
+@@ -289,10 +297,19 @@
+          this.level.broadcastEntityEvent(this, (byte)20);
+       }
+ 
+    }
+ 
++   public void handleEntityEvent(byte var1) {
++      if (var1 == 20) {
++         this.spawnAnim();
++      } else {
++         super.handleEntityEvent(var1);
++      }
++
++   }
++
+    public void tick() {
+       super.tick();
+       if (!this.level.isClientSide) {
+          this.tickLeash();
+          if (this.tickCount % 5 == 0) {
+@@ -495,11 +512,11 @@
           List var1 = this.level.getEntitiesOfClass(ItemEntity.class, this.getBoundingBox().inflate(1.0D, 0.0D, 1.0D));
           Iterator var2 = var1.iterator();
  
@@ -38,7 +73,7 @@
           }
        }
  
-@@ -509,11 +508,11 @@
+@@ -509,11 +526,11 @@
     protected void pickUpItem(ItemEntity var1) {
        ItemStack var2 = var1.getItem();
        if (this.equipItemIfPossible(var2)) {
@@ -51,7 +86,7 @@
     }
  
     public boolean equipItemIfPossible(ItemStack var1) {
-@@ -525,11 +524,11 @@
+@@ -525,11 +542,11 @@
           if (!var3.isEmpty() && (double)Math.max(this.random.nextFloat() - 0.1F, 0.0F) < var5) {
              this.spawnAtLocation(var3);
           }
@@ -64,7 +99,7 @@
           return false;
        }
     }
-@@ -643,25 +642,25 @@
+@@ -643,25 +660,25 @@
        return false;
     }
  
@@ -93,7 +128,7 @@
              }
           }
  
-@@ -891,25 +890,10 @@
+@@ -891,25 +908,10 @@
           }
        }
  
@@ -119,7 +154,7 @@
        switch(var0) {
        case HEAD:
           if (var1 == 0) {
-@@ -1044,11 +1028,11 @@
+@@ -1044,11 +1046,11 @@
  
     public final InteractionResult interact(Player var1, InteractionHand var2) {
        if (!this.isAlive()) {
@@ -132,7 +167,7 @@
           InteractionResult var3 = this.checkAndHandleImportantInteractions(var1, var2);
           if (var3.consumesAction()) {
              return var3;
-@@ -1059,16 +1043,16 @@
+@@ -1059,16 +1061,16 @@
        }
     }
  
@@ -151,7 +186,17 @@
                 return var4;
              }
           }
-@@ -1126,11 +1110,11 @@
+@@ -1120,17 +1122,21 @@
+ 
+    public float getRestrictRadius() {
+       return this.restrictRadius;
+    }
+ 
++   public void clearRestriction() {
++      this.restrictRadius = -1.0F;
++   }
++
+    public boolean hasRestriction() {
        return this.restrictRadius != -1.0F;
     }
  
@@ -164,7 +209,7 @@
           Mob var3 = (Mob)var1.create(this.level);
           var3.copyPosition(this);
           var3.setBaby(this.isBaby());
-@@ -1166,11 +1150,11 @@
+@@ -1166,11 +1172,11 @@
              Entity var9 = this.getVehicle();
              this.stopRiding();
              var3.startRiding(var9, true);
@@ -177,7 +222,7 @@
     }
  
     protected void tickLeash() {
-@@ -1186,15 +1170,10 @@
+@@ -1186,15 +1192,10 @@
        }
     }
  
@@ -193,7 +238,7 @@
           if (!this.level.isClientSide && var2) {
              this.spawnAtLocation(Items.LEAD);
           }
-@@ -1224,15 +1203,10 @@
+@@ -1224,25 +1225,25 @@
     }
  
     public void setLeashedTo(Entity var1, boolean var2) {
@@ -209,7 +254,22 @@
        }
  
        if (this.isPassenger()) {
-@@ -1271,47 +1245,14 @@
+          this.stopRiding();
+       }
+ 
+    }
+ 
++   public void setDelayedLeashHolderId(int var1) {
++      this.delayedLeashHolderId = var1;
++      this.dropLeash(false, false);
++   }
++
+    public boolean startRiding(Entity var1, boolean var2) {
+       boolean var3 = super.startRiding(var1, var2);
+       if (var3 && this.isLeashed()) {
+          this.dropLeash(true, true);
+       }
+@@ -1271,47 +1272,14 @@
           }
        }
  
@@ -257,7 +317,7 @@
     }
  
     public void setNoAi(boolean var1) {
-@@ -1346,12 +1287,20 @@
+@@ -1346,12 +1314,20 @@
  
     public HumanoidArm getMainArm() {
        return this.isLeftHanded() ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
@@ -279,7 +339,7 @@
     public boolean doHurtTarget(Entity var1) {
        float var2 = (float)this.getAttributeValue(Attributes.ATTACK_DAMAGE);
        float var3 = (float)this.getAttributeValue(Attributes.ATTACK_KNOCKBACK);
-@@ -1383,11 +1332,11 @@
+@@ -1383,11 +1359,11 @@
  
        return var5;
     }
@@ -292,7 +352,7 @@
              var1.getCooldowns().addCooldown(Items.SHIELD, 100);
              this.level.broadcastEntityEvent(var1, (byte)30);
           }
-@@ -1396,12 +1345,13 @@
+@@ -1396,12 +1372,13 @@
     }
  
     protected boolean isSunBurnTick() {
@@ -308,3 +368,29 @@
        }
  
        return false;
+@@ -1414,14 +1391,25 @@
+          this.setDeltaMovement(this.getDeltaMovement().add(0.0D, 0.3D, 0.0D));
+       }
+ 
+    }
+ 
++   public void removeFreeWill() {
++      this.goalSelector.removeAllGoals();
++      this.getBrain().removeAllBehaviors();
++   }
++
+    protected void removeAfterChangingDimensions() {
+       super.removeAfterChangingDimensions();
+       this.dropLeash(true, false);
+    }
+ 
++   @Nullable
++   public ItemStack getPickResult() {
++      SpawnEggItem var1 = SpawnEggItem.byId(this.getType());
++      return var1 == null ? null : new ItemStack(var1);
++   }
++
+    static {
+       DATA_MOB_FLAGS_ID = SynchedEntityData.defineId(Mob.class, EntityDataSerializers.BYTE);
+    }
+ }

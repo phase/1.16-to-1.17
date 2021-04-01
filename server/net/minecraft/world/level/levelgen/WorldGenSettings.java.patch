@@ -1,6 +1,15 @@
 --- net/minecraft/world/level/levelgen/WorldGenSettings.java
 +++ net/minecraft/world/level/levelgen/WorldGenSettings.java
-@@ -20,11 +20,10 @@
+@@ -12,19 +12,19 @@
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import java.util.Iterator;
+ import java.util.Locale;
+ import java.util.Objects;
+ import java.util.Optional;
++import java.util.OptionalLong;
+ import java.util.Properties;
+ import java.util.Random;
+ import java.util.Map.Entry;
  import java.util.function.Function;
  import java.util.function.Supplier;
  import net.minecraft.core.MappedRegistry;
@@ -12,7 +21,7 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.OverworldBiomeSource;
-@@ -76,14 +75,14 @@
+@@ -76,14 +76,14 @@
        this.dimensions = var5;
        this.legacyCustomOptions = var6;
     }
@@ -30,7 +39,34 @@
  
     public static WorldGenSettings makeDefault(Registry<DimensionType> var0, Registry<Biome> var1, Registry<NoiseGeneratorSettings> var2) {
        long var3 = (new Random()).nextLong();
-@@ -186,13 +185,13 @@
+@@ -157,14 +157,26 @@
+ 
+    public boolean isFlatWorld() {
+       return this.overworld() instanceof FlatLevelSource;
+    }
+ 
++   public boolean isOldCustomizedWorld() {
++      return this.legacyCustomOptions.isPresent();
++   }
++
+    public WorldGenSettings withBonusChest() {
+       return new WorldGenSettings(this.seed, this.generateFeatures, true, this.dimensions, this.legacyCustomOptions);
+    }
+ 
++   public WorldGenSettings withFeaturesToggled() {
++      return new WorldGenSettings(this.seed, !this.generateFeatures, this.generateBonusChest, this.dimensions);
++   }
++
++   public WorldGenSettings withBonusChestToggled() {
++      return new WorldGenSettings(this.seed, this.generateFeatures, !this.generateBonusChest, this.dimensions);
++   }
++
+    public static WorldGenSettings create(RegistryAccess var0, Properties var1) {
+       String var2 = (String)MoreObjects.firstNonNull((String)var1.get("generator-settings"), "");
+       var1.put("generator-settings", var2);
+       String var3 = (String)MoreObjects.firstNonNull((String)var1.get("level-seed"), "");
+       var1.put("level-seed", var3);
+@@ -186,13 +198,13 @@
           } catch (NumberFormatException var18) {
              var8 = (long)var3.hashCode();
           }
@@ -47,3 +83,37 @@
        switch(var7.hashCode()) {
        case -1100099890:
           if (var7.equals("largebiomes")) {
+@@ -237,6 +249,33 @@
+          })));
+       default:
+          return new WorldGenSettings(var8, var5, false, withOverworld((Registry)var19, (MappedRegistry)var13, makeDefaultOverworld(var11, var12, var8)));
+       }
+    }
++
++   public WorldGenSettings withSeed(boolean var1, OptionalLong var2) {
++      long var4 = var2.orElse(this.seed);
++      MappedRegistry var6;
++      if (var2.isPresent()) {
++         var6 = new MappedRegistry(Registry.LEVEL_STEM_REGISTRY, Lifecycle.experimental());
++         long var7 = var2.getAsLong();
++         Iterator var9 = this.dimensions.entrySet().iterator();
++
++         while(var9.hasNext()) {
++            Entry var10 = (Entry)var9.next();
++            ResourceKey var11 = (ResourceKey)var10.getKey();
++            var6.register(var11, new LevelStem(((LevelStem)var10.getValue()).typeSupplier(), ((LevelStem)var10.getValue()).generator().withSeed(var7)), this.dimensions.lifecycle(var10.getValue()));
++         }
++      } else {
++         var6 = this.dimensions;
++      }
++
++      WorldGenSettings var3;
++      if (this.isDebug()) {
++         var3 = new WorldGenSettings(var4, false, false, var6);
++      } else {
++         var3 = new WorldGenSettings(var4, this.generateFeatures(), this.generateBonusChest() && !var1, var6);
++      }
++
++      return var3;
++   }
+ }

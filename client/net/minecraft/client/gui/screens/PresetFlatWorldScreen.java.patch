@@ -12,11 +12,29 @@
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.resources.ResourceKey;
  import net.minecraft.resources.ResourceLocation;
-@@ -43,10 +42,11 @@
+@@ -33,20 +32,29 @@
+ import net.minecraft.world.level.ItemLike;
+ import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.biome.Biomes;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.dimension.DimensionType;
+ import net.minecraft.world.level.levelgen.StructureSettings;
+ import net.minecraft.world.level.levelgen.feature.StructureFeature;
+ import net.minecraft.world.level.levelgen.flat.FlatLayerInfo;
+ import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings;
+ import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class PresetFlatWorldScreen extends Screen {
     private static final Logger LOGGER = LogManager.getLogger();
++   private static final int SLOT_TEX_SIZE = 128;
++   private static final int SLOT_BG_SIZE = 18;
++   private static final int SLOT_STAT_HEIGHT = 20;
++   private static final int SLOT_BG_X = 1;
++   private static final int SLOT_BG_Y = 1;
++   private static final int SLOT_FG_X = 2;
++   private static final int SLOT_FG_Y = 2;
     private static final List<PresetFlatWorldScreen.PresetInfo> PRESETS = Lists.newArrayList();
 +   private static final ResourceKey<Biome> DEFAULT_BIOME;
     private final CreateFlatWorldScreen parent;
@@ -24,7 +42,35 @@
     private Component listText;
     private PresetFlatWorldScreen.PresetsList list;
     private Button selectButton;
-@@ -124,20 +124,21 @@
+@@ -71,11 +79,11 @@
+          }
+       } else {
+          var3 = 1;
+       }
+ 
+-      int var4 = Math.min(var1 + var3, 256);
++      int var4 = Math.min(var1 + var3, DimensionType.Y_SIZE);
+       int var5 = var4 - var1;
+       String var7 = var2[var2.length - 1];
+ 
+       Block var6;
+       try {
+@@ -87,13 +95,11 @@
+ 
+       if (var6 == null) {
+          LOGGER.error("Error while parsing flat world string => Unknown block, {}", var7);
+          return null;
+       } else {
+-         FlatLayerInfo var8 = new FlatLayerInfo(var5, var6);
+-         var8.setStart(var1);
+-         return var8;
++         return new FlatLayerInfo(var5, var6);
+       }
+    }
+ 
+    private static List<FlatLayerInfo> getLayersInfoFromString(String var0) {
+       ArrayList var1 = Lists.newArrayList();
+@@ -124,20 +130,21 @@
           List var4 = getLayersInfoFromString((String)var3.next());
           if (var4.isEmpty()) {
              return FlatLevelGeneratorSettings.getDefault(var0);
@@ -47,7 +93,7 @@
  
              var5.setBiome(() -> {
                 return (Biome)var0.getOrThrow(var6);
-@@ -167,11 +168,11 @@
+@@ -167,11 +174,11 @@
        this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
        this.shareText = new TranslatableComponent("createWorld.customize.presets.share");
        this.listText = new TranslatableComponent("createWorld.customize.presets.list");
@@ -60,7 +106,7 @@
        this.children.add(this.export);
        this.list = new PresetFlatWorldScreen.PresetsList();
        this.children.add(this.list);
-@@ -205,16 +206,16 @@
+@@ -205,16 +212,16 @@
     }
  
     public void render(PoseStack var1, int var2, int var3, float var4) {
@@ -80,7 +126,7 @@
     }
  
     public void tick() {
-@@ -257,10 +258,11 @@
+@@ -257,10 +264,11 @@
           return var12.withStructureSettings(var11);
        }));
     }
@@ -92,7 +138,7 @@
        preset(new TranslatableComponent("createWorld.customize.preset.water_world"), Items.WATER_BUCKET, Biomes.DEEP_OCEAN, Arrays.asList(StructureFeature.OCEAN_RUIN, StructureFeature.SHIPWRECK, StructureFeature.OCEAN_MONUMENT), false, false, false, new FlatLayerInfo(90, Blocks.WATER), new FlatLayerInfo(5, Blocks.SAND), new FlatLayerInfo(5, Blocks.DIRT), new FlatLayerInfo(5, Blocks.STONE), new FlatLayerInfo(1, Blocks.BEDROCK));
        preset(new TranslatableComponent("createWorld.customize.preset.overworld"), Blocks.GRASS, Biomes.PLAINS, Arrays.asList(StructureFeature.VILLAGE, StructureFeature.MINESHAFT, StructureFeature.PILLAGER_OUTPOST, StructureFeature.RUINED_PORTAL), true, true, true, new FlatLayerInfo(1, Blocks.GRASS_BLOCK), new FlatLayerInfo(3, Blocks.DIRT), new FlatLayerInfo(59, Blocks.STONE), new FlatLayerInfo(1, Blocks.BEDROCK));
        preset(new TranslatableComponent("createWorld.customize.preset.snowy_kingdom"), Blocks.SNOW, Biomes.SNOWY_TUNDRA, Arrays.asList(StructureFeature.VILLAGE, StructureFeature.IGLOO), false, false, false, new FlatLayerInfo(1, Blocks.SNOW), new FlatLayerInfo(1, Blocks.GRASS_BLOCK), new FlatLayerInfo(3, Blocks.DIRT), new FlatLayerInfo(59, Blocks.STONE), new FlatLayerInfo(1, Blocks.BEDROCK));
-@@ -340,26 +342,24 @@
+@@ -340,26 +348,24 @@
           }
  
           private void select() {

@@ -1,0 +1,53 @@
+--- net/minecraft/util/datafix/fixes/LeavesFix.java
++++ net/minecraft/util/datafix/fixes/LeavesFix.java
+@@ -32,11 +32,22 @@
+ import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ import net.minecraft.util.datafix.PackedBitStorage;
+ 
+ public class LeavesFix extends DataFix {
++   private static final int NORTH_WEST_MASK = 128;
++   private static final int WEST_MASK = 64;
++   private static final int SOUTH_WEST_MASK = 32;
++   private static final int SOUTH_MASK = 16;
++   private static final int SOUTH_EAST_MASK = 8;
++   private static final int EAST_MASK = 4;
++   private static final int NORTH_EAST_MASK = 2;
++   private static final int NORTH_MASK = 1;
+    private static final int[][] DIRECTIONS = new int[][]{{-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}};
++   private static final int DECAY_DISTANCE = 7;
++   private static final int SIZE_BITS = 12;
++   private static final int SIZE = 4096;
+    private static final Object2IntMap<String> LEAVES = (Object2IntMap)DataFixUtils.make(new Object2IntOpenHashMap(), (var0) -> {
+       var0.put("minecraft:acacia_leaves", 0);
+       var0.put("minecraft:birch_leaves", 1);
+       var0.put("minecraft:dark_oak_leaves", 2);
+       var0.put("minecraft:jungle_leaves", 3);
+@@ -198,10 +209,13 @@
+ 
+       return var4;
+    }
+ 
+    public static final class LeavesSection extends LeavesFix.Section {
++      private static final String PERSISTENT = "persistent";
++      private static final String DECAYABLE = "decayable";
++      private static final String DISTANCE = "distance";
+       @Nullable
+       private IntSet leaveIds;
+       @Nullable
+       private IntSet logIds;
+       @Nullable
+@@ -283,10 +297,13 @@
+          this.storage.set(var1, var8);
+       }
+    }
+ 
+    public abstract static class Section {
++      protected static final String BLOCK_STATES_TAG = "BlockStates";
++      protected static final String NAME_TAG = "Name";
++      protected static final String PROPERTIES_TAG = "Properties";
+       private final Type<Pair<String, Dynamic<?>>> blockStateType;
+       protected final OpticFinder<java.util.List<Pair<String, Dynamic<?>>>> paletteFinder;
+       protected final java.util.List<Dynamic<?>> palette;
+       protected final int index;
+       @Nullable

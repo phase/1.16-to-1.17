@@ -37,11 +37,21 @@
  import net.minecraft.Util;
  import net.minecraft.client.tutorial.TutorialSteps;
  import net.minecraft.nbt.CompoundTag;
-@@ -48,11 +52,11 @@
+@@ -46,13 +50,21 @@
+ public class Options {
+    private static final Logger LOGGER = LogManager.getLogger();
     private static final Gson GSON = new Gson();
     private static final TypeToken<List<String>> RESOURCE_PACK_TYPE = new TypeToken<List<String>>() {
     };
++   public static final int RENDER_DISTANCE_TINY = 2;
++   public static final int RENDER_DISTANCE_SHORT = 4;
++   public static final int RENDER_DISTANCE_NORMAL = 8;
++   public static final int RENDER_DISTANCE_FAR = 12;
++   public static final int RENDER_DISTANCE_REALLY_FAR = 16;
++   public static final int RENDER_DISTANCE_EXTREME = 32;
     private static final Splitter OPTION_SPLITTER = Splitter.on(':').limit(2);
++   private static final float DEFAULT_VOLUME = 1.0F;
++   public boolean darkMojangStudiosBackground;
     public double sensitivity = 0.5D;
 -   public int renderDistance = -1;
 +   public int renderDistance;
@@ -50,7 +60,7 @@
     public CloudStatus renderClouds;
     public GraphicsStatus graphicsMode;
     public AmbientOcclusionStatus ambientOcclusion;
-@@ -76,15 +80,16 @@
+@@ -76,15 +88,16 @@
     public double chatWidth;
     public double chatHeightUnfocused;
     public double chatHeightFocused;
@@ -68,7 +78,7 @@
     public boolean rawMouseInput;
     public int glDebugVerbosity;
     public boolean autoJump;
-@@ -162,27 +167,28 @@
+@@ -162,27 +175,28 @@
        this.ambientOcclusion = AmbientOcclusionStatus.MAX;
        this.resourcePacks = Lists.newArrayList();
        this.incompatibleResourcePacks = Lists.newArrayList();
@@ -101,7 +111,7 @@
        this.rawMouseInput = true;
        this.glDebugVerbosity = 1;
        this.autoJump = true;
-@@ -265,10 +271,126 @@
+@@ -265,10 +279,127 @@
     public void setKey(KeyMapping var1, InputConstants.Key var2) {
        var1.setKey(var2);
        this.save();
@@ -127,6 +137,7 @@
 +      this.bobView = var1.process("bobView", this.bobView);
 +      this.toggleCrouch = var1.process("toggleCrouch", this.toggleCrouch);
 +      this.toggleSprint = var1.process("toggleSprint", this.toggleSprint);
++      this.darkMojangStudiosBackground = var1.process("darkMojangStudiosBackground", this.darkMojangStudiosBackground);
 +      this.sensitivity = var1.process("mouseSensitivity", this.sensitivity);
 +      this.fov = var1.process("fov", (this.fov - 70.0D) / 40.0D) * 40.0D + 70.0D;
 +      this.screenEffectScale = var1.process("screenEffectScale", this.screenEffectScale);
@@ -228,7 +239,7 @@
           if (!this.optionsFile.exists()) {
              return;
           }
-@@ -286,379 +408,148 @@
+@@ -286,379 +417,148 @@
                 } catch (Exception var3) {
                    LOGGER.warn("Skipping bad option: {}", var1x);
                 }
@@ -694,7 +705,7 @@
  
        try {
           var2 = Integer.parseInt(var1.getString("version"));
-@@ -666,156 +557,94 @@
+@@ -666,156 +566,94 @@
        }
  
        return NbtUtils.update(this.minecraft.getFixerUpper(), DataFixTypes.OPTIONS, var1, var2);
@@ -903,7 +914,7 @@
     public void setSoundCategoryVolume(SoundSource var1, float var2) {
        this.sourceVolumes.put(var1, var2);
        this.minecraft.getSoundManager().updateSourceVolume(var1, var2);
-@@ -828,36 +657,30 @@
+@@ -828,36 +666,30 @@
           PlayerModelPart var3;
           for(Iterator var2 = this.modelParts.iterator(); var2.hasNext(); var1 |= var3.getMask()) {
              var3 = (PlayerModelPart)var2.next();
@@ -947,7 +958,7 @@
  
     public CloudStatus getCloudsType() {
        return this.renderDistance >= 4 ? this.renderClouds : CloudStatus.OFF;
-@@ -903,6 +726,85 @@
+@@ -903,6 +735,85 @@
     }
  
     public void setCameraType(CameraType var1) {

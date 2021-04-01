@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/decoration/ArmorStand.java
 +++ net/minecraft/world/entity/decoration/ArmorStand.java
-@@ -36,10 +36,11 @@
+@@ -36,23 +36,36 @@
  import net.minecraft.world.item.Items;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LightLayer;
@@ -12,7 +12,32 @@
  import net.minecraft.world.phys.Vec3;
  
  public class ArmorStand extends LivingEntity {
-@@ -136,48 +137,20 @@
++   public static final int WOBBLE_TIME = 5;
++   private static final boolean ENABLE_ARMS = true;
+    private static final Rotations DEFAULT_HEAD_POSE = new Rotations(0.0F, 0.0F, 0.0F);
+    private static final Rotations DEFAULT_BODY_POSE = new Rotations(0.0F, 0.0F, 0.0F);
+    private static final Rotations DEFAULT_LEFT_ARM_POSE = new Rotations(-10.0F, 0.0F, -10.0F);
+    private static final Rotations DEFAULT_RIGHT_ARM_POSE = new Rotations(-15.0F, 0.0F, 10.0F);
+    private static final Rotations DEFAULT_LEFT_LEG_POSE = new Rotations(-1.0F, 0.0F, -1.0F);
+    private static final Rotations DEFAULT_RIGHT_LEG_POSE = new Rotations(1.0F, 0.0F, 1.0F);
+    private static final EntityDimensions MARKER_DIMENSIONS = new EntityDimensions(0.0F, 0.0F, true);
+    private static final EntityDimensions BABY_DIMENSIONS;
++   private static final double FEET_OFFSET = 0.1D;
++   private static final double CHEST_OFFSET = 0.9D;
++   private static final double LEGS_OFFSET = 0.4D;
++   private static final double HEAD_OFFSET = 1.6D;
++   public static final int DISABLE_TAKING_OFFSET = 8;
++   public static final int DISABLE_PUTTING_OFFSET = 16;
++   public static final int CLIENT_FLAG_SMALL = 1;
++   public static final int CLIENT_FLAG_SHOW_ARMS = 4;
++   public static final int CLIENT_FLAG_NO_BASEPLATE = 8;
++   public static final int CLIENT_FLAG_MARKER = 16;
+    public static final EntityDataAccessor<Byte> DATA_CLIENT_FLAGS;
+    public static final EntityDataAccessor<Rotations> DATA_HEAD_POSE;
+    public static final EntityDataAccessor<Rotations> DATA_BODY_POSE;
+    public static final EntityDataAccessor<Rotations> DATA_LEFT_ARM_POSE;
+    public static final EntityDataAccessor<Rotations> DATA_RIGHT_ARM_POSE;
+@@ -136,48 +149,20 @@
     }
  
     public void setItemSlot(EquipmentSlot var1, ItemStack var2) {
@@ -63,7 +88,7 @@
        return this.getItemBySlot(var2).isEmpty() && !this.isDisabled(var2);
     }
  
-@@ -313,11 +286,11 @@
+@@ -313,11 +298,11 @@
  
     }
  
@@ -76,7 +101,7 @@
           } else if (var1.level.isClientSide) {
              return InteractionResult.CONSUME;
           } else {
-@@ -379,11 +352,11 @@
+@@ -379,11 +364,11 @@
           return false;
        } else if (var5.isEmpty() && (this.disabledSlots & 1 << var2.getFilterFlag() + 16) != 0) {
           return false;
@@ -89,7 +114,7 @@
              this.setItemSlot(var2, var6);
              return true;
           } else if (!var3.isEmpty() && var3.getCount() > 1) {
-@@ -403,18 +376,18 @@
+@@ -403,18 +388,18 @@
           }
        }
     }
@@ -111,7 +136,7 @@
                 if (this.isOnFire()) {
                    this.causeDamage(var1, 0.15F);
                 } else {
-@@ -429,26 +402,27 @@
+@@ -429,26 +414,27 @@
                 boolean var3 = var1.getDirectEntity() instanceof AbstractArrow;
                 boolean var4 = var3 && ((AbstractArrow)var1.getDirectEntity()).getPierceLevel() > 0;
                 boolean var5 = "player".equals(var1.getMsgId());
@@ -142,7 +167,7 @@
                    return true;
                 }
              }
-@@ -492,13 +466,14 @@
+@@ -492,13 +478,14 @@
     private void causeDamage(DamageSource var1, float var2) {
        float var3 = this.getHealth();
        var3 -= var2;
@@ -158,7 +183,7 @@
     }
  
     private void brokenByPlayer(DamageSource var1) {
-@@ -610,11 +585,11 @@
+@@ -610,11 +597,11 @@
     public boolean isBaby() {
        return this.isSmall();
     }
@@ -171,7 +196,7 @@
     public boolean ignoreExplosion() {
        return this.isInvisible();
     }
-@@ -801,10 +776,14 @@
+@@ -801,10 +788,14 @@
        } else {
           return super.getLightProbePosition(var1);
        }

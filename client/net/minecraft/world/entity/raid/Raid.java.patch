@@ -1,6 +1,43 @@
 --- net/minecraft/world/entity/raid/Raid.java
 +++ net/minecraft/world/entity/raid/Raid.java
-@@ -90,11 +90,11 @@
+@@ -56,15 +56,36 @@
+ import net.minecraft.world.level.block.entity.BannerPattern;
+ import net.minecraft.world.level.levelgen.Heightmap;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class Raid {
++   private static final int SECTION_RADIUS_FOR_FINDING_NEW_VILLAGE_CENTER = 2;
++   private static final int ATTEMPT_RAID_FARTHEST = 0;
++   private static final int ATTEMPT_RAID_CLOSE = 1;
++   private static final int ATTEMPT_RAID_INSIDE = 2;
++   private static final int VILLAGE_SEARCH_RADIUS = 32;
++   private static final int RAID_TIMEOUT_TICKS = 48000;
++   private static final int NUM_SPAWN_ATTEMPTS = 3;
++   private static final String OMINOUS_BANNER_PATTERN_NAME = "block.minecraft.ominous_banner";
++   private static final String RAIDERS_REMAINING = "event.minecraft.raid.raiders_remaining";
++   public static final int VILLAGE_RADIUS_BUFFER = 16;
++   private static final int POST_RAID_TICK_LIMIT = 40;
++   private static final int DEFAULT_PRE_RAID_TICKS = 300;
++   public static final int MAX_NO_ACTION_TIME = 2400;
++   public static final int MAX_CELEBRATION_TICKS = 600;
++   private static final int OUTSIDE_RAID_BOUNDS_TIMEOUT = 30;
++   public static final int TICKS_PER_DAY = 24000;
++   public static final int DEFAULT_MAX_BAD_OMEN_LEVEL = 5;
++   private static final int LOW_MOB_THRESHOLD = 2;
+    private static final Component RAID_NAME_COMPONENT = new TranslatableComponent("event.minecraft.raid");
+    private static final Component VICTORY = new TranslatableComponent("event.minecraft.raid.victory");
+    private static final Component DEFEAT = new TranslatableComponent("event.minecraft.raid.defeat");
+    private static final Component RAID_BAR_VICTORY_COMPONENT;
+    private static final Component RAID_BAR_DEFEAT_COMPONENT;
++   private static final int HERO_OF_THE_VILLAGE_DURATION = 48000;
++   public static final int VALID_RAID_RADIUS_SQR = 9216;
++   public static final int RAID_REMOVAL_THRESHOLD_SQR = 12544;
+    private final Map<Integer, Raider> groupToLeaderMap = Maps.newHashMap();
+    private final Map<Integer, Set<Raider>> groupRaiderMap = Maps.newHashMap();
+    private final Set<UUID> heroesOfTheVillage = Sets.newHashSet();
+    private long ticksActive;
+    private BlockPos center;
+@@ -90,11 +111,11 @@
        this.waveSpawnPos = Optional.empty();
        this.id = var1;
        this.level = var2;
@@ -13,7 +50,54 @@
        this.status = Raid.RaidStatus.ONGOING;
     }
  
-@@ -282,11 +282,11 @@
+@@ -148,10 +169,26 @@
+ 
+    public boolean isLoss() {
+       return this.status == Raid.RaidStatus.LOSS;
+    }
+ 
++   public float getTotalHealth() {
++      return this.totalHealth;
++   }
++
++   public Set<Raider> getAllRaiders() {
++      HashSet var1 = Sets.newHashSet();
++      Iterator var2 = this.groupRaiderMap.values().iterator();
++
++      while(var2.hasNext()) {
++         Set var3 = (Set)var2.next();
++         var1.addAll(var3);
++      }
++
++      return var1;
++   }
++
+    public Level getLevel() {
+       return this.level;
+    }
+ 
+    public boolean isStarted() {
+@@ -199,14 +236,18 @@
+ 
+    public int getBadOmenLevel() {
+       return this.badOmenLevel;
+    }
+ 
++   public void setBadOmenLevel(int var1) {
++      this.badOmenLevel = var1;
++   }
++
+    public void absorbBadOmen(Player var1) {
+       if (var1.hasEffect(MobEffects.BAD_OMEN)) {
+          this.badOmenLevel += var1.getEffect(MobEffects.BAD_OMEN).getAmplifier() + 1;
+-         this.badOmenLevel = Mth.clamp(this.badOmenLevel, 0, this.getMaxBadOmenLevel());
++         this.badOmenLevel = Mth.clamp((int)this.badOmenLevel, (int)0, (int)this.getMaxBadOmenLevel());
+       }
+ 
+       var1.removeEffect(MobEffects.BAD_OMEN);
+    }
+ 
+@@ -282,11 +323,11 @@
                    if (this.raidCooldownTicks == 300 || this.raidCooldownTicks % 20 == 0) {
                       this.updatePlayers();
                    }
@@ -26,7 +110,7 @@
  
              if (this.ticksActive % 20L == 0L) {
                 this.updatePlayers();
-@@ -357,11 +357,11 @@
+@@ -357,11 +398,11 @@
  
              if (this.celebrationTicks % 20 == 0) {
                 this.updatePlayers();
@@ -39,7 +123,7 @@
                    this.raidEvent.setName(RAID_BAR_DEFEAT_COMPONENT);
                 }
              }
-@@ -429,11 +429,11 @@
+@@ -429,11 +470,11 @@
                    continue label54;
                 }
  
@@ -52,7 +136,7 @@
                          var2.add(var5);
                       }
  
-@@ -557,11 +557,11 @@
+@@ -557,11 +598,11 @@
        }
  
     }
@@ -65,7 +149,7 @@
     public float getHealthOfLivingRaiders() {
        float var1 = 0.0F;
        Iterator var2 = this.groupRaiderMap.values().iterator();
-@@ -631,12 +631,15 @@
+@@ -631,12 +672,15 @@
           float var9 = this.level.random.nextFloat() * 6.2831855F;
           int var4 = this.center.getX() + Mth.floor(Mth.cos(var9) * 32.0F * (float)var3) + this.level.random.nextInt(5);
           int var6 = this.center.getZ() + Mth.floor(Mth.sin(var9) * 32.0F * (float)var3) + this.level.random.nextInt(5);

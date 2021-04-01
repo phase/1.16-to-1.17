@@ -19,19 +19,41 @@
  import net.minecraft.world.entity.EntitySelector;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.EquipmentSlot;
-@@ -78,10 +81,11 @@
+@@ -78,24 +81,33 @@
  import net.minecraft.world.level.ServerLevelAccessor;
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.Biomes;
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.Blocks;
-+import net.minecraft.world.level.block.CaveVinesBlock;
++import net.minecraft.world.level.block.CaveVines;
  import net.minecraft.world.level.block.SweetBerryBushBlock;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.pathfinder.BlockPathTypes;
  import net.minecraft.world.phys.Vec3;
  
-@@ -146,11 +150,11 @@
+ public class Fox extends Animal {
+    private static final EntityDataAccessor<Integer> DATA_TYPE_ID;
+    private static final EntityDataAccessor<Byte> DATA_FLAGS_ID;
++   private static final int FLAG_SITTING = 1;
++   public static final int FLAG_CROUCHING = 4;
++   public static final int FLAG_INTERESTED = 8;
++   public static final int FLAG_POUNCING = 16;
++   private static final int FLAG_SLEEPING = 32;
++   private static final int FLAG_FACEPLANTED = 64;
++   private static final int FLAG_DEFENDING = 128;
+    private static final EntityDataAccessor<Optional<UUID>> DATA_TRUSTED_ID_0;
+    private static final EntityDataAccessor<Optional<UUID>> DATA_TRUSTED_ID_1;
+    private static final Predicate<ItemEntity> ALLOWED_ITEMS;
+    private static final Predicate<Entity> TRUSTED_TARGET_SELECTOR;
+    private static final Predicate<Entity> STALKABLE_PREY;
+    private static final Predicate<Entity> AVOID_PLAYERS;
++   private static final int MIN_TICKS_BEFORE_EAT = 600;
+    private Goal landTargetGoal;
+    private Goal turtleEggTargetGoal;
+    private Goal fishTargetGoal;
+    private float interestedAngle;
+    private float interestedAngleO;
+@@ -146,11 +158,11 @@
        this.goalSelector.addGoal(6, new Fox.SeekShelterGoal(1.25D));
        this.goalSelector.addGoal(7, new Fox.FoxMeleeAttackGoal(1.2000000476837158D, true));
        this.goalSelector.addGoal(7, new Fox.SleepGoal());
@@ -44,7 +66,7 @@
        this.goalSelector.addGoal(11, new Fox.FoxSearchForItemsGoal());
        this.goalSelector.addGoal(12, new Fox.FoxLookAtPlayerGoal(this, Player.class, 24.0F));
        this.goalSelector.addGoal(13, new Fox.PerchAndSearchGoal());
-@@ -249,11 +253,11 @@
+@@ -249,11 +261,11 @@
  
     public static AttributeSupplier.Builder createAttributes() {
        return Mob.createMobAttributes().add(Attributes.MOVEMENT_SPEED, 0.30000001192092896D).add(Attributes.MAX_HEALTH, 10.0D).add(Attributes.FOLLOW_RANGE, 32.0D).add(Attributes.ATTACK_DAMAGE, 2.0D);
@@ -57,7 +79,7 @@
        return var3;
     }
  
-@@ -295,16 +299,16 @@
+@@ -295,16 +307,16 @@
           this.targetSelector.addGoal(6, this.turtleEggTargetGoal);
        }
  
@@ -78,7 +100,7 @@
     protected float getStandingEyeHeight(Pose var1, EntityDimensions var2) {
        return this.isBaby() ? var2.height * 0.85F : 0.4F;
     }
-@@ -457,11 +461,11 @@
+@@ -457,11 +469,11 @@
           this.spitOutItem(this.getItemBySlot(EquipmentSlot.MAINHAND));
           this.onItemPickup(var1);
           this.setItemSlot(EquipmentSlot.MAINHAND, var2.split(1));
@@ -91,7 +113,7 @@
  
     }
  
-@@ -502,11 +506,11 @@
+@@ -502,11 +514,11 @@
        }
  
     }
@@ -104,7 +126,22 @@
     protected void onOffspringSpawnedFromEgg(Player var1, Mob var2) {
        ((Fox)var2).addTrustedUUID(var1.getUUID());
     }
-@@ -890,11 +894,11 @@
+@@ -517,10 +529,14 @@
+ 
+    public void setIsPouncing(boolean var1) {
+       this.setFlag(16, var1);
+    }
+ 
++   public boolean isJumping() {
++      return this.jumping;
++   }
++
+    public boolean isFullyCrouched() {
+       return this.crouchAmount == 3.0F;
+    }
+ 
+    public void setIsCrouching(boolean var1) {
+@@ -890,20 +906,21 @@
        public void tick() {
           --this.countdown;
        }
@@ -117,20 +154,30 @@
        public FoxGroupData(Fox.Type var1) {
           super(false);
           this.type = var1;
-@@ -916,11 +920,11 @@
+       }
+    }
+ 
+    public class FoxEatBerriesGoal extends MoveToBlockGoal {
++      private static final int WAIT_TICKS = 40;
+       protected int ticksWaited;
+ 
+       public FoxEatBerriesGoal(double var2, int var4, int var5) {
+          super(Fox.this, var2, var4, var5);
+       }
+@@ -916,11 +933,11 @@
           return this.tryTicks % 100 == 0;
        }
  
        protected boolean isValidTarget(LevelReader var1, BlockPos var2) {
           BlockState var3 = var1.getBlockState(var2);
 -         return var3.is(Blocks.SWEET_BERRY_BUSH) && (Integer)var3.getValue(SweetBerryBushBlock.AGE) >= 2;
-+         return var3.is(Blocks.SWEET_BERRY_BUSH) && (Integer)var3.getValue(SweetBerryBushBlock.AGE) >= 2 || CaveVinesBlock.hasGlowBerries(var3);
++         return var3.is(Blocks.SWEET_BERRY_BUSH) && (Integer)var3.getValue(SweetBerryBushBlock.AGE) >= 2 || CaveVines.hasGlowBerries(var3);
        }
  
        public void tick() {
           if (this.isReachedTarget()) {
              if (this.ticksWaited >= 40) {
-@@ -937,27 +941,38 @@
+@@ -937,27 +954,38 @@
  
        protected void onReachedTarget() {
           if (Fox.this.level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
@@ -145,7 +192,7 @@
 -                  --var3;
 -               }
 +               this.pickSweetBerries(var1);
-+            } else if (CaveVinesBlock.hasGlowBerries(var1)) {
++            } else if (CaveVines.hasGlowBerries(var1)) {
 +               this.pickGlowBerry(var1);
 +            }
  
@@ -159,7 +206,7 @@
 -               Fox.this.level.setBlock(this.blockPos, (BlockState)var1.setValue(SweetBerryBushBlock.AGE, 1), 2);
 -            }
 +      private void pickGlowBerry(BlockState var1) {
-+         CaveVinesBlock.use(var1, Fox.this.level, this.blockPos);
++         CaveVines.use(var1, Fox.this.level, this.blockPos);
 +      }
 +
 +      private void pickSweetBerries(BlockState var1) {
@@ -183,3 +230,15 @@
        public boolean canUse() {
           return !Fox.this.isSleeping() && super.canUse();
        }
+@@ -1016,10 +1044,11 @@
+          this.lookTime = 80 + Fox.this.getRandom().nextInt(20);
+       }
+    }
+ 
+    class SleepGoal extends Fox.FoxBehaviorGoal {
++      private static final int WAIT_TIME_BEFORE_SLEEP = 140;
+       private int countdown;
+ 
+       public SleepGoal() {
+          super(null);
+          this.countdown = Fox.this.random.nextInt(140);

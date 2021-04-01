@@ -1,6 +1,6 @@
 --- net/minecraft/client/renderer/item/ItemProperties.java
 +++ net/minecraft/client/renderer/item/ItemProperties.java
-@@ -15,10 +15,11 @@
+@@ -15,32 +15,38 @@
  import net.minecraft.world.entity.HumanoidArm;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.decoration.ItemFrame;
@@ -12,10 +12,15 @@
  import net.minecraft.world.item.ElytraItem;
  import net.minecraft.world.item.FishingRodItem;
  import net.minecraft.world.item.Item;
-@@ -29,14 +30,14 @@
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.LightBlock;
+ import net.minecraft.world.phys.Vec3;
  
  public class ItemProperties {
     private static final Map<ResourceLocation, ItemPropertyFunction> GENERIC_PROPERTIES = Maps.newHashMap();
++   private static final String TAG_CUSTOM_MODEL_DATA = "CustomModelData";
     private static final ResourceLocation DAMAGED = new ResourceLocation("damaged");
     private static final ResourceLocation DAMAGE = new ResourceLocation("damage");
 -   private static final ItemPropertyFunction PROPERTY_DAMAGED = (var0, var1, var2) -> {
@@ -28,8 +33,15 @@
     };
     private static final Map<Item, Map<ResourceLocation, ItemPropertyFunction>> PROPERTIES = Maps.newHashMap();
  
++   public ItemProperties() {
++   }
++
     private static ItemPropertyFunction registerGeneric(ResourceLocation var0, ItemPropertyFunction var1) {
-@@ -70,55 +71,58 @@
+       GENERIC_PROPERTIES.put(var0, var1);
+       return var1;
+    }
+ 
+@@ -70,55 +76,58 @@
           return var3 == null ? null : (ItemPropertyFunction)var3.get(var1);
        }
     }
@@ -103,7 +115,7 @@
           }
  
           private double wobble(Level var1, double var2) {
-@@ -136,59 +140,63 @@
+@@ -136,59 +145,63 @@
        });
        register(Items.COMPASS, new ResourceLocation("angle"), new ItemPropertyFunction() {
           private final ItemProperties.CompassWobble wobble = new ItemProperties.CompassWobble();
@@ -197,7 +209,7 @@
              return var1.dimensionType().natural() ? var1.getSharedSpawnPos() : null;
           }
  
-@@ -214,46 +222,46 @@
+@@ -214,48 +227,60 @@
  
           private double getAngleTo(Vec3 var1, Entity var2) {
              return Math.atan2(var1.z() - var2.getZ(), var1.x() - var2.getX());
@@ -253,6 +265,20 @@
 +      register(Items.TRIDENT, new ResourceLocation("throwing"), (var0, var1, var2, var3) -> {
           return var2 != null && var2.isUsingItem() && var2.getUseItem() == var0 ? 1.0F : 0.0F;
        });
++      register(Items.LIGHT, new ResourceLocation("level"), (var0, var1, var2, var3) -> {
++         CompoundTag var4 = var0.getTagElement("BlockStateTag");
++
++         try {
++            if (var4 != null) {
++               return (float)Integer.parseInt(var4.getString(LightBlock.LEVEL.getName()));
++            }
++         } catch (NumberFormatException var6) {
++         }
++
++         return 15.0F;
++      });
     }
  
     static class CompassWobble {
+       private double rotation;
+       private double deltaRotation;

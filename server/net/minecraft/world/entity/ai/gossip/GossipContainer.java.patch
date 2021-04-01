@@ -1,0 +1,115 @@
+--- net/minecraft/world/entity/ai/gossip/GossipContainer.java
++++ net/minecraft/world/entity/ai/gossip/GossipContainer.java
+@@ -11,28 +11,42 @@
+ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+ import it.unimi.dsi.fastutil.objects.ObjectIterator;
+ import java.util.Arrays;
+ import java.util.Collection;
+ import java.util.Collections;
++import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Random;
+ import java.util.Set;
+ import java.util.UUID;
++import java.util.function.DoublePredicate;
+ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+ import net.minecraft.Util;
+ import net.minecraft.core.SerializableUUID;
++import net.minecraft.util.VisibleForDebug;
+ 
+ public class GossipContainer {
++   public static final int DISCARD_THRESHOLD = 2;
+    private final Map<UUID, GossipContainer.EntityGossips> gossips = Maps.newHashMap();
+ 
+    public GossipContainer() {
+    }
+ 
++   @VisibleForDebug
++   public Map<UUID, Object2IntMap<GossipType>> getGossipEntries() {
++      HashMap var1 = Maps.newHashMap();
++      this.gossips.keySet().forEach((var2) -> {
++         GossipContainer.EntityGossips var3 = (GossipContainer.EntityGossips)this.gossips.get(var2);
++         var1.put(var2, var3.entries);
++      });
++      return var1;
++   }
++
+    public void decay() {
+       Iterator var1 = this.gossips.values().iterator();
+ 
+       while(var1.hasNext()) {
+          GossipContainer.EntityGossips var2 = (GossipContainer.EntityGossips)var1.next();
+@@ -96,10 +110,16 @@
+    public int getReputation(UUID var1, Predicate<GossipType> var2) {
+       GossipContainer.EntityGossips var3 = (GossipContainer.EntityGossips)this.gossips.get(var1);
+       return var3 != null ? var3.weightedValue(var2) : 0;
+    }
+ 
++   public long getCountForType(GossipType var1, DoublePredicate var2) {
++      return this.gossips.values().stream().filter((var2x) -> {
++         return var2.test((double)(var2x.entries.getOrDefault(var1, 0) * var1.weight));
++      }).count();
++   }
++
+    public void add(UUID var1, GossipType var2, int var3) {
+       GossipContainer.EntityGossips var4 = this.getOrCreate(var1);
+       var4.entries.mergeInt(var2, var3, (var2x, var3x) -> {
+          return this.mergeValuesForAddition(var2, var2x, var3x);
+       });
+@@ -108,10 +128,38 @@
+          this.gossips.remove(var1);
+       }
+ 
+    }
+ 
++   public void remove(UUID var1, GossipType var2, int var3) {
++      this.add(var1, var2, -var3);
++   }
++
++   public void remove(UUID var1, GossipType var2) {
++      GossipContainer.EntityGossips var3 = (GossipContainer.EntityGossips)this.gossips.get(var1);
++      if (var3 != null) {
++         var3.remove(var2);
++         if (var3.isEmpty()) {
++            this.gossips.remove(var1);
++         }
++      }
++
++   }
++
++   public void remove(GossipType var1) {
++      Iterator var2 = this.gossips.values().iterator();
++
++      while(var2.hasNext()) {
++         GossipContainer.EntityGossips var3 = (GossipContainer.EntityGossips)var2.next();
++         var3.remove(var1);
++         if (var3.isEmpty()) {
++            var2.remove();
++         }
++      }
++
++   }
++
+    public <T> Dynamic<T> store(DynamicOps<T> var1) {
+       return new Dynamic(var1, var1.createList(this.unpack().map((var1x) -> {
+          return var1x.store(var1);
+       }).map(Dynamic::getValue)));
+    }
+@@ -189,10 +237,13 @@
+          this.entries.removeInt(var1);
+       }
+    }
+ 
+    static class GossipEntry {
++      public static final String TAG_TARGET = "Target";
++      public static final String TAG_TYPE = "Type";
++      public static final String TAG_VALUE = "Value";
+       public final UUID target;
+       public final GossipType type;
+       public final int value;
+ 
+       public GossipEntry(UUID var1, GossipType var2, int var3) {

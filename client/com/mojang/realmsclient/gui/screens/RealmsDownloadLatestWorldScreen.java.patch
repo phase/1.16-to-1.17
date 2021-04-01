@@ -12,13 +12,26 @@
  import com.mojang.realmsclient.dto.WorldDownload;
  import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
  import java.util.ArrayList;
-@@ -166,15 +167,15 @@
+@@ -17,10 +18,11 @@
+ import java.util.concurrent.locks.ReentrantLock;
+ import java.util.stream.Collectors;
+ import net.minecraft.Util;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.network.chat.CommonComponents;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.FormattedText;
+ import net.minecraft.network.chat.TextComponent;
+ import net.minecraft.network.chat.TranslatableComponent;
+@@ -166,15 +168,16 @@
     }
  
     private void drawProgressBar(PoseStack var1) {
        double var2 = Math.min((double)this.downloadStatus.bytesWritten / (double)this.downloadStatus.totalBytes, 1.0D);
        this.progress = String.format(Locale.ROOT, "%.1f", var2 * 100.0D);
 -      RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
++      RenderSystem.setShader(GameRenderer::getPositionColorShader);
 +      RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
        RenderSystem.disableTexture();
        Tesselator var4 = Tesselator.getInstance();
@@ -30,125 +43,3 @@
        var5.vertex(var6 - 0.5D, 95.5D, 0.0D).color(217, 210, 210, 255).endVertex();
        var5.vertex(var6 + 200.0D * var2 + 0.5D, 95.5D, 0.0D).color(217, 210, 210, 255).endVertex();
        var5.vertex(var6 + 200.0D * var2 + 0.5D, 79.5D, 0.0D).color(217, 210, 210, 255).endVertex();
-@@ -218,72 +219,75 @@
-    }
- 
-    private void downloadSave() {
-       (new Thread(() -> {
-          try {
--            if (!DOWNLOAD_LOCK.tryLock(1L, TimeUnit.SECONDS)) {
--               this.status = new TranslatableComponent("mco.download.failed");
--               return;
--            }
--
--            if (this.cancelled) {
--               this.downloadCancelled();
--               return;
--            }
--
--            this.status = new TranslatableComponent("mco.download.downloading", new Object[]{this.worldName});
--            FileDownload var1 = new FileDownload();
--            var1.contentLength(this.worldDownload.downloadLink);
--            var1.download(this.worldDownload, this.worldName, this.downloadStatus, this.minecraft.getLevelSource());
--
--            while(!var1.isFinished()) {
--               if (var1.isError()) {
--                  var1.cancel();
--                  this.errorMessage = new TranslatableComponent("mco.download.failed");
--                  this.cancelButton.setMessage(CommonComponents.GUI_DONE);
-+            try {
-+               if (!DOWNLOAD_LOCK.tryLock(1L, TimeUnit.SECONDS)) {
-+                  this.status = new TranslatableComponent("mco.download.failed");
-                   return;
-                }
- 
--               if (var1.isExtracting()) {
--                  if (!this.extracting) {
--                     this.status = new TranslatableComponent("mco.download.extracting");
--                  }
--
--                  this.extracting = true;
--               }
--
-                if (this.cancelled) {
--                  var1.cancel();
-                   this.downloadCancelled();
-                   return;
-                }
- 
--               try {
--                  Thread.sleep(500L);
--               } catch (InterruptedException var8) {
--                  LOGGER.error("Failed to check Realms backup download status");
-+               this.status = new TranslatableComponent("mco.download.downloading", new Object[]{this.worldName});
-+               FileDownload var1 = new FileDownload();
-+               var1.contentLength(this.worldDownload.downloadLink);
-+               var1.download(this.worldDownload, this.worldName, this.downloadStatus, this.minecraft.getLevelSource());
-+
-+               while(!var1.isFinished()) {
-+                  if (var1.isError()) {
-+                     var1.cancel();
-+                     this.errorMessage = new TranslatableComponent("mco.download.failed");
-+                     this.cancelButton.setMessage(CommonComponents.GUI_DONE);
-+                     return;
-+                  }
-+
-+                  if (var1.isExtracting()) {
-+                     if (!this.extracting) {
-+                        this.status = new TranslatableComponent("mco.download.extracting");
-+                     }
-+
-+                     this.extracting = true;
-+                  }
-+
-+                  if (this.cancelled) {
-+                     var1.cancel();
-+                     this.downloadCancelled();
-+                     return;
-+                  }
-+
-+                  try {
-+                     Thread.sleep(500L);
-+                  } catch (InterruptedException var8) {
-+                     LOGGER.error("Failed to check Realms backup download status");
-+                  }
-                }
-+
-+               this.finished = true;
-+               this.status = new TranslatableComponent("mco.download.done");
-+               this.cancelButton.setMessage(CommonComponents.GUI_DONE);
-+               return;
-+            } catch (InterruptedException var9) {
-+               LOGGER.error("Could not acquire upload lock");
-+            } catch (Exception var10) {
-+               this.errorMessage = new TranslatableComponent("mco.download.failed");
-+               var10.printStackTrace();
-             }
- 
--            this.finished = true;
--            this.status = new TranslatableComponent("mco.download.done");
--            this.cancelButton.setMessage(CommonComponents.GUI_DONE);
--         } catch (InterruptedException var9) {
--            LOGGER.error("Could not acquire upload lock");
--         } catch (Exception var10) {
--            this.errorMessage = new TranslatableComponent("mco.download.failed");
--            var10.printStackTrace();
-          } finally {
-             if (!DOWNLOAD_LOCK.isHeldByCurrentThread()) {
-                return;
-+            } else {
-+               DOWNLOAD_LOCK.unlock();
-+               this.showDots = false;
-+               this.finished = true;
-             }
--
--            DOWNLOAD_LOCK.unlock();
--            this.showDots = false;
--            this.finished = true;
-          }
--
-       })).start();
-    }
- 
-    private void downloadCancelled() {
-       this.status = new TranslatableComponent("mco.download.cancelled");

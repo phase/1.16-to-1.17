@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/SculkSensorBlock.java
 +++ net/minecraft/world/level/block/SculkSensorBlock.java
-@@ -1,0 +1,251 @@
+@@ -1,0 +1,267 @@
 +package net.minecraft.world.level.block;
 +
 +import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -11,6 +11,7 @@
 +import net.minecraft.Util;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.core.Direction;
++import net.minecraft.core.particles.DustColorTransitionOptions;
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.sounds.SoundEvents;
 +import net.minecraft.sounds.SoundSource;
@@ -40,6 +41,8 @@
 +import net.minecraft.world.phys.shapes.VoxelShape;
 +
 +public class SculkSensorBlock extends BaseEntityBlock implements SimpleWaterloggedBlock {
++   public static final int ACTIVE_TICKS = 40;
++   public static final int COOLDOWN_TICKS = 1;
 +   public static final Object2IntMap<GameEvent> VIBRATION_STRENGTH_FOR_EVENT = Object2IntMaps.unmodifiable((Object2IntMap)Util.make(new Object2IntOpenHashMap(), (var0) -> {
 +      var0.put(GameEvent.STEP, 1);
 +      var0.put(GameEvent.FLAP, 2);
@@ -217,6 +220,19 @@
 +         var0.playSound((Player)null, (double)var1.getX() + 0.5D, (double)var1.getY() + 0.5D, (double)var1.getZ() + 0.5D, SoundEvents.SCULK_CLICKING, SoundSource.BLOCKS, 1.0F, var0.random.nextFloat() * 0.2F + 0.8F);
 +      }
 +
++   }
++
++   public void animateTick(BlockState var1, Level var2, BlockPos var3, Random var4) {
++      if (getPhase(var1) == SculkSensorPhase.ACTIVE) {
++         Direction var5 = Direction.getRandom(var4);
++         if (var5 != Direction.UP && var5 != Direction.DOWN) {
++            double var6 = (double)var3.getX() + 0.5D + (var5.getStepX() == 0 ? 0.5D - var4.nextDouble() : (double)var5.getStepX() * 0.6D);
++            double var8 = (double)var3.getY() + 0.25D;
++            double var10 = (double)var3.getZ() + 0.5D + (var5.getStepZ() == 0 ? 0.5D - var4.nextDouble() : (double)var5.getStepZ() * 0.6D);
++            double var12 = (double)var4.nextFloat() * 0.04D;
++            var2.addParticle(DustColorTransitionOptions.SCULK_TO_REDSTONE, var6, var8, var10, 0.0D, var12, 0.0D);
++         }
++      }
 +   }
 +
 +   protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {

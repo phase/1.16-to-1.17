@@ -33,7 +33,7 @@
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.entity.monster.piglin.PiglinAi;
-@@ -39,14 +42,16 @@
+@@ -39,14 +42,17 @@
  import net.minecraft.world.level.GameRules;
  import net.minecraft.world.level.ItemLike;
  import net.minecraft.world.level.Level;
@@ -44,13 +44,46 @@
  import net.minecraft.world.level.block.state.BlockBehaviour;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.StateDefinition;
++import net.minecraft.world.level.block.state.properties.Property;
 +import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.level.storage.loot.LootContext;
  import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
-@@ -95,34 +100,30 @@
+@@ -60,16 +66,31 @@
+    private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
+       public Boolean load(VoxelShape var1) {
+          return !Shapes.joinIsNotEmpty(Shapes.block(), var1, BooleanOp.NOT_SAME);
+       }
+    });
++   public static final int UPDATE_NEIGHBORS = 1;
++   public static final int UPDATE_CLIENTS = 2;
++   public static final int UPDATE_INVISIBLE = 4;
++   public static final int UPDATE_IMMEDIATE = 8;
++   public static final int UPDATE_KNOWN_SHAPE = 16;
++   public static final int UPDATE_SUPPRESS_DROPS = 32;
++   public static final int UPDATE_MOVE_BY_PISTON = 64;
++   public static final int UPDATE_SUPPRESS_LIGHT = 128;
++   public static final int UPDATE_NONE = 4;
++   public static final int UPDATE_ALL = 3;
++   public static final int UPDATE_ALL_IMMEDIATE = 11;
++   public static final float INDESTRUCTIBLE = -1.0F;
++   public static final float INSTANT = 0.0F;
++   public static final int UPDATE_LIMIT = 512;
+    protected final StateDefinition<Block, BlockState> stateDefinition;
+    private BlockState defaultBlockState;
+    @Nullable
+    private String descriptionId;
+    @Nullable
+    private Item item;
++   private static final int CACHE_SIZE = 2048;
+    private static final ThreadLocal<Object2ByteLinkedOpenHashMap<Block.BlockStatePairKey>> OCCLUSION_CACHE = ThreadLocal.withInitial(() -> {
+       Object2ByteLinkedOpenHashMap var0 = new Object2ByteLinkedOpenHashMap<Block.BlockStatePairKey>(2048, 0.25F) {
+          protected void rehash(int var1) {
+          }
+       };
+@@ -95,43 +116,39 @@
        return var0 instanceof BlockItem ? ((BlockItem)var0).getBlock() : Blocks.AIR;
     }
  
@@ -97,7 +130,17 @@
        BlockPos.MutableBlockPos var4 = new BlockPos.MutableBlockPos();
        Direction[] var5 = UPDATE_SHAPE_ORDER;
        int var6 = var5.length;
-@@ -157,22 +158,28 @@
+ 
+       for(int var7 = 0; var7 < var6; ++var7) {
+          Direction var8 = var5[var7];
+-         var4.setWithOffset(var2, var8);
++         var4.setWithOffset(var2, (Direction)var8);
+          var3 = var3.updateShape(var8, var1.getBlockState(var4), var1, var2, var4);
+       }
+ 
+       return var3;
+    }
+@@ -157,22 +174,28 @@
        super(var1);
        StateDefinition.Builder var2 = new StateDefinition.Builder(this);
        this.createBlockStateDefinition(var2);
@@ -130,7 +173,7 @@
           return false;
        } else if (var5.canOcclude()) {
           Block.BlockStatePairKey var6 = new Block.BlockStatePairKey(var0, var5, var3);
-@@ -180,18 +187,22 @@
+@@ -180,18 +203,22 @@
           byte var8 = var7.getAndMoveToFirst(var6);
           if (var8 != 127) {
              return var8 != 0;
@@ -160,7 +203,27 @@
           return true;
        }
     }
-@@ -276,15 +287,11 @@
+@@ -232,10 +259,19 @@
+    public static List<ItemStack> getDrops(BlockState var0, ServerLevel var1, BlockPos var2, @Nullable BlockEntity var3, @Nullable Entity var4, ItemStack var5) {
+       LootContext.Builder var6 = (new LootContext.Builder(var1)).withRandom(var1.random).withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(var2)).withParameter(LootContextParams.TOOL, var5).withOptionalParameter(LootContextParams.THIS_ENTITY, var4).withOptionalParameter(LootContextParams.BLOCK_ENTITY, var3);
+       return var0.getDrops(var6);
+    }
+ 
++   public static void dropResources(BlockState var0, LootContext.Builder var1) {
++      ServerLevel var2 = var1.getLevel();
++      BlockPos var3 = new BlockPos((Vec3)var1.getParameter(LootContextParams.ORIGIN));
++      var0.getDrops(var1).forEach((var2x) -> {
++         popResource(var2, var3, var2x);
++      });
++      var0.spawnAfterBreak(var2, var3, ItemStack.EMPTY);
++   }
++
+    public static void dropResources(BlockState var0, Level var1, BlockPos var2) {
+       if (var1 instanceof ServerLevel) {
+          getDrops(var0, (ServerLevel)var1, var2, (BlockEntity)null).forEach((var2x) -> {
+             popResource(var1, var2, var2x);
+          });
+@@ -276,15 +312,11 @@
        }
     }
  
@@ -177,7 +240,7 @@
     }
  
     public float getExplosionResistance() {
-@@ -326,11 +333,11 @@
+@@ -326,11 +358,11 @@
  
        return this.descriptionId;
     }
@@ -190,7 +253,7 @@
     public void updateEntityAfterFallOn(BlockGetter var1, Entity var2) {
        var2.setDeltaMovement(var2.getDeltaMovement().multiply(1.0D, 0.0D, 1.0D));
     }
-@@ -353,19 +360,24 @@
+@@ -353,19 +385,24 @@
  
     public float getJumpFactor() {
        return this.jumpFactor;
@@ -218,7 +281,36 @@
     public boolean dropFromExplosion(Explosion var1) {
        return true;
     }
-@@ -410,10 +422,14 @@
+@@ -383,10 +420,28 @@
+ 
+    public final BlockState defaultBlockState() {
+       return this.defaultBlockState;
+    }
+ 
++   public final BlockState withPropertiesOf(BlockState var1) {
++      BlockState var2 = this.defaultBlockState();
++      Iterator var3 = var1.getBlock().getStateDefinition().getProperties().iterator();
++
++      while(var3.hasNext()) {
++         Property var4 = (Property)var3.next();
++         if (var2.hasProperty(var4)) {
++            var2 = copyProperty(var1, var2, var4);
++         }
++      }
++
++      return var2;
++   }
++
++   private static <T extends Comparable<T>> BlockState copyProperty(BlockState var0, BlockState var1, Property<T> var2) {
++      return (BlockState)var1.setValue(var2, var0.getValue(var2));
++   }
++
+    public SoundType getSoundType(BlockState var1) {
+       return this.soundType;
+    }
+ 
+    public Item asItem() {
+@@ -410,10 +465,14 @@
  
     protected Block asBlock() {
        return this;

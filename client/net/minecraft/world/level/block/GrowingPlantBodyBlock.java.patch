@@ -1,6 +1,17 @@
 --- net/minecraft/world/level/block/GrowingPlantBodyBlock.java
 +++ net/minecraft/world/level/block/GrowingPlantBodyBlock.java
-@@ -18,28 +18,29 @@
+@@ -1,9 +1,10 @@
+ package net.minecraft.world.level.block;
+ 
+ import java.util.Optional;
+ import java.util.Random;
++import net.minecraft.BlockUtil;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.context.BlockPlaceContext;
+@@ -18,67 +19,60 @@
  public abstract class GrowingPlantBodyBlock extends GrowingPlantBlock implements BonemealableBlock {
     protected GrowingPlantBodyBlock(BlockBehaviour.Properties var1, Direction var2, VoxelShape var3, boolean var4) {
        super(var1, var2, var3, var4);
@@ -39,23 +50,39 @@
     public ItemStack getCloneItemStack(BlockGetter var1, BlockPos var2, BlockState var3) {
        return new ItemStack(this.getHeadBlock());
     }
-@@ -63,22 +64,22 @@
+ 
+    public boolean isValidBonemealTarget(BlockGetter var1, BlockPos var2, BlockState var3, boolean var4) {
+-      Optional var5 = this.getHeadPos(var1, var2, var3);
++      Optional var5 = this.getHeadPos(var1, var2, var3.getBlock());
+       return var5.isPresent() && this.getHeadBlock().canGrowInto(var1.getBlockState(((BlockPos)var5.get()).relative(this.growthDirection)));
     }
  
-    private Optional<BlockPos> getHeadPos(BlockGetter var1, BlockPos var2, BlockState var3) {
-       BlockPos var4 = var2;
+    public boolean isBonemealSuccess(Level var1, Random var2, BlockPos var3, BlockState var4) {
+       return true;
+    }
  
+    public void performBonemeal(ServerLevel var1, Random var2, BlockPos var3, BlockState var4) {
+-      Optional var5 = this.getHeadPos(var1, var3, var4);
++      Optional var5 = this.getHeadPos(var1, var3, var4.getBlock());
+       if (var5.isPresent()) {
+          BlockState var6 = var1.getBlockState((BlockPos)var5.get());
+          ((GrowingPlantHeadBlock)var6.getBlock()).performBonemeal(var1, var2, (BlockPos)var5.get(), var6);
+       }
+ 
+    }
+ 
+-   private Optional<BlockPos> getHeadPos(BlockGetter var1, BlockPos var2, BlockState var3) {
+-      BlockPos var4 = var2;
+-
 -      Block var5;
-+      BlockState var5;
-       do {
-          var4 = var4.relative(this.growthDirection);
+-      do {
+-         var4 = var4.relative(this.growthDirection);
 -         var5 = var1.getBlockState(var4).getBlock();
 -      } while(var5 == var3.getBlock());
-+         var5 = var1.getBlockState(var4);
-+      } while(var5.is(var3.getBlock()));
- 
+-
 -      return var5 == this.getHeadBlock() ? Optional.of(var4) : Optional.empty();
-+      return var5.is(this.getHeadBlock()) ? Optional.of(var4) : Optional.empty();
++   private Optional<BlockPos> getHeadPos(BlockGetter var1, BlockPos var2, Block var3) {
++      return BlockUtil.getTopConnectedBlock(var1, var2, var3, this.growthDirection, this.getHeadBlock());
     }
  
     public boolean canBeReplaced(BlockState var1, BlockPlaceContext var2) {

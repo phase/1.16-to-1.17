@@ -1,5 +1,18 @@
 --- net/minecraft/world/entity/projectile/EyeOfEnder.java
 +++ net/minecraft/world/entity/projectile/EyeOfEnder.java
+@@ -17,11 +17,11 @@
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.phys.Vec3;
+ 
+-public class EyeOfEnder extends Entity {
++public class EyeOfEnder extends Entity implements ItemSupplier {
+    private static final EntityDataAccessor<ItemStack> DATA_ITEM_STACK;
+    private double tx;
+    private double ty;
+    private double tz;
+    private int life;
 @@ -31,16 +31,15 @@
        super(var1, var2);
     }
@@ -18,7 +31,51 @@
           }));
        }
  
-@@ -118,11 +117,11 @@
+@@ -57,10 +56,20 @@
+ 
+    protected void defineSynchedData() {
+       this.getEntityData().define(DATA_ITEM_STACK, ItemStack.EMPTY);
+    }
+ 
++   public boolean shouldRenderAtSqrDistance(double var1) {
++      double var3 = this.getBoundingBox().getSize() * 4.0D;
++      if (Double.isNaN(var3)) {
++         var3 = 4.0D;
++      }
++
++      var3 *= 64.0D;
++      return var1 < var3 * var3;
++   }
++
+    public void signalTo(BlockPos var1) {
+       double var2 = (double)var1.getX();
+       int var4 = var1.getY();
+       double var5 = (double)var1.getZ();
+       double var7 = var2 - this.getX();
+@@ -78,10 +87,22 @@
+ 
+       this.life = 0;
+       this.surviveAfterDeath = this.random.nextInt(5) > 0;
+    }
+ 
++   public void lerpMotion(double var1, double var3, double var5) {
++      this.setDeltaMovement(var1, var3, var5);
++      if (this.xRotO == 0.0F && this.yRotO == 0.0F) {
++         float var7 = Mth.sqrt(var1 * var1 + var5 * var5);
++         this.yRot = (float)(Mth.atan2(var1, var5) * 57.2957763671875D);
++         this.xRot = (float)(Mth.atan2(var3, (double)var7) * 57.2957763671875D);
++         this.yRotO = this.yRot;
++         this.xRotO = this.xRot;
++      }
++
++   }
++
+    public void tick() {
+       super.tick();
+       Vec3 var1 = this.getDeltaMovement();
+       double var2 = this.getX() + var1.x;
+       double var4 = this.getY() + var1.y;
+@@ -118,11 +139,11 @@
        if (!this.level.isClientSide) {
           this.setPos(var2, var4, var6);
           ++this.life;

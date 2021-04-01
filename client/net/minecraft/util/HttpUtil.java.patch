@@ -1,0 +1,112 @@
+--- net/minecraft/util/HttpUtil.java
++++ net/minecraft/util/HttpUtil.java
+@@ -1,19 +1,23 @@
+ package net.minecraft.util;
+ 
+ import com.google.common.util.concurrent.ListeningExecutorService;
+ import com.google.common.util.concurrent.MoreExecutors;
+ import com.google.common.util.concurrent.ThreadFactoryBuilder;
++import java.io.BufferedReader;
+ import java.io.DataOutputStream;
+ import java.io.File;
+ import java.io.FileOutputStream;
+ import java.io.IOException;
+ import java.io.InputStream;
++import java.io.InputStreamReader;
++import java.io.UnsupportedEncodingException;
+ import java.net.HttpURLConnection;
+ import java.net.Proxy;
+ import java.net.ServerSocket;
+ import java.net.URL;
++import java.net.URLEncoder;
+ import java.util.Iterator;
+ import java.util.Locale;
+ import java.util.Map;
+ import java.util.Map.Entry;
+ import java.util.concurrent.CompletableFuture;
+@@ -28,10 +32,85 @@
+ 
+ public class HttpUtil {
+    private static final Logger LOGGER = LogManager.getLogger();
+    public static final ListeningExecutorService DOWNLOAD_EXECUTOR;
+ 
++   private HttpUtil() {
++   }
++
++   public static String buildQuery(Map<String, Object> var0) {
++      StringBuilder var1 = new StringBuilder();
++      Iterator var2 = var0.entrySet().iterator();
++
++      while(var2.hasNext()) {
++         Entry var3 = (Entry)var2.next();
++         if (var1.length() > 0) {
++            var1.append('&');
++         }
++
++         try {
++            var1.append(URLEncoder.encode((String)var3.getKey(), "UTF-8"));
++         } catch (UnsupportedEncodingException var6) {
++            var6.printStackTrace();
++         }
++
++         if (var3.getValue() != null) {
++            var1.append('=');
++
++            try {
++               var1.append(URLEncoder.encode(var3.getValue().toString(), "UTF-8"));
++            } catch (UnsupportedEncodingException var5) {
++               var5.printStackTrace();
++            }
++         }
++      }
++
++      return var1.toString();
++   }
++
++   public static String performPost(URL var0, Map<String, Object> var1, boolean var2, @Nullable Proxy var3) {
++      return performPost(var0, buildQuery(var1), var2, var3);
++   }
++
++   private static String performPost(URL var0, String var1, boolean var2, @Nullable Proxy var3) {
++      try {
++         if (var3 == null) {
++            var3 = Proxy.NO_PROXY;
++         }
++
++         HttpURLConnection var4 = (HttpURLConnection)var0.openConnection(var3);
++         var4.setRequestMethod("POST");
++         var4.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
++         var4.setRequestProperty("Content-Length", "" + var1.getBytes().length);
++         var4.setRequestProperty("Content-Language", "en-US");
++         var4.setUseCaches(false);
++         var4.setDoInput(true);
++         var4.setDoOutput(true);
++         DataOutputStream var5 = new DataOutputStream(var4.getOutputStream());
++         var5.writeBytes(var1);
++         var5.flush();
++         var5.close();
++         BufferedReader var6 = new BufferedReader(new InputStreamReader(var4.getInputStream()));
++         StringBuilder var8 = new StringBuilder();
++
++         String var7;
++         while((var7 = var6.readLine()) != null) {
++            var8.append(var7);
++            var8.append('\r');
++         }
++
++         var6.close();
++         return var8.toString();
++      } catch (Exception var9) {
++         if (!var2) {
++            LOGGER.error("Could not post to {}", var0, var9);
++         }
++
++         return "";
++      }
++   }
++
+    public static CompletableFuture<?> downloadTo(File var0, String var1, Map<String, String> var2, int var3, @Nullable ProgressListener var4, Proxy var5) {
+       return CompletableFuture.supplyAsync(() -> {
+          HttpURLConnection var6 = null;
+          InputStream var7 = null;
+          DataOutputStream var8 = null;

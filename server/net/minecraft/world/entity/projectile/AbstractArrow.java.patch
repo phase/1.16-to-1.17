@@ -13,7 +13,7 @@
  import net.minecraft.network.syncher.EntityDataSerializers;
  import net.minecraft.network.syncher.SynchedEntityData;
  import net.minecraft.resources.ResourceLocation;
-@@ -34,10 +32,11 @@
+@@ -34,21 +32,26 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.enchantment.Enchantments;
@@ -25,7 +25,63 @@
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.EntityHitResult;
  import net.minecraft.world.phys.HitResult;
-@@ -128,11 +127,11 @@
+ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+ public abstract class AbstractArrow extends Projectile {
++   private static final double ARROW_BASE_DAMAGE = 2.0D;
+    private static final EntityDataAccessor<Byte> ID_FLAGS;
+    private static final EntityDataAccessor<Byte> PIERCE_LEVEL;
++   private static final int FLAG_CRIT = 1;
++   private static final int FLAG_NOPHYSICS = 2;
++   private static final int FLAG_CROSSBOW = 4;
+    @Nullable
+    private BlockState lastState;
+    protected boolean inGround;
+    protected int inGroundTime;
+    public AbstractArrow.Pickup pickup;
+@@ -83,20 +86,40 @@
+ 
+    public void setSoundEvent(SoundEvent var1) {
+       this.soundEvent = var1;
+    }
+ 
++   public boolean shouldRenderAtSqrDistance(double var1) {
++      double var3 = this.getBoundingBox().getSize() * 10.0D;
++      if (Double.isNaN(var3)) {
++         var3 = 1.0D;
++      }
++
++      var3 *= 64.0D * getViewScale();
++      return var1 < var3 * var3;
++   }
++
+    protected void defineSynchedData() {
+       this.entityData.define(ID_FLAGS, (byte)0);
+       this.entityData.define(PIERCE_LEVEL, (byte)0);
+    }
+ 
+    public void shoot(double var1, double var3, double var5, float var7, float var8) {
+       super.shoot(var1, var3, var5, var7, var8);
+       this.life = 0;
+    }
+ 
++   public void lerpTo(double var1, double var3, double var5, float var7, float var8, int var9, boolean var10) {
++      this.setPos(var1, var3, var5);
++      this.setRot(var7, var8);
++   }
++
++   public void lerpMotion(double var1, double var3, double var5) {
++      super.lerpMotion(var1, var3, var5);
++      this.life = 0;
++   }
++
+    public void tick() {
+       super.tick();
+       boolean var1 = this.isNoPhysics();
+       Vec3 var2 = this.getDeltaMovement();
+       if (this.xRotO == 0.0F && this.yRotO == 0.0F) {
+@@ -128,11 +151,11 @@
  
        if (this.shakeTime > 0) {
           --this.shakeTime;
@@ -38,7 +94,7 @@
  
        if (this.inGround && !var1) {
           if (this.lastState != var4 && this.shouldFall()) {
-@@ -149,11 +148,11 @@
+@@ -149,11 +172,11 @@
           Object var27 = this.level.clip(new ClipContext(var26, var6, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
           if (((HitResult)var27).getType() != HitResult.Type.MISS) {
              var6 = ((HitResult)var27).getLocation();
@@ -51,7 +107,7 @@
                 var27 = var28;
              }
  
-@@ -243,11 +242,11 @@
+@@ -243,11 +266,11 @@
     }
  
     protected void tickDespawn() {
@@ -64,7 +120,7 @@
     }
  
     private void resetPiercedEntities() {
-@@ -274,11 +273,11 @@
+@@ -274,11 +297,11 @@
           if (this.piercedAndKilledEntities == null) {
              this.piercedAndKilledEntities = Lists.newArrayListWithCapacity(5);
           }
@@ -77,7 +133,7 @@
  
           this.piercingIgnoreEntityIds.add(var2.getId());
        }
-@@ -347,11 +346,11 @@
+@@ -347,11 +370,11 @@
              }
           }
  
@@ -90,7 +146,7 @@
           var2.setRemainingFireTicks(var8);
           this.setDeltaMovement(this.getDeltaMovement().scale(-0.1D));
           this.yRot += 180.0F;
-@@ -359,11 +358,11 @@
+@@ -359,11 +382,11 @@
           if (!this.level.isClientSide && this.getDeltaMovement().lengthSqr() < 1.0E-7D) {
              if (this.pickup == AbstractArrow.Pickup.ALLOWED) {
                 this.spawnAtLocation(this.getPickupItem(), 0.1F);
@@ -103,7 +159,25 @@
  
     }
  
-@@ -450,34 +449,34 @@
+@@ -432,16 +455,11 @@
+       this.inGround = var1.getBoolean("inGround");
+       if (var1.contains("damage", 99)) {
+          this.baseDamage = var1.getDouble("damage");
+       }
+ 
+-      if (var1.contains("pickup", 99)) {
+-         this.pickup = AbstractArrow.Pickup.byOrdinal(var1.getByte("pickup"));
+-      } else if (var1.contains("player", 99)) {
+-         this.pickup = var1.getBoolean("player") ? AbstractArrow.Pickup.ALLOWED : AbstractArrow.Pickup.DISALLOWED;
+-      }
+-
++      this.pickup = AbstractArrow.Pickup.byOrdinal(var1.getByte("pickup"));
+       this.setCritArrow(var1.getBoolean("crit"));
+       this.setPierceLevel(var1.getByte("PierceLevel"));
+       if (var1.contains("SoundEvent", 8)) {
+          this.soundEvent = (SoundEvent)Registry.SOUND_EVENT.getOptional(new ResourceLocation(var1.getString("SoundEvent"))).orElse(this.getDefaultHitGroundSoundEvent());
+       }
+@@ -450,34 +468,40 @@
     }
  
     public void setOwner(@Nullable Entity var1) {
@@ -119,12 +193,11 @@
        if (!this.level.isClientSide && (this.inGround || this.isNoPhysics()) && this.shakeTime <= 0) {
 -         boolean var2 = this.pickup == AbstractArrow.Pickup.ALLOWED || this.pickup == AbstractArrow.Pickup.CREATIVE_ONLY && var1.abilities.instabuild || this.isNoPhysics() && this.getOwner().getUUID() == var1.getUUID();
 -         if (this.pickup == AbstractArrow.Pickup.ALLOWED && !var1.inventory.add(this.getPickupItem())) {
-+         boolean var2 = this.pickup == AbstractArrow.Pickup.ALLOWED || this.pickup == AbstractArrow.Pickup.CREATIVE_ONLY && var1.getAbilities().instabuild || this.isNoPhysics() && this.getOwner().getUUID() == var1.getUUID();
-+         if (this.pickup == AbstractArrow.Pickup.ALLOWED && !var1.getInventory().add(this.getPickupItem())) {
-             var2 = false;
-          }
- 
-          if (var2) {
+-            var2 = false;
+-         }
+-
+-         if (var2) {
++         if (this.tryPickup(var1)) {
              var1.take(this, 1);
 -            this.remove();
 +            this.discard();
@@ -133,6 +206,17 @@
        }
     }
  
++   protected boolean tryPickup(Player var1) {
++      switch(this.pickup) {
++      case ALLOWED:
++         return var1.getInventory().add(this.getPickupItem());
++      case CREATIVE_ONLY:
++         return var1.getAbilities().instabuild;
++      default:
++         return false;
++      }
++   }
++
     protected abstract ItemStack getPickupItem();
  
 -   protected boolean isMovementNoisy() {
@@ -144,7 +228,22 @@
     public void setBaseDamage(double var1) {
        this.baseDamage = var1;
     }
-@@ -567,15 +566,10 @@
+@@ -488,10 +512,14 @@
+ 
+    public void setKnockback(int var1) {
+       this.knockback = var1;
+    }
+ 
++   public int getKnockback() {
++      return this.knockback;
++   }
++
+    public boolean isAttackable() {
+       return false;
+    }
+ 
+    protected float getEyeHeight(Pose var1, EntityDimensions var2) {
+@@ -567,15 +595,10 @@
  
     public void setShotFromCrossbow(boolean var1) {
        this.setFlag(4, var1);

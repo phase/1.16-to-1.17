@@ -1,11 +1,12 @@
 --- net/minecraft/world/level/block/PowderSnowBlock.java
 +++ net/minecraft/world/level/block/PowderSnowBlock.java
-@@ -1,0 +1,103 @@
+@@ -1,0 +1,131 @@
 +package net.minecraft.world.level.block;
 +
 +import java.util.Optional;
 +import java.util.Random;
 +import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
 +import net.minecraft.core.particles.ParticleTypes;
 +import net.minecraft.sounds.SoundEvent;
 +import net.minecraft.sounds.SoundEvents;
@@ -21,6 +22,7 @@
 +import net.minecraft.world.level.LevelAccessor;
 +import net.minecraft.world.level.block.state.BlockBehaviour;
 +import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.pathfinder.PathComputationType;
 +import net.minecraft.world.phys.Vec3;
 +import net.minecraft.world.phys.shapes.CollisionContext;
 +import net.minecraft.world.phys.shapes.EntityCollisionContext;
@@ -28,8 +30,18 @@
 +import net.minecraft.world.phys.shapes.VoxelShape;
 +
 +public class PowderSnowBlock extends Block implements BucketPickup {
++   private static final int HORIZONTAL_PARTICLE_MOMENTUM_FACTOR = 12;
++   private static final float IN_BLOCK_HORIZONTAL_SPEED_MULTIPLIER = 0.9F;
++   private static final float IN_BLOCK_VERTICAL_SPEED_MULTIPLIER = 1.5F;
++   private static final float NUM_BLOCKS_TO_FALL_INTO_BLOCK = 2.5F;
++   private static final VoxelShape FALLING_COLLISION_SHAPE = Shapes.box(0.0D, 0.0D, 0.0D, 1.0D, 0.8999999761581421D, 1.0D);
++
 +   public PowderSnowBlock(BlockBehaviour.Properties var1) {
 +      super(var1);
++   }
++
++   public boolean skipRendering(BlockState var1, BlockState var2, Direction var3) {
++      return var2.is(this) ? true : super.skipRendering(var1, var2, var3);
 +   }
 +
 +   public VoxelShape getOcclusionShape(BlockState var1, BlockGetter var2, BlockPos var3) {
@@ -38,10 +50,15 @@
 +
 +   public void entityInside(BlockState var1, Level var2, BlockPos var3, Entity var4) {
 +      if (!(var4 instanceof LivingEntity) || ((LivingEntity)var4).getFeetBlockState().is(Blocks.POWDER_SNOW)) {
-+         var4.makeStuckInBlock(var1, new Vec3(0.8999999761581421D, 0.9900000095367432D, 0.8999999761581421D));
++         var4.makeStuckInBlock(var1, new Vec3(0.8999999761581421D, 1.5D, 0.8999999761581421D));
 +      }
 +
 +      var4.setIsInPowderSnow(true);
++      if (var4.isOnFire()) {
++         var2.setBlockAndUpdate(var3, Blocks.AIR.defaultBlockState());
++         var2.addDestroyBlockEffect(var3, var1);
++      }
++
 +      if (var2.isClientSide) {
 +         var4.clearFire();
 +      } else {
@@ -58,9 +75,16 @@
 +      if (var4 instanceof EntityCollisionContext) {
 +         EntityCollisionContext var5 = (EntityCollisionContext)var4;
 +         Optional var6 = var5.getEntity();
-+         boolean var7 = var6.isPresent() && var6.get() instanceof FallingBlockEntity;
-+         if (var7 || var6.isPresent() && canEntityWalkOnPowderSnow((Entity)var6.get()) && var4.isAbove(Shapes.block(), var3, false) && !var4.isDescending()) {
-+            return super.getCollisionShape(var1, var2, var3, var4);
++         if (var6.isPresent()) {
++            Entity var7 = (Entity)var6.get();
++            if (var7.fallDistance > 2.5F) {
++               return FALLING_COLLISION_SHAPE;
++            }
++
++            boolean var8 = var7 instanceof FallingBlockEntity;
++            if (var8 || canEntityWalkOnPowderSnow(var7) && var4.isAbove(Shapes.block(), var3, false) && !var4.isDescending()) {
++               return super.getCollisionShape(var1, var2, var3, var4);
++            }
 +         }
 +      }
 +
@@ -102,5 +126,9 @@
 +
 +   public Optional<SoundEvent> getPickupSound() {
 +      return Optional.of(SoundEvents.BUCKET_FILL_POWDER_SNOW);
++   }
++
++   public boolean isPathfindable(BlockState var1, BlockGetter var2, BlockPos var3, PathComputationType var4) {
++      return true;
 +   }
 +}

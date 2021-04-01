@@ -1,0 +1,138 @@
+--- net/minecraft/data/models/blockstates/PropertyDispatch.java
++++ net/minecraft/data/models/blockstates/PropertyDispatch.java
+@@ -73,10 +73,20 @@
+    public static <T1 extends Comparable<T1>, T2 extends Comparable<T2>, T3 extends Comparable<T3>, T4 extends Comparable<T4>, T5 extends Comparable<T5>> PropertyDispatch.C5<T1, T2, T3, T4, T5> properties(Property<T1> var0, Property<T2> var1, Property<T3> var2, Property<T4> var3, Property<T5> var4) {
+       return new PropertyDispatch.C5(var0, var1, var2, var3, var4);
+    }
+ 
+    @FunctionalInterface
++   public interface PentaFunction<P1, P2, P3, P4, P5, R> {
++      R apply(P1 var1, P2 var2, P3 var3, P4 var4, P5 var5);
++   }
++
++   @FunctionalInterface
++   public interface QuadFunction<P1, P2, P3, P4, R> {
++      R apply(P1 var1, P2 var2, P3 var3, P4 var4);
++   }
++
++   @FunctionalInterface
+    public interface TriFunction<P1, P2, P3, R> {
+       R apply(P1 var1, P2 var2, P3 var3);
+    }
+ 
+    public static class C5<T1 extends Comparable<T1>, T2 extends Comparable<T2>, T3 extends Comparable<T3>, T4 extends Comparable<T4>, T5 extends Comparable<T5>> extends PropertyDispatch {
+@@ -105,10 +115,40 @@
+       }
+ 
+       public PropertyDispatch.C5<T1, T2, T3, T4, T5> select(T1 var1, T2 var2, T3 var3, T4 var4, T5 var5, Variant var6) {
+          return this.select(var1, var2, var3, var4, var5, Collections.singletonList(var6));
+       }
++
++      public PropertyDispatch generate(PropertyDispatch.PentaFunction<T1, T2, T3, T4, T5, Variant> var1) {
++         this.property1.getPossibleValues().forEach((var2) -> {
++            this.property2.getPossibleValues().forEach((var3) -> {
++               this.property3.getPossibleValues().forEach((var4) -> {
++                  this.property4.getPossibleValues().forEach((var5) -> {
++                     this.property5.getPossibleValues().forEach((var6) -> {
++                        this.select(var2, var3, var4, var5, var6, (Variant)var1.apply(var2, var3, var4, var5, var6));
++                     });
++                  });
++               });
++            });
++         });
++         return this;
++      }
++
++      public PropertyDispatch generateList(PropertyDispatch.PentaFunction<T1, T2, T3, T4, T5, List<Variant>> var1) {
++         this.property1.getPossibleValues().forEach((var2) -> {
++            this.property2.getPossibleValues().forEach((var3) -> {
++               this.property3.getPossibleValues().forEach((var4) -> {
++                  this.property4.getPossibleValues().forEach((var5) -> {
++                     this.property5.getPossibleValues().forEach((var6) -> {
++                        this.select(var2, var3, var4, var5, var6, (List)var1.apply(var2, var3, var4, var5, var6));
++                     });
++                  });
++               });
++            });
++         });
++         return this;
++      }
+    }
+ 
+    public static class C4<T1 extends Comparable<T1>, T2 extends Comparable<T2>, T3 extends Comparable<T3>, T4 extends Comparable<T4>> extends PropertyDispatch {
+       private final Property<T1> property1;
+       private final Property<T2> property2;
+@@ -133,10 +173,36 @@
+       }
+ 
+       public PropertyDispatch.C4<T1, T2, T3, T4> select(T1 var1, T2 var2, T3 var3, T4 var4, Variant var5) {
+          return this.select(var1, var2, var3, var4, Collections.singletonList(var5));
+       }
++
++      public PropertyDispatch generate(PropertyDispatch.QuadFunction<T1, T2, T3, T4, Variant> var1) {
++         this.property1.getPossibleValues().forEach((var2) -> {
++            this.property2.getPossibleValues().forEach((var3) -> {
++               this.property3.getPossibleValues().forEach((var4) -> {
++                  this.property4.getPossibleValues().forEach((var5) -> {
++                     this.select(var2, var3, var4, var5, (Variant)var1.apply(var2, var3, var4, var5));
++                  });
++               });
++            });
++         });
++         return this;
++      }
++
++      public PropertyDispatch generateList(PropertyDispatch.QuadFunction<T1, T2, T3, T4, List<Variant>> var1) {
++         this.property1.getPossibleValues().forEach((var2) -> {
++            this.property2.getPossibleValues().forEach((var3) -> {
++               this.property3.getPossibleValues().forEach((var4) -> {
++                  this.property4.getPossibleValues().forEach((var5) -> {
++                     this.select(var2, var3, var4, var5, (List)var1.apply(var2, var3, var4, var5));
++                  });
++               });
++            });
++         });
++         return this;
++      }
+    }
+ 
+    public static class C3<T1 extends Comparable<T1>, T2 extends Comparable<T2>, T3 extends Comparable<T3>> extends PropertyDispatch {
+       private final Property<T1> property1;
+       private final Property<T2> property2;
+@@ -170,10 +236,21 @@
+                });
+             });
+          });
+          return this;
+       }
++
++      public PropertyDispatch generateList(PropertyDispatch.TriFunction<T1, T2, T3, List<Variant>> var1) {
++         this.property1.getPossibleValues().forEach((var2) -> {
++            this.property2.getPossibleValues().forEach((var3) -> {
++               this.property3.getPossibleValues().forEach((var4) -> {
++                  this.select(var2, var3, var4, (List)var1.apply(var2, var3, var4));
++               });
++            });
++         });
++         return this;
++      }
+    }
+ 
+    public static class C2<T1 extends Comparable<T1>, T2 extends Comparable<T2>> extends PropertyDispatch {
+       private final Property<T1> property1;
+       private final Property<T2> property2;
+@@ -241,7 +318,14 @@
+          this.property1.getPossibleValues().forEach((var2) -> {
+             this.select(var2, (Variant)var1.apply(var2));
+          });
+          return this;
+       }
++
++      public PropertyDispatch generateList(Function<T1, List<Variant>> var1) {
++         this.property1.getPossibleValues().forEach((var2) -> {
++            this.select(var2, (List)var1.apply(var2));
++         });
++         return this;
++      }
+    }
+ }

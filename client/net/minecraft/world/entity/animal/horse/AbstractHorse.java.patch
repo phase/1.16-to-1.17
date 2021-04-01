@@ -25,7 +25,7 @@
  import net.minecraft.world.entity.ai.attributes.Attributes;
  import net.minecraft.world.entity.ai.goal.BreedGoal;
  import net.minecraft.world.entity.ai.goal.FloatGoal;
-@@ -54,20 +55,20 @@
+@@ -54,31 +55,43 @@
  import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
  import net.minecraft.world.entity.ai.targeting.TargetingConditions;
  import net.minecraft.world.entity.animal.Animal;
@@ -46,8 +46,44 @@
  import net.minecraft.world.phys.Vec3;
  
  public abstract class AbstractHorse extends Animal implements ContainerListener, PlayerRideableJumping, Saddleable {
++   public static final int EQUIPMENT_SLOT_OFFSET = 400;
++   public static final int CHEST_SLOT_OFFSET = 499;
++   public static final int INVENTORY_SLOT_OFFSET = 500;
     private static final Predicate<LivingEntity> PARENT_HORSE_SELECTOR = (var0) -> {
-@@ -228,26 +229,26 @@
+       return var0 instanceof AbstractHorse && ((AbstractHorse)var0).isBred();
+    };
+    private static final TargetingConditions MOMMY_TARGETING;
+    private static final Ingredient FOOD_ITEMS;
+    private static final EntityDataAccessor<Byte> DATA_ID_FLAGS;
+    private static final EntityDataAccessor<Optional<UUID>> DATA_ID_OWNER_UUID;
++   private static final int FLAG_TAME = 2;
++   private static final int FLAG_SADDLE = 4;
++   private static final int FLAG_BRED = 8;
++   private static final int FLAG_EATING = 16;
++   private static final int FLAG_STANDING = 32;
++   private static final int FLAG_OPEN_MOUTH = 64;
++   public static final int INV_SLOT_SADDLE = 0;
++   public static final int INV_SLOT_ARMOR = 1;
++   public static final int INV_BASE_COUNT = 2;
+    private int eatingCounter;
+    private int mouthCounter;
+    private int standCounter;
+    public int tailCounter;
+    public int sprintCounter;
+@@ -208,11 +221,11 @@
+    public void setTemper(int var1) {
+       this.temper = var1;
+    }
+ 
+    public int modifyTemper(int var1) {
+-      int var2 = Mth.clamp(this.getTemper() + var1, 0, this.getMaxTemper());
++      int var2 = Mth.clamp((int)(this.getTemper() + var1), (int)0, (int)this.getMaxTemper());
+       this.setTemper(var2);
+       return var2;
+    }
+ 
+    public boolean isPushable() {
+@@ -228,26 +241,26 @@
           }
        }
  
@@ -82,7 +118,7 @@
  
           this.playBlockFallSound();
           return true;
-@@ -389,11 +390,11 @@
+@@ -389,11 +402,11 @@
  
     }
  
@@ -95,7 +131,7 @@
  
        if (this.level.isClientSide) {
           return InteractionResult.CONSUME;
-@@ -405,35 +406,34 @@
+@@ -405,35 +418,34 @@
     protected boolean handleEating(Player var1, ItemStack var2) {
        boolean var3 = false;
        float var4 = 0.0F;
@@ -137,7 +173,7 @@
           var6 = 10;
           if (!this.level.isClientSide && this.isTamed() && this.getAge() == 0 && !this.isInLove()) {
              var3 = true;
-@@ -462,10 +462,11 @@
+@@ -462,10 +474,11 @@
           }
        }
  
@@ -149,7 +185,7 @@
        return var3;
     }
  
-@@ -765,11 +766,11 @@
+@@ -765,11 +778,11 @@
           this.setOwnerUUID(var2);
        }
  
@@ -162,7 +198,7 @@
        }
  
        this.updateContainerEquipment();
-@@ -782,15 +783,15 @@
+@@ -782,15 +795,15 @@
     protected boolean canParent() {
        return !this.isVehicle() && !this.isPassenger() && this.isTamed() && !this.isBaby() && this.getHealth() >= this.getMaxHealth() && this.isInLove();
     }
@@ -180,7 +216,7 @@
        double var5 = this.getAttributeBaseValue(Attributes.JUMP_STRENGTH) + var1.getAttributeBaseValue(Attributes.JUMP_STRENGTH) + this.generateRandomJumpStrength();
        var2.getAttribute(Attributes.JUMP_STRENGTH).setBaseValue(var5 / 3.0D);
        double var7 = this.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) + var1.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) + this.generateRandomSpeed();
-@@ -917,36 +918,55 @@
+@@ -917,36 +930,55 @@
  
     public boolean isArmor(ItemStack var1) {
        return false;
@@ -255,7 +291,7 @@
     @Nullable
     private Vec3 getDismountLocationInDirection(Vec3 var1, LivingEntity var2) {
        double var3 = this.getX() + var1.x;
-@@ -1001,17 +1021,21 @@
+@@ -1001,17 +1033,21 @@
     }
  
     @Nullable

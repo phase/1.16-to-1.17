@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java
 +++ net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java
-@@ -29,20 +29,20 @@
+@@ -29,20 +29,25 @@
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.Vec3;
  import org.apache.logging.log4j.LogManager;
@@ -9,6 +9,11 @@
 -public class TheEndGatewayBlockEntity extends TheEndPortalBlockEntity implements TickableBlockEntity {
 +public class TheEndGatewayBlockEntity extends TheEndPortalBlockEntity {
     private static final Logger LOGGER = LogManager.getLogger();
++   private static final int SPAWN_TIME = 200;
++   private static final int COOLDOWN_TIME = 40;
++   private static final int ATTENTION_INTERVAL = 2400;
++   private static final int EVENT_COOLDOWN = 1;
++   private static final int GATEWAY_HEIGHT_ABOVE_SURFACE = 10;
     private long age;
     private int teleportCooldown;
     @Nullable
@@ -24,7 +29,7 @@
     public CompoundTag save(CompoundTag var1) {
        super.save(var1);
        var1.putLong("Age", this.age);
-@@ -55,43 +55,47 @@
+@@ -55,43 +60,50 @@
        }
  
        return var1;
@@ -39,7 +44,10 @@
 +      super.load(var1);
 +      this.age = var1.getLong("Age");
 +      if (var1.contains("ExitPortal", 10)) {
-+         this.exitPortal = NbtUtils.readBlockPos(var1.getCompound("ExitPortal"));
++         BlockPos var2 = NbtUtils.readBlockPos(var1.getCompound("ExitPortal"));
++         if (Level.isInSpawnableBounds(var2)) {
++            this.exitPortal = var2;
++         }
        }
  
 -      this.exactTeleport = var2.getBoolean("ExactTeleport");
@@ -94,7 +102,7 @@
     }
  
     public static boolean canEntityTeleport(Entity var0) {
-@@ -121,15 +125,15 @@
+@@ -121,15 +133,15 @@
  
     public CompoundTag getUpdateTag() {
        return this.save(new CompoundTag());
@@ -115,7 +123,7 @@
     }
  
     public boolean triggerEvent(int var1, int var2) {
-@@ -139,88 +143,101 @@
+@@ -139,88 +151,101 @@
        } else {
           return super.triggerEvent(var1, var2);
        }
@@ -265,7 +273,7 @@
                    if (var9.isCollisionShapeFullBlock(var0, var8) && (var3 || !var9.is(Blocks.BEDROCK))) {
                       var4 = var8;
                       break;
-@@ -275,16 +292,16 @@
+@@ -275,16 +300,16 @@
           var5 = var9;
           var6 = var13;
        }

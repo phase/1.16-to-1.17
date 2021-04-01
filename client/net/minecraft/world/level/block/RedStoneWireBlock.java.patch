@@ -24,9 +24,17 @@
  import net.minecraft.world.phys.shapes.VoxelShape;
  
  public class RedStoneWireBlock extends Block {
-@@ -43,12 +45,12 @@
+@@ -40,15 +42,21 @@
+    public static final EnumProperty<RedstoneSide> EAST;
+    public static final EnumProperty<RedstoneSide> SOUTH;
+    public static final EnumProperty<RedstoneSide> WEST;
     public static final IntegerProperty POWER;
     public static final Map<Direction, EnumProperty<RedstoneSide>> PROPERTY_BY_DIRECTION;
++   protected static final int H = 1;
++   protected static final int W = 3;
++   protected static final int E = 13;
++   protected static final int N = 3;
++   protected static final int S = 13;
     private static final VoxelShape SHAPE_DOT;
     private static final Map<Direction, VoxelShape> SHAPES_FLOOR;
     private static final Map<Direction, VoxelShape> SHAPES_UP;
@@ -34,12 +42,13 @@
 -   private static final Vector3f[] COLORS;
 +   private static final Map<BlockState, VoxelShape> SHAPES_CACHE;
 +   private static final Vec3[] COLORS;
++   private static final float PARTICLE_DENSITY = 0.2F;
     private final BlockState crossState;
     private boolean shouldSignal = true;
  
     public RedStoneWireBlock(BlockBehaviour.Properties var1) {
        super(var1);
-@@ -57,11 +59,11 @@
+@@ -57,11 +65,11 @@
        UnmodifiableIterator var2 = this.getStateDefinition().getPossibleStates().iterator();
  
        while(var2.hasNext()) {
@@ -52,7 +61,7 @@
  
     }
  
-@@ -81,11 +83,11 @@
+@@ -81,11 +89,11 @@
  
        return var2;
     }
@@ -65,7 +74,30 @@
     public BlockState getStateForPlacement(BlockPlaceContext var1) {
        return this.getConnectionState(var1.getLevel(), this.crossState, var1.getClickedPos());
     }
-@@ -393,23 +395,23 @@
+@@ -161,20 +169,20 @@
+       Iterator var7 = Direction.Plane.HORIZONTAL.iterator();
+ 
+       while(var7.hasNext()) {
+          Direction var8 = (Direction)var7.next();
+          RedstoneSide var9 = (RedstoneSide)var1.getValue((Property)PROPERTY_BY_DIRECTION.get(var8));
+-         if (var9 != RedstoneSide.NONE && !var2.getBlockState(var6.setWithOffset(var3, var8)).is(this)) {
++         if (var9 != RedstoneSide.NONE && !var2.getBlockState(var6.setWithOffset(var3, (Direction)var8)).is(this)) {
+             var6.move(Direction.DOWN);
+             BlockState var10 = var2.getBlockState(var6);
+             if (!var10.is(Blocks.OBSERVER)) {
+                BlockPos var11 = var6.relative(var8.getOpposite());
+                BlockState var12 = var10.updateShape(var8.getOpposite(), var2.getBlockState(var11), var2, var6, var11);
+                updateOrDestroy(var10, var12, var2, var6, var4, var5);
+             }
+ 
+-            var6.setWithOffset(var3, var8).move(Direction.UP);
++            var6.setWithOffset(var3, (Direction)var8).move(Direction.UP);
+             BlockState var14 = var2.getBlockState(var6);
+             if (!var14.is(Blocks.OBSERVER)) {
+                BlockPos var15 = var6.relative(var8.getOpposite());
+                BlockState var13 = var14.updateShape(var8.getOpposite(), var2.getBlockState(var15), var2, var6, var15);
+                updateOrDestroy(var14, var13, var2, var6, var4, var5);
+@@ -393,23 +401,23 @@
     public boolean isSignalSource(BlockState var1) {
        return this.shouldSignal;
     }
@@ -93,7 +125,7 @@
  
     public void animateTick(BlockState var1, Level var2, BlockPos var3, Random var4) {
        int var5 = (Integer)var1.getValue(POWER);
-@@ -461,11 +463,11 @@
+@@ -461,11 +469,11 @@
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
        var1.add(NORTH, EAST, SOUTH, WEST, POWER);
     }
@@ -106,7 +138,7 @@
           if (isCross(var1) || isDot(var1)) {
              BlockState var7 = isCross(var1) ? this.defaultBlockState() : this.crossState;
              var7 = (BlockState)var7.setValue(POWER, var1.getValue(POWER));
-@@ -502,17 +504,18 @@
+@@ -502,17 +510,18 @@
        POWER = BlockStateProperties.POWER;
        PROPERTY_BY_DIRECTION = Maps.newEnumMap(ImmutableMap.of(Direction.NORTH, NORTH, Direction.EAST, EAST, Direction.SOUTH, SOUTH, Direction.WEST, WEST));
        SHAPE_DOT = Block.box(3.0D, 0.0D, 3.0D, 13.0D, 1.0D, 13.0D);

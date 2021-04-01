@@ -44,7 +44,18 @@
  import net.minecraft.core.particles.ParticleTypes;
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.server.packs.resources.PreparableReloadListener;
-@@ -68,10 +72,11 @@
+@@ -58,20 +62,22 @@
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+ public class ParticleEngine implements PreparableReloadListener {
++   private static final int MAX_PARTICLES_PER_LAYER = 16384;
+    private static final List<ParticleRenderType> RENDER_ORDER;
+    protected ClientLevel level;
+    private final Map<ParticleRenderType, Queue<Particle>> particles = Maps.newIdentityHashMap();
+    private final Queue<TrackingEmitter> trackingEmitters = Queues.newArrayDeque();
+    private final TextureManager textureManager;
     private final Random random = new Random();
     private final Int2ObjectMap<ParticleProvider<?>> providers = new Int2ObjectOpenHashMap();
     private final Queue<Particle> particlesToAdd = Queues.newArrayDeque();
@@ -56,7 +67,21 @@
        this.textureAtlas = new TextureAtlas(TextureAtlas.LOCATION_PARTICLES);
        var2.register((ResourceLocation)this.textureAtlas.location(), (AbstractTexture)this.textureAtlas);
        this.level = var1;
-@@ -100,10 +105,11 @@
+@@ -80,11 +86,12 @@
+    }
+ 
+    private void registerProviders() {
+       this.register(ParticleTypes.AMBIENT_ENTITY_EFFECT, (ParticleEngine.SpriteParticleRegistration)(SpellParticle.AmbientMobProvider::new));
+       this.register(ParticleTypes.ANGRY_VILLAGER, (ParticleEngine.SpriteParticleRegistration)(HeartParticle.AngryVillagerProvider::new));
+-      this.register(ParticleTypes.BARRIER, (ParticleProvider)(new BarrierParticle.Provider()));
++      this.register(ParticleTypes.BARRIER, (ParticleProvider)(new StationaryItemParticle.BarrierProvider()));
++      this.register(ParticleTypes.LIGHT, (ParticleProvider)(new StationaryItemParticle.LightProvider()));
+       this.register(ParticleTypes.BLOCK, (ParticleProvider)(new TerrainParticle.Provider()));
+       this.register(ParticleTypes.BUBBLE, (ParticleEngine.SpriteParticleRegistration)(BubbleParticle.Provider::new));
+       this.register(ParticleTypes.BUBBLE_COLUMN_UP, (ParticleEngine.SpriteParticleRegistration)(BubbleColumnUpParticle.Provider::new));
+       this.register(ParticleTypes.BUBBLE_POP, (ParticleEngine.SpriteParticleRegistration)(BubblePopParticle.Provider::new));
+       this.register(ParticleTypes.CAMPFIRE_COSY_SMOKE, (ParticleEngine.SpriteParticleRegistration)(CampfireSmokeParticle.CosyProvider::new));
+@@ -100,10 +107,11 @@
        this.register(ParticleTypes.FALLING_LAVA, (ParticleEngine.SpriteParticleRegistration)(DripParticle.LavaFallProvider::new));
        this.register(ParticleTypes.LANDING_LAVA, (ParticleEngine.SpriteParticleRegistration)(DripParticle.LavaLandProvider::new));
        this.register(ParticleTypes.DRIPPING_WATER, (ParticleEngine.SpriteParticleRegistration)(DripParticle.WaterHangProvider::new));
@@ -68,7 +93,7 @@
        this.register(ParticleTypes.ENCHANTED_HIT, (ParticleEngine.SpriteParticleRegistration)(CritParticle.MagicProvider::new));
        this.register(ParticleTypes.ENCHANT, (ParticleEngine.SpriteParticleRegistration)(EnchantmentTableParticle.Provider::new));
        this.register(ParticleTypes.END_ROD, (ParticleEngine.SpriteParticleRegistration)(EndRodParticle.Provider::new));
-@@ -131,10 +137,11 @@
+@@ -131,10 +139,11 @@
        this.register(ParticleTypes.POOF, (ParticleEngine.SpriteParticleRegistration)(ExplodeParticle.Provider::new));
        this.register(ParticleTypes.PORTAL, (ParticleEngine.SpriteParticleRegistration)(PortalParticle.Provider::new));
        this.register(ParticleTypes.RAIN, (ParticleEngine.SpriteParticleRegistration)(WaterDropParticle.Provider::new));
@@ -80,7 +105,7 @@
        this.register(ParticleTypes.TOTEM_OF_UNDYING, (ParticleEngine.SpriteParticleRegistration)(TotemParticle.Provider::new));
        this.register(ParticleTypes.SQUID_INK, (ParticleEngine.SpriteParticleRegistration)(SquidInkParticle.Provider::new));
        this.register(ParticleTypes.UNDERWATER, (ParticleEngine.SpriteParticleRegistration)(SuspendedParticle.UnderwaterProvider::new));
-@@ -142,18 +149,28 @@
+@@ -142,18 +151,32 @@
        this.register(ParticleTypes.WITCH, (ParticleEngine.SpriteParticleRegistration)(SpellParticle.WitchProvider::new));
        this.register(ParticleTypes.DRIPPING_HONEY, (ParticleEngine.SpriteParticleRegistration)(DripParticle.HoneyHangProvider::new));
        this.register(ParticleTypes.FALLING_HONEY, (ParticleEngine.SpriteParticleRegistration)(DripParticle.HoneyFallProvider::new));
@@ -103,13 +128,17 @@
 +      this.register(ParticleTypes.FALLING_DRIPSTONE_LAVA, (ParticleEngine.SpriteParticleRegistration)(DripParticle.DripstoneLavaFallProvider::new));
 +      this.register(ParticleTypes.VIBRATION, VibrationSignalParticle.Provider::new);
 +      this.register(ParticleTypes.GLOW_SQUID_INK, (ParticleEngine.SpriteParticleRegistration)(SquidInkParticle.GlowInkProvider::new));
-+      this.register(ParticleTypes.GLOW, (ParticleEngine.SpriteParticleRegistration)(GlowParticle.Provider::new));
++      this.register(ParticleTypes.GLOW, (ParticleEngine.SpriteParticleRegistration)(GlowParticle.GlowSquidProvider::new));
++      this.register(ParticleTypes.WAX_ON, (ParticleEngine.SpriteParticleRegistration)(GlowParticle.WaxOnProvider::new));
++      this.register(ParticleTypes.WAX_OFF, (ParticleEngine.SpriteParticleRegistration)(GlowParticle.WaxOffProvider::new));
++      this.register(ParticleTypes.ELECTRIC_SPARK, (ParticleEngine.SpriteParticleRegistration)(GlowParticle.ElectricSparkProvider::new));
++      this.register(ParticleTypes.SCRAPE, (ParticleEngine.SpriteParticleRegistration)(GlowParticle.ScrapeProvider::new));
     }
  
     private <T extends ParticleOptions> void register(ParticleType<T> var1, ParticleProvider<T> var2) {
        this.providers.put(Registry.PARTICLE_TYPE.getId(var1), var2);
     }
-@@ -304,11 +321,20 @@
+@@ -304,11 +327,20 @@
        ParticleProvider var14 = (ParticleProvider)this.providers.get(Registry.PARTICLE_TYPE.getId(var1.getType()));
        return var14 == null ? null : var14.createParticle(var1, this.level, var2, var4, var6, var8, var10, var12);
     }
@@ -131,7 +160,7 @@
     public void tick() {
        this.particles.forEach((var1x, var2x) -> {
           this.level.getProfiler().push(var1x.toString());
-@@ -347,17 +373,24 @@
+@@ -347,17 +379,24 @@
  
           while(var2.hasNext()) {
              Particle var3 = (Particle)var2.next();
@@ -156,7 +185,7 @@
           var1.tick();
        } catch (Throwable var5) {
           CrashReport var3 = CrashReport.forThrowable(var5, "Ticking Particle");
-@@ -369,65 +402,64 @@
+@@ -369,65 +408,64 @@
        }
     }
  
@@ -252,7 +281,7 @@
     public void destroy(BlockPos var1, BlockState var2) {
        if (!var2.isAir()) {
           VoxelShape var3 = var2.getShape(this.level, var1);
-@@ -447,11 +479,11 @@
+@@ -447,11 +485,11 @@
                       double var29 = ((double)var25 + 0.5D) / (double)var22;
                       double var31 = ((double)var26 + 0.5D) / (double)var23;
                       double var33 = var27 * var15 + var3x;
@@ -265,7 +294,7 @@
              }
  
           });
-@@ -491,18 +523,22 @@
+@@ -491,18 +529,22 @@
  
           if (var2 == Direction.EAST) {
              var9 = (double)var4 + var8.maxX + 0.10000000149011612D;

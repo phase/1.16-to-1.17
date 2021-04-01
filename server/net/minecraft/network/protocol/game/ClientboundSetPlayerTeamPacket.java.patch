@@ -1,6 +1,6 @@
 --- net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
 +++ net/minecraft/network/protocol/game/ClientboundSetPlayerTeamPacket.java
-@@ -1,133 +1,128 @@
+@@ -1,133 +1,203 @@
  package net.minecraft.network.protocol.game;
  
 -import com.google.common.collect.Lists;
@@ -9,6 +9,7 @@
  import java.util.Collection;
 -import java.util.Iterator;
 +import java.util.Optional;
++import javax.annotation.Nullable;
  import net.minecraft.ChatFormatting;
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.chat.Component;
@@ -25,6 +26,13 @@
 -   private String nametagVisibility;
 -   private String collisionRule;
 -   private ChatFormatting color;
++   private static final int METHOD_ADD = 0;
++   private static final int METHOD_REMOVE = 1;
++   private static final int METHOD_CHANGE = 2;
++   private static final int METHOD_JOIN = 3;
++   private static final int METHOD_LEAVE = 4;
++   private static final int MAX_VISIBILITY_LENGTH = 40;
++   private static final int MAX_COLLISION_LENGTH = 40;
 +   private final int method;
 +   private final String name;
     private final Collection<String> players;
@@ -74,7 +82,7 @@
 +   }
 +
 +   public static ClientboundSetPlayerTeamPacket createPlayerPacket(PlayerTeam var0, String var1, ClientboundSetPlayerTeamPacket.Action var2) {
-+      return new ClientboundSetPlayerTeamPacket(var0.getName(), var2 == ClientboundSetPlayerTeamPacket.Action.ADD ? 3 : 1, Optional.empty(), ImmutableList.of(var1));
++      return new ClientboundSetPlayerTeamPacket(var0.getName(), var2 == ClientboundSetPlayerTeamPacket.Action.ADD ? 3 : 4, Optional.empty(), ImmutableList.of(var1));
 +   }
 +
 +   public ClientboundSetPlayerTeamPacket(FriendlyByteBuf var1) {
@@ -139,8 +147,47 @@
 +      return var0 == 0 || var0 == 2;
 +   }
 +
++   @Nullable
++   public ClientboundSetPlayerTeamPacket.Action getPlayerAction() {
++      switch(this.method) {
++      case 0:
++      case 3:
++         return ClientboundSetPlayerTeamPacket.Action.ADD;
++      case 1:
++      case 2:
++      default:
++         return null;
++      case 4:
++         return ClientboundSetPlayerTeamPacket.Action.REMOVE;
++      }
++   }
++
++   @Nullable
++   public ClientboundSetPlayerTeamPacket.Action getTeamAction() {
++      switch(this.method) {
++      case 0:
++         return ClientboundSetPlayerTeamPacket.Action.ADD;
++      case 1:
++         return ClientboundSetPlayerTeamPacket.Action.REMOVE;
++      default:
++         return null;
++      }
++   }
++
 +   public void handle(ClientGamePacketListener var1) {
 +      var1.handleSetPlayerTeamPacket(this);
++   }
++
++   public String getName() {
++      return this.name;
++   }
++
++   public Collection<String> getPlayers() {
++      return this.players;
++   }
++
++   public Optional<ClientboundSetPlayerTeamPacket.Parameters> getParameters() {
++      return this.parameters;
 +   }
 +
 +   public static class Parameters {
@@ -174,18 +221,42 @@
  
 -      if (this.method == 0 || this.method == 3 || this.method == 4) {
 -         int var2 = var1.readVarInt();
--
++      public Component getDisplayName() {
++         return this.displayName;
++      }
+ 
 -         for(int var3 = 0; var3 < var2; ++var3) {
 -            this.players.add(var1.readUtf(40));
 -         }
--      }
--
++      public int getOptions() {
++         return this.options;
+       }
+ 
 -   }
--
++      public ChatFormatting getColor() {
++         return this.color;
++      }
+ 
 -   public void write(FriendlyByteBuf var1) throws IOException {
 -      var1.writeUtf(this.name);
 -      var1.writeByte(this.method);
 -      if (this.method == 0 || this.method == 2) {
++      public String getNametagVisibility() {
++         return this.nametagVisibility;
++      }
++
++      public String getCollisionRule() {
++         return this.collisionRule;
++      }
++
++      public Component getPlayerPrefix() {
++         return this.playerPrefix;
++      }
++
++      public Component getPlayerSuffix() {
++         return this.playerSuffix;
++      }
++
 +      public void write(FriendlyByteBuf var1) {
           var1.writeComponent(this.displayName);
           var1.writeByte(this.options);

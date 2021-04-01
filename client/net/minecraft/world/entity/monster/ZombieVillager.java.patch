@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/monster/ZombieVillager.java
 +++ net/minecraft/world/entity/monster/ZombieVillager.java
-@@ -39,12 +39,13 @@
+@@ -39,17 +39,22 @@
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.trading.MerchantOffers;
  import net.minecraft.world.level.Level;
@@ -15,7 +15,16 @@
  public class ZombieVillager extends Zombie implements VillagerDataHolder {
     private static final EntityDataAccessor<Boolean> DATA_CONVERTING_ID;
     private static final EntityDataAccessor<VillagerData> DATA_VILLAGER_DATA;
-@@ -128,20 +129,21 @@
++   private static final int VILLAGER_CONVERSION_WAIT_MIN = 3600;
++   private static final int VILLAGER_CONVERSION_WAIT_MAX = 6000;
++   private static final int MAX_SPECIAL_BLOCKS_COUNT = 14;
++   private static final int SPECIAL_BLOCK_RADIUS = 4;
+    private int villagerConversionTime;
+    private UUID conversionStarter;
+    private Tag gossips;
+    private CompoundTag tradeOffers;
+    private int villagerXp;
+@@ -128,20 +133,21 @@
        super.tick();
     }
  
@@ -39,7 +48,7 @@
              return InteractionResult.CONSUME;
           }
        } else {
-@@ -189,11 +191,11 @@
+@@ -189,11 +195,11 @@
        for(int var5 = 0; var5 < var4; ++var5) {
           EquipmentSlot var6 = var3[var5];
           ItemStack var7 = this.getItemBySlot(var6);
@@ -52,7 +61,7 @@
                 if (var8 > 1.0D) {
                    this.spawnAtLocation(var7);
                 }
-@@ -234,12 +236,12 @@
+@@ -234,12 +240,12 @@
           BlockPos.MutableBlockPos var3 = new BlockPos.MutableBlockPos();
  
           for(int var4 = (int)this.getX() - 4; var4 < (int)this.getX() + 4 && var2 < 14; ++var4) {
@@ -67,3 +76,18 @@
                       }
  
                       ++var2;
+@@ -301,10 +307,14 @@
+ 
+    public VillagerData getVillagerData() {
+       return (VillagerData)this.entityData.get(DATA_VILLAGER_DATA);
+    }
+ 
++   public int getVillagerXp() {
++      return this.villagerXp;
++   }
++
+    public void setVillagerXp(int var1) {
+       this.villagerXp = var1;
+    }
+ 
+    static {

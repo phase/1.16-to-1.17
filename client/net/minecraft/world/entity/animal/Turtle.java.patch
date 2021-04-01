@@ -104,6 +104,19 @@
     public float getWalkTargetValue(BlockPos var1, LevelReader var2) {
        if (!this.isGoingHome() && var2.getFluidState(var1).is(FluidTags.WATER)) {
           return 10.0F;
+@@ -271,11 +268,11 @@
+    public void aiStep() {
+       super.aiStep();
+       if (this.isAlive() && this.isLayingEgg() && this.layEggCounter >= 1 && this.layEggCounter % 5 == 0) {
+          BlockPos var1 = this.blockPosition();
+          if (TurtleEggBlock.onSand(this.level, var1)) {
+-            this.level.levelEvent(2001, var1, Block.getId(Blocks.SAND.defaultBlockState()));
++            this.level.levelEvent(2001, var1, Block.getId(this.level.getBlockState(var1.below())));
+          }
+       }
+ 
+    }
+ 
 @@ -314,10 +311,11 @@
        HAS_EGG = SynchedEntityData.defineId(Turtle.class, EntityDataSerializers.BOOLEAN);
        LAYING_EGG = SynchedEntityData.defineId(Turtle.class, EntityDataSerializers.BOOLEAN);
@@ -129,7 +142,19 @@
  
        public boolean isStableDestination(BlockPos var1) {
           if (this.mob instanceof Turtle) {
-@@ -495,11 +493,11 @@
+@@ -390,10 +388,11 @@
+          }
+       }
+    }
+ 
+    static class TurtleGoToWaterGoal extends MoveToBlockGoal {
++      private static final int GIVE_UP_TICKS = 1200;
+       private final Turtle turtle;
+ 
+       private TurtleGoToWaterGoal(Turtle var1, double var2) {
+          super(var1, var1.isBaby() ? 2.0D : var2, 24);
+          this.turtle = var1;
+@@ -495,11 +494,11 @@
              var1 = this.partner.getLoveCause();
           }
  
@@ -142,7 +167,7 @@
           this.turtle.setHasEgg(true);
           this.animal.resetLove();
           this.partner.resetLove();
-@@ -509,64 +507,10 @@
+@@ -509,69 +508,16 @@
           }
  
        }
@@ -207,7 +232,13 @@
        private final double speedModifier;
        private boolean stuck;
        private int closeToHomeTryTicks;
-@@ -609,17 +553,17 @@
++      private static final int GIVE_UP_TICKS = 600;
+ 
+       TurtleGoHomeGoal(Turtle var1, double var2) {
+          this.turtle = var1;
+          this.speedModifier = var2;
+       }
+@@ -609,17 +555,17 @@
              ++this.closeToHomeTryTicks;
           }
  
@@ -228,7 +259,7 @@
              if (var4 == null) {
                 this.stuck = true;
                 return;
-@@ -663,20 +607,20 @@
+@@ -663,20 +609,20 @@
        }
  
        public void tick() {

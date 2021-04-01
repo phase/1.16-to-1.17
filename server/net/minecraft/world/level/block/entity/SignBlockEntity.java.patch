@@ -1,8 +1,10 @@
 --- net/minecraft/world/level/block/entity/SignBlockEntity.java
 +++ net/minecraft/world/level/block/entity/SignBlockEntity.java
-@@ -2,10 +2,11 @@
+@@ -1,11 +1,13 @@
+ package net.minecraft.world.level.block.entity;
  
  import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import java.util.function.Function;
  import javax.annotation.Nullable;
  import net.minecraft.commands.CommandSource;
  import net.minecraft.commands.CommandSourceStack;
@@ -12,12 +14,13 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.ComponentUtils;
  import net.minecraft.network.chat.MutableComponent;
-@@ -21,64 +22,106 @@
+@@ -21,64 +23,125 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.Vec2;
  import net.minecraft.world.phys.Vec3;
  
  public class SignBlockEntity extends BlockEntity {
++   public static final int LINES = 4;
 +   private static final String[] RAW_TEXT_FIELD_NAMES = new String[]{"Text1", "Text2", "Text3", "Text4"};
 +   private static final String[] FILTERED_TEXT_FIELD_NAMES = new String[]{"FilteredText1", "FilteredText2", "FilteredText3", "FilteredText4"};
     private final Component[] messages;
@@ -27,6 +30,7 @@
 -   private final FormattedCharSequence[] renderMessages;
 +   @Nullable
 +   private FormattedCharSequence[] renderMessages;
++   private boolean renderMessagedFiltered;
     private DyeColor color;
 +   private boolean hasGlowingText;
  
@@ -120,6 +124,10 @@
 +      return TextComponent.EMPTY;
 +   }
 +
++   public Component getMessage(int var1, boolean var2) {
++      return this.getMessages(var2)[var1];
++   }
++
     public void setMessage(int var1, Component var2) {
 +      this.setMessage(var1, var2, var2);
 +   }
@@ -131,6 +139,19 @@
 +      this.renderMessages = null;
     }
  
++   public FormattedCharSequence[] getRenderMessages(boolean var1, Function<Component, FormattedCharSequence> var2) {
++      if (this.renderMessages == null || this.renderMessagedFiltered != var1) {
++         this.renderMessagedFiltered = var1;
++         this.renderMessages = new FormattedCharSequence[4];
++
++         for(int var3 = 0; var3 < 4; ++var3) {
++            this.renderMessages[var3] = (FormattedCharSequence)var2.apply(this.getMessage(var3, var1));
++         }
++      }
++
++      return this.renderMessages;
++   }
++
 +   private Component[] getMessages(boolean var1) {
 +      return var1 ? this.filteredMessages : this.messages;
 +   }
@@ -140,7 +161,23 @@
        return new ClientboundBlockEntityDataPacket(this.worldPosition, 9, this.getUpdateTag());
     }
  
-@@ -100,22 +143,20 @@
+@@ -92,30 +155,36 @@
+ 
+    public boolean isEditable() {
+       return this.isEditable;
+    }
+ 
++   public void setEditable(boolean var1) {
++      this.isEditable = var1;
++      if (!var1) {
++         this.playerWhoMayEdit = null;
++      }
++
++   }
++
+    public void setAllowedPlayerEditor(Player var1) {
+       this.playerWhoMayEdit = var1;
+    }
  
     public Player getPlayerWhoMayEdit() {
        return this.playerWhoMayEdit;
@@ -169,7 +206,7 @@
  
        return true;
     }
-@@ -131,13 +172,31 @@
+@@ -131,13 +200,31 @@
     }
  
     public boolean setColor(DyeColor var1) {

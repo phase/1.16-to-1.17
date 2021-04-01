@@ -1,9 +1,12 @@
 --- net/minecraft/world/level/block/HoneyBlock.java
 +++ net/minecraft/world/level/block/HoneyBlock.java
-@@ -2,10 +2,11 @@
+@@ -1,11 +1,14 @@
+ package net.minecraft.world.level.block;
  
  import net.minecraft.advancements.CriteriaTriggers;
  import net.minecraft.core.BlockPos;
++import net.minecraft.core.particles.BlockParticleOption;
++import net.minecraft.core.particles.ParticleTypes;
  import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.sounds.SoundEvents;
 +import net.minecraft.world.damagesource.DamageSource;
@@ -12,7 +15,22 @@
  import net.minecraft.world.entity.item.PrimedTnt;
  import net.minecraft.world.entity.vehicle.AbstractMinecart;
  import net.minecraft.world.entity.vehicle.Boat;
-@@ -36,11 +37,11 @@
+@@ -16,10 +19,14 @@
+ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+ public class HoneyBlock extends HalfTransparentBlock {
++   private static final double SLIDE_STARTS_WHEN_VERTICAL_SPEED_IS_AT_LEAST = 0.13D;
++   private static final double MIN_FALL_SPEED_TO_BE_CONSIDERED_SLIDING = 0.08D;
++   private static final double THROTTLE_SLIDE_SPEED_TO = 0.05D;
++   private static final int SLIDE_ADVANCEMENT_CHECK_INTERVAL = 20;
+    protected static final VoxelShape SHAPE = Block.box(1.0D, 0.0D, 1.0D, 15.0D, 15.0D, 15.0D);
+ 
+    public HoneyBlock(BlockBehaviour.Properties var1) {
+       super(var1);
+    }
+@@ -36,11 +43,11 @@
        var3.playSound(SoundEvents.HONEY_BLOCK_SLIDE, 1.0F, 1.0F);
        if (!var1.isClientSide) {
           var1.broadcastEntityEvent(var3, (byte)54);
@@ -25,3 +43,29 @@
  
     }
  
+@@ -98,6 +105,25 @@
+             var1.broadcastEntityEvent(var2, (byte)53);
+          }
+       }
+ 
+    }
++
++   public static void showSlideParticles(Entity var0) {
++      showParticles(var0, 5);
++   }
++
++   public static void showJumpParticles(Entity var0) {
++      showParticles(var0, 10);
++   }
++
++   private static void showParticles(Entity var0, int var1) {
++      if (var0.level.isClientSide) {
++         BlockState var2 = Blocks.HONEY_BLOCK.defaultBlockState();
++
++         for(int var3 = 0; var3 < var1; ++var3) {
++            var0.level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, var2), var0.getX(), var0.getY(), var0.getZ(), 0.0D, 0.0D, 0.0D);
++         }
++
++      }
++   }
+ }

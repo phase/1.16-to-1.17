@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/chunk/LevelChunk.java
 +++ net/minecraft/world/level/chunk/LevelChunk.java
-@@ -1,177 +1,188 @@
+@@ -1,177 +1,190 @@
  package net.minecraft.world.level.chunk;
  
 +import com.google.common.collect.ImmutableList;
@@ -13,6 +13,7 @@
  import it.unimi.dsi.fastutil.longs.LongSet;
  import it.unimi.dsi.fastutil.shorts.ShortList;
  import it.unimi.dsi.fastutil.shorts.ShortListIterator;
++import java.util.BitSet;
  import java.util.Collection;
  import java.util.Collections;
  import java.util.HashSet;
@@ -34,6 +35,7 @@
  import net.minecraft.core.Registry;
 +import net.minecraft.core.SectionPos;
  import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.server.level.ChunkHolder;
  import net.minecraft.server.level.ServerLevel;
 -import net.minecraft.util.ClassInstanceMultiMap;
@@ -229,7 +231,7 @@
           return new Heightmap(this, var1x);
        });
     }
-@@ -201,23 +212,24 @@
+@@ -201,23 +214,24 @@
           }
  
           return var9 == null ? Blocks.AIR.defaultBlockState() : var9;
@@ -259,7 +261,7 @@
           }
        }
     }
-@@ -226,155 +238,110 @@
+@@ -226,155 +240,128 @@
        return this.getFluidState(var1.getX(), var1.getY(), var1.getZ());
     }
  
@@ -430,24 +432,39 @@
  
 -   public void removeEntity(Entity var1) {
 -      this.removeEntity(var1, var1.yChunk);
--   }
--
++   public int getHeight(Heightmap.Types var1, int var2, int var3) {
++      return ((Heightmap)this.heightmaps.get(var1)).getFirstAvailable(var2 & 15, var3 & 15) - 1;
+    }
+ 
 -   public void removeEntity(Entity var1, int var2) {
 -      if (var2 < 0) {
 -         var2 = 0;
 -      }
--
++   public BlockPos getHeighestPosition(Heightmap.Types var1) {
++      ChunkPos var2 = this.getPos();
++      int var3 = this.getMinBuildHeight();
++      BlockPos.MutableBlockPos var4 = new BlockPos.MutableBlockPos();
+ 
 -      if (var2 >= this.entitySections.length) {
 -         var2 = this.entitySections.length - 1;
--      }
--
++      for(int var5 = var2.getMinBlockX(); var5 <= var2.getMaxBlockX(); ++var5) {
++         for(int var6 = var2.getMinBlockZ(); var6 <= var2.getMaxBlockZ(); ++var6) {
++            int var7 = this.getHeight(var1, var5 & 15, var6 & 15);
++            if (var7 > var3) {
++               var3 = var7;
++               var4.set(var5, var7, var6);
++            }
++         }
+       }
+ 
 -      this.entitySections[var2].remove(var1);
--   }
--
-    public int getHeight(Heightmap.Types var1, int var2, int var3) {
-       return ((Heightmap)this.heightmaps.get(var1)).getFirstAvailable(var2 & 15, var3 & 15) - 1;
++      return var4.immutable();
     }
  
+-   public int getHeight(Heightmap.Types var1, int var2, int var3) {
+-      return ((Heightmap)this.heightmaps.get(var1)).getFirstAvailable(var2 & 15, var3 & 15) - 1;
+-   }
+-
     @Nullable
     private BlockEntity createBlockEntity(BlockPos var1) {
        BlockState var2 = this.getBlockState(var1);
@@ -459,7 +476,7 @@
     @Nullable
     public BlockEntity getBlockEntity(BlockPos var1) {
        return this.getBlockEntity(var1, LevelChunk.EntityCreationType.CHECK);
-@@ -394,34 +361,46 @@
+@@ -394,34 +381,46 @@
        }
  
        if (var3 == null) {
@@ -517,7 +534,7 @@
  
        }
     }
-@@ -448,130 +427,72 @@
+@@ -448,19 +447,47 @@
           return var3;
        }
     }
@@ -535,34 +552,6 @@
 +      this.removeBlockEntityTicker(var1);
     }
  
--   public void runPostLoad() {
--      if (this.postLoad != null) {
--         this.postLoad.accept(this);
--         this.postLoad = null;
--      }
--
--   }
--
--   public void markUnsaved() {
--      this.unsaved = true;
--   }
--
--   public void getEntities(@Nullable Entity var1, AABB var2, List<Entity> var3, @Nullable Predicate<? super Entity> var4) {
--      int var5 = Mth.floor((var2.minY - 2.0D) / 16.0D);
--      int var6 = Mth.floor((var2.maxY + 2.0D) / 16.0D);
--      var5 = Mth.clamp(var5, 0, this.entitySections.length - 1);
--      var6 = Mth.clamp(var6, 0, this.entitySections.length - 1);
--
--      for(int var7 = var5; var7 <= var6; ++var7) {
--         ClassInstanceMultiMap var8 = this.entitySections[var7];
--         List var9 = var8.getAllInstances();
--         int var10 = var9.size();
--
--         for(int var11 = 0; var11 < var10; ++var11) {
--            Entity var12 = (Entity)var9.get(var11);
--            if (var12.getBoundingBox().intersects(var2) && var12 != var1) {
--               if (var4 == null || var4.test(var12)) {
--                  var3.add(var12);
 +   private <T extends BlockEntity> void removeGameEventListener(T var1) {
 +      if (!this.level.isClientSide) {
 +         Block var2 = var1.getBlockState().getBlock();
@@ -574,7 +563,55 @@
 +               var5.unregister(var3);
 +               if (var5.isEmpty()) {
 +                  this.gameEventDispatcherSections.remove(var4);
-                }
++               }
++            }
++         }
++
++      }
++   }
++
++   private void removeBlockEntityTicker(BlockPos var1) {
++      LevelChunk.RebindableTickingBlockEntityWrapper var2 = (LevelChunk.RebindableTickingBlockEntityWrapper)this.tickersInLevel.remove(var1);
++      if (var2 != null) {
++         var2.rebind(NULL_TICKER);
++      }
++
++   }
++
+    public void runPostLoad() {
+       if (this.postLoad != null) {
+          this.postLoad.accept(this);
+          this.postLoad = null;
+       }
+@@ -469,109 +496,73 @@
+ 
+    public void markUnsaved() {
+       this.unsaved = true;
+    }
+ 
+-   public void getEntities(@Nullable Entity var1, AABB var2, List<Entity> var3, @Nullable Predicate<? super Entity> var4) {
+-      int var5 = Mth.floor((var2.minY - 2.0D) / 16.0D);
+-      int var6 = Mth.floor((var2.maxY + 2.0D) / 16.0D);
+-      var5 = Mth.clamp(var5, 0, this.entitySections.length - 1);
+-      var6 = Mth.clamp(var6, 0, this.entitySections.length - 1);
++   public boolean isEmpty() {
++      return false;
++   }
+ 
+-      for(int var7 = var5; var7 <= var6; ++var7) {
+-         ClassInstanceMultiMap var8 = this.entitySections[var7];
+-         List var9 = var8.getAllInstances();
+-         int var10 = var9.size();
++   public ChunkPos getPos() {
++      return this.chunkPos;
++   }
+ 
+-         for(int var11 = 0; var11 < var10; ++var11) {
+-            Entity var12 = (Entity)var9.get(var11);
+-            if (var12.getBoundingBox().intersects(var2) && var12 != var1) {
+-               if (var4 == null || var4.test(var12)) {
+-                  var3.add(var12);
+-               }
 -
 -               if (var12 instanceof EnderDragon) {
 -                  EnderDragonPart[] var13 = ((EnderDragon)var12).getSubEntities();
@@ -587,13 +624,26 @@
 -                     }
 -                  }
 -               }
++   public void replaceWithPacketData(@Nullable ChunkBiomeContainer var1, FriendlyByteBuf var2, CompoundTag var3, BitSet var4) {
++      boolean var5 = var1 != null;
++      if (var5) {
++         this.blockEntities.values().forEach(this::onBlockEntityRemove);
++         this.blockEntities.clear();
++      } else {
++         this.blockEntities.values().removeIf((var2x) -> {
++            int var3 = this.getSectionIndex(var2x.getBlockPos().getY());
++            if (var4.get(var3)) {
++               var2x.setRemoved();
++               return true;
++            } else {
++               return false;
              }
-          }
--      }
+-         }
++         });
+       }
  
-+      }
-    }
- 
+-   }
+-
 -   public <T extends Entity> void getEntities(@Nullable EntityType<?> var1, AABB var2, List<? super T> var3, Predicate<? super T> var4) {
 -      int var5 = Mth.floor((var2.minY - 2.0D) / 16.0D);
 -      int var6 = Mth.floor((var2.maxY + 2.0D) / 16.0D);
@@ -616,22 +666,35 @@
 -
 -            if (var9.getBoundingBox().intersects(var2) && var4.test(var9)) {
 -               var3.add(var9);
--            }
--         }
-+   private void removeBlockEntityTicker(BlockPos var1) {
-+      LevelChunk.RebindableTickingBlockEntityWrapper var2 = (LevelChunk.RebindableTickingBlockEntityWrapper)this.tickersInLevel.remove(var1);
-+      if (var2 != null) {
-+         var2.rebind(NULL_TICKER);
++      for(int var6 = 0; var6 < this.sections.length; ++var6) {
++         LevelChunkSection var7 = this.sections[var6];
++         if (!var4.get(var6)) {
++            if (var5 && var7 != EMPTY_SECTION) {
++               this.sections[var6] = EMPTY_SECTION;
+             }
++         } else {
++            if (var7 == EMPTY_SECTION) {
++               var7 = new LevelChunkSection(this.getSectionYFromSectionIndex(var6));
++               this.sections[var6] = var7;
++            }
++
++            var7.read(var2);
+          }
        }
  
-    }
+-   }
++      if (var1 != null) {
++         this.biomes = var1;
++      }
  
 -   public <T extends Entity> void getEntitiesOfClass(Class<? extends T> var1, AABB var2, List<T> var3, @Nullable Predicate<? super T> var4) {
 -      int var5 = Mth.floor((var2.minY - 2.0D) / 16.0D);
 -      int var6 = Mth.floor((var2.maxY + 2.0D) / 16.0D);
 -      var5 = Mth.clamp(var5, 0, this.entitySections.length - 1);
 -      var6 = Mth.clamp(var6, 0, this.entitySections.length - 1);
--
++      Heightmap.Types[] var11 = Heightmap.Types.values();
++      int var12 = var11.length;
+ 
 -      label33:
 -      for(int var7 = var5; var7 <= var6; ++var7) {
 -         Iterator var8 = this.entitySections[var7].find(var1).iterator();
@@ -649,38 +712,33 @@
 -            } while(var4 != null && !var4.test(var9));
 -
 -            var3.add(var9);
--         }
-+   public void runPostLoad() {
-+      if (this.postLoad != null) {
-+         this.postLoad.accept(this);
-+         this.postLoad = null;
++      for(int var8 = 0; var8 < var12; ++var8) {
++         Heightmap.Types var9 = var11[var8];
++         String var10 = var9.getSerializationKey();
++         if (var3.contains(var10, 12)) {
++            this.setHeightmap(var9, var3.getLongArray(var10));
+          }
        }
  
     }
  
-+   public void markUnsaved() {
-+      this.unsaved = true;
-+   }
-+
-    public boolean isEmpty() {
-       return false;
-    }
- 
-    public ChunkPos getPos() {
-       return this.chunkPos;
-    }
- 
+-   public boolean isEmpty() {
+-      return false;
 +   private void onBlockEntityRemove(BlockEntity var1) {
 +      var1.setRemoved();
 +      this.tickersInLevel.remove(var1.getBlockPos());
-+   }
-+
+    }
+ 
+-   public ChunkPos getPos() {
+-      return this.chunkPos;
+-   }
+-
     public ChunkBiomeContainer getBiomes() {
        return this.biomes;
     }
  
     public void setLoaded(boolean var1) {
-@@ -588,20 +509,16 @@
+@@ -588,20 +579,16 @@
  
     public Map<BlockPos, BlockEntity> getBlockEntities() {
        return this.blockEntities;
@@ -702,7 +760,7 @@
     }
  
     public TickList<Block> getBlockTicks() {
-@@ -615,21 +532,13 @@
+@@ -615,21 +602,13 @@
     public void setUnsaved(boolean var1) {
        this.unsaved = var1;
     }
@@ -725,7 +783,7 @@
        return (StructureStart)this.structureStarts.get(var1);
     }
  
-@@ -682,22 +591,22 @@
+@@ -682,22 +661,22 @@
           if (this.postProcessing[var2] != null) {
              ShortListIterator var3 = this.postProcessing[var2].iterator();
  
@@ -750,7 +808,7 @@
           BlockPos var9 = (BlockPos)var8.next();
           this.getBlockEntity(var9);
        }
-@@ -709,24 +618,23 @@
+@@ -709,24 +688,23 @@
     @Nullable
     private BlockEntity promotePendingBlockEntity(BlockPos var1, CompoundTag var2) {
        BlockState var4 = this.getBlockState(var1);
@@ -780,7 +838,7 @@
        }
  
        return var3;
-@@ -774,10 +682,18 @@
+@@ -774,10 +752,18 @@
           this.setUnsaved(true);
        }
  
@@ -799,7 +857,7 @@
     }
  
     public ChunkHolder.FullChunkStatus getFullStatus() {
-@@ -795,10 +711,151 @@
+@@ -795,10 +781,151 @@
     public void setLightCorrect(boolean var1) {
        this.isLightCorrect = var1;
        this.setUnsaved(true);

@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/feature/structures/JigsawPlacement.java
 +++ net/minecraft/world/level/levelgen/feature/structures/JigsawPlacement.java
-@@ -11,13 +11,13 @@
+@@ -11,21 +11,22 @@
  import java.util.Random;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
@@ -15,14 +15,26 @@
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.feature.StructureFeature;
-@@ -35,52 +35,52 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.JigsawConfiguration;
+ import net.minecraft.world.level.levelgen.structure.BoundingBox;
+ import net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece;
++import net.minecraft.world.level.levelgen.structure.StructurePieceAccessor;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.shapes.BooleanOp;
+ import net.minecraft.world.phys.shapes.Shapes;
+@@ -35,52 +36,59 @@
  import org.apache.logging.log4j.Logger;
  
  public class JigsawPlacement {
     private static final Logger LOGGER = LogManager.getLogger();
  
 -   public static void addPieces(RegistryAccess var0, JigsawConfiguration var1, JigsawPlacement.PieceFactory var2, ChunkGenerator var3, StructureManager var4, BlockPos var5, List<? super PoolElementStructurePiece> var6, Random var7, boolean var8, boolean var9) {
-+   public static void addPieces(RegistryAccess var0, JigsawConfiguration var1, JigsawPlacement.PieceFactory var2, ChunkGenerator var3, StructureManager var4, BlockPos var5, List<? super PoolElementStructurePiece> var6, Random var7, boolean var8, boolean var9, LevelHeightAccessor var10) {
++   public JigsawPlacement() {
++   }
++
++   public static void addPieces(RegistryAccess var0, JigsawConfiguration var1, JigsawPlacement.PieceFactory var2, ChunkGenerator var3, StructureManager var4, BlockPos var5, StructurePieceAccessor var6, Random var7, boolean var8, boolean var9, LevelHeightAccessor var10) {
        StructureFeature.bootstrap();
 -      WritableRegistry var10 = var0.registryOrThrow(Registry.TEMPLATE_POOL_REGISTRY);
 -      Rotation var11 = Rotation.getRandom(var7);
@@ -33,47 +45,56 @@
 -      int var16 = (var15.x1 + var15.x0) / 2;
 -      int var17 = (var15.z1 + var15.z0) / 2;
 -      int var18;
-+      Registry var11 = var0.registryOrThrow(Registry.TEMPLATE_POOL_REGISTRY);
-+      Rotation var12 = Rotation.getRandom(var7);
-+      StructureTemplatePool var13 = (StructureTemplatePool)var1.startPool().get();
-+      StructurePoolElement var14 = var13.getRandomTemplate(var7);
-+      PoolElementStructurePiece var15 = var2.create(var4, var14, var5, var14.getGroundLevelDelta(), var12, var14.getBoundingBox(var4, var5, var12));
-+      BoundingBox var16 = var15.getBoundingBox();
-+      int var17 = (var16.x1 + var16.x0) / 2;
-+      int var18 = (var16.z1 + var16.z0) / 2;
-+      int var19;
-       if (var9) {
+-      if (var9) {
 -         var18 = var5.getY() + var3.getFirstFreeHeight(var16, var17, Heightmap.Types.WORLD_SURFACE_WG);
-+         var19 = var5.getY() + var3.getFirstFreeHeight(var17, var18, Heightmap.Types.WORLD_SURFACE_WG, var10);
-       } else {
+-      } else {
 -         var18 = var5.getY();
-+         var19 = var5.getY();
-       }
+-      }
++      ArrayList var11 = Lists.newArrayList();
++      Registry var12 = var0.registryOrThrow(Registry.TEMPLATE_POOL_REGISTRY);
++      Rotation var13 = Rotation.getRandom(var7);
++      StructureTemplatePool var14 = (StructureTemplatePool)var1.startPool().get();
++      StructurePoolElement var15 = var14.getRandomTemplate(var7);
++      if (var15 != EmptyPoolElement.INSTANCE) {
++         PoolElementStructurePiece var16 = var2.create(var4, var15, var5, var15.getGroundLevelDelta(), var13, var15.getBoundingBox(var4, var5, var13));
++         BoundingBox var17 = var16.getBoundingBox();
++         int var18 = (var17.maxX() + var17.minX()) / 2;
++         int var19 = (var17.maxZ() + var17.minZ()) / 2;
++         int var20;
++         if (var9) {
++            var20 = var5.getY() + var3.getFirstFreeHeight(var18, var19, Heightmap.Types.WORLD_SURFACE_WG, var10);
++         } else {
++            var20 = var5.getY();
++         }
  
 -      int var19 = var15.y0 + var14.getGroundLevelDelta();
 -      var14.move(0, var18 - var19, 0);
 -      var6.add(var14);
-+      int var20 = var16.y0 + var15.getGroundLevelDelta();
-+      var15.move(0, var19 - var20, 0);
-+      var6.add(var15);
-       if (var1.maxDepth() > 0) {
+-      if (var1.maxDepth() > 0) {
 -         boolean var20 = true;
 -         AABB var21 = new AABB((double)(var16 - 80), (double)(var18 - 80), (double)(var17 - 80), (double)(var16 + 80 + 1), (double)(var18 + 80 + 1), (double)(var17 + 80 + 1));
 -         JigsawPlacement.Placer var22 = new JigsawPlacement.Placer(var10, var1.maxDepth(), var2, var3, var4, var6, var7);
 -         var22.placing.addLast(new JigsawPlacement.PieceState(var14, new MutableObject(Shapes.join(Shapes.create(var21), Shapes.create(AABB.of(var15)), BooleanOp.ONLY_FIRST)), var18 + 80, 0));
-+         boolean var21 = true;
-+         AABB var22 = new AABB((double)(var17 - 80), (double)(var19 - 80), (double)(var18 - 80), (double)(var17 + 80 + 1), (double)(var19 + 80 + 1), (double)(var18 + 80 + 1));
-+         JigsawPlacement.Placer var23 = new JigsawPlacement.Placer(var11, var1.maxDepth(), var2, var3, var4, var6, var7);
-+         var23.placing.addLast(new JigsawPlacement.PieceState(var15, new MutableObject(Shapes.join(Shapes.create(var22), Shapes.create(AABB.of(var16)), BooleanOp.ONLY_FIRST)), var19 + 80, 0));
++         int var21 = var17.minY() + var16.getGroundLevelDelta();
++         var16.move(0, var20 - var21, 0);
++         var11.add(var16);
++         if (var1.maxDepth() > 0) {
++            boolean var22 = true;
++            AABB var23 = new AABB((double)(var18 - 80), (double)(var20 - 80), (double)(var19 - 80), (double)(var18 + 80 + 1), (double)(var20 + 80 + 1), (double)(var19 + 80 + 1));
++            JigsawPlacement.Placer var24 = new JigsawPlacement.Placer(var12, var1.maxDepth(), var2, var3, var4, var11, var7);
++            var24.placing.addLast(new JigsawPlacement.PieceState(var16, new MutableObject(Shapes.join(Shapes.create(var23), Shapes.create(AABB.of(var17)), BooleanOp.ONLY_FIRST)), var20 + 80, 0));
  
 -         while(!var22.placing.isEmpty()) {
 -            JigsawPlacement.PieceState var23 = (JigsawPlacement.PieceState)var22.placing.removeFirst();
 -            var22.tryPlacingChildren(var23.piece, var23.free, var23.boundsTop, var23.depth, var8);
-+         while(!var23.placing.isEmpty()) {
-+            JigsawPlacement.PieceState var24 = (JigsawPlacement.PieceState)var23.placing.removeFirst();
-+            var23.tryPlacingChildren(var24.piece, var24.free, var24.boundsTop, var24.depth, var8, var10);
-          }
+-         }
++            while(!var24.placing.isEmpty()) {
++               JigsawPlacement.PieceState var25 = (JigsawPlacement.PieceState)var24.placing.removeFirst();
++               var24.tryPlacingChildren(var25.piece, var25.free, var25.boundsTop, var25.depth, var8, var10);
++            }
  
++            var11.forEach(var6::addPiece);
++         }
        }
     }
  
@@ -97,7 +118,7 @@
     }
  
     public interface PieceFactory {
-@@ -106,77 +106,77 @@
+@@ -106,77 +114,77 @@
           this.structureManager = var5;
           this.pieces = var6;
           this.random = var7;
@@ -121,7 +142,7 @@
 +         boolean var11 = var10 == StructureTemplatePool.Projection.RIGID;
 +         MutableObject var12 = new MutableObject();
 +         BoundingBox var13 = var1.getBoundingBox();
-+         int var14 = var13.y0;
++         int var14 = var13.minY();
 +         Iterator var15 = var7.getShuffledJigsawBlocks(this.structureManager, var8, var9, this.random).iterator();
  
           while(true) {
@@ -224,7 +245,7 @@
                                            ResourceLocation var3 = new ResourceLocation(var2x.nbt.getString("pool"));
                                            Optional var4 = this.pools.getOptional(var3);
                                            Optional var5 = var4.flatMap((var1) -> {
-@@ -190,97 +190,97 @@
+@@ -190,97 +198,97 @@
                                            }).orElse(0);
                                            return Math.max(var6, var7);
                                         }
@@ -276,9 +297,9 @@
 -                                    if (var10 && var43) {
 -                                       var46 = var13 + var45;
 +                                    BlockPos var39 = var38.pos;
-+                                    BlockPos var40 = new BlockPos(var19.getX() - var39.getX(), var19.getY() - var39.getY(), var19.getZ() - var39.getZ());
++                                    BlockPos var40 = var19.subtract(var39);
 +                                    BoundingBox var41 = var31.getBoundingBox(this.structureManager, var40, var33);
-+                                    int var42 = var41.y0;
++                                    int var42 = var41.minY();
 +                                    var43 = var31.getProjection();
 +                                    var44 = var43 == StructureTemplatePool.Projection.RIGID;
 +                                    var45 = var39.getY();
@@ -306,8 +327,8 @@
 +                                    var49 = var41.moved(0, var48, 0);
 +                                    var50 = var40.offset(0, var48, 0);
 +                                    if (var36 > 0) {
-+                                       var51 = Math.max(var36 + 1, var49.y1 - var49.y0);
-+                                       var49.y1 = var49.y0 + var51;
++                                       var51 = Math.max(var36 + 1, var49.maxY() - var49.minY());
++                                       var49.encapsulate(new BlockPos(var49.minX(), var49.minY() + var51, var49.minZ()));
                                      }
 -                                 } while(Shapes.joinIsNotEmpty((VoxelShape)var25.getValue(), Shapes.create(AABB.of(var48).deflate(0.25D)), BooleanOp.ONLY_SECOND));
 +                                 } while(Shapes.joinIsNotEmpty((VoxelShape)var26.getValue(), Shapes.create(AABB.of(var49).deflate(0.25D)), BooleanOp.ONLY_SECOND));

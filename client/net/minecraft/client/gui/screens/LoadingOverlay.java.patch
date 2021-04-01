@@ -1,9 +1,12 @@
 --- net/minecraft/client/gui/screens/LoadingOverlay.java
 +++ net/minecraft/client/gui/screens/LoadingOverlay.java
-@@ -7,10 +7,11 @@
+@@ -5,12 +5,14 @@
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import java.io.IOException;
  import java.io.InputStream;
  import java.util.Optional;
  import java.util.function.Consumer;
++import java.util.function.IntSupplier;
  import net.minecraft.Util;
  import net.minecraft.client.Minecraft;
 +import net.minecraft.client.renderer.GameRenderer;
@@ -12,7 +15,78 @@
  import net.minecraft.client.resources.metadata.texture.TextureMetadataSection;
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.server.packs.PackType;
-@@ -80,20 +81,19 @@
+@@ -20,12 +22,23 @@
+ import net.minecraft.util.FastColor;
+ import net.minecraft.util.Mth;
+ 
+ public class LoadingOverlay extends Overlay {
+    private static final ResourceLocation MOJANG_STUDIOS_LOGO_LOCATION = new ResourceLocation("textures/gui/title/mojangstudios.png");
+-   private static final int BRAND_BACKGROUND = FastColor.ARGB32.color(255, 239, 50, 61);
+-   private static final int BRAND_BACKGROUND_NO_ALPHA;
++   private static final int LOGO_BACKGROUND_COLOR = FastColor.ARGB32.color(255, 239, 50, 61);
++   private static final int LOGO_BACKGROUND_COLOR_DARK = FastColor.ARGB32.color(255, 0, 0, 0);
++   private static final IntSupplier BRAND_BACKGROUND = () -> {
++      return Minecraft.getInstance().options.darkMojangStudiosBackground ? LOGO_BACKGROUND_COLOR_DARK : LOGO_BACKGROUND_COLOR;
++   };
++   private static final int LOGO_SCALE = 240;
++   private static final float LOGO_QUARTER_FLOAT = 60.0F;
++   private static final int LOGO_QUARTER = 60;
++   private static final int LOGO_HALF = 120;
++   private static final float LOGO_OVERLAP = 0.0625F;
++   private static final float SMOOTHING = 0.95F;
++   public static final long FADE_OUT_TIME = 1000L;
++   public static final long FADE_IN_TIME = 500L;
+    private final Minecraft minecraft;
+    private final ReloadInstance reload;
+    private final Consumer<Optional<Throwable>> onFinish;
+    private final boolean fadeIn;
+    private float currentProgress;
+@@ -41,15 +54,19 @@
+ 
+    public static void registerTextures(Minecraft var0) {
+       var0.getTextureManager().register((ResourceLocation)MOJANG_STUDIOS_LOGO_LOCATION, (AbstractTexture)(new LoadingOverlay.LogoTexture()));
+    }
+ 
++   private static int replaceAlpha(int var0, int var1) {
++      return var0 & 16777215 | var1 << 24;
++   }
++
+    public void render(PoseStack var1, int var2, int var3, float var4) {
+       int var5 = this.minecraft.getWindow().getGuiScaledWidth();
+       int var6 = this.minecraft.getWindow().getGuiScaledHeight();
+       long var7 = Util.getMillis();
+-      if (this.fadeIn && (this.reload.isApplying() || this.minecraft.screen != null) && this.fadeInStart == -1L) {
++      if (this.fadeIn && this.fadeInStart == -1L) {
+          this.fadeInStart = var7;
+       }
+ 
+       float var9 = this.fadeOutStart > -1L ? (float)(var7 - this.fadeOutStart) / 1000.0F : -1.0F;
+       float var10 = this.fadeInStart > -1L ? (float)(var7 - this.fadeInStart) / 500.0F : -1.0F;
+@@ -59,41 +76,40 @@
+          if (this.minecraft.screen != null) {
+             this.minecraft.screen.render(var1, 0, 0, var4);
+          }
+ 
+          var12 = Mth.ceil((1.0F - Mth.clamp(var9 - 1.0F, 0.0F, 1.0F)) * 255.0F);
+-         fill(var1, 0, 0, var5, var6, BRAND_BACKGROUND_NO_ALPHA | var12 << 24);
++         fill(var1, 0, 0, var5, var6, replaceAlpha(BRAND_BACKGROUND.getAsInt(), var12));
+          var11 = 1.0F - Mth.clamp(var9 - 1.0F, 0.0F, 1.0F);
+       } else if (this.fadeIn) {
+          if (this.minecraft.screen != null && var10 < 1.0F) {
+             this.minecraft.screen.render(var1, var2, var3, var4);
+          }
+ 
+          var12 = Mth.ceil(Mth.clamp((double)var10, 0.15D, 1.0D) * 255.0D);
+-         fill(var1, 0, 0, var5, var6, BRAND_BACKGROUND_NO_ALPHA | var12 << 24);
++         fill(var1, 0, 0, var5, var6, replaceAlpha(BRAND_BACKGROUND.getAsInt(), var12));
+          var11 = Mth.clamp(var10, 0.0F, 1.0F);
+       } else {
+-         fill(var1, 0, 0, var5, var6, BRAND_BACKGROUND);
++         fill(var1, 0, 0, var5, var6, BRAND_BACKGROUND.getAsInt());
+          var11 = 1.0F;
+       }
+ 
+       var12 = (int)((double)this.minecraft.getWindow().getGuiScaledWidth() * 0.5D);
        int var13 = (int)((double)this.minecraft.getWindow().getGuiScaledHeight() * 0.5D);
        double var14 = Math.min((double)this.minecraft.getWindow().getGuiScaledWidth() * 0.75D, (double)this.minecraft.getWindow().getGuiScaledHeight()) * 0.25D;
        int var16 = (int)(var14 * 0.5D);
@@ -36,3 +110,18 @@
        float var21 = this.reload.getActualProgress();
        this.currentProgress = Mth.clamp(this.currentProgress * 0.95F + var21 * 0.050000012F, 0.0F, 1.0F);
        if (var9 < 1.0F) {
+@@ -133,14 +149,10 @@
+ 
+    public boolean isPauseScreen() {
+       return true;
+    }
+ 
+-   static {
+-      BRAND_BACKGROUND_NO_ALPHA = BRAND_BACKGROUND & 16777215;
+-   }
+-
+    static class LogoTexture extends SimpleTexture {
+       public LogoTexture() {
+          super(LoadingOverlay.MOJANG_STUDIOS_LOGO_LOCATION);
+       }
+ 

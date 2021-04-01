@@ -1,13 +1,15 @@
 --- net/minecraft/client/KeyboardHandler.java
 +++ net/minecraft/client/KeyboardHandler.java
-@@ -1,16 +1,18 @@
+@@ -1,16 +1,20 @@
  package net.minecraft.client;
  
 +import com.google.common.base.MoreObjects;
  import com.mojang.blaze3d.Blaze3D;
  import com.mojang.blaze3d.platform.ClipboardManager;
  import com.mojang.blaze3d.platform.InputConstants;
++import java.text.MessageFormat;
  import java.util.Locale;
++import java.util.function.Consumer;
  import javax.annotation.Nullable;
  import net.minecraft.ChatFormatting;
  import net.minecraft.CrashReport;
@@ -19,7 +21,7 @@
  import net.minecraft.client.gui.screens.Screen;
  import net.minecraft.client.gui.screens.SimpleOptionsSubScreen;
  import net.minecraft.client.gui.screens.controls.ControlsScreen;
-@@ -18,16 +20,18 @@
+@@ -18,24 +22,27 @@
  import net.minecraft.client.multiplayer.ClientPacketListener;
  import net.minecraft.commands.arguments.blocks.BlockStateParser;
  import net.minecraft.core.BlockPos;
@@ -38,7 +40,102 @@
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.EntityHitResult;
  import net.minecraft.world.phys.HitResult;
-@@ -110,11 +114,11 @@
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class KeyboardHandler {
++   public static final int DEBUG_CRASH_TIME = 10000;
+    private final Minecraft minecraft;
+    private boolean sendRepeatsToGui;
+    private final ClipboardManager clipboardManager = new ClipboardManager();
+    private long debugCrashKeyTime = -1L;
+    private long debugCrashKeyReportedTime = -1L;
+@@ -44,18 +51,55 @@
+ 
+    public KeyboardHandler(Minecraft var1) {
+       this.minecraft = var1;
+    }
+ 
++   private boolean handleChunkDebugKeys(int var1) {
++      switch(var1) {
++      case 69:
++         this.minecraft.chunkPath = !this.minecraft.chunkPath;
++         this.debugFeedback("ChunkPath: {0}", this.minecraft.chunkPath ? "shown" : "hidden");
++         return true;
++      case 76:
++         this.minecraft.smartCull = !this.minecraft.smartCull;
++         this.debugFeedback("SmartCull: {0}", this.minecraft.smartCull ? "enabled" : "disabled");
++         return true;
++      case 85:
++         if (Screen.hasShiftDown()) {
++            this.minecraft.levelRenderer.killFrustum();
++            this.debugFeedback("Killed frustum");
++         } else {
++            this.minecraft.levelRenderer.captureFrustum();
++            this.debugFeedback("Captured frustum");
++         }
++
++         return true;
++      case 86:
++         this.minecraft.chunkVisibility = !this.minecraft.chunkVisibility;
++         this.debugFeedback("ChunkVisibility: {0}", this.minecraft.chunkVisibility ? "enabled" : "disabled");
++         return true;
++      case 87:
++         this.minecraft.wireframe = !this.minecraft.wireframe;
++         this.debugFeedback("WireFrame: {0}", this.minecraft.wireframe ? "enabled" : "disabled");
++         return true;
++      default:
++         return false;
++      }
++   }
++
+    private void debugFeedbackTranslated(String var1, Object... var2) {
+       this.minecraft.gui.getChat().addMessage((new TextComponent("")).append((new TranslatableComponent("debug.prefix")).withStyle(new ChatFormatting[]{ChatFormatting.YELLOW, ChatFormatting.BOLD})).append(" ").append((Component)(new TranslatableComponent(var1, var2))));
+    }
+ 
+    private void debugWarningTranslated(String var1, Object... var2) {
+       this.minecraft.gui.getChat().addMessage((new TextComponent("")).append((new TranslatableComponent("debug.prefix")).withStyle(new ChatFormatting[]{ChatFormatting.RED, ChatFormatting.BOLD})).append(" ").append((Component)(new TranslatableComponent(var1, var2))));
+    }
+ 
++   private void debugFeedback(String var1, Object... var2) {
++      this.minecraft.gui.getChat().addMessage((new TextComponent("")).append((new TranslatableComponent("debug.prefix")).withStyle(new ChatFormatting[]{ChatFormatting.YELLOW, ChatFormatting.BOLD})).append(" ").append(MessageFormat.format(var1, var2)));
++   }
++
+    private boolean handleDebugKeys(int var1) {
+       if (this.debugCrashKeyTime > 0L && this.debugCrashKeyTime < Util.getMillis() - 100L) {
+          return true;
+       } else {
+          switch(var1) {
+@@ -70,12 +114,12 @@
+             return true;
+          case 67:
+             if (this.minecraft.player.isReducedDebugInfo()) {
+                return false;
+             } else {
+-               ClientPacketListener var5 = this.minecraft.player.connection;
+-               if (var5 == null) {
++               ClientPacketListener var7 = this.minecraft.player.connection;
++               if (var7 == null) {
+                   return false;
+                }
+ 
+                this.debugFeedbackTranslated("debug.copy_location.message");
+                this.setClipboard(String.format(Locale.ROOT, "/execute in %s run tp @s %.2f %.2f %.2f %.2f %.2f", this.minecraft.player.level.dimension().location(), this.minecraft.player.getX(), this.minecraft.player.getY(), this.minecraft.player.getZ(), this.minecraft.player.yRot, this.minecraft.player.xRot));
+@@ -104,17 +148,26 @@
+             if (!this.minecraft.player.isReducedDebugInfo()) {
+                this.copyRecreateCommand(this.minecraft.player.hasPermissions(2), !Screen.hasShiftDown());
+             }
+ 
+             return true;
++         case 76:
++            Runnable var5 = () -> {
++               this.debugFeedbackTranslated("debug.profiling.start", 10);
++            };
++            Consumer var6 = (var1x) -> {
++               this.debugFeedbackTranslated("debug.profiling.stop", var1x.toAbsolutePath());
++            };
++            this.minecraft.debugClientMetricsKeyPressed(var5, var6);
++            return true;
+          case 78:
              if (!this.minecraft.player.hasPermissions(2)) {
                 this.debugFeedbackTranslated("debug.creative_spectator.error");
              } else if (!this.minecraft.player.isSpectator()) {
@@ -51,7 +148,19 @@
              return true;
           case 80:
              this.minecraft.options.pauseOnLostFocus = !this.minecraft.options.pauseOnLostFocus;
-@@ -225,11 +229,11 @@
+@@ -134,10 +187,11 @@
+             var4.addMessage(new TranslatableComponent("debug.inspect.help"));
+             var4.addMessage(new TranslatableComponent("debug.creative_spectator.help"));
+             var4.addMessage(new TranslatableComponent("debug.pause_focus.help"));
+             var4.addMessage(new TranslatableComponent("debug.help.help"));
+             var4.addMessage(new TranslatableComponent("debug.reload_resourcepacks.help"));
++            var4.addMessage(new TranslatableComponent("debug.profiling.help"));
+             var4.addMessage(new TranslatableComponent("debug.pause.help"));
+             var4.addMessage(new TranslatableComponent("debug.gamemodes.help"));
+             return true;
+          case 84:
+             this.debugFeedbackTranslated("debug.reload_resourcepacks.message");
+@@ -225,11 +279,11 @@
        String var4;
        if (var3 != null) {
           var3.remove("UUID");
@@ -64,7 +173,7 @@
           var4 = String.format(Locale.ROOT, "/summon %s %.2f %.2f %.2f", var1.toString(), var2.x, var2.y, var2.z);
        }
  
-@@ -269,31 +273,34 @@
+@@ -269,31 +323,34 @@
                 });
                 return;
              }
@@ -108,7 +217,7 @@
           }
  
           if (this.minecraft.screen == null || this.minecraft.screen.passEvents) {
-@@ -312,25 +319,25 @@
+@@ -312,25 +369,25 @@
              } else {
                 if (var3 == 293 && this.minecraft.gameRenderer != null) {
                    this.minecraft.gameRenderer.togglePostEffect();
@@ -140,3 +249,19 @@
                    KeyMapping.set(var12, true);
                    KeyMapping.click(var12);
                 }
+@@ -392,11 +449,14 @@
+ 
+       });
+    }
+ 
+    public void setClipboard(String var1) {
+-      this.clipboardManager.setClipboard(this.minecraft.getWindow().getWindow(), var1);
++      if (!var1.isEmpty()) {
++         this.clipboardManager.setClipboard(this.minecraft.getWindow().getWindow(), var1);
++      }
++
+    }
+ 
+    public void tick() {
+       if (this.debugCrashKeyTime > 0L) {
+          long var1 = Util.getMillis();

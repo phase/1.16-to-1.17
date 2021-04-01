@@ -1,9 +1,12 @@
 --- net/minecraft/world/entity/ai/village/poi/PoiManager.java
 +++ net/minecraft/world/entity/ai/village/poi/PoiManager.java
-@@ -23,39 +23,42 @@
+@@ -21,41 +21,47 @@
+ import java.util.stream.Stream;
+ import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.SectionPos;
  import net.minecraft.server.level.SectionTracker;
++import net.minecraft.util.VisibleForDebug;
  import net.minecraft.util.datafix.DataFixTypes;
  import net.minecraft.world.level.ChunkPos;
 +import net.minecraft.world.level.LevelHeightAccessor;
@@ -14,6 +17,8 @@
  import net.minecraft.world.level.chunk.storage.SectionStorage;
  
  public class PoiManager extends SectionStorage<PoiSection> {
++   public static final int MAX_VILLAGE_DISTANCE = 6;
++   public static final int VILLAGE_SECTION_SIZE = 1;
     private final PoiManager.DistanceTracker distanceTracker = new PoiManager.DistanceTracker();
     private final LongSet loadedChunks = new LongOpenHashSet();
  
@@ -49,11 +54,13 @@
     public Stream<PoiRecord> getInSquare(Predicate<PoiType> var1, BlockPos var2, int var3, PoiManager.Occupancy var4) {
        int var5 = Math.floorDiv(var3, 16) + 1;
        return ChunkPos.rangeClosed(new ChunkPos(var2), var5).flatMap((var3x) -> {
-@@ -72,11 +75,11 @@
+@@ -71,12 +77,13 @@
+       return this.getInSquare(var1, var2, var3, var4).filter((var2x) -> {
           return var2x.getPos().distSqr(var2) <= (double)var5;
        });
     }
  
++   @VisibleForDebug
     public Stream<PoiRecord> getInChunk(Predicate<PoiType> var1, ChunkPos var2, PoiManager.Occupancy var3) {
 -      return IntStream.range(0, 16).boxed().map((var2x) -> {
 +      return IntStream.range(this.levelHeightAccessor.getMinSection(), this.levelHeightAccessor.getMaxSection()).boxed().map((var2x) -> {
@@ -62,7 +69,24 @@
           return ((PoiSection)var2x.get()).getRecords(var1, var3);
        });
     }
-@@ -117,22 +120,27 @@
+@@ -99,10 +106,16 @@
+       return this.getInRange(var1, var2, var3, var4).map(PoiRecord::getPos).min(Comparator.comparingDouble((var1x) -> {
+          return var1x.distSqr(var2);
+       }));
+    }
+ 
++   public Optional<BlockPos> findClosest(Predicate<PoiType> var1, Predicate<BlockPos> var2, BlockPos var3, int var4, PoiManager.Occupancy var5) {
++      return this.getInRange(var1, var3, var4, var5).map(PoiRecord::getPos).filter(var2).min(Comparator.comparingDouble((var1x) -> {
++         return var1x.distSqr(var3);
++      }));
++   }
++
+    public Optional<BlockPos> take(Predicate<PoiType> var1, Predicate<BlockPos> var2, BlockPos var3, int var4) {
+       return this.getInRange(var1, var3, var4, PoiManager.Occupancy.HAS_SPACE).filter((var1x) -> {
+          return var2.test(var1x.getPos());
+       }).findFirst().map((var0) -> {
+          var0.acquireTicket();
+@@ -117,24 +130,37 @@
           return var2.test(var1x.getPos());
        }).findFirst().map(PoiRecord::getPos);
     }
@@ -91,10 +115,20 @@
 +      });
     }
  
++   @Deprecated
++   @VisibleForDebug
++   public int getFreeTickets(BlockPos var1) {
++      return (Integer)this.getOrLoad(SectionPos.asLong(var1)).map((var1x) -> {
++         return var1x.getFreeTickets(var1);
++      }).orElse(0);
++   }
++
     public int sectionsToVillage(SectionPos var1) {
        this.distanceTracker.runAllUpdates();
        return this.distanceTracker.getLevel(var1.asLong());
-@@ -158,11 +166,11 @@
+    }
+ 
+@@ -158,11 +184,11 @@
     protected void onSectionLoad(long var1) {
        this.distanceTracker.update(var1, this.distanceTracker.getLevelFromSource(var1), false);
     }
@@ -107,7 +141,7 @@
              if (mayHavePoi(var2)) {
                 this.updateFromSection(var2, var3, var3xx);
              }
-@@ -191,11 +199,11 @@
+@@ -191,11 +217,11 @@
           });
        });
     }

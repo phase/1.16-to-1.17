@@ -1,0 +1,193 @@
+--- net/minecraft/client/profiling/ActiveClientMetricsLogger.java
++++ net/minecraft/client/profiling/ActiveClientMetricsLogger.java
+@@ -1,0 +1,190 @@
++package net.minecraft.client.profiling;
++
++import com.google.common.base.Stopwatch;
++import com.google.common.base.Ticker;
++import it.unimi.dsi.fastutil.objects.ObjectArrayList;
++import java.nio.file.Path;
++import java.util.Date;
++import java.util.Iterator;
++import java.util.List;
++import java.util.concurrent.Executor;
++import java.util.concurrent.TimeUnit;
++import java.util.function.Consumer;
++import java.util.function.LongSupplier;
++import java.util.function.ToDoubleFunction;
++import java.util.stream.Collectors;
++import javax.annotation.Nullable;
++import net.minecraft.client.Minecraft;
++import net.minecraft.client.profiling.metric.FpsSpikeRecording;
++import net.minecraft.client.profiling.metric.MetricSampler;
++import net.minecraft.client.profiling.metric.SamplerCategory;
++import net.minecraft.client.profiling.metric.TaskSamplerBuilder;
++import net.minecraft.client.profiling.storage.MetricsPersister;
++import net.minecraft.client.renderer.LevelRenderer;
++import net.minecraft.client.renderer.chunk.ChunkRenderDispatcher;
++import net.minecraft.util.profiling.ActiveProfiler;
++import net.minecraft.util.profiling.ContinuousProfiler;
++import net.minecraft.util.profiling.InactiveProfiler;
++import net.minecraft.util.profiling.ProfileCollector;
++import net.minecraft.util.profiling.ProfilerFiller;
++import net.minecraft.util.profiling.registry.MeasurementRegistry;
++
++public class ActiveClientMetricsLogger implements ClientMetricsLogger {
++   public static final int PROFILING_MAX_DURATION_SECONDS = 10;
++   @Nullable
++   private static Consumer<Path> globalOnReportFinished = null;
++   private final List<SamplerCategory> samplerCategories = new ObjectArrayList();
++   private final ContinuousProfiler taskProfiler;
++   private final Executor ioExecutor;
++   private final MetricsPersister metricsPersister;
++   private final Runnable onFinished;
++   private final Consumer<Path> onReportFinished;
++   private final LongSupplier wallTimeSource;
++   private final List<FpsSpikeRecording> fpsSpikeRecordings = new ObjectArrayList();
++   private final long deadlineNano;
++   private int currentTick;
++   private ProfileCollector singleTickProfiler;
++   private volatile boolean killSwitch;
++
++   private ActiveClientMetricsLogger(LongSupplier var1, Executor var2, MetricsPersister var3, Runnable var4, Consumer<Path> var5) {
++      this.wallTimeSource = var1;
++      this.taskProfiler = new ContinuousProfiler(var1, () -> {
++         return this.currentTick;
++      });
++      this.ioExecutor = var2;
++      this.metricsPersister = var3;
++      this.onFinished = var4;
++      this.onReportFinished = globalOnReportFinished == null ? var5 : var5.andThen(globalOnReportFinished);
++      this.deadlineNano = var1.getAsLong() + TimeUnit.NANOSECONDS.convert(10L, TimeUnit.SECONDS);
++      this.addSamplers();
++      this.singleTickProfiler = new ActiveProfiler(this.wallTimeSource, () -> {
++         return this.currentTick;
++      }, false);
++      this.taskProfiler.enable();
++   }
++
++   public static ActiveClientMetricsLogger createStarted(LongSupplier var0, Executor var1, MetricsPersister var2, Runnable var3, Consumer<Path> var4) {
++      return new ActiveClientMetricsLogger(var0, var1, var2, var3, var4);
++   }
++
++   private void addSamplers() {
++      this.samplerCategories.add(new SamplerCategory("JVM", new MetricSampler[]{MetricSampler.create("heap (Mb)", () -> {
++         return (double)(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1048576.0D;
++      })}));
++      this.samplerCategories.add(new SamplerCategory("Frame times (ms)", new MetricSampler[]{this.frameTimeSampler(this.wallTimeSource)}));
++      this.samplerCategories.add(new SamplerCategory("Task total durations (ms)", new MetricSampler[]{this.profilerTaskSampler("gameRendering").forPath("root", "gameRenderer"), this.profilerTaskSampler("updateDisplay").forPath("root", "updateDisplay"), this.profilerTaskSampler("skyRendering").forPath("root", "gameRenderer", "level", "sky")}));
++      LevelRenderer var1 = Minecraft.getInstance().levelRenderer;
++      this.samplerCategories.add(new SamplerCategory("Rendering chunk dispatching", new MetricSampler[]{MetricSampler.create("totalChunks", var1, LevelRenderer::getTotalChunks), MetricSampler.create("renderedChunks", var1, LevelRenderer::countRenderedChunks), MetricSampler.create("lastViewDistance", var1, LevelRenderer::getLastViewDistance)}));
++      ChunkRenderDispatcher var2 = var1.getChunkRenderDispatcher();
++      this.samplerCategories.add(new SamplerCategory("Rendering chunk stats", new MetricSampler[]{MetricSampler.create("toUpload", var2, ChunkRenderDispatcher::getToUpload), MetricSampler.create("freeBufferCount", var2, ChunkRenderDispatcher::getFreeBufferCount), MetricSampler.create("toBatchCount", var2, ChunkRenderDispatcher::getToBatchCount)}));
++      MeasurementRegistry.INSTANCE.getMetricsByCategories().forEach((var1x, var2x) -> {
++         List var3 = (List)var2x.stream().map((var0) -> {
++            return MetricSampler.create(var0.getMetric(), var0.getCurrentValue());
++         }).collect(Collectors.toList());
++         this.samplerCategories.add(new SamplerCategory(var1x.getName(), var3));
++      });
++   }
++
++   private TaskSamplerBuilder profilerTaskSampler(String var1) {
++      return new TaskSamplerBuilder(var1, () -> {
++         return this.singleTickProfiler;
++      });
++   }
++
++   private MetricSampler frameTimeSampler(final LongSupplier var1) {
++      Stopwatch var2 = Stopwatch.createUnstarted(new Ticker() {
++         public long read() {
++            return var1.getAsLong();
++         }
++      });
++      ToDoubleFunction var3 = (var0) -> {
++         if (var0.isRunning()) {
++            var0.stop();
++         }
++
++         long var1 = var0.elapsed(TimeUnit.MILLISECONDS);
++         var0.reset();
++         return (double)var1;
++      };
++      MetricSampler.ValueIncreased var4 = new MetricSampler.ValueIncreased(0.5F, (var1x) -> {
++         this.fpsSpikeRecordings.add(new FpsSpikeRecording(new Date(), this.currentTick, this.singleTickProfiler.getResults()));
++      });
++      return MetricSampler.builder("frametime", var3, var2).withBeforeTick(Stopwatch::start).withThresholdAlert(var4).build();
++   }
++
++   public synchronized void end() {
++      if (this.isRecording()) {
++         this.killSwitch = true;
++      }
++   }
++
++   public void startTick() {
++      this.verifyStarted();
++      Iterator var1 = this.samplerCategories.iterator();
++
++      while(var1.hasNext()) {
++         SamplerCategory var2 = (SamplerCategory)var1.next();
++         var2.onStartTick();
++      }
++
++      ++this.currentTick;
++   }
++
++   public void endTick() {
++      this.verifyStarted();
++      if (this.currentTick != 0) {
++         Iterator var1 = this.samplerCategories.iterator();
++
++         while(var1.hasNext()) {
++            SamplerCategory var2 = (SamplerCategory)var1.next();
++            var2.onEndTick();
++         }
++
++         if (!this.killSwitch && this.wallTimeSource.getAsLong() <= this.deadlineNano) {
++            this.singleTickProfiler = new ActiveProfiler(this.wallTimeSource, () -> {
++               return this.currentTick;
++            }, false);
++         } else {
++            this.onFinished.run();
++            this.killSwitch = false;
++            this.singleTickProfiler = InactiveProfiler.INSTANCE;
++            this.scheduleSaveResults();
++         }
++      }
++   }
++
++   public boolean isRecording() {
++      return this.taskProfiler.isEnabled();
++   }
++
++   public ProfilerFiller getProfiler() {
++      return ProfilerFiller.tee(this.taskProfiler.getFiller(), this.singleTickProfiler);
++   }
++
++   private void verifyStarted() {
++      if (!this.isRecording()) {
++         throw new IllegalStateException("Not started!");
++      }
++   }
++
++   private void scheduleSaveResults() {
++      this.ioExecutor.execute(() -> {
++         Path var1 = this.metricsPersister.saveReports(this.samplerCategories, this.fpsSpikeRecordings, this.taskProfiler);
++         Iterator var2 = this.samplerCategories.iterator();
++
++         while(var2.hasNext()) {
++            SamplerCategory var3 = (SamplerCategory)var2.next();
++            var3.onFinished();
++         }
++
++         this.samplerCategories.clear();
++         this.fpsSpikeRecordings.clear();
++         this.taskProfiler.disable();
++         this.onReportFinished.accept(var1);
++      });
++   }
++
++   public static void registerGlobalCompletionCallback(Consumer<Path> var0) {
++      globalOnReportFinished = var0;
++   }
++}

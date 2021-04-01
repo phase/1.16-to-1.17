@@ -43,7 +43,7 @@
  
     public Optional<WorldSelectionList.WorldListEntry> getSelectedOpt() {
        return Optional.ofNullable(this.getSelected());
-@@ -160,10 +162,11 @@
+@@ -160,13 +162,22 @@
        FROM_NEWER_TOOLTIP_1 = (new TranslatableComponent("selectWorld.tooltip.fromNewerVersion1")).withStyle(ChatFormatting.RED);
        FROM_NEWER_TOOLTIP_2 = (new TranslatableComponent("selectWorld.tooltip.fromNewerVersion2")).withStyle(ChatFormatting.RED);
        SNAPSHOT_TOOLTIP_1 = (new TranslatableComponent("selectWorld.tooltip.snapshot1")).withStyle(ChatFormatting.GOLD);
@@ -53,9 +53,20 @@
     }
  
     public final class WorldListEntry extends ObjectSelectionList.Entry<WorldSelectionList.WorldListEntry> implements AutoCloseable {
++      private static final int ICON_WIDTH = 32;
++      private static final int ICON_HEIGHT = 32;
++      private static final int ICON_OVERLAY_X_JOIN = 0;
++      private static final int ICON_OVERLAY_X_JOIN_WITH_NOTIFY = 32;
++      private static final int ICON_OVERLAY_X_WARNING = 64;
++      private static final int ICON_OVERLAY_X_ERROR = 96;
++      private static final int ICON_OVERLAY_Y_UNSELECTED = 0;
++      private static final int ICON_OVERLAY_Y_SELECTED = 32;
        private final Minecraft minecraft;
        private final SelectWorldScreen screen;
-@@ -205,27 +208,34 @@
+       private final LevelSummary summary;
+       private final ResourceLocation iconLocation;
+       private File iconFile;
+@@ -205,27 +216,34 @@
           var10003 = (float)(var4 + 32 + 3);
           this.minecraft.font.getClass();
           int var10004 = var3 + 9;
@@ -84,7 +95,7 @@
                 if (var15) {
                    this.screen.setToolTip(this.minecraft.font.split(WorldSelectionList.WORLD_LOCKED_TOOLTIP, 175));
                 }
-+            } else if (this.summary.isPreWorldheight()) {
++            } else if (this.summary.isIncompatibleWorldHeight()) {
 +               GuiComponent.blit(var1, var4, var3, 96.0F, 32.0F, 32, 32, 256, 256);
 +               if (var15) {
 +                  this.screen.setToolTip(this.minecraft.font.split(WorldSelectionList.WORLD_PRE_WORLDHEIGHT_TOOLTIP, 175));
@@ -94,7 +105,7 @@
                 if (this.summary.askToOpenWorld()) {
                    GuiComponent.blit(var1, var4, var3, 96.0F, (float)var16, 32, 32, 256, 256);
                    if (var15) {
-@@ -243,11 +253,11 @@
+@@ -243,11 +261,11 @@
           }
  
        }
@@ -107,7 +118,7 @@
              WorldSelectionList.this.setSelected(this);
              this.screen.updateButtonStatus(WorldSelectionList.this.getSelectedOpt().isPresent());
              if (var1 - (double)WorldSelectionList.this.getRowLeft() <= 32.0D) {
-@@ -262,14 +272,21 @@
+@@ -262,14 +280,21 @@
              }
           }
        }
@@ -133,7 +144,7 @@
                       String var3 = this.summary.getLevelId();
  
                       try {
-@@ -300,11 +317,11 @@
+@@ -300,11 +325,11 @@
                          WorldSelectionList.LOGGER.error("Failed to backup level {}", var3, var17);
                       }
                    }
@@ -146,7 +157,7 @@
                    if (var1x) {
                       try {
                          this.loadWorld();
-@@ -316,11 +333,11 @@
+@@ -316,11 +341,11 @@
                       }
                    } else {
                       this.minecraft.setScreen(this.screen);
@@ -159,7 +170,7 @@
              }
  
           }
-@@ -328,48 +345,52 @@
+@@ -328,48 +353,52 @@
  
        public void deleteWorld() {
           this.minecraft.setScreen(new ConfirmScreen((var1) -> {
@@ -242,3 +253,15 @@
        public void editWorld() {
           String var1 = this.summary.getLevelId();
  
+@@ -530,7 +559,11 @@
+          if (this.icon != null) {
+             this.icon.close();
+          }
+ 
+       }
++
++      public String getLevelName() {
++         return this.summary.getLevelName();
++      }
+    }
+ }

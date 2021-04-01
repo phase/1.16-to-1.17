@@ -21,8 +21,13 @@
  import net.minecraft.client.ClientBrandRetriever;
  import net.minecraft.client.Minecraft;
  import net.minecraft.core.RegistryAccess;
-@@ -34,24 +36,25 @@
+@@ -30,28 +32,30 @@
+ import net.minecraft.world.level.storage.WorldData;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
  public class IntegratedServer extends MinecraftServer {
++   public static final int CLIENT_VIEW_DISTANCE_OFFSET = -1;
     private static final Logger LOGGER = LogManager.getLogger();
     private final Minecraft minecraft;
     private boolean paused;
@@ -49,13 +54,17 @@
        this.setFlightAllowed(true);
        this.initializeKeyPair();
        this.loadLevel();
-@@ -136,18 +139,18 @@
+@@ -136,18 +140,22 @@
     public void populateSnooper(Snooper var1) {
        super.populateSnooper(var1);
        var1.setDynamicData("snooper_partner", this.minecraft.getSnooper().getToken());
     }
  
 -   public boolean publishServer(GameType var1, boolean var2, int var3) {
++   public boolean isSnooperEnabled() {
++      return Minecraft.getInstance().isSnooperEnabled();
++   }
++
 +   public boolean publishServer(@Nullable GameType var1, boolean var2, int var3) {
        try {
           this.getConnection().startTcpServerListener((InetAddress)null, var3);
@@ -70,7 +79,7 @@
           this.minecraft.player.setPermissionLevel(var4);
           Iterator var5 = this.getPlayerList().getPlayers().iterator();
  
-@@ -200,11 +203,11 @@
+@@ -200,11 +208,11 @@
        return this.publishedPort;
     }
  
@@ -83,7 +92,7 @@
     public boolean isCommandBlockEnabled() {
        return true;
     }
-@@ -230,6 +233,11 @@
+@@ -230,6 +238,11 @@
     }
  
     public boolean forceSynchronousWrites() {

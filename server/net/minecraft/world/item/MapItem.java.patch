@@ -1,6 +1,41 @@
 --- net/minecraft/world/item/MapItem.java
 +++ net/minecraft/world/item/MapItem.java
-@@ -37,36 +37,40 @@
+@@ -1,14 +1,18 @@
+ package net.minecraft.world.item;
+ 
+ import com.google.common.collect.Iterables;
+ import com.google.common.collect.LinkedHashMultiset;
+ import com.google.common.collect.Multisets;
++import java.util.List;
+ import javax.annotation.Nullable;
++import net.minecraft.ChatFormatting;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.chat.Component;
++import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.tags.BlockTags;
+ import net.minecraft.util.Mth;
+@@ -26,10 +30,15 @@
+ import net.minecraft.world.level.material.FluidState;
+ import net.minecraft.world.level.material.MaterialColor;
+ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+ 
+ public class MapItem extends ComplexItem {
++   public static final int IMAGE_WIDTH = 128;
++   public static final int IMAGE_HEIGHT = 128;
++   private static final int DEFAULT_MAP_COLOR = -12173266;
++   private static final String TAG_MAP = "map";
++
+    public MapItem(Item.Properties var1) {
+       super(var1);
+    }
+ 
+    public static ItemStack create(Level var0, int var1, int var2, byte var3, boolean var4, boolean var5) {
+@@ -37,36 +46,40 @@
        createAndStoreSavedData(var6, var0, var1, var2, var3, var4, var5, var0.dimension());
        return var6;
     }
@@ -58,7 +93,7 @@
     public static String makeKey(int var0) {
        return "map_" + var0;
     }
-@@ -123,29 +127,29 @@
+@@ -123,29 +136,29 @@
  
                             for(int var31 = 0; var31 < var4; ++var31) {
                                for(int var32 = 0; var32 < var4; ++var32) {
@@ -92,7 +127,7 @@
                                      }
                                   }
  
-@@ -180,17 +184,11 @@
+@@ -180,17 +193,11 @@
                             }
                          }
  
@@ -111,7 +146,7 @@
                    }
                 }
              }
-@@ -207,11 +205,11 @@
+@@ -207,11 +214,11 @@
     private static boolean isLand(Biome[] var0, int var1, int var2, int var3) {
        return var0[var2 * var1 + var3 * var1 * 128 * var1].getDepth() >= 0.0F;
     }
@@ -124,7 +159,7 @@
              int var3 = 1 << var2.scale;
              int var4 = var2.x;
              int var5 = var2.z;
-@@ -290,12 +288,11 @@
+@@ -290,12 +297,11 @@
                             var11 = 3;
                          }
                       }
@@ -138,7 +173,7 @@
                 }
              }
  
-@@ -303,11 +300,11 @@
+@@ -303,11 +309,11 @@
        }
     }
  
@@ -151,7 +186,7 @@
                 Player var7 = (Player)var3;
                 var6.tickCarriedBy(var7, var1);
              }
-@@ -320,11 +317,13 @@
+@@ -320,11 +326,13 @@
        }
     }
  
@@ -166,7 +201,7 @@
     public void onCraftedBy(ItemStack var1, Level var2, Player var3) {
        CompoundTag var4 = var1.getTag();
        if (var4 != null && var4.contains("map_scale_direction", 99)) {
-@@ -335,33 +334,40 @@
+@@ -335,33 +343,69 @@
           var4.remove("map_to_lock");
        }
  
@@ -200,6 +235,35 @@
  
     }
  
++   public void appendHoverText(ItemStack var1, @Nullable Level var2, List<Component> var3, TooltipFlag var4) {
++      Integer var5 = getMapId(var1);
++      MapItemSavedData var6 = var2 == null ? null : getSavedData(var5, var2);
++      if (var6 != null && var6.locked) {
++         var3.add((new TranslatableComponent("filled_map.locked", new Object[]{var5})).withStyle(ChatFormatting.GRAY));
++      }
++
++      if (var4.isAdvanced()) {
++         if (var6 != null) {
++            var3.add((new TranslatableComponent("filled_map.id", new Object[]{var5})).withStyle(ChatFormatting.GRAY));
++            var3.add((new TranslatableComponent("filled_map.scale", new Object[]{1 << var6.scale})).withStyle(ChatFormatting.GRAY));
++            var3.add((new TranslatableComponent("filled_map.level", new Object[]{var6.scale, 4})).withStyle(ChatFormatting.GRAY));
++         } else {
++            var3.add((new TranslatableComponent("filled_map.unknown")).withStyle(ChatFormatting.GRAY));
++         }
++      }
++
++   }
++
++   public static int getColor(ItemStack var0) {
++      CompoundTag var1 = var0.getTagElement("display");
++      if (var1 != null && var1.contains("MapColor", 99)) {
++         int var2 = var1.getInt("MapColor");
++         return -16777216 | var2 & 16777215;
++      } else {
++         return -12173266;
++      }
++   }
++
     public InteractionResult useOn(UseOnContext var1) {
        BlockState var2 = var1.getLevel().getBlockState(var1.getClickedPos());
        if (var2.is(BlockTags.BANNERS)) {

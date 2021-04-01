@@ -1,12 +1,12 @@
 --- net/minecraft/world/level/levelgen/structure/StructurePiece.java
 +++ net/minecraft/world/level/levelgen/structure/StructurePiece.java
-@@ -1,17 +1,19 @@
+@@ -1,18 +1,20 @@
  package net.minecraft.world.level.levelgen.structure;
  
  import com.google.common.collect.ImmutableSet;
 +import com.mojang.serialization.DataResult;
  import java.util.Iterator;
- import java.util.List;
+-import java.util.List;
  import java.util.Random;
  import java.util.Set;
  import javax.annotation.Nullable;
@@ -16,11 +16,13 @@
  import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.nbt.NbtOps;
  import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerLevel;
  import net.minecraft.world.level.BlockGetter;
  import net.minecraft.world.level.ChunkPos;
  import net.minecraft.world.level.LevelReader;
  import net.minecraft.world.level.ServerLevelAccessor;
-@@ -27,14 +29,18 @@
+ import net.minecraft.world.level.StructureFeatureManager;
+@@ -27,55 +29,79 @@
  import net.minecraft.world.level.block.entity.ChestBlockEntity;
  import net.minecraft.world.level.block.entity.DispenserBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
@@ -39,52 +41,85 @@
     @Nullable
     private Direction orientation;
     private Mirror mirror;
-@@ -49,30 +55,42 @@
+    private Rotation rotation;
+    protected int genDepth;
+    private final StructurePieceType type;
+    private static final Set<Block> SHAPE_CHECK_BLOCKS;
+ 
+-   protected StructurePiece(StructurePieceType var1, int var2) {
++   protected StructurePiece(StructurePieceType var1, int var2, BoundingBox var3) {
+       this.type = var1;
+       this.genDepth = var2;
++      this.boundingBox = var3;
     }
  
     public StructurePiece(StructurePieceType var1, CompoundTag var2) {
-       this(var1, var2.getInt("GD"));
-       if (var2.contains("BB")) {
+-      this(var1, var2.getInt("GD"));
+-      if (var2.contains("BB")) {
 -         this.boundingBox = new BoundingBox(var2.getIntArray("BB"));
-+         DataResult var10001 = BoundingBox.CODEC.parse(NbtOps.INSTANCE, var2.get("BB"));
-+         Logger var10002 = LOGGER;
-+         var10002.getClass();
-+         this.boundingBox = (BoundingBox)var10001.resultOrPartial(var10002::error).orElse(new BoundingBox(BlockPos.ZERO));
-       }
- 
+-      }
+-
++      int var10002 = var2.getInt("GD");
++      DataResult var10003 = BoundingBox.CODEC.parse(NbtOps.INSTANCE, var2.get("BB"));
++      Logger var10004 = LOGGER;
++      var10004.getClass();
++      this(var1, var10002, (BoundingBox)var10003.resultOrPartial(var10004::error).orElseThrow(() -> {
++         return new IllegalArgumentException("Invalid boundingbox");
++      }));
        int var3 = var2.getInt("O");
        this.setOrientation(var3 == -1 ? null : Direction.from2DDataValue(var3));
     }
  
-    public final CompoundTag createTag() {
-       CompoundTag var1 = new CompoundTag();
-       var1.putString("id", Registry.STRUCTURE_PIECE.getKey(this.getType()).toString());
+-   public final CompoundTag createTag() {
+-      CompoundTag var1 = new CompoundTag();
+-      var1.putString("id", Registry.STRUCTURE_PIECE.getKey(this.getType()).toString());
 -      var1.put("BB", this.boundingBox.createTag());
+-      Direction var2 = this.getOrientation();
+-      var1.putInt("O", var2 == null ? -1 : var2.get2DDataValue());
+-      var1.putInt("GD", this.genDepth);
+-      this.addAdditionalSaveData(var1);
+-      return var1;
++   protected static BoundingBox makeBoundingBox(int var0, int var1, int var2, Direction var3, int var4, int var5, int var6) {
++      return var3.getAxis() == Direction.Axis.Z ? new BoundingBox(var0, var1, var2, var0 + var4 - 1, var1 + var5 - 1, var2 + var6 - 1) : new BoundingBox(var0, var1, var2, var0 + var6 - 1, var1 + var5 - 1, var2 + var4 - 1);
+    }
+ 
+-   protected abstract void addAdditionalSaveData(CompoundTag var1);
++   protected static Direction getRandomHorizontalDirection(Random var0) {
++      return Direction.Plane.HORIZONTAL.getRandomDirection(var0);
++   }
+ 
+-   public void addChildren(StructurePiece var1, List<StructurePiece> var2, Random var3) {
++   public final CompoundTag createTag(ServerLevel var1) {
++      CompoundTag var2 = new CompoundTag();
++      var2.putString("id", Registry.STRUCTURE_PIECE.getKey(this.getType()).toString());
 +      DataResult var10000 = BoundingBox.CODEC.encodeStart(NbtOps.INSTANCE, this.boundingBox);
 +      Logger var10001 = LOGGER;
 +      var10001.getClass();
 +      var10000.resultOrPartial(var10001::error).ifPresent((var1x) -> {
-+         var1.put("BB", var1x);
++         var2.put("BB", var1x);
 +      });
-       Direction var2 = this.getOrientation();
-       var1.putInt("O", var2 == null ? -1 : var2.get2DDataValue());
-       var1.putInt("GD", this.genDepth);
-       this.addAdditionalSaveData(var1);
-       return var1;
++      Direction var3 = this.getOrientation();
++      var2.putInt("O", var3 == null ? -1 : var3.get2DDataValue());
++      var2.putInt("GD", this.genDepth);
++      this.addAdditionalSaveData(var1, var2);
++      return var2;
     }
  
-    protected abstract void addAdditionalSaveData(CompoundTag var1);
- 
++   protected abstract void addAdditionalSaveData(ServerLevel var1, CompoundTag var2);
++
 +   public NoiseEffect getNoiseEffect() {
 +      return NoiseEffect.BEARD;
 +   }
 +
-    public void addChildren(StructurePiece var1, List<StructurePiece> var2, Random var3) {
-    }
- 
++   public void addChildren(StructurePiece var1, StructurePieceAccessor var2, Random var3) {
++   }
++
     public abstract boolean postProcess(WorldGenLevel var1, StructureFeatureManager var2, ChunkGenerator var3, Random var4, BoundingBox var5, ChunkPos var6, BlockPos var7);
  
-@@ -83,12 +101,12 @@
+    public BoundingBox getBoundingBox() {
+       return this.boundingBox;
+    }
+@@ -83,163 +109,106 @@
     public int getGenDepth() {
        return this.genDepth;
     }
@@ -97,12 +132,21 @@
        return this.boundingBox.intersects(var3 - var2, var4 - var2, var3 + 15 + var2, var4 + 15 + var2);
     }
  
-    public static StructurePiece findCollisionPiece(List<StructurePiece> var0, BoundingBox var1) {
-       Iterator var2 = var0.iterator();
-@@ -103,58 +121,12 @@
-       } while(var3.getBoundingBox() == null || !var3.getBoundingBox().intersects(var1));
- 
-       return var3;
+-   public static StructurePiece findCollisionPiece(List<StructurePiece> var0, BoundingBox var1) {
+-      Iterator var2 = var0.iterator();
+-
+-      StructurePiece var3;
+-      do {
+-         if (!var2.hasNext()) {
+-            return null;
+-         }
+-
+-         var3 = (StructurePiece)var2.next();
+-      } while(var3.getBoundingBox() == null || !var3.getBoundingBox().intersects(var1));
+-
+-      return var3;
++   public BlockPos getLocatorPosition() {
++      return new BlockPos(this.boundingBox.getCenter());
     }
  
 -   protected boolean edgesLiquid(BlockGetter var1, BoundingBox var2) {
@@ -153,18 +197,62 @@
 -      }
 -
 -      return false;
-+   protected BlockPos getWorldPos(int var1, int var2, int var3) {
-+      return new BlockPos(this.getWorldX(var1, var3), this.getWorldY(var2), this.getWorldZ(var1, var3));
++   protected BlockPos.MutableBlockPos getWorldPos(int var1, int var2, int var3) {
++      return new BlockPos.MutableBlockPos(this.getWorldX(var1, var3), this.getWorldY(var2), this.getWorldZ(var1, var3));
     }
  
     protected int getWorldX(int var1, int var2) {
        Direction var3 = this.getOrientation();
        if (var3 == null) {
-@@ -198,31 +170,37 @@
+          return var1;
+       } else {
+          switch(var3) {
+          case NORTH:
+          case SOUTH:
+-            return this.boundingBox.x0 + var1;
++            return this.boundingBox.minX() + var1;
+          case WEST:
+-            return this.boundingBox.x1 - var2;
++            return this.boundingBox.maxX() - var2;
+          case EAST:
+-            return this.boundingBox.x0 + var2;
++            return this.boundingBox.minX() + var2;
+          default:
+             return var1;
+          }
+       }
+    }
+ 
+    protected int getWorldY(int var1) {
+-      return this.getOrientation() == null ? var1 : var1 + this.boundingBox.y0;
++      return this.getOrientation() == null ? var1 : var1 + this.boundingBox.minY();
+    }
+ 
+    protected int getWorldZ(int var1, int var2) {
+       Direction var3 = this.getOrientation();
+       if (var3 == null) {
+          return var2;
+       } else {
+          switch(var3) {
+          case NORTH:
+-            return this.boundingBox.z1 - var2;
++            return this.boundingBox.maxZ() - var2;
+          case SOUTH:
+-            return this.boundingBox.z0 + var2;
++            return this.boundingBox.minZ() + var2;
+          case WEST:
+          case EAST:
+-            return this.boundingBox.z0 + var1;
++            return this.boundingBox.minZ() + var1;
+          default:
+             return var2;
+          }
+       }
     }
  
     protected void placeBlock(WorldGenLevel var1, BlockState var2, int var3, int var4, int var5, BoundingBox var6) {
-       BlockPos var7 = new BlockPos(this.getWorldX(var3, var5), this.getWorldY(var4), this.getWorldZ(var3, var5));
+-      BlockPos var7 = new BlockPos(this.getWorldX(var3, var5), this.getWorldY(var4), this.getWorldZ(var3, var5));
++      BlockPos.MutableBlockPos var7 = this.getWorldPos(var3, var4, var5);
        if (var6.isInside(var7)) {
 -         if (this.mirror != Mirror.NONE) {
 -            var2 = var2.mirror(this.mirror);
@@ -208,11 +296,63 @@
 +   }
 +
     protected BlockState getBlock(BlockGetter var1, int var2, int var3, int var4, BoundingBox var5) {
-       int var6 = this.getWorldX(var2, var4);
-       int var7 = this.getWorldY(var3);
-       int var8 = this.getWorldZ(var2, var4);
-       BlockPos var9 = new BlockPos(var6, var7, var8);
-@@ -298,13 +276,32 @@
+-      int var6 = this.getWorldX(var2, var4);
+-      int var7 = this.getWorldY(var3);
+-      int var8 = this.getWorldZ(var2, var4);
+-      BlockPos var9 = new BlockPos(var6, var7, var8);
+-      return !var5.isInside(var9) ? Blocks.AIR.defaultBlockState() : var1.getBlockState(var9);
++      BlockPos.MutableBlockPos var6 = this.getWorldPos(var2, var3, var4);
++      return !var5.isInside(var6) ? Blocks.AIR.defaultBlockState() : var1.getBlockState(var6);
+    }
+ 
+    protected boolean isInterior(LevelReader var1, int var2, int var3, int var4, BoundingBox var5) {
+-      int var6 = this.getWorldX(var2, var4);
+-      int var7 = this.getWorldY(var3 + 1);
+-      int var8 = this.getWorldZ(var2, var4);
+-      BlockPos var9 = new BlockPos(var6, var7, var8);
+-      if (!var5.isInside(var9)) {
++      BlockPos.MutableBlockPos var6 = this.getWorldPos(var2, var3 + 1, var4);
++      if (!var5.isInside(var6)) {
+          return false;
+       } else {
+-         return var7 < var1.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, var6, var8);
++         return var6.getY() < var1.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, var6.getX(), var6.getZ());
+       }
+    }
+ 
+    protected void generateAirBox(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5, int var6, int var7, int var8) {
+       for(int var9 = var4; var9 <= var7; ++var9) {
+@@ -267,10 +236,14 @@
+          }
+       }
+ 
+    }
+ 
++   protected void generateBox(WorldGenLevel var1, BoundingBox var2, BoundingBox var3, BlockState var4, BlockState var5, boolean var6) {
++      this.generateBox(var1, var2, var3.minX(), var3.minY(), var3.minZ(), var3.maxX(), var3.maxY(), var3.maxZ(), var4, var5, var6);
++   }
++
+    protected void generateBox(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5, int var6, int var7, int var8, boolean var9, Random var10, StructurePiece.BlockSelector var11) {
+       for(int var12 = var4; var12 <= var7; ++var12) {
+          for(int var13 = var3; var13 <= var6; ++var13) {
+             for(int var14 = var5; var14 <= var8; ++var14) {
+                if (!var9 || !this.getBlock(var1, var13, var12, var14, var2).isAir()) {
+@@ -281,10 +254,14 @@
+          }
+       }
+ 
+    }
+ 
++   protected void generateBox(WorldGenLevel var1, BoundingBox var2, BoundingBox var3, boolean var4, Random var5, StructurePiece.BlockSelector var6) {
++      this.generateBox(var1, var2, var3.minX(), var3.minY(), var3.minZ(), var3.maxX(), var3.maxY(), var3.maxZ(), var4, var5, var6);
++   }
++
+    protected void generateMaybeBox(WorldGenLevel var1, BoundingBox var2, Random var3, float var4, int var5, int var6, int var7, int var8, int var9, int var10, BlockState var11, BlockState var12, boolean var13, boolean var14) {
+       for(int var15 = var6; var15 <= var9; ++var15) {
+          for(int var16 = var5; var16 <= var8; ++var16) {
+             for(int var17 = var7; var17 <= var10; ++var17) {
+                if (var3.nextFloat() <= var4 && (!var13 || !this.getBlock(var1, var16, var15, var17, var2).isAir()) && (!var14 || this.isInterior(var1, var16, var15, var17, var2))) {
+@@ -298,13 +275,32 @@
           }
        }
  
@@ -247,21 +387,24 @@
     }
  
     protected void generateUpperHalfSphere(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5, int var6, int var7, int var8, BlockState var9, boolean var10) {
-@@ -336,19 +333,24 @@
+@@ -333,25 +329,26 @@
+       }
+ 
+    }
  
     protected void fillColumnDown(WorldGenLevel var1, BlockState var2, int var3, int var4, int var5, BoundingBox var6) {
-       int var7 = this.getWorldX(var3, var5);
-       int var8 = this.getWorldY(var4);
-       int var9 = this.getWorldZ(var3, var5);
+-      int var7 = this.getWorldX(var3, var5);
+-      int var8 = this.getWorldY(var4);
+-      int var9 = this.getWorldZ(var3, var5);
 -      if (var6.isInside(new BlockPos(var7, var8, var9))) {
 -         while((var1.isEmptyBlock(new BlockPos(var7, var8, var9)) || var1.getBlockState(new BlockPos(var7, var8, var9)).getMaterial().isLiquid()) && var8 > 1) {
 -            var1.setBlock(new BlockPos(var7, var8, var9), var2, 2);
 -            --var8;
-+      BlockPos.MutableBlockPos var10 = new BlockPos.MutableBlockPos(var7, var8, var9);
-+      if (var6.isInside(var10)) {
-+         while(this.isReplaceableByStructures(var1.getBlockState(var10)) && var10.getY() > var1.getMinBuildHeight() + 1) {
-+            var1.setBlock(var10, var2, 2);
-+            var10.move(Direction.DOWN);
++      BlockPos.MutableBlockPos var7 = this.getWorldPos(var3, var4, var5);
++      if (var6.isInside(var7)) {
++         while(this.isReplaceableByStructures(var1.getBlockState(var7)) && var7.getY() > var1.getMinBuildHeight() + 1) {
++            var1.setBlock(var7, var2, 2);
++            var7.move(Direction.DOWN);
           }
  
        }
@@ -272,7 +415,39 @@
 +   }
 +
     protected boolean createChest(WorldGenLevel var1, BoundingBox var2, Random var3, int var4, int var5, int var6, ResourceLocation var7) {
-       BlockPos var8 = new BlockPos(this.getWorldX(var4, var6), this.getWorldY(var5), this.getWorldZ(var4, var6));
-       return this.createChest(var1, var2, var3, var8, var7, (BlockState)null);
+-      BlockPos var8 = new BlockPos(this.getWorldX(var4, var6), this.getWorldY(var5), this.getWorldZ(var4, var6));
+-      return this.createChest(var1, var2, var3, var8, var7, (BlockState)null);
++      return this.createChest(var1, var2, var3, this.getWorldPos(var4, var5, var6), var7, (BlockState)null);
     }
  
+    public static BlockState reorient(BlockGetter var0, BlockPos var1, BlockState var2) {
+       Direction var3 = null;
+       Iterator var4 = Direction.Plane.HORIZONTAL.iterator();
+@@ -415,11 +412,11 @@
+          return false;
+       }
+    }
+ 
+    protected boolean createDispenser(WorldGenLevel var1, BoundingBox var2, Random var3, int var4, int var5, int var6, Direction var7, ResourceLocation var8) {
+-      BlockPos var9 = new BlockPos(this.getWorldX(var4, var6), this.getWorldY(var5), this.getWorldZ(var4, var6));
++      BlockPos.MutableBlockPos var9 = this.getWorldPos(var4, var5, var6);
+       if (var2.isInside(var9) && !var1.getBlockState(var9).is(Blocks.DISPENSER)) {
+          this.placeBlock(var1, (BlockState)Blocks.DISPENSER.defaultBlockState().setValue(DispenserBlock.FACING, var7), var4, var5, var6, var2);
+          BlockEntity var10 = var1.getBlockEntity(var9);
+          if (var10 instanceof DispenserBlockEntity) {
+             ((DispenserBlockEntity)var10).setLootTable(var8, var3.nextLong());
+@@ -469,10 +466,14 @@
+ 
+    public Rotation getRotation() {
+       return this.rotation;
+    }
+ 
++   public Mirror getMirror() {
++      return this.mirror;
++   }
++
+    public StructurePieceType getType() {
+       return this.type;
+    }
+ 
+    static {

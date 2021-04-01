@@ -176,7 +176,40 @@
                 ModelPart var10 = (ModelPart)var9.next();
                 var10.render(var1, var2, var3, var4, var5, var6, var7, var8);
              }
-@@ -162,51 +110,31 @@
+@@ -145,10 +93,32 @@
+             var1.popPose();
+          }
+       }
+    }
+ 
++   public void visit(PoseStack var1, ModelPart.Visitor var2) {
++      this.visit(var1, var2, "");
++   }
++
++   private void visit(PoseStack var1, ModelPart.Visitor var2, String var3) {
++      if (!this.cubes.isEmpty() || !this.children.isEmpty()) {
++         var1.pushPose();
++         this.translateAndRotate(var1);
++         PoseStack.Pose var4 = var1.last();
++
++         for(int var5 = 0; var5 < this.cubes.size(); ++var5) {
++            var2.visit(var4, var3, var5, (ModelPart.Cube)this.cubes.get(var5));
++         }
++
++         String var6 = var3 + "/";
++         this.children.forEach((var3x, var4x) -> {
++            var4x.visit(var1, var2, var6 + var3x);
++         });
++         var1.popPose();
++      }
++   }
++
+    public void translateAndRotate(PoseStack var1) {
+       var1.translate((double)(this.x / 16.0F), (double)(this.y / 16.0F), (double)(this.z / 16.0F));
+       if (this.zRot != 0.0F) {
+          var1.mulPose(Vector3f.ZP.rotation(this.zRot));
+       }
+@@ -162,51 +132,31 @@
        }
  
     }
@@ -240,7 +273,7 @@
        public final float u;
        public final float v;
  
-@@ -309,7 +237,36 @@
+@@ -309,7 +259,41 @@
           this.polygons[1] = new ModelPart.Polygon(new ModelPart.Vertex[]{var35, var22, var25, var21}, var26, var33, var27, var34, var13, var14, var12, Direction.WEST);
           this.polygons[4] = new ModelPart.Polygon(new ModelPart.Vertex[]{var19, var35, var21, var20}, var27, var33, var28, var34, var13, var14, var12, Direction.NORTH);
           this.polygons[0] = new ModelPart.Polygon(new ModelPart.Vertex[]{var23, var19, var20, var24}, var28, var33, var30, var34, var13, var14, var12, Direction.EAST);
@@ -276,4 +309,9 @@
 +
 +      }
     }
++
++   @FunctionalInterface
++   public interface Visitor {
++      void visit(PoseStack.Pose var1, String var2, int var3, ModelPart.Cube var4);
++   }
  }

@@ -22,7 +22,7 @@
  import net.minecraft.world.entity.ExperienceOrb;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.entity.player.StackedContents;
-@@ -39,25 +43,25 @@
+@@ -39,25 +43,35 @@
  import net.minecraft.world.level.block.AbstractFurnaceBlock;
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
@@ -30,9 +30,19 @@
  
 -public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, RecipeHolder, StackedContentsCompatible, TickableBlockEntity {
 +public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, RecipeHolder, StackedContentsCompatible {
++   protected static final int SLOT_INPUT = 0;
++   protected static final int SLOT_FUEL = 1;
++   protected static final int SLOT_RESULT = 2;
++   public static final int DATA_LIT_TIME = 0;
     private static final int[] SLOTS_FOR_UP = new int[]{0};
     private static final int[] SLOTS_FOR_DOWN = new int[]{2, 1};
     private static final int[] SLOTS_FOR_SIDES = new int[]{1};
++   public static final int DATA_LIT_DURATION = 1;
++   public static final int DATA_COOKING_PROGRESS = 2;
++   public static final int DATA_COOKING_TOTAL_TIME = 3;
++   public static final int NUM_DATA_VALUES = 4;
++   public static final int BURN_TIME_STANDARD = 200;
++   public static final int BURN_COOL_SPEED = 2;
     protected NonNullList<ItemStack> items;
     private int litTime;
     private int litDuration;
@@ -52,7 +62,7 @@
           public int get(int var1) {
              switch(var1) {
              case 0:
-@@ -93,11 +97,11 @@
+@@ -93,11 +107,11 @@
           public int getCount() {
              return 4;
           }
@@ -65,7 +75,20 @@
     public static Map<Item, Integer> getFuel() {
        LinkedHashMap var0 = Maps.newLinkedHashMap();
        add(var0, (ItemLike)Items.LAVA_BUCKET, 20000);
-@@ -192,24 +196,24 @@
+@@ -158,10 +172,12 @@
+       add(var0, (ItemLike)Blocks.BARREL, 300);
+       add(var0, (ItemLike)Blocks.CARTOGRAPHY_TABLE, 300);
+       add(var0, (ItemLike)Blocks.FLETCHING_TABLE, 300);
+       add(var0, (ItemLike)Blocks.SMITHING_TABLE, 300);
+       add(var0, (ItemLike)Blocks.COMPOSTER, 300);
++      add(var0, (ItemLike)Blocks.AZALEA, 100);
++      add(var0, (ItemLike)Blocks.FLOWERING_AZALEA, 100);
+       return var0;
+    }
+ 
+    private static boolean isNeverAFurnaceFuel(Item var0) {
+       return ItemTags.NON_FLAMMABLE_WOOD.contains(var0);
+@@ -192,24 +208,24 @@
  
     private boolean isLit() {
        return this.litTime > 0;
@@ -101,7 +124,7 @@
     }
  
     public CompoundTag save(CompoundTag var1) {
-@@ -224,108 +228,110 @@
+@@ -224,108 +240,108 @@
        });
        var1.put("RecipesUsed", var2);
        return var1;
@@ -140,11 +163,7 @@
 -                        this.items.set(1, var6 == null ? ItemStack.EMPTY : new ItemStack(var6));
 -                     }
 +      ItemStack var6 = (ItemStack)var3.items.get(1);
-+      if (!var3.isLit() && (var6.isEmpty() || ((ItemStack)var3.items.get(0)).isEmpty())) {
-+         if (!var3.isLit() && var3.cookingProgress > 0) {
-+            var3.cookingProgress = Mth.clamp(var3.cookingProgress - 2, 0, var3.cookingTotalTime);
-+         }
-+      } else {
++      if (var3.isLit() || !var6.isEmpty() && !((ItemStack)var3.items.get(0)).isEmpty()) {
 +         Recipe var7 = (Recipe)var0.getRecipeManager().getRecipeFor(var3.recipeType, var3, var0).orElse((Object)null);
 +         int var8 = var3.getMaxStackSize();
 +         if (!var3.isLit() && canBurn(var7, var3.items, var8)) {
@@ -186,6 +205,8 @@
 +         } else {
 +            var3.cookingProgress = 0;
           }
++      } else if (!var3.isLit() && var3.cookingProgress > 0) {
++         var3.cookingProgress = Mth.clamp((int)(var3.cookingProgress - 2), (int)0, (int)var3.cookingTotalTime);
 +      }
  
 -         if (var1 != this.isLit()) {
@@ -277,7 +298,7 @@
  
     protected int getBurnDuration(ItemStack var1) {
        if (var1.isEmpty()) {
-@@ -334,12 +340,12 @@
+@@ -334,12 +350,12 @@
           Item var2 = var1.getItem();
           return (Integer)getFuel().getOrDefault(var2, 0);
        }
@@ -292,7 +313,7 @@
     public static boolean isFuel(ItemStack var0) {
        return getFuel().containsKey(var0.getItem());
     }
-@@ -356,17 +362,14 @@
+@@ -356,17 +372,14 @@
        return this.canPlaceItem(var1, var2);
     }
  
@@ -313,7 +334,7 @@
     public int getContainerSize() {
        return this.items.size();
     }
-@@ -405,11 +408,11 @@
+@@ -405,11 +418,11 @@
        if (var2.getCount() > this.getMaxStackSize()) {
           var2.setCount(this.getMaxStackSize());
        }
@@ -326,7 +347,7 @@
        }
  
     }
-@@ -427,11 +430,11 @@
+@@ -427,11 +440,11 @@
           return false;
        } else if (var1 != 1) {
           return true;
@@ -339,7 +360,7 @@
  
     public void clearContent() {
        this.items.clear();
-@@ -451,17 +454,17 @@
+@@ -451,17 +464,17 @@
     }
  
     public void awardUsedRecipes(Player var1) {
@@ -360,7 +381,7 @@
  
        while(var4.hasNext()) {
           Entry var5 = (Entry)var4.next();
-@@ -472,23 +475,18 @@
+@@ -472,23 +485,18 @@
        }
  
        return var3;

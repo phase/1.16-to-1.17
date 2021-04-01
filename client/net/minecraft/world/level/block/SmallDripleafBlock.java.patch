@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/SmallDripleafBlock.java
 +++ net/minecraft/world/level/block/SmallDripleafBlock.java
-@@ -1,0 +1,106 @@
+@@ -1,0 +1,120 @@
 +package net.minecraft.world.level.block;
 +
 +import java.util.Random;
@@ -20,6 +20,7 @@
 +import net.minecraft.world.level.block.state.StateDefinition;
 +import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 +import net.minecraft.world.level.block.state.properties.BooleanProperty;
++import net.minecraft.world.level.block.state.properties.DirectionProperty;
 +import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 +import net.minecraft.world.level.material.FluidState;
 +import net.minecraft.world.level.material.Fluids;
@@ -28,11 +29,13 @@
 +
 +public class SmallDripleafBlock extends DoublePlantBlock implements BonemealableBlock, SimpleWaterloggedBlock {
 +   private static final BooleanProperty WATERLOGGED;
++   public static final DirectionProperty FACING;
++   protected static final float AABB_OFFSET = 6.0F;
 +   protected static final VoxelShape SHAPE;
 +
 +   public SmallDripleafBlock(BlockBehaviour.Properties var1) {
 +      super(var1);
-+      this.registerDefaultState((BlockState)((BlockState)((BlockState)this.stateDefinition.any()).setValue(HALF, DoubleBlockHalf.LOWER)).setValue(WATERLOGGED, false));
++      this.registerDefaultState((BlockState)((BlockState)((BlockState)((BlockState)this.stateDefinition.any()).setValue(HALF, DoubleBlockHalf.LOWER)).setValue(WATERLOGGED, false)).setValue(FACING, Direction.NORTH));
 +   }
 +
 +   public VoxelShape getShape(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
@@ -48,14 +51,15 @@
 +      BlockState var2 = super.getStateForPlacement(var1);
 +      if (var2 != null) {
 +         FluidState var3 = var1.getLevel().getFluidState(var1.getClickedPos());
-+         return (BlockState)var2.setValue(WATERLOGGED, var3.getType() == Fluids.WATER);
++         return (BlockState)((BlockState)var2.setValue(WATERLOGGED, var3.getType() == Fluids.WATER)).setValue(FACING, var1.getHorizontalDirection().getOpposite());
 +      } else {
 +         return null;
 +      }
 +   }
 +
 +   public void setPlacedBy(Level var1, BlockPos var2, BlockState var3, LivingEntity var4, ItemStack var5) {
-+      var1.setBlock(var2.above(), (BlockState)((BlockState)this.defaultBlockState().setValue(HALF, DoubleBlockHalf.UPPER)).setValue(WATERLOGGED, var1.isWaterAt(var2.above())), 3);
++      Direction var6 = (Direction)var3.getValue(FACING);
++      var1.setBlock(var2.above(), (BlockState)((BlockState)((BlockState)this.defaultBlockState().setValue(HALF, DoubleBlockHalf.UPPER)).setValue(WATERLOGGED, var1.isWaterAt(var2.above()))).setValue(FACING, var6), 3);
 +   }
 +
 +   public FluidState getFluidState(BlockState var1) {
@@ -81,7 +85,7 @@
 +   }
 +
 +   protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
-+      var1.add(HALF, WATERLOGGED);
++      var1.add(HALF, WATERLOGGED, FACING);
 +   }
 +
 +   public boolean isValidBonemealTarget(BlockGetter var1, BlockPos var2, BlockState var3, boolean var4) {
@@ -94,7 +98,8 @@
 +
 +   public void performBonemeal(ServerLevel var1, Random var2, BlockPos var3, BlockState var4) {
 +      if (var4.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER) {
-+         BigDripleafBlock.placeWithRandomHeight(var1, var2, var3);
++         var1.setBlock(var3.above(), Blocks.AIR.defaultBlockState(), 16);
++         BigDripleafBlock.placeWithRandomHeight(var1, var2, var3, (Direction)var4.getValue(FACING));
 +      } else {
 +         BlockPos var5 = var3.below();
 +         this.performBonemeal(var1, var2, var5, var1.getBlockState(var5));
@@ -102,8 +107,17 @@
 +
 +   }
 +
++   public BlockState rotate(BlockState var1, Rotation var2) {
++      return (BlockState)var1.setValue(FACING, var2.rotate((Direction)var1.getValue(FACING)));
++   }
++
++   public BlockState mirror(BlockState var1, Mirror var2) {
++      return var1.rotate(var2.getRotation((Direction)var1.getValue(FACING)));
++   }
++
 +   static {
 +      WATERLOGGED = BlockStateProperties.WATERLOGGED;
++      FACING = BlockStateProperties.HORIZONTAL_FACING;
 +      SHAPE = Block.box(2.0D, 0.0D, 2.0D, 14.0D, 13.0D, 14.0D);
 +   }
 +}

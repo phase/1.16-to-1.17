@@ -1,0 +1,39 @@
+--- net/minecraft/data/models/blockstates/Condition.java
++++ net/minecraft/data/models/blockstates/Condition.java
+@@ -18,10 +18,14 @@
+ 
+    static Condition.TerminalCondition condition() {
+       return new Condition.TerminalCondition();
+    }
+ 
++   static Condition and(Condition... var0) {
++      return new Condition.CompositeCondition(Condition.Operation.AND, Arrays.asList(var0));
++   }
++
+    static Condition or(Condition... var0) {
+       return new Condition.CompositeCondition(Condition.Operation.OR, Arrays.asList(var0));
+    }
+ 
+    public static class TerminalCondition implements Condition {
+@@ -55,10 +59,21 @@
+       public final <T extends Comparable<T>> Condition.TerminalCondition term(Property<T> var1, T var2, T... var3) {
+          this.putValue(var1, getTerm(var1, var2, var3));
+          return this;
+       }
+ 
++      public final <T extends Comparable<T>> Condition.TerminalCondition negatedTerm(Property<T> var1, T var2) {
++         this.putValue(var1, "!" + var1.getName(var2));
++         return this;
++      }
++
++      @SafeVarargs
++      public final <T extends Comparable<T>> Condition.TerminalCondition negatedTerm(Property<T> var1, T var2, T... var3) {
++         this.putValue(var1, "!" + getTerm(var1, var2, var3));
++         return this;
++      }
++
+       public JsonElement get() {
+          JsonObject var1 = new JsonObject();
+          this.terms.forEach((var1x, var2) -> {
+             var1.addProperty(var1x.getName(), var2);
+          });

@@ -1,6 +1,6 @@
 --- net/minecraft/client/multiplayer/MultiPlayerGameMode.java
 +++ net/minecraft/client/multiplayer/MultiPlayerGameMode.java
-@@ -1,15 +1,21 @@
+@@ -1,19 +1,26 @@
  package net.minecraft.client.multiplayer;
  
 +import com.google.common.collect.Lists;
@@ -21,8 +21,13 @@
  import net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
  import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
  import net.minecraft.network.protocol.game.ServerboundInteractPacket;
++import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
  import net.minecraft.network.protocol.game.ServerboundPickItemPacket;
-@@ -27,20 +33,19 @@
+ import net.minecraft.network.protocol.game.ServerboundPlaceRecipePacket;
+ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+ import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+ import net.minecraft.network.protocol.game.ServerboundSetCreativeModeSlotPacket;
+@@ -27,20 +34,19 @@
  import net.minecraft.world.InteractionResultHolder;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.animal.horse.AbstractHorse;
@@ -45,7 +50,7 @@
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.EntityHitResult;
  import net.minecraft.world.phys.Vec3;
-@@ -56,38 +61,40 @@
+@@ -56,38 +62,41 @@
     private float destroyProgress;
     private float destroyTicks;
     private int destroyDelay;
@@ -54,6 +59,7 @@
 +   @Nullable
     private GameType previousLocalPlayerMode;
     private final Object2ObjectLinkedOpenHashMap<Pair<BlockPos, ServerboundPlayerActionPacket.Action>, Vec3> unAckedActions;
++   private static final int MAX_ACTIONS_SIZE = 50;
     private int carriedIndex;
  
     public MultiPlayerGameMode(Minecraft var1, ClientPacketListener var2) {
@@ -92,7 +98,7 @@
     public boolean canHurtPlayer() {
        return this.localPlayerMode.isSurvival();
     }
-@@ -100,11 +107,11 @@
+@@ -100,11 +109,11 @@
           BlockState var3 = var2.getBlockState(var1);
           if (!this.minecraft.player.getMainHandItem().getItem().canAttackBlock(var3, var2, var1, this.minecraft.player)) {
              return false;
@@ -105,7 +111,7 @@
                 return false;
              } else {
                 var4.playerWillDestroy(var2, var1, var3, this.minecraft.player);
-@@ -237,18 +244,18 @@
+@@ -237,18 +246,18 @@
  
     private boolean sameDestroyTarget(BlockPos var1) {
        ItemStack var2 = this.minecraft.player.getMainHandItem();
@@ -126,7 +132,37 @@
           this.connection.send((Packet)(new ServerboundSetCarriedItemPacket(this.carriedIndex)));
        }
  
-@@ -325,36 +332,54 @@
+@@ -298,23 +307,23 @@
+    public InteractionResult useItem(Player var1, Level var2, InteractionHand var3) {
+       if (this.localPlayerMode == GameType.SPECTATOR) {
+          return InteractionResult.PASS;
+       } else {
+          this.ensureHasSentCarriedItem();
++         this.connection.send((Packet)(new ServerboundMovePlayerPacket.PosRot(var1.getX(), var1.getY(), var1.getZ(), var1.yRot, var1.xRot, var1.isOnGround())));
+          this.connection.send((Packet)(new ServerboundUseItemPacket(var3)));
+          ItemStack var4 = var1.getItemInHand(var3);
+          if (var1.getCooldowns().isOnCooldown(var4.getItem())) {
+             return InteractionResult.PASS;
+          } else {
+-            int var5 = var4.getCount();
+-            InteractionResultHolder var6 = var4.use(var2, var1, var3);
+-            ItemStack var7 = (ItemStack)var6.getObject();
+-            if (var7 != var4) {
+-               var1.setItemInHand(var3, var7);
++            InteractionResultHolder var5 = var4.use(var2, var1, var3);
++            ItemStack var6 = (ItemStack)var5.getObject();
++            if (var6 != var4) {
++               var1.setItemInHand(var3, var6);
+             }
+ 
+-            return var6.getResult();
++            return var5.getResult();
+          }
+       }
+    }
+ 
+    public LocalPlayer createPlayer(ClientLevel var1, StatsCounter var2, ClientRecipeBook var3) {
+@@ -325,36 +334,54 @@
        return new LocalPlayer(this.minecraft, var1, this.connection, var2, var3, var4, var5);
     }
  
@@ -189,7 +225,7 @@
     public void handlePlaceRecipe(int var1, Recipe<?> var2, boolean var3) {
        this.connection.send((Packet)(new ServerboundPlaceRecipePacket(var1, var2, var3)));
     }
-@@ -405,10 +430,11 @@
+@@ -405,10 +432,11 @@
  
     public boolean isAlwaysFlying() {
        return this.localPlayerMode == GameType.SPECTATOR;
@@ -201,7 +237,7 @@
     }
  
     public GameType getPlayerMode() {
-@@ -441,10 +467,10 @@
+@@ -441,10 +469,10 @@
        }
  
        while(this.unAckedActions.size() >= 50) {

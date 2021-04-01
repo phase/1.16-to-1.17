@@ -12,7 +12,7 @@
     private final int data2d;
     private final String name;
     private final Direction.Axis axis;
-@@ -146,10 +147,22 @@
+@@ -146,14 +147,76 @@
  
     public Direction.AxisDirection getAxisDirection() {
        return this.axisDirection;
@@ -34,8 +34,153 @@
        return from3DDataValue(this.oppositeIndex);
     }
  
++   public Direction getClockWise(Direction.Axis var1) {
++      switch(var1) {
++      case X:
++         if (this != WEST && this != EAST) {
++            return this.getClockWiseX();
++         }
++
++         return this;
++      case Z:
++         if (this != NORTH && this != SOUTH) {
++            return this.getClockWiseZ();
++         }
++
++         return this;
++      case Y:
++         if (this != UP && this != DOWN) {
++            return this.getClockWise();
++         }
++
++         return this;
++      default:
++         throw new IllegalStateException("Unable to get CW facing for axis " + var1);
++      }
++   }
++
++   public Direction getCounterClockWise(Direction.Axis var1) {
++      switch(var1) {
++      case X:
++         if (this != WEST && this != EAST) {
++            return this.getCounterClockWiseX();
++         }
++
++         return this;
++      case Z:
++         if (this != NORTH && this != SOUTH) {
++            return this.getCounterClockWiseZ();
++         }
++
++         return this;
++      case Y:
++         if (this != UP && this != DOWN) {
++            return this.getCounterClockWise();
++         }
++
++         return this;
++      default:
++         throw new IllegalStateException("Unable to get CW facing for axis " + var1);
++      }
++   }
++
     public Direction getClockWise() {
-@@ -230,15 +243,15 @@
+       switch(this) {
+       case NORTH:
+          return EAST;
+       case SOUTH:
+@@ -165,10 +228,74 @@
+       default:
+          throw new IllegalStateException("Unable to get Y-rotated facing of " + this);
+       }
+    }
+ 
++   private Direction getClockWiseX() {
++      switch(this) {
++      case DOWN:
++         return SOUTH;
++      case UP:
++         return NORTH;
++      case NORTH:
++         return DOWN;
++      case SOUTH:
++         return UP;
++      default:
++         throw new IllegalStateException("Unable to get X-rotated facing of " + this);
++      }
++   }
++
++   private Direction getCounterClockWiseX() {
++      switch(this) {
++      case DOWN:
++         return NORTH;
++      case UP:
++         return SOUTH;
++      case NORTH:
++         return UP;
++      case SOUTH:
++         return DOWN;
++      default:
++         throw new IllegalStateException("Unable to get X-rotated facing of " + this);
++      }
++   }
++
++   private Direction getClockWiseZ() {
++      switch(this) {
++      case DOWN:
++         return WEST;
++      case UP:
++         return EAST;
++      case NORTH:
++      case SOUTH:
++      default:
++         throw new IllegalStateException("Unable to get Z-rotated facing of " + this);
++      case WEST:
++         return UP;
++      case EAST:
++         return DOWN;
++      }
++   }
++
++   private Direction getCounterClockWiseZ() {
++      switch(this) {
++      case DOWN:
++         return EAST;
++      case UP:
++         return WEST;
++      case NORTH:
++      case SOUTH:
++      default:
++         throw new IllegalStateException("Unable to get Z-rotated facing of " + this);
++      case WEST:
++         return DOWN;
++      case EAST:
++         return UP;
++      }
++   }
++
+    public Direction getCounterClockWise() {
+       switch(this) {
+       case NORTH:
+          return WEST;
+       case SOUTH:
+@@ -218,10 +345,15 @@
+    public static Direction from2DDataValue(int var0) {
+       return BY_2D_DATA[Mth.abs(var0 % BY_2D_DATA.length)];
+    }
+ 
+    @Nullable
++   public static Direction fromNormal(BlockPos var0) {
++      return (Direction)BY_NORMAL.get(var0.asLong());
++   }
++
++   @Nullable
+    public static Direction fromNormal(int var0, int var1, int var2) {
+       return (Direction)BY_NORMAL.get(BlockPos.asLong(var0, var1, var2));
+    }
+ 
+    public static Direction fromYRot(double var0) {
+@@ -230,15 +362,15 @@
  
     public static Direction fromAxisAndDirection(Direction.Axis var0, Direction.AxisDirection var1) {
        switch(var0) {
@@ -53,3 +198,31 @@
  
     public float toYRot() {
        return (float)((this.data2d & 3) * 90);
+@@ -350,10 +482,14 @@
+ 
+       public int getStep() {
+          return this.step;
+       }
+ 
++      public String getName() {
++         return this.name;
++      }
++
+       public String toString() {
+          return this.name;
+       }
+ 
+       public Direction.AxisDirection opposite() {
+@@ -388,11 +524,11 @@
+          public double choose(double var1, double var3, double var5) {
+             return var5;
+          }
+       };
+ 
+-      private static final Direction.Axis[] VALUES = values();
++      public static final Direction.Axis[] VALUES = values();
+       public static final Codec<Direction.Axis> CODEC = StringRepresentable.fromEnum(Direction.Axis::values, Direction.Axis::byName);
+       private static final Map<String, Direction.Axis> BY_NAME = (Map)Arrays.stream(VALUES).collect(Collectors.toMap(Direction.Axis::getName, (var0) -> {
+          return var0;
+       }));
+       private final String name;

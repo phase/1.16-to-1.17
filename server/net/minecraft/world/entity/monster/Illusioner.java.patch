@@ -1,0 +1,81 @@
+--- net/minecraft/world/entity/monster/Illusioner.java
++++ net/minecraft/world/entity/monster/Illusioner.java
+@@ -35,13 +35,17 @@
+ import net.minecraft.world.entity.raid.Raider;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.ServerLevelAccessor;
++import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class Illusioner extends SpellcasterIllager implements RangedAttackMob {
++   private static final int NUM_ILLUSIONS = 4;
++   private static final int ILLUSION_TRANSITION_TICKS = 3;
++   private static final int ILLUSION_SPREAD = 3;
+    private int clientSideIllusionTicks;
+    private final Vec3[][] clientSideIllusionOffsets;
+ 
+    public Illusioner(EntityType<? extends Illusioner> var1, Level var2) {
+       super(var1, var2);
+@@ -82,10 +86,14 @@
+ 
+    protected void defineSynchedData() {
+       super.defineSynchedData();
+    }
+ 
++   public AABB getBoundingBoxForCulling() {
++      return this.getBoundingBox().inflate(3.0D, 0.0D, 3.0D);
++   }
++
+    public void aiStep() {
+       super.aiStep();
+       if (this.level.isClientSide && this.isInvisible()) {
+          --this.clientSideIllusionTicks;
+          if (this.clientSideIllusionTicks < 0) {
+@@ -124,10 +132,26 @@
+ 
+    public SoundEvent getCelebrateSound() {
+       return SoundEvents.ILLUSIONER_AMBIENT;
+    }
+ 
++   public Vec3[] getIllusionOffsets(float var1) {
++      if (this.clientSideIllusionTicks <= 0) {
++         return this.clientSideIllusionOffsets[1];
++      } else {
++         double var2 = (double)(((float)this.clientSideIllusionTicks - var1) / 3.0F);
++         var2 = Math.pow(var2, 0.25D);
++         Vec3[] var4 = new Vec3[4];
++
++         for(int var5 = 0; var5 < 4; ++var5) {
++            var4[var5] = this.clientSideIllusionOffsets[1][var5].scale(1.0D - var2).add(this.clientSideIllusionOffsets[0][var5].scale(var2));
++         }
++
++         return var4;
++      }
++   }
++
+    public boolean isAlliedTo(Entity var1) {
+       if (super.isAlliedTo(var1)) {
+          return true;
+       } else if (var1 instanceof LivingEntity && ((LivingEntity)var1).getMobType() == MobType.ILLAGER) {
+          return this.getTeam() == null && var1.getTeam() == null;
+@@ -165,10 +189,18 @@
+       var4.shoot(var5, var7 + var11 * 0.20000000298023224D, var9, 1.6F, (float)(14 - this.level.getDifficulty().getId() * 4));
+       this.playSound(SoundEvents.SKELETON_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
+       this.level.addFreshEntity(var4);
+    }
+ 
++   public AbstractIllager.IllagerArmPose getArmPose() {
++      if (this.isCastingSpell()) {
++         return AbstractIllager.IllagerArmPose.SPELLCASTING;
++      } else {
++         return this.isAggressive() ? AbstractIllager.IllagerArmPose.BOW_AND_ARROW : AbstractIllager.IllagerArmPose.CROSSED;
++      }
++   }
++
+    class IllusionerBlindnessSpellGoal extends SpellcasterIllager.SpellcasterUseSpellGoal {
+       private int lastTargetId;
+ 
+       private IllusionerBlindnessSpellGoal() {
+          super();

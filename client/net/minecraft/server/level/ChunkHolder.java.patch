@@ -32,11 +32,13 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.ChunkAccess;
  import net.minecraft.world.level.chunk.ChunkStatus;
-@@ -39,43 +43,52 @@
+@@ -38,44 +42,54 @@
+    public static final CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> UNLOADED_CHUNK_FUTURE;
     public static final Either<LevelChunk, ChunkHolder.ChunkLoadingFailure> UNLOADED_LEVEL_CHUNK;
     private static final CompletableFuture<Either<LevelChunk, ChunkHolder.ChunkLoadingFailure>> UNLOADED_LEVEL_CHUNK_FUTURE;
     private static final List<ChunkStatus> CHUNK_STATUSES;
     private static final ChunkHolder.FullChunkStatus[] FULL_CHUNK_STATUSES;
++   private static final int BLOCKS_BEFORE_RESEND_FUDGE = 64;
     private final AtomicReferenceArray<CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>>> futures;
 +   private final LevelHeightAccessor levelHeightAccessor;
     private volatile CompletableFuture<Either<LevelChunk, ChunkHolder.ChunkLoadingFailure>> fullChunkFuture;
@@ -92,7 +94,7 @@
     public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getFutureIfPresentUnchecked(ChunkStatus var1) {
        CompletableFuture var2 = (CompletableFuture)this.futures.get(var1.getIndex());
        return var2 == null ? UNLOADED_CHUNK_FUTURE : var2;
-@@ -138,11 +151,11 @@
+@@ -138,11 +152,11 @@
     }
  
     public void blockChanged(BlockPos var1) {
@@ -105,7 +107,7 @@
              this.changedBlocksPerSection[var3] = new ShortArraySet();
           }
  
-@@ -152,50 +165,56 @@
+@@ -152,50 +166,56 @@
  
     public void sectionLightChanged(LightLayer var1, int var2) {
        LevelChunk var3 = this.getTickingChunk();
@@ -180,7 +182,7 @@
                 }
  
                 this.changedBlocksPerSection[var4] = null;
-@@ -205,11 +224,11 @@
+@@ -205,11 +225,11 @@
           this.hasChangedSections = false;
        }
     }
@@ -193,7 +195,7 @@
  
     }
  
-@@ -240,19 +259,23 @@
+@@ -240,19 +260,23 @@
           }
        }
  
@@ -219,7 +221,7 @@
              return var0x;
           }, (var1) -> {
              return var0;
-@@ -282,86 +305,114 @@
+@@ -282,90 +306,118 @@
  
     public void setTicketLevel(int var1) {
        this.ticketLevel = var1;
@@ -369,9 +371,14 @@
     }
  
     public static ChunkHolder.FullChunkStatus getFullChunkStatus(int var0) {
-       return FULL_CHUNK_STATUSES[Mth.clamp(33 - var0 + 1, 0, FULL_CHUNK_STATUSES.length - 1)];
+-      return FULL_CHUNK_STATUSES[Mth.clamp(33 - var0 + 1, 0, FULL_CHUNK_STATUSES.length - 1)];
++      return FULL_CHUNK_STATUSES[Mth.clamp((int)(33 - var0 + 1), (int)0, (int)(FULL_CHUNK_STATUSES.length - 1))];
     }
-@@ -383,11 +434,11 @@
+ 
+    public boolean wasAccessibleSinceLastSave() {
+       return this.wasAccessibleSinceLastSave;
+    }
+@@ -383,11 +435,11 @@
                 this.futures.set(var2, CompletableFuture.completedFuture(Either.left(var1)));
              }
           }
@@ -384,7 +391,7 @@
     static {
        UNLOADED_CHUNK = Either.right(ChunkHolder.ChunkLoadingFailure.UNLOADED);
        UNLOADED_CHUNK_FUTURE = CompletableFuture.completedFuture(UNLOADED_CHUNK);
-@@ -395,14 +446,27 @@
+@@ -395,14 +447,27 @@
        UNLOADED_LEVEL_CHUNK_FUTURE = CompletableFuture.completedFuture(UNLOADED_LEVEL_CHUNK);
        CHUNK_STATUSES = ChunkStatus.getStatusList();
        FULL_CHUNK_STATUSES = ChunkHolder.FullChunkStatus.values();

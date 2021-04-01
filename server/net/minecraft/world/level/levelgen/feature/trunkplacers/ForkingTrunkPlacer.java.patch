@@ -1,15 +1,122 @@
 --- net/minecraft/world/level/levelgen/feature/trunkplacers/ForkingTrunkPlacer.java
 +++ net/minecraft/world/level/levelgen/feature/trunkplacers/ForkingTrunkPlacer.java
-@@ -27,11 +27,11 @@
+@@ -5,17 +5,17 @@
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Random;
+-import java.util.Set;
++import java.util.function.BiConsumer;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+-import net.minecraft.world.level.LevelSimulatedRW;
++import net.minecraft.world.level.LevelSimulatedReader;
++import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
+ import net.minecraft.world.level.levelgen.feature.foliageplacers.FoliagePlacer;
+-import net.minecraft.world.level.levelgen.structure.BoundingBox;
+ 
+ public class ForkingTrunkPlacer extends TrunkPlacer {
+    public static final Codec<ForkingTrunkPlacer> CODEC = RecordCodecBuilder.create((var0) -> {
+       return trunkPlacerParts(var0).apply(var0, (Function3)(ForkingTrunkPlacer::new));
+    });
+@@ -26,60 +26,60 @@
+ 
     protected TrunkPlacerType<?> type() {
        return TrunkPlacerType.FORKING_TRUNK_PLACER;
     }
  
-    public List<FoliagePlacer.FoliageAttachment> placeTrunk(LevelSimulatedRW var1, Random var2, int var3, BlockPos var4, Set<BlockPos> var5, BoundingBox var6, TreeConfiguration var7) {
+-   public List<FoliagePlacer.FoliageAttachment> placeTrunk(LevelSimulatedRW var1, Random var2, int var3, BlockPos var4, Set<BlockPos> var5, BoundingBox var6, TreeConfiguration var7) {
 -      setDirtAt(var1, var4.below());
-+      setDirtAt(var1, var2, var4.below(), var7);
-       ArrayList var8 = Lists.newArrayList();
-       Direction var9 = Direction.Plane.HORIZONTAL.getRandomDirection(var2);
-       int var10 = var3 - var2.nextInt(4) - 1;
-       int var11 = 3 - var2.nextInt(3);
-       BlockPos.MutableBlockPos var12 = new BlockPos.MutableBlockPos();
+-      ArrayList var8 = Lists.newArrayList();
+-      Direction var9 = Direction.Plane.HORIZONTAL.getRandomDirection(var2);
+-      int var10 = var3 - var2.nextInt(4) - 1;
+-      int var11 = 3 - var2.nextInt(3);
+-      BlockPos.MutableBlockPos var12 = new BlockPos.MutableBlockPos();
+-      int var13 = var4.getX();
+-      int var14 = var4.getZ();
+-      int var15 = 0;
++   public List<FoliagePlacer.FoliageAttachment> placeTrunk(LevelSimulatedReader var1, BiConsumer<BlockPos, BlockState> var2, Random var3, int var4, BlockPos var5, TreeConfiguration var6) {
++      setDirtAt(var1, var2, var3, var5.below(), var6);
++      ArrayList var7 = Lists.newArrayList();
++      Direction var8 = Direction.Plane.HORIZONTAL.getRandomDirection(var3);
++      int var9 = var4 - var3.nextInt(4) - 1;
++      int var10 = 3 - var3.nextInt(3);
++      BlockPos.MutableBlockPos var11 = new BlockPos.MutableBlockPos();
++      int var12 = var5.getX();
++      int var13 = var5.getZ();
++      int var14 = 0;
+ 
+-      int var17;
+-      for(int var16 = 0; var16 < var3; ++var16) {
+-         var17 = var4.getY() + var16;
+-         if (var16 >= var10 && var11 > 0) {
+-            var13 += var9.getStepX();
+-            var14 += var9.getStepZ();
+-            --var11;
++      int var16;
++      for(int var15 = 0; var15 < var4; ++var15) {
++         var16 = var5.getY() + var15;
++         if (var15 >= var9 && var10 > 0) {
++            var12 += var8.getStepX();
++            var13 += var8.getStepZ();
++            --var10;
+          }
+ 
+-         if (placeLog(var1, var2, var12.set(var13, var17, var14), var5, var6, var7)) {
+-            var15 = var17 + 1;
++         if (placeLog(var1, var2, var3, var11.set(var12, var16, var13), var6)) {
++            var14 = var16 + 1;
+          }
+       }
+ 
+-      var8.add(new FoliagePlacer.FoliageAttachment(new BlockPos(var13, var15, var14), 1, false));
+-      var13 = var4.getX();
+-      var14 = var4.getZ();
+-      Direction var21 = Direction.Plane.HORIZONTAL.getRandomDirection(var2);
+-      if (var21 != var9) {
+-         var17 = var10 - var2.nextInt(2) - 1;
+-         int var18 = 1 + var2.nextInt(3);
+-         var15 = 0;
++      var7.add(new FoliagePlacer.FoliageAttachment(new BlockPos(var12, var14, var13), 1, false));
++      var12 = var5.getX();
++      var13 = var5.getZ();
++      Direction var20 = Direction.Plane.HORIZONTAL.getRandomDirection(var3);
++      if (var20 != var8) {
++         var16 = var9 - var3.nextInt(2) - 1;
++         int var17 = 1 + var3.nextInt(3);
++         var14 = 0;
+ 
+-         for(int var19 = var17; var19 < var3 && var18 > 0; --var18) {
+-            if (var19 >= 1) {
+-               int var20 = var4.getY() + var19;
+-               var13 += var21.getStepX();
+-               var14 += var21.getStepZ();
+-               if (placeLog(var1, var2, var12.set(var13, var20, var14), var5, var6, var7)) {
+-                  var15 = var20 + 1;
++         for(int var18 = var16; var18 < var4 && var17 > 0; --var17) {
++            if (var18 >= 1) {
++               int var19 = var5.getY() + var18;
++               var12 += var20.getStepX();
++               var13 += var20.getStepZ();
++               if (placeLog(var1, var2, var3, var11.set(var12, var19, var13), var6)) {
++                  var14 = var19 + 1;
+                }
+             }
+ 
+-            ++var19;
++            ++var18;
+          }
+ 
+-         if (var15 > 1) {
+-            var8.add(new FoliagePlacer.FoliageAttachment(new BlockPos(var13, var15, var14), 0, false));
++         if (var14 > 1) {
++            var7.add(new FoliagePlacer.FoliageAttachment(new BlockPos(var12, var14, var13), 0, false));
+          }
+       }
+ 
+-      return var8;
++      return var7;
+    }
+ }

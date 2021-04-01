@@ -1,6 +1,11 @@
 --- net/minecraft/world/level/levelgen/feature/MineshaftFeature.java
 +++ net/minecraft/world/level/levelgen/feature/MineshaftFeature.java
-@@ -6,12 +6,16 @@
+@@ -1,80 +1,82 @@
+ package net.minecraft.world.level.levelgen.feature;
+ 
+ import com.mojang.serialization.Codec;
+ import java.util.Arrays;
+-import java.util.Iterator;
  import java.util.Map;
  import java.util.stream.Collectors;
  import net.minecraft.core.RegistryAccess;
@@ -17,7 +22,10 @@
  import net.minecraft.world.level.levelgen.feature.configurations.MineshaftConfiguration;
  import net.minecraft.world.level.levelgen.structure.BoundingBox;
  import net.minecraft.world.level.levelgen.structure.MineShaftPieces;
-@@ -22,59 +26,65 @@
+-import net.minecraft.world.level.levelgen.structure.StructurePiece;
+ import net.minecraft.world.level.levelgen.structure.StructureStart;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
+ 
  public class MineshaftFeature extends StructureFeature<MineshaftConfiguration> {
     public MineshaftFeature(Codec<MineshaftConfiguration> var1) {
        super(var1);
@@ -39,28 +47,33 @@
     public static class MineShaftStart extends StructureStart<MineshaftConfiguration> {
 -      public MineShaftStart(StructureFeature<MineshaftConfiguration> var1, int var2, int var3, BoundingBox var4, int var5, long var6) {
 -         super(var1, var2, var3, var4, var5, var6);
-+      public MineShaftStart(StructureFeature<MineshaftConfiguration> var1, ChunkPos var2, BoundingBox var3, int var4, long var5) {
-+         super(var1, var2, var3, var4, var5);
++      public MineShaftStart(StructureFeature<MineshaftConfiguration> var1, ChunkPos var2, int var3, long var4) {
++         super(var1, var2, var3, var4);
        }
  
 -      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, int var4, int var5, Biome var6, MineshaftConfiguration var7) {
 -         MineShaftPieces.MineShaftRoom var8 = new MineShaftPieces.MineShaftRoom(0, this.random, (var4 << 4) + 2, (var5 << 4) + 2, var7.type);
+-         this.pieces.add(var8);
+-         var8.addChildren(var8, this.pieces, this.random);
+-         this.calculateBoundingBox();
+-         if (var7.type == MineshaftFeature.Type.MESA) {
 +      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, ChunkPos var4, Biome var5, MineshaftConfiguration var6, LevelHeightAccessor var7) {
 +         MineShaftPieces.MineShaftRoom var8 = new MineShaftPieces.MineShaftRoom(0, this.random, var4.getBlockX(2), var4.getBlockZ(2), var6.type);
-          this.pieces.add(var8);
-          var8.addChildren(var8, this.pieces, this.random);
-          this.calculateBoundingBox();
--         if (var7.type == MineshaftFeature.Type.MESA) {
++         this.addPiece(var8);
++         var8.addChildren(var8, this, this.random);
 +         if (var6.type == MineshaftFeature.Type.MESA) {
              boolean var9 = true;
-             int var10 = var2.getSeaLevel() - this.boundingBox.y1 + this.boundingBox.getYSpan() / 2 - -5;
-             this.boundingBox.move(0, var10, 0);
-             Iterator var11 = this.pieces.iterator();
- 
-             while(var11.hasNext()) {
-                StructurePiece var12 = (StructurePiece)var11.next();
-                var12.move(0, var10, 0);
-             }
+-            int var10 = var2.getSeaLevel() - this.boundingBox.y1 + this.boundingBox.getYSpan() / 2 - -5;
+-            this.boundingBox.move(0, var10, 0);
+-            Iterator var11 = this.pieces.iterator();
+-
+-            while(var11.hasNext()) {
+-               StructurePiece var12 = (StructurePiece)var11.next();
+-               var12.move(0, var10, 0);
+-            }
++            BoundingBox var10 = this.getBoundingBox();
++            int var11 = var2.getSeaLevel() - var10.maxY() + var10.getYSpan() / 2 - -5;
++            this.offsetPiecesVertically(var11);
           } else {
 -            this.moveBelowSeaLevel(var2.getSeaLevel(), this.random, 10);
 +            this.moveBelowSeaLevel(var2.getSeaLevel(), var2.getMinY(), this.random, 10);
@@ -95,7 +108,7 @@
        public String getName() {
           return this.name;
        }
-@@ -85,10 +95,22 @@
+@@ -85,10 +87,22 @@
  
        public static MineshaftFeature.Type byId(int var0) {
           return var0 >= 0 && var0 < values().length ? values()[var0] : NORMAL;

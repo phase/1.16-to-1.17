@@ -1,18 +1,22 @@
 --- net/minecraft/client/renderer/block/ModelBlockRenderer.java
 +++ net/minecraft/client/renderer/block/ModelBlockRenderer.java
-@@ -25,10 +25,11 @@
+@@ -25,11 +25,15 @@
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.Vec3;
  
  public class ModelBlockRenderer {
++   private static final int FACE_CUBIC = 0;
++   private static final int FACE_PARTIAL = 1;
 +   private static final Direction[] DIRECTIONS = Direction.values();
     private final BlockColors blockColors;
++   private static final int CACHE_SIZE = 100;
     private static final ThreadLocal<ModelBlockRenderer.Cache> CACHE = ThreadLocal.withInitial(() -> {
        return new ModelBlockRenderer.Cache();
     });
  
-@@ -44,65 +45,73 @@
+    public ModelBlockRenderer(BlockColors var1) {
+@@ -44,65 +48,73 @@
        try {
           return var12 ? this.tesselateWithAO(var1, var2, var3, var4, var5, var6, var7, var8, var9, var11) : this.tesselateWithoutAO(var1, var2, var3, var4, var5, var6, var7, var8, var9, var11);
        } catch (Throwable var17) {
@@ -48,7 +52,7 @@
 -            var12 = true;
 +         List var21 = var2.getQuads(var3, var20, var8);
 +         if (!var21.isEmpty()) {
-+            var16.setWithOffset(var4, var20);
++            var16.setWithOffset(var4, (Direction)var20);
 +            if (!var7 || Block.shouldRenderFace(var3, var1, var4, var20, var16)) {
 +               this.renderModelFaceAO(var1, var3, var4, var5, var6, var21, var13, var14, var15, var11);
 +               var12 = true;
@@ -90,7 +94,7 @@
 -            var12 = true;
 +         List var19 = var2.getQuads(var3, var18, var8);
 +         if (!var19.isEmpty()) {
-+            var14.setWithOffset(var4, var18);
++            var14.setWithOffset(var4, (Direction)var18);
 +            if (!var7 || Block.shouldRenderFace(var3, var1, var4, var18, var14)) {
 +               int var20 = LevelRenderer.getLightColor(var1, var3, var14);
 +               this.renderModelFaceFlat(var1, var3, var4, var20, var11, false, var5, var6, var19, var13);
@@ -111,7 +115,7 @@
  
        return var12;
     }
-@@ -164,11 +173,11 @@
+@@ -164,11 +176,11 @@
           var6[Direction.EAST.get3DDataValue()] = var11;
           var6[Direction.DOWN.get3DDataValue()] = var9;
           var6[Direction.UP.get3DDataValue()] = var12;
@@ -124,7 +128,7 @@
           var6[Direction.DOWN.get3DDataValue() + var14] = 1.0F - var9;
           var6[Direction.UP.get3DDataValue() + var14] = 1.0F - var12;
           var6[Direction.NORTH.get3DDataValue() + var14] = 1.0F - var10;
-@@ -223,11 +232,11 @@
+@@ -223,11 +235,11 @@
     }
  
     public void renderModel(PoseStack.Pose var1, VertexConsumer var2, @Nullable BlockState var3, BakedModel var4, float var5, float var6, float var7, int var8, int var9) {
@@ -137,7 +141,7 @@
        for(int var15 = 0; var15 < var14; ++var15) {
           Direction var16 = var13[var15];
           var10.setSeed(42L);
-@@ -318,11 +327,11 @@
+@@ -318,11 +330,11 @@
        FLIP_EAST(Direction.EAST, true);
  
        private final int shape;
@@ -150,3 +154,102 @@
  
     class AmbientOcclusionFace {
        private final float[] brightness = new float[4];
+@@ -334,42 +346,42 @@
+       public void calculate(BlockAndTintGetter var1, BlockState var2, BlockPos var3, Direction var4, float[] var5, BitSet var6, boolean var7) {
+          BlockPos var8 = var6.get(0) ? var3.relative(var4) : var3;
+          ModelBlockRenderer.AdjacencyInfo var9 = ModelBlockRenderer.AdjacencyInfo.fromFacing(var4);
+          BlockPos.MutableBlockPos var10 = new BlockPos.MutableBlockPos();
+          ModelBlockRenderer.Cache var11 = (ModelBlockRenderer.Cache)ModelBlockRenderer.CACHE.get();
+-         var10.setWithOffset(var8, var9.corners[0]);
++         var10.setWithOffset(var8, (Direction)var9.corners[0]);
+          BlockState var12 = var1.getBlockState(var10);
+          int var13 = var11.getLightColor(var12, var1, var10);
+          float var14 = var11.getShadeBrightness(var12, var1, var10);
+-         var10.setWithOffset(var8, var9.corners[1]);
++         var10.setWithOffset(var8, (Direction)var9.corners[1]);
+          BlockState var15 = var1.getBlockState(var10);
+          int var16 = var11.getLightColor(var15, var1, var10);
+          float var17 = var11.getShadeBrightness(var15, var1, var10);
+-         var10.setWithOffset(var8, var9.corners[2]);
++         var10.setWithOffset(var8, (Direction)var9.corners[2]);
+          BlockState var18 = var1.getBlockState(var10);
+          int var19 = var11.getLightColor(var18, var1, var10);
+          float var20 = var11.getShadeBrightness(var18, var1, var10);
+-         var10.setWithOffset(var8, var9.corners[3]);
++         var10.setWithOffset(var8, (Direction)var9.corners[3]);
+          BlockState var21 = var1.getBlockState(var10);
+          int var22 = var11.getLightColor(var21, var1, var10);
+          float var23 = var11.getShadeBrightness(var21, var1, var10);
+-         var10.setWithOffset(var8, var9.corners[0]).move(var4);
++         var10.setWithOffset(var8, (Direction)var9.corners[0]).move(var4);
+          boolean var24 = var1.getBlockState(var10).getLightBlock(var1, var10) == 0;
+-         var10.setWithOffset(var8, var9.corners[1]).move(var4);
++         var10.setWithOffset(var8, (Direction)var9.corners[1]).move(var4);
+          boolean var25 = var1.getBlockState(var10).getLightBlock(var1, var10) == 0;
+-         var10.setWithOffset(var8, var9.corners[2]).move(var4);
++         var10.setWithOffset(var8, (Direction)var9.corners[2]).move(var4);
+          boolean var26 = var1.getBlockState(var10).getLightBlock(var1, var10) == 0;
+-         var10.setWithOffset(var8, var9.corners[3]).move(var4);
++         var10.setWithOffset(var8, (Direction)var9.corners[3]).move(var4);
+          boolean var27 = var1.getBlockState(var10).getLightBlock(var1, var10) == 0;
+          float var28;
+          int var32;
+          BlockState var36;
+          if (!var26 && !var24) {
+             var28 = var14;
+             var32 = var13;
+          } else {
+-            var10.setWithOffset(var8, var9.corners[0]).move(var9.corners[2]);
++            var10.setWithOffset(var8, (Direction)var9.corners[0]).move(var9.corners[2]);
+             var36 = var1.getBlockState(var10);
+             var28 = var11.getShadeBrightness(var36, var1, var10);
+             var32 = var11.getLightColor(var36, var1, var10);
+          }
+ 
+@@ -377,11 +389,11 @@
+          int var33;
+          if (!var27 && !var24) {
+             var29 = var14;
+             var33 = var13;
+          } else {
+-            var10.setWithOffset(var8, var9.corners[0]).move(var9.corners[3]);
++            var10.setWithOffset(var8, (Direction)var9.corners[0]).move(var9.corners[3]);
+             var36 = var1.getBlockState(var10);
+             var29 = var11.getShadeBrightness(var36, var1, var10);
+             var33 = var11.getLightColor(var36, var1, var10);
+          }
+ 
+@@ -389,11 +401,11 @@
+          int var34;
+          if (!var26 && !var25) {
+             var30 = var14;
+             var34 = var13;
+          } else {
+-            var10.setWithOffset(var8, var9.corners[1]).move(var9.corners[2]);
++            var10.setWithOffset(var8, (Direction)var9.corners[1]).move(var9.corners[2]);
+             var36 = var1.getBlockState(var10);
+             var30 = var11.getShadeBrightness(var36, var1, var10);
+             var34 = var11.getLightColor(var36, var1, var10);
+          }
+ 
+@@ -401,18 +413,18 @@
+          int var35;
+          if (!var27 && !var25) {
+             var31 = var14;
+             var35 = var13;
+          } else {
+-            var10.setWithOffset(var8, var9.corners[1]).move(var9.corners[3]);
++            var10.setWithOffset(var8, (Direction)var9.corners[1]).move(var9.corners[3]);
+             var36 = var1.getBlockState(var10);
+             var31 = var11.getShadeBrightness(var36, var1, var10);
+             var35 = var11.getLightColor(var36, var1, var10);
+          }
+ 
+          int var64 = var11.getLightColor(var2, var1, var3);
+-         var10.setWithOffset(var3, var4);
++         var10.setWithOffset(var3, (Direction)var4);
+          BlockState var37 = var1.getBlockState(var10);
+          if (var6.get(0) || !var37.isSolidRender(var1, var10)) {
+             var64 = var11.getLightColor(var37, var1, var10);
+          }
+ 

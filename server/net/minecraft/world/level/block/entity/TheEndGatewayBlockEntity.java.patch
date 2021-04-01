@@ -1,6 +1,29 @@
 --- net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java
 +++ net/minecraft/world/level/block/entity/TheEndGatewayBlockEntity.java
-@@ -27,20 +27,20 @@
+@@ -4,10 +4,11 @@
+ import java.util.List;
+ import java.util.Random;
+ import javax.annotation.Nullable;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
+ import net.minecraft.data.worldgen.Features;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.NbtUtils;
+ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+ import net.minecraft.server.level.ServerLevel;
+@@ -17,30 +18,36 @@
+ import net.minecraft.world.entity.EntitySelector;
+ import net.minecraft.world.entity.projectile.ThrownEnderpearl;
+ import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.chunk.LevelChunk;
+ import net.minecraft.world.level.levelgen.feature.Feature;
+ import net.minecraft.world.level.levelgen.feature.configurations.EndGatewayConfiguration;
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.Vec3;
  import org.apache.logging.log4j.LogManager;
@@ -9,6 +32,11 @@
 -public class TheEndGatewayBlockEntity extends TheEndPortalBlockEntity implements TickableBlockEntity {
 +public class TheEndGatewayBlockEntity extends TheEndPortalBlockEntity {
     private static final Logger LOGGER = LogManager.getLogger();
++   private static final int SPAWN_TIME = 200;
++   private static final int COOLDOWN_TIME = 40;
++   private static final int ATTENTION_INTERVAL = 2400;
++   private static final int EVENT_COOLDOWN = 1;
++   private static final int GATEWAY_HEIGHT_ABOVE_SURFACE = 10;
     private long age;
     private int teleportCooldown;
     @Nullable
@@ -24,7 +52,7 @@
     public CompoundTag save(CompoundTag var1) {
        super.save(var1);
        var1.putLong("Age", this.age);
-@@ -53,39 +53,47 @@
+@@ -53,39 +60,50 @@
        }
  
        return var1;
@@ -39,7 +67,10 @@
 +      super.load(var1);
 +      this.age = var1.getLong("Age");
 +      if (var1.contains("ExitPortal", 10)) {
-+         this.exitPortal = NbtUtils.readBlockPos(var1.getCompound("ExitPortal"));
++         BlockPos var2 = NbtUtils.readBlockPos(var1.getCompound("ExitPortal"));
++         if (Level.isInSpawnableBounds(var2)) {
++            this.exitPortal = var2;
++         }
        }
  
 -      this.exactTeleport = var2.getBoolean("ExactTeleport");
@@ -92,7 +123,24 @@
     }
  
     public static boolean canEntityTeleport(Entity var0) {
-@@ -107,15 +115,15 @@
+@@ -98,24 +116,32 @@
+ 
+    public boolean isCoolingDown() {
+       return this.teleportCooldown > 0;
+    }
+ 
++   public float getSpawnPercent(float var1) {
++      return Mth.clamp(((float)this.age + var1) / 200.0F, 0.0F, 1.0F);
++   }
++
++   public float getCooldownPercent(float var1) {
++      return 1.0F - Mth.clamp(((float)this.teleportCooldown - var1) / 40.0F, 0.0F, 1.0F);
++   }
++
+    @Nullable
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+       return new ClientboundBlockEntityDataPacket(this.worldPosition, 8, this.getUpdateTag());
+    }
  
     public CompoundTag getUpdateTag() {
        return this.save(new CompoundTag());
@@ -113,7 +161,7 @@
     }
  
     public boolean triggerEvent(int var1, int var2) {
-@@ -125,88 +133,101 @@
+@@ -125,88 +151,101 @@
        } else {
           return super.triggerEvent(var1, var2);
        }
@@ -263,7 +311,7 @@
                    if (var9.isCollisionShapeFullBlock(var0, var8) && (var3 || !var9.is(Blocks.BEDROCK))) {
                       var4 = var8;
                       break;
-@@ -261,12 +282,12 @@
+@@ -261,14 +300,31 @@
           var5 = var9;
           var6 = var13;
        }
@@ -275,6 +323,25 @@
 +      Feature.END_GATEWAY.configured(var2).place(var0, var0.getChunkSource().getGenerator(), new Random(), var1);
     }
  
++   public boolean shouldRenderFace(Direction var1) {
++      return Block.shouldRenderFace(this.getBlockState(), this.level, this.getBlockPos(), var1, this.getBlockPos().relative(var1));
++   }
++
++   public int getParticleAmount() {
++      int var1 = 0;
++      Direction[] var2 = Direction.values();
++      int var3 = var2.length;
++
++      for(int var4 = 0; var4 < var3; ++var4) {
++         Direction var5 = var2[var4];
++         var1 += this.shouldRenderFace(var5) ? 1 : 0;
++      }
++
++      return var1;
++   }
++
     public void setExitPosition(BlockPos var1, boolean var2) {
        this.exactTeleport = var2;
        this.exitPortal = var1;
+    }
+ }

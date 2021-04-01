@@ -1,0 +1,71 @@
+--- com/mojang/brigadier/suggestion/SuggestionsBuilder.java
++++ com/mojang/brigadier/suggestion/SuggestionsBuilder.java
+@@ -2,24 +2,34 @@
+ 
+ import com.mojang.brigadier.Message;
+ import com.mojang.brigadier.context.StringRange;
+ import java.util.ArrayList;
+ import java.util.List;
++import java.util.Locale;
+ import java.util.concurrent.CompletableFuture;
+ 
+ public class SuggestionsBuilder {
+    private final String input;
++   private final String inputLowerCase;
+    private final int start;
+    private final String remaining;
+-   private final List<Suggestion> result = new ArrayList();
++   private final String remainingLowerCase;
++   private final List<Suggestion> result;
+ 
+-   public SuggestionsBuilder(String var1, int var2) {
++   public SuggestionsBuilder(String var1, String var2, int var3) {
++      this.result = new ArrayList();
+       this.input = var1;
+-      this.start = var2;
+-      this.remaining = var1.substring(var2);
++      this.inputLowerCase = var2;
++      this.start = var3;
++      this.remaining = var1.substring(var3);
++      this.remainingLowerCase = var2.substring(var3);
+    }
+ 
++   public SuggestionsBuilder(String var1, int var2) {
++      this(var1, var1.toLowerCase(Locale.ROOT), var2);
++   }
++
+    public String getInput() {
+       return this.input;
+    }
+ 
+    public int getStart() {
+@@ -28,10 +38,14 @@
+ 
+    public String getRemaining() {
+       return this.remaining;
+    }
+ 
++   public String getRemainingLowerCase() {
++      return this.remainingLowerCase;
++   }
++
+    public Suggestions build() {
+       return Suggestions.create(this.input, this.result);
+    }
+ 
+    public CompletableFuture<Suggestions> buildFuture() {
+@@ -70,12 +84,12 @@
+       this.result.addAll(var1.result);
+       return this;
+    }
+ 
+    public SuggestionsBuilder createOffset(int var1) {
+-      return new SuggestionsBuilder(this.input, var1);
++      return new SuggestionsBuilder(this.input, this.inputLowerCase, var1);
+    }
+ 
+    public SuggestionsBuilder restart() {
+-      return new SuggestionsBuilder(this.input, this.start);
++      return this.createOffset(this.start);
+    }
+ }

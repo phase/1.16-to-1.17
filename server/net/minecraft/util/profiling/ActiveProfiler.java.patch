@@ -1,15 +1,44 @@
 --- net/minecraft/util/profiling/ActiveProfiler.java
 +++ net/minecraft/util/profiling/ActiveProfiler.java
-@@ -141,11 +141,11 @@
+@@ -116,10 +116,15 @@
+    public void popPush(String var1) {
+       this.pop();
+       this.push(var1);
     }
  
-    static class PathEntry implements ProfilerPathEntry {
++   public void popPush(Supplier<String> var1) {
++      this.pop();
++      this.push(var1);
++   }
++
+    private ActiveProfiler.PathEntry getCurrentEntry() {
+       if (this.currentEntry == null) {
+          this.currentEntry = (ActiveProfiler.PathEntry)this.entries.computeIfAbsent(this.path, (var0) -> {
+             return new ActiveProfiler.PathEntry();
+          });
+@@ -138,17 +143,21 @@
+ 
+    public ProfileResults getResults() {
+       return new FilledProfileResults(this.entries, this.startTimeNano, this.startTimeTicks, this.getRealTime.getAsLong(), this.getTickTime.getAsInt());
+    }
+ 
+-   static class PathEntry implements ProfilerPathEntry {
++   @Nullable
++   public ActiveProfiler.PathEntry getEntry(String var1) {
++      return (ActiveProfiler.PathEntry)this.entries.get(var1);
++   }
++
++   public static class PathEntry implements ProfilerPathEntry {
        private long duration;
        private long count;
 -      private Object2LongOpenHashMap<String> counters;
-+      private final Object2LongOpenHashMap<String> counters;
++      private final Object2LongOpenHashMap<String> counters = new Object2LongOpenHashMap();
  
-       private PathEntry() {
-          this.counters = new Object2LongOpenHashMap();
+-      private PathEntry() {
+-         this.counters = new Object2LongOpenHashMap();
++      public PathEntry() {
        }
  
+       public long getDuration() {
+          return this.duration;
+       }

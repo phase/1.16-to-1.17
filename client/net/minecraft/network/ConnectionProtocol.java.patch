@@ -110,7 +110,7 @@
  import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
  import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
  import net.minecraft.network.protocol.game.ServerboundEditBookPacket;
-@@ -161,11 +171,11 @@
+@@ -161,14 +171,16 @@
  import net.minecraft.network.protocol.status.ServerboundStatusRequestPacket;
  import org.apache.logging.log4j.LogManager;
  
@@ -121,9 +121,14 @@
     STATUS(1, protocol().addFlow(PacketFlow.SERVERBOUND, (new ConnectionProtocol.PacketSet()).addPacket(ServerboundStatusRequestPacket.class, ServerboundStatusRequestPacket::new).addPacket(ServerboundPingRequestPacket.class, ServerboundPingRequestPacket::new)).addFlow(PacketFlow.CLIENTBOUND, (new ConnectionProtocol.PacketSet()).addPacket(ClientboundStatusResponsePacket.class, ClientboundStatusResponsePacket::new).addPacket(ClientboundPongResponsePacket.class, ClientboundPongResponsePacket::new))),
     LOGIN(2, protocol().addFlow(PacketFlow.CLIENTBOUND, (new ConnectionProtocol.PacketSet()).addPacket(ClientboundLoginDisconnectPacket.class, ClientboundLoginDisconnectPacket::new).addPacket(ClientboundHelloPacket.class, ClientboundHelloPacket::new).addPacket(ClientboundGameProfilePacket.class, ClientboundGameProfilePacket::new).addPacket(ClientboundLoginCompressionPacket.class, ClientboundLoginCompressionPacket::new).addPacket(ClientboundCustomQueryPacket.class, ClientboundCustomQueryPacket::new)).addFlow(PacketFlow.SERVERBOUND, (new ConnectionProtocol.PacketSet()).addPacket(ServerboundHelloPacket.class, ServerboundHelloPacket::new).addPacket(ServerboundKeyPacket.class, ServerboundKeyPacket::new).addPacket(ServerboundCustomQueryPacket.class, ServerboundCustomQueryPacket::new)));
  
++   private static final int MIN_PROTOCOL_ID = -1;
++   private static final int MAX_PROTOCOL_ID = 2;
     private static final ConnectionProtocol[] LOOKUP = new ConnectionProtocol[4];
     private static final Map<Class<? extends Packet<?>>, ConnectionProtocol> PROTOCOL_BY_PACKET = Maps.newHashMap();
-@@ -185,12 +195,12 @@
+    private final int id;
+    private final Map<PacketFlow, ? extends ConnectionProtocol.PacketSet<?>> flows;
+ 
+@@ -185,12 +197,12 @@
     public Integer getPacketId(PacketFlow var1, Packet<?> var2) {
        return ((ConnectionProtocol.PacketSet)this.flows.get(var1)).getId(var2.getClass());
     }
@@ -138,7 +143,7 @@
     public int getId() {
        return this.id;
     }
-@@ -210,11 +220,11 @@
+@@ -210,11 +222,11 @@
  
        for(int var2 = 0; var2 < var1; ++var2) {
           ConnectionProtocol var3 = var0[var2];
@@ -151,7 +156,7 @@
           LOOKUP[var4 - -1] = var3;
           var3.flows.forEach((var1x, var2x) -> {
              var2x.getAllPackets().forEach((var1xx) -> {
-@@ -242,28 +252,28 @@
+@@ -242,28 +254,28 @@
        }
     }
  
@@ -185,7 +190,7 @@
        }
  
        @Nullable
-@@ -271,13 +281,13 @@
+@@ -271,13 +283,13 @@
           int var2 = this.classToId.getInt(var1);
           return var2 == -1 ? null : var2;
        }

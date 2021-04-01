@@ -1,0 +1,72 @@
+--- net/minecraft/core/FrontAndTop.java
++++ net/minecraft/core/FrontAndTop.java
+@@ -1,9 +1,10 @@
+ package net.minecraft.core;
+ 
+ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
++import net.minecraft.Util;
+ import net.minecraft.util.StringRepresentable;
+ 
+ public enum FrontAndTop implements StringRepresentable {
+    DOWN_EAST("down_east", Direction.DOWN, Direction.EAST),
+    DOWN_NORTH("down_north", Direction.DOWN, Direction.NORTH),
+@@ -16,17 +17,26 @@
+    WEST_UP("west_up", Direction.WEST, Direction.UP),
+    EAST_UP("east_up", Direction.EAST, Direction.UP),
+    NORTH_UP("north_up", Direction.NORTH, Direction.UP),
+    SOUTH_UP("south_up", Direction.SOUTH, Direction.UP);
+ 
+-   private static final Int2ObjectMap<FrontAndTop> LOOKUP_TOP_FRONT = new Int2ObjectOpenHashMap(values().length);
++   private static final Int2ObjectMap<FrontAndTop> LOOKUP_TOP_FRONT = (Int2ObjectMap)Util.make(new Int2ObjectOpenHashMap(values().length), (var0) -> {
++      FrontAndTop[] var1 = values();
++      int var2 = var1.length;
++
++      for(int var3 = 0; var3 < var2; ++var3) {
++         FrontAndTop var4 = var1[var3];
++         var0.put(lookupKey(var4.front, var4.top), var4);
++      }
++
++   });
+    private final String name;
+    private final Direction top;
+    private final Direction front;
+ 
+    private static int lookupKey(Direction var0, Direction var1) {
+-      return var0.ordinal() << 3 | var1.ordinal();
++      return var1.ordinal() << 3 | var0.ordinal();
+    }
+ 
+    private FrontAndTop(String var3, Direction var4, Direction var5) {
+       this.name = var3;
+       this.front = var4;
+@@ -36,28 +46,17 @@
+    public String getSerializedName() {
+       return this.name;
+    }
+ 
+    public static FrontAndTop fromFrontAndTop(Direction var0, Direction var1) {
+-      int var2 = lookupKey(var1, var0);
++      int var2 = lookupKey(var0, var1);
+       return (FrontAndTop)LOOKUP_TOP_FRONT.get(var2);
+    }
+ 
+    public Direction front() {
+       return this.front;
+    }
+ 
+    public Direction top() {
+       return this.top;
+    }
+-
+-   static {
+-      FrontAndTop[] var0 = values();
+-      int var1 = var0.length;
+-
+-      for(int var2 = 0; var2 < var1; ++var2) {
+-         FrontAndTop var3 = var0[var2];
+-         LOOKUP_TOP_FRONT.put(lookupKey(var3.top, var3.front), var3);
+-      }
+-
+-   }
+ }

@@ -1,0 +1,29 @@
+--- net/minecraft/world/level/levelgen/feature/structures/StructureTemplatePool.java
++++ net/minecraft/world/level/levelgen/feature/structures/StructureTemplatePool.java
+@@ -29,10 +29,11 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class StructureTemplatePool {
+    private static final Logger LOGGER = LogManager.getLogger();
++   private static final int SIZE_UNSET = Integer.MIN_VALUE;
+    public static final Codec<StructureTemplatePool> DIRECT_CODEC = RecordCodecBuilder.create((var0) -> {
+       RecordCodecBuilder var10001 = ResourceLocation.CODEC.fieldOf("name").forGetter(StructureTemplatePool::getName);
+       RecordCodecBuilder var10002 = ResourceLocation.CODEC.fieldOf("fallback").forGetter(StructureTemplatePool::getFallback);
+       Codec var10003 = Codec.mapPair(StructurePoolElement.CODEC.fieldOf("element"), Codec.INT.fieldOf("weight")).codec().listOf();
+       Logger var10005 = LOGGER;
+@@ -85,11 +86,13 @@
+       this.fallback = var2;
+    }
+ 
+    public int getMaxSize(StructureManager var1) {
+       if (this.maxSize == Integer.MIN_VALUE) {
+-         this.maxSize = this.templates.stream().mapToInt((var1x) -> {
++         this.maxSize = this.templates.stream().filter((var0) -> {
++            return var0 != EmptyPoolElement.INSTANCE;
++         }).mapToInt((var1x) -> {
+             return var1x.getBoundingBox(var1, BlockPos.ZERO, Rotation.NONE).getYSpan();
+          }).max().orElse(0);
+       }
+ 
+       return this.maxSize;

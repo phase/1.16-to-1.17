@@ -35,7 +35,7 @@
     }
  
     private static <E> void put(Builder<ResourceKey<? extends Registry<?>>, RegistryAccess.RegistryData<?>> var0, ResourceKey<? extends Registry<E>> var1, Codec<E> var2, Codec<E> var3) {
-@@ -95,40 +102,35 @@
+@@ -95,67 +102,58 @@
     }
  
     private static <E> void addBuiltinElements(RegistryAccess.RegistryHolder var0, RegistryReadOps.ResourceAccess.MemoryMap var1, RegistryAccess.RegistryData<E> var2) {
@@ -85,7 +85,37 @@
        while(var3.hasNext()) {
           Entry var4 = (Entry)var3.next();
           Object var5 = var4.getValue();
-@@ -203,11 +205,11 @@
+          var2.registerMapping(var1.getId(var5), (ResourceKey)var4.getKey(), var5, var1.lifecycle(var5));
+       }
+ 
+    }
+ 
+-   public static void load(RegistryAccess.RegistryHolder var0, RegistryReadOps<?> var1) {
++   public static void load(RegistryAccess var0, RegistryReadOps<?> var1) {
+       Iterator var2 = REGISTRIES.values().iterator();
+ 
+       while(var2.hasNext()) {
+          RegistryAccess.RegistryData var3 = (RegistryAccess.RegistryData)var2.next();
+          readRegistry(var1, var0, var3);
+       }
+ 
+    }
+ 
+-   private static <E> void readRegistry(RegistryReadOps<?> var0, RegistryAccess.RegistryHolder var1, RegistryAccess.RegistryData<E> var2) {
++   private static <E> void readRegistry(RegistryReadOps<?> var0, RegistryAccess var1, RegistryAccess.RegistryData<E> var2) {
+       ResourceKey var3 = var2.key();
+-      MappedRegistry var4 = (MappedRegistry)Optional.ofNullable(var1.registries.get(var3)).map((var0x) -> {
+-         return var0x;
+-      }).orElseThrow(() -> {
+-         return new IllegalStateException("Missing registry: " + var3);
+-      });
++      MappedRegistry var4 = (MappedRegistry)var1.ownedRegistryOrThrow(var3);
+       DataResult var5 = var0.decodeElements(var4, var2.key(), var2.codec());
+       var5.error().ifPresent((var0x) -> {
+          LOGGER.error("Error loading registry data: {}", var0x.message());
+       });
+    }
+@@ -203,11 +201,11 @@
  
        private static <E> MappedRegistry<?> createRegistry(ResourceKey<? extends Registry<?>> var0) {
           return new MappedRegistry(var0, Lifecycle.stable());

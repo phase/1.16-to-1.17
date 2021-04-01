@@ -1,0 +1,71 @@
+--- net/minecraft/commands/arguments/selector/EntitySelectorParser.java
++++ net/minecraft/commands/arguments/selector/EntitySelectorParser.java
+@@ -28,10 +28,22 @@
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class EntitySelectorParser {
++   public static final char SYNTAX_SELECTOR_START = '@';
++   private static final char SYNTAX_OPTIONS_START = '[';
++   private static final char SYNTAX_OPTIONS_END = ']';
++   public static final char SYNTAX_OPTIONS_KEY_VALUE_SEPARATOR = '=';
++   private static final char SYNTAX_OPTIONS_SEPARATOR = ',';
++   public static final char SYNTAX_NOT = '!';
++   public static final char SYNTAX_TAG = '#';
++   private static final char SELECTOR_NEAREST_PLAYER = 'p';
++   private static final char SELECTOR_ALL_PLAYERS = 'a';
++   private static final char SELECTOR_RANDOM_PLAYERS = 'r';
++   private static final char SELECTOR_CURRENT_ENTITY = 's';
++   private static final char SELECTOR_ALL_ENTITIES = 'e';
+    public static final SimpleCommandExceptionType ERROR_INVALID_NAME_OR_UUID = new SimpleCommandExceptionType(new TranslatableComponent("argument.entity.invalid"));
+    public static final DynamicCommandExceptionType ERROR_UNKNOWN_SELECTOR_TYPE = new DynamicCommandExceptionType((var0) -> {
+       return new TranslatableComponent("argument.entity.selector.unknown", new Object[]{var0});
+    });
+    public static final SimpleCommandExceptionType ERROR_SELECTORS_NOT_ALLOWED = new SimpleCommandExceptionType(new TranslatableComponent("argument.entity.selector.not_allowed"));
+@@ -439,10 +451,14 @@
+ 
+    public void setIncludesEntities(boolean var1) {
+       this.includesEntities = var1;
+    }
+ 
++   public BiConsumer<Vec3, List<? extends Entity>> getOrder() {
++      return this.order;
++   }
++
+    public void setOrder(BiConsumer<Vec3, List<? extends Entity>> var1) {
+       this.order = var1;
+    }
+ 
+    public EntitySelector parse() throws CommandSyntaxException {
+@@ -513,10 +529,15 @@
+       var1.suggest(String.valueOf(','));
+       var1.suggest(String.valueOf(']'));
+       return var1.buildFuture();
+    }
+ 
++   private CompletableFuture<Suggestions> suggestEquals(SuggestionsBuilder var1, Consumer<SuggestionsBuilder> var2) {
++      var1.suggest(String.valueOf('='));
++      return var1.buildFuture();
++   }
++
+    public boolean isCurrentEntity() {
+       return this.currentEntity;
+    }
+ 
+    public void setSuggestions(BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> var1) {
+@@ -581,10 +602,14 @@
+ 
+    public void setHasTeamEquals(boolean var1) {
+       this.hasTeamEquals = var1;
+    }
+ 
++   public boolean hasTeamNotEquals() {
++      return this.hasTeamNotEquals;
++   }
++
+    public void setHasTeamNotEquals(boolean var1) {
+       this.hasTeamNotEquals = var1;
+    }
+ 
+    public void limitToType(EntityType<?> var1) {

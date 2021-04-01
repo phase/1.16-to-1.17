@@ -12,7 +12,13 @@
  import com.mojang.math.Transformation;
  import it.unimi.dsi.fastutil.longs.LongSet;
  import it.unimi.dsi.fastutil.longs.LongSets;
-@@ -39,10 +40,11 @@
+@@ -34,15 +35,17 @@
+ import net.minecraft.Util;
+ import net.minecraft.client.ClientBrandRetriever;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiComponent;
++import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.client.renderer.PostChain;
  import net.minecraft.client.server.IntegratedServer;
  import net.minecraft.core.BlockPos;
@@ -24,7 +30,7 @@
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.util.FrameTimer;
  import net.minecraft.util.Mth;
-@@ -56,11 +58,10 @@
+@@ -56,16 +59,19 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.properties.Property;
  import net.minecraft.world.level.chunk.ChunkStatus;
@@ -36,7 +42,30 @@
  import net.minecraft.world.phys.HitResult;
  
  public class DebugScreenOverlay extends GuiComponent {
-@@ -93,17 +94,15 @@
++   private static final int COLOR_GREY = 14737632;
++   private static final int MARGIN_RIGHT = 2;
++   private static final int MARGIN_LEFT = 2;
++   private static final int MARGIN_TOP = 2;
+    private static final Map<Heightmap.Types, String> HEIGHTMAP_NAMES = (Map)Util.make(new EnumMap(Heightmap.Types.class), (var0) -> {
+       var0.put(Heightmap.Types.WORLD_SURFACE_WG, "SW");
+       var0.put(Heightmap.Types.WORLD_SURFACE, "S");
+       var0.put(Heightmap.Types.OCEAN_FLOOR_WG, "OW");
+       var0.put(Heightmap.Types.OCEAN_FLOOR, "O");
+@@ -80,10 +86,13 @@
+    private ChunkPos lastPos;
+    @Nullable
+    private LevelChunk clientChunk;
+    @Nullable
+    private CompletableFuture<LevelChunk> serverChunk;
++   private static final int RED = -65536;
++   private static final int YELLOW = -256;
++   private static final int GREEN = -16711936;
+ 
+    public DebugScreenOverlay(Minecraft var1) {
+       this.minecraft = var1;
+       this.font = var1.font;
+    }
+@@ -93,17 +102,15 @@
        this.clientChunk = null;
     }
  
@@ -54,7 +83,7 @@
           this.drawChart(var1, this.minecraft.getFrameTimer(), 0, var3 / 2, true);
           IntegratedServer var4 = this.minecraft.getSingleplayerServer();
           if (var4 != null) {
-@@ -206,90 +205,74 @@
+@@ -206,90 +213,74 @@
  
           var13.add(this.minecraft.level.dimension().location() + " FC: " + ((LongSet)var12).size());
           var13.add("");
@@ -194,7 +223,7 @@
              } else {
                 var13.add("SC: N/A");
              }
-@@ -378,11 +361,11 @@
+@@ -378,11 +369,11 @@
              while(var12.hasNext()) {
                 var13 = (Entry)var12.next();
                 var9.add(this.getPropertyValueString(var13));
@@ -207,7 +236,7 @@
                 var17 = (ResourceLocation)var16.next();
                 var9.add("#" + var17);
              }
-@@ -399,11 +382,11 @@
+@@ -399,11 +390,11 @@
              while(var12.hasNext()) {
                 var13 = (Entry)var12.next();
                 var9.add(this.getPropertyValueString(var13));
@@ -220,8 +249,13 @@
                 var17 = (ResourceLocation)var16.next();
                 var9.add("#" + var17);
              }
-@@ -458,11 +441,11 @@
+@@ -454,20 +445,21 @@
+          var13 += (long)var18;
+       }
+ 
+       var17 = this.minecraft.getWindow().getGuiScaledHeight();
        fill(var1, var3, var17 - 60, var3 + var12, var17, -1873784752);
++      RenderSystem.setShader(GameRenderer::getPositionColorShader);
        BufferBuilder var27 = Tesselator.getInstance().getBuilder();
        RenderSystem.enableBlend();
        RenderSystem.disableTexture();
@@ -232,4 +266,29 @@
        for(Matrix4f var19 = Transformation.identity().getMatrix(); var9 != var7; var9 = var2.wrapIndex(var9 + 1)) {
           int var20 = var2.scaleSampleTo(var8[var9], var5 ? 30 : 60, var5 ? 60 : 20);
           int var21 = var5 ? 100 : 60;
-          int var22 = this.getSampleColor(Mth.clamp(var20, 0, var21), 0, var21 / 2, var21);
+-         int var22 = this.getSampleColor(Mth.clamp(var20, 0, var21), 0, var21 / 2, var21);
++         int var22 = this.getSampleColor(Mth.clamp((int)var20, (int)0, (int)var21), 0, var21 / 2, var21);
+          int var23 = var22 >> 24 & 255;
+          int var24 = var22 >> 16 & 255;
+          int var25 = var22 >> 8 & 255;
+          int var26 = var22 & 255;
+          var27.vertex(var19, (float)(var10 + 1), (float)var17, 0.0F).color(var24, var25, var26, var23).endVertex();
+@@ -533,14 +525,14 @@
+       int var7 = var1 & 255;
+       int var8 = var2 >> 24 & 255;
+       int var9 = var2 >> 16 & 255;
+       int var10 = var2 >> 8 & 255;
+       int var11 = var2 & 255;
+-      int var12 = Mth.clamp((int)Mth.lerp(var3, (float)var4, (float)var8), 0, 255);
+-      int var13 = Mth.clamp((int)Mth.lerp(var3, (float)var5, (float)var9), 0, 255);
+-      int var14 = Mth.clamp((int)Mth.lerp(var3, (float)var6, (float)var10), 0, 255);
+-      int var15 = Mth.clamp((int)Mth.lerp(var3, (float)var7, (float)var11), 0, 255);
++      int var12 = Mth.clamp((int)((int)Mth.lerp(var3, (float)var4, (float)var8)), (int)0, (int)255);
++      int var13 = Mth.clamp((int)((int)Mth.lerp(var3, (float)var5, (float)var9)), (int)0, (int)255);
++      int var14 = Mth.clamp((int)((int)Mth.lerp(var3, (float)var6, (float)var10)), (int)0, (int)255);
++      int var15 = Mth.clamp((int)((int)Mth.lerp(var3, (float)var7, (float)var11)), (int)0, (int)255);
+       return var12 << 24 | var13 << 16 | var14 << 8 | var15;
+    }
+ 
+    private static long bytesToMegabytes(long var0) {
+       return var0 / 1024L / 1024L;

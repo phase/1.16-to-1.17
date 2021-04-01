@@ -1,6 +1,44 @@
 --- net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 +++ net/minecraft/world/level/chunk/storage/RegionFileStorage.java
-@@ -76,33 +76,37 @@
+@@ -1,20 +1,24 @@
+ package net.minecraft.world.level.chunk.storage;
+ 
+ import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+ import it.unimi.dsi.fastutil.objects.ObjectIterator;
++import java.io.DataInput;
+ import java.io.DataInputStream;
++import java.io.DataOutput;
+ import java.io.DataOutputStream;
+ import java.io.File;
+ import java.io.IOException;
+ import javax.annotation.Nullable;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.NbtIo;
+ import net.minecraft.util.ExceptionCollector;
+ import net.minecraft.world.level.ChunkPos;
+ 
+ public final class RegionFileStorage implements AutoCloseable {
++   public static final String ANVIL_EXTENSION = ".mca";
++   private static final int MAX_CACHE_SIZE = 256;
+    private final Long2ObjectLinkedOpenHashMap<RegionFile> regionCache = new Long2ObjectLinkedOpenHashMap();
+    private final File folder;
+    private final boolean sync;
+ 
+    RegionFileStorage(File var1, boolean var2) {
+@@ -54,11 +58,11 @@
+          if (var3 == null) {
+             var5 = null;
+             return var5;
+          }
+ 
+-         var5 = NbtIo.read(var3);
++         var5 = NbtIo.read((DataInput)var3);
+       } catch (Throwable var15) {
+          var4 = var15;
+          throw var15;
+       } finally {
+          if (var3 != null) {
+@@ -76,33 +80,37 @@
        }
  
        return var5;
@@ -27,7 +65,7 @@
 -            if (var5 != null) {
 -               try {
 +         try {
-+            NbtIo.write(var2, var4);
++            NbtIo.write(var2, (DataOutput)var4);
 +         } catch (Throwable var14) {
 +            var5 = var14;
 +            throw var14;

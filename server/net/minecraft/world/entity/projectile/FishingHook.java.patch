@@ -12,7 +12,19 @@
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.ExperienceOrb;
  import net.minecraft.world.entity.MoverType;
-@@ -59,24 +60,27 @@
+@@ -46,10 +47,11 @@
+ 
+ public class FishingHook extends Projectile {
+    private final Random syncronizedRandom;
+    private boolean biting;
+    private int outOfWaterTime;
++   private static final int MAX_OUT_OF_WATER_TIME = 10;
+    private static final EntityDataAccessor<Integer> DATA_HOOKED_ENTITY;
+    private static final EntityDataAccessor<Boolean> DATA_BITING;
+    private int life;
+    private int nibble;
+    private int timeUntilLured;
+@@ -59,24 +61,27 @@
     private Entity hookedIn;
     private FishingHook.FishHookState currentState;
     private final int luck;
@@ -45,7 +57,20 @@
        float var7 = Mth.cos(-var6 * 0.017453292F - 3.1415927F);
        float var8 = Mth.sin(-var6 * 0.017453292F - 3.1415927F);
        float var9 = -Mth.cos(-var5 * 0.017453292F);
-@@ -119,16 +123,16 @@
+@@ -114,21 +119,29 @@
+       }
+ 
+       super.onSyncedDataUpdated(var1);
+    }
+ 
++   public boolean shouldRenderAtSqrDistance(double var1) {
++      double var3 = 64.0D;
++      return var1 < 4096.0D;
++   }
++
++   public void lerpTo(double var1, double var3, double var5, float var7, float var8, int var9, boolean var10) {
++   }
++
     public void tick() {
        this.syncronizedRandom.setSeed(this.getUUID().getLeastSignificantBits() ^ this.level.getGameTime());
        super.tick();
@@ -64,7 +89,7 @@
           } else {
              this.life = 0;
           }
-@@ -156,11 +160,11 @@
+@@ -156,11 +169,11 @@
  
              this.checkCollision();
           } else {
@@ -77,7 +102,7 @@
                    } else {
                       this.setPos(this.hookedIn.getX(), this.hookedIn.getY(0.8D), this.hookedIn.getZ());
                    }
-@@ -215,16 +219,16 @@
+@@ -215,16 +228,16 @@
     }
  
     private boolean shouldStopFishing(Player var1) {
@@ -98,7 +123,7 @@
     }
  
     private void checkCollision() {
-@@ -420,11 +424,11 @@
+@@ -420,11 +433,11 @@
                 double var14 = var2.getZ() - this.getZ();
                 double var16 = 0.1D;
                 var9.setDeltaMovement(var10 * 0.1D, var12 * 0.1D + Math.sqrt(Math.sqrt(var10 * var10 + var12 * var12 + var14 * var14)) * 0.08D, var14 * 0.1D);
@@ -111,7 +136,7 @@
              }
  
              var3 = 1;
-@@ -432,11 +436,11 @@
+@@ -432,38 +445,55 @@
  
           if (this.onGround) {
              var3 = 2;
@@ -124,7 +149,18 @@
           return 0;
        }
     }
-@@ -447,23 +451,32 @@
+ 
++   public void handleEntityEvent(byte var1) {
++      if (var1 == 31 && this.level.isClientSide && this.hookedIn instanceof Player && ((Player)this.hookedIn).isLocalPlayer()) {
++         this.bringInHookedEntity();
++      }
++
++      super.handleEntityEvent(var1);
++   }
++
+    protected void bringInHookedEntity() {
+       Entity var1 = this.getOwner();
+       if (var1 != null) {
           Vec3 var2 = (new Vec3(var1.getX() - this.getX(), var1.getY() - this.getY(), var1.getZ() - this.getZ())).scale(0.1D);
           this.hookedIn.setDeltaMovement(this.hookedIn.getDeltaMovement().add(var2));
        }
@@ -164,3 +200,24 @@
        Entity var1 = this.getOwner();
        return var1 instanceof Player ? (Player)var1 : null;
     }
+@@ -480,10 +510,20 @@
+    public Packet<?> getAddEntityPacket() {
+       Entity var1 = this.getOwner();
+       return new ClientboundAddEntityPacket(this, var1 == null ? this.getId() : var1.getId());
+    }
+ 
++   public void recreateFromPacket(ClientboundAddEntityPacket var1) {
++      super.recreateFromPacket(var1);
++      if (this.getPlayerOwner() == null) {
++         int var2 = var1.getData();
++         LOGGER.error((String)"Failed to recreate fishing hook on client. {} (id: {}) is not a valid owner.", (Object)this.level.getEntity(var2), (Object)var2);
++         this.kill();
++      }
++
++   }
++
+    static {
+       DATA_HOOKED_ENTITY = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.INT);
+       DATA_BITING = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.BOOLEAN);
+    }
+ 

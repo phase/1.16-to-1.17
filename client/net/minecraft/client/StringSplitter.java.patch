@@ -1,0 +1,70 @@
+--- net/minecraft/client/StringSplitter.java
++++ net/minecraft/client/StringSplitter.java
+@@ -79,10 +79,16 @@
+          }
+       });
+       return var1.substring(var5.intValue());
+    }
+ 
++   public int formattedIndexByWidth(String var1, int var2, Style var3) {
++      StringSplitter.WidthLimitedCharSink var4 = new StringSplitter.WidthLimitedCharSink((float)var2);
++      StringDecomposer.iterateFormatted((String)var1, var3, var4);
++      return var4.getPosition();
++   }
++
+    @Nullable
+    public Style componentStyleAtWidth(FormattedText var1, int var2) {
+       StringSplitter.WidthLimitedCharSink var3 = new StringSplitter.WidthLimitedCharSink((float)var2);
+       return (Style)var1.visit((var1x, var2x) -> {
+          return StringDecomposer.iterateFormatted((String)var2x, var1x, var3) ? Optional.empty() : Optional.of(var1x);
+@@ -102,10 +108,14 @@
+          }
+       });
+       return (Style)var4.getValue();
+    }
+ 
++   public String formattedHeadByWidth(String var1, int var2, Style var3) {
++      return var1.substring(0, this.formattedIndexByWidth(var1, var2, var3));
++   }
++
+    public FormattedText headByWidth(FormattedText var1, int var2, Style var3) {
+       final StringSplitter.WidthLimitedCharSink var4 = new StringSplitter.WidthLimitedCharSink((float)var2);
+       return (FormattedText)var1.visit(new FormattedText.StyledContentConsumer<FormattedText>() {
+          private final ComponentCollector collector = new ComponentCollector();
+ 
+@@ -127,10 +137,16 @@
+             }
+          }
+       }, var3).orElse(var1);
+    }
+ 
++   public int findLineBreak(String var1, int var2, Style var3) {
++      StringSplitter.LineBreakFinder var4 = new StringSplitter.LineBreakFinder((float)var2);
++      StringDecomposer.iterateFormatted((String)var1, var3, var4);
++      return var4.getSplitPosition();
++   }
++
+    public static int getWordPosition(String var0, int var1, int var2, boolean var3) {
+       int var4 = var2;
+       boolean var5 = var1 < 0;
+       int var6 = Math.abs(var1);
+ 
+@@ -206,10 +222,18 @@
+          var4.add(var1x);
+       });
+       return var4;
+    }
+ 
++   public List<FormattedText> splitLines(FormattedText var1, int var2, Style var3, FormattedText var4) {
++      ArrayList var5 = Lists.newArrayList();
++      this.splitLines(var1, var2, var3, (var2x, var3x) -> {
++         var5.add(var3x ? FormattedText.composite(var4, var2x) : var2x);
++      });
++      return var5;
++   }
++
+    public void splitLines(FormattedText var1, int var2, Style var3, BiConsumer<FormattedText, Boolean> var4) {
+       ArrayList var5 = Lists.newArrayList();
+       var1.visit((var1x, var2x) -> {
+          if (!var2x.isEmpty()) {
+             var5.add(new StringSplitter.LineComponent(var2x, var1x));

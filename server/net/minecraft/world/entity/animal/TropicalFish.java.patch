@@ -1,0 +1,155 @@
+--- net/minecraft/world/entity/animal/TropicalFish.java
++++ net/minecraft/world/entity/animal/TropicalFish.java
+@@ -1,7 +1,8 @@
+ package net.minecraft.world.entity.animal;
+ 
++import java.util.Locale;
+ import javax.annotation.Nullable;
+ import net.minecraft.Util;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+@@ -19,14 +20,20 @@
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.ServerLevelAccessor;
+ 
+ public class TropicalFish extends AbstractSchoolingFish {
++   public static final String BUCKET_VARIANT_TAG = "BucketVariantTag";
+    private static final EntityDataAccessor<Integer> DATA_ID_TYPE_VARIANT;
++   public static final int BASE_SMALL = 0;
++   public static final int BASE_LARGE = 1;
++   private static final int BASES = 2;
+    private static final ResourceLocation[] BASE_TEXTURE_LOCATIONS;
+    private static final ResourceLocation[] PATTERN_A_TEXTURE_LOCATIONS;
+    private static final ResourceLocation[] PATTERN_B_TEXTURE_LOCATIONS;
++   private static final int PATTERNS = 6;
++   private static final int COLORS = 15;
+    public static final int[] COMMON_VARIANTS;
+    private boolean isSchool = true;
+ 
+    private static int calculateVariant(TropicalFish.Pattern var0, DyeColor var1, DyeColor var2) {
+       return var0.getBase() & 255 | (var0.getIndex() & 255) << 8 | (var1.getId() & 255) << 16 | (var2.getId() & 255) << 24;
+@@ -34,10 +41,28 @@
+ 
+    public TropicalFish(EntityType<? extends TropicalFish> var1, Level var2) {
+       super(var1, var2);
+    }
+ 
++   public static String getPredefinedName(int var0) {
++      return "entity.minecraft.tropical_fish.predefined." + var0;
++   }
++
++   public static DyeColor getBaseColor(int var0) {
++      return DyeColor.byId(getBaseColorIdx(var0));
++   }
++
++   public static DyeColor getPatternColor(int var0) {
++      return DyeColor.byId(getPatternColorIdx(var0));
++   }
++
++   public static String getFishTypeName(int var0) {
++      int var1 = getBaseVariant(var0);
++      int var2 = getPatternVariant(var0);
++      return "entity.minecraft.tropical_fish.type." + TropicalFish.Pattern.getPatternName(var1, var2);
++   }
++
+    protected void defineSynchedData() {
+       super.defineSynchedData();
+       this.entityData.define(DATA_ID_TYPE_VARIANT, 0);
+    }
+ 
+@@ -61,17 +86,22 @@
+ 
+    public int getVariant() {
+       return (Integer)this.entityData.get(DATA_ID_TYPE_VARIANT);
+    }
+ 
+-   protected void saveToBucketTag(ItemStack var1) {
++   public void saveToBucketTag(ItemStack var1) {
+       super.saveToBucketTag(var1);
+       CompoundTag var2 = var1.getOrCreateTag();
+       var2.putInt("BucketVariantTag", this.getVariant());
+    }
+ 
+-   protected ItemStack getBucketItemStack() {
++   public void loadFromBucketTag(CompoundTag var1) {
++      super.loadFromBucketTag(var1);
++      this.setVariant(var1.getInt("BucketVariantTag"));
++   }
++
++   public ItemStack getBucketItemStack() {
+       return new ItemStack(Items.TROPICAL_FISH_BUCKET);
+    }
+ 
+    protected SoundEvent getAmbientSound() {
+       return SoundEvents.TROPICAL_FISH_AMBIENT;
+@@ -87,15 +117,50 @@
+ 
+    protected SoundEvent getFlopSound() {
+       return SoundEvents.TROPICAL_FISH_FLOP;
+    }
+ 
++   private static int getBaseColorIdx(int var0) {
++      return (var0 & 16711680) >> 16;
++   }
++
++   public float[] getBaseColor() {
++      return DyeColor.byId(getBaseColorIdx(this.getVariant())).getTextureDiffuseColors();
++   }
++
++   private static int getPatternColorIdx(int var0) {
++      return (var0 & -16777216) >> 24;
++   }
++
++   public float[] getPatternColor() {
++      return DyeColor.byId(getPatternColorIdx(this.getVariant())).getTextureDiffuseColors();
++   }
++
++   public static int getBaseVariant(int var0) {
++      return Math.min(var0 & 255, 1);
++   }
++
++   public int getBaseVariant() {
++      return getBaseVariant(this.getVariant());
++   }
++
++   private static int getPatternVariant(int var0) {
++      return Math.min((var0 & '\uff00') >> 8, 5);
++   }
++
++   public ResourceLocation getPatternTextureLocation() {
++      return getBaseVariant(this.getVariant()) == 0 ? PATTERN_A_TEXTURE_LOCATIONS[getPatternVariant(this.getVariant())] : PATTERN_B_TEXTURE_LOCATIONS[getPatternVariant(this.getVariant())];
++   }
++
++   public ResourceLocation getBaseTextureLocation() {
++      return BASE_TEXTURE_LOCATIONS[getBaseVariant(this.getVariant())];
++   }
++
+    @Nullable
+    public SpawnGroupData finalizeSpawn(ServerLevelAccessor var1, DifficultyInstance var2, MobSpawnType var3, @Nullable SpawnGroupData var4, @Nullable CompoundTag var5) {
+       Object var11 = super.finalizeSpawn(var1, var2, var3, var4, var5);
+-      if (var5 != null && var5.contains("BucketVariantTag", 3)) {
+-         this.setVariant(var5.getInt("BucketVariantTag"));
++      if (var3 == MobSpawnType.BUCKET) {
+          return (SpawnGroupData)var11;
+       } else {
+          int var6;
+          int var7;
+          int var8;
+@@ -177,7 +242,15 @@
+       }
+ 
+       public int getIndex() {
+          return this.index;
+       }
++
++      public static String getPatternName(int var0, int var1) {
++         return VALUES[var1 + 6 * var0].getName();
++      }
++
++      public String getName() {
++         return this.name().toLowerCase(Locale.ROOT);
++      }
+    }
+ }

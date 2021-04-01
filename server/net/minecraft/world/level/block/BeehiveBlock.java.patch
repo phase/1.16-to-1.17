@@ -1,6 +1,24 @@
 --- net/minecraft/world/level/block/BeehiveBlock.java
 +++ net/minecraft/world/level/block/BeehiveBlock.java
-@@ -27,22 +27,24 @@
+@@ -6,14 +6,17 @@
+ import javax.annotation.Nullable;
+ import net.minecraft.Util;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
++import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.sounds.SoundSource;
++import net.minecraft.tags.BlockTags;
++import net.minecraft.util.Mth;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.animal.Bee;
+@@ -27,31 +30,36 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.context.BlockPlaceContext;
@@ -25,8 +43,20 @@
  import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.BlockHitResult;
++import net.minecraft.world.phys.shapes.VoxelShape;
  
-@@ -72,11 +74,11 @@
+ public class BeehiveBlock extends BaseEntityBlock {
+    private static final Direction[] SPAWN_DIRECTIONS;
+    public static final DirectionProperty FACING;
+    public static final IntegerProperty HONEY_LEVEL;
++   public static final int MAX_HONEY_LEVELS = 5;
++   private static final int SHEARED_HONEYCOMB_COUNT = 3;
+ 
+    public BeehiveBlock(BlockBehaviour.Properties var1) {
+       super(var1);
+       this.registerDefaultState((BlockState)((BlockState)((BlockState)this.stateDefinition.any()).setValue(HONEY_LEVEL, 0)).setValue(FACING, Direction.NORTH));
+    }
+@@ -72,11 +80,11 @@
              var7.emptyAllLivingFromHive(var2, var4, BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY);
              var1.updateNeighbourForOutputSignal(var3, this);
              this.angerNearbyBees(var1, var3);
@@ -39,7 +69,7 @@
     }
  
     private void angerNearbyBees(Level var1, BlockPos var2) {
-@@ -103,27 +105,29 @@
+@@ -103,27 +111,29 @@
     public InteractionResult use(BlockState var1, Level var2, BlockPos var3, Player var4, InteractionHand var5, BlockHitResult var6) {
        ItemStack var7 = var4.getItemInHand(var5);
        int var8 = (Integer)var1.getValue(HONEY_LEVEL);
@@ -72,7 +102,57 @@
  
        if (var9) {
           if (!CampfireBlock.isSmokeyPos(var2, var3)) {
-@@ -177,39 +181,42 @@
+@@ -164,10 +174,49 @@
+ 
+    public void resetHoneyLevel(Level var1, BlockState var2, BlockPos var3) {
+       var1.setBlock(var3, (BlockState)var2.setValue(HONEY_LEVEL, 0), 3);
+    }
+ 
++   public void animateTick(BlockState var1, Level var2, BlockPos var3, Random var4) {
++      if ((Integer)var1.getValue(HONEY_LEVEL) >= 5) {
++         for(int var5 = 0; var5 < var4.nextInt(1) + 1; ++var5) {
++            this.trySpawnDripParticles(var2, var3, var1);
++         }
++      }
++
++   }
++
++   private void trySpawnDripParticles(Level var1, BlockPos var2, BlockState var3) {
++      if (var3.getFluidState().isEmpty() && var1.random.nextFloat() >= 0.3F) {
++         VoxelShape var4 = var3.getCollisionShape(var1, var2);
++         double var5 = var4.max(Direction.Axis.Y);
++         if (var5 >= 1.0D && !var3.is(BlockTags.IMPERMEABLE)) {
++            double var7 = var4.min(Direction.Axis.Y);
++            if (var7 > 0.0D) {
++               this.spawnParticle(var1, var2, var4, (double)var2.getY() + var7 - 0.05D);
++            } else {
++               BlockPos var9 = var2.below();
++               BlockState var10 = var1.getBlockState(var9);
++               VoxelShape var11 = var10.getCollisionShape(var1, var9);
++               double var12 = var11.max(Direction.Axis.Y);
++               if ((var12 < 1.0D || !var10.isCollisionShapeFullBlock(var1, var9)) && var10.getFluidState().isEmpty()) {
++                  this.spawnParticle(var1, var2, var4, (double)var2.getY() - 0.05D);
++               }
++            }
++         }
++
++      }
++   }
++
++   private void spawnParticle(Level var1, BlockPos var2, VoxelShape var3, double var4) {
++      this.spawnFluidParticle(var1, (double)var2.getX() + var3.min(Direction.Axis.X), (double)var2.getX() + var3.max(Direction.Axis.X), (double)var2.getZ() + var3.min(Direction.Axis.Z), (double)var2.getZ() + var3.max(Direction.Axis.Z), var4);
++   }
++
++   private void spawnFluidParticle(Level var1, double var2, double var4, double var6, double var8, double var10) {
++      var1.addParticle(ParticleTypes.DRIPPING_HONEY, Mth.lerp(var1.random.nextDouble(), var2, var4), var10, Mth.lerp(var1.random.nextDouble(), var6, var8), 0.0D, 0.0D, 0.0D);
++   }
++
+    public BlockState getStateForPlacement(BlockPlaceContext var1) {
+       return (BlockState)this.defaultBlockState().setValue(FACING, var1.getHorizontalDirection().getOpposite());
+    }
+ 
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
+@@ -177,39 +226,42 @@
     public RenderShape getRenderShape(BlockState var1) {
        return RenderShape.MODEL;
     }

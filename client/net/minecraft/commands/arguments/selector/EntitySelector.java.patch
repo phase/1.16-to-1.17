@@ -1,6 +1,6 @@
 --- net/minecraft/commands/arguments/selector/EntitySelector.java
 +++ net/minecraft/commands/arguments/selector/EntitySelector.java
-@@ -18,14 +18,24 @@
+@@ -18,14 +18,25 @@
  import net.minecraft.network.chat.MutableComponent;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.server.level.ServerPlayer;
@@ -11,6 +11,7 @@
  import net.minecraft.world.phys.Vec3;
  
  public class EntitySelector {
++   public static final int INFINITE = Integer.MAX_VALUE;
 +   private static final EntityTypeTest<Entity, ?> ANY_TYPE = new EntityTypeTest<Entity, Entity>() {
 +      public Entity tryCast(Entity var1) {
 +         return var1;
@@ -25,7 +26,7 @@
     private final boolean worldLimited;
     private final Predicate<Entity> predicate;
     private final MinMaxBounds.Floats range;
-@@ -36,12 +46,11 @@
+@@ -36,12 +47,11 @@
     private final boolean currentEntity;
     @Nullable
     private final String playerName;
@@ -39,7 +40,7 @@
     public EntitySelector(int var1, boolean var2, boolean var3, Predicate<Entity> var4, MinMaxBounds.Floats var5, Function<Vec3, Vec3> var6, @Nullable AABB var7, BiConsumer<Vec3, List<? extends Entity>> var8, boolean var9, @Nullable String var10, @Nullable UUID var11, @Nullable EntityType<?> var12, boolean var13) {
        this.maxResults = var1;
        this.includesEntities = var2;
-@@ -52,11 +61,11 @@
+@@ -52,11 +62,11 @@
        this.aabb = var7;
        this.order = var8;
        this.currentEntity = var9;
@@ -52,7 +53,22 @@
  
     public int getMaxResults() {
        return this.maxResults;
-@@ -177,13 +186,11 @@
+@@ -72,10 +82,14 @@
+ 
+    public boolean isWorldLimited() {
+       return this.worldLimited;
+    }
+ 
++   public boolean usesSelector() {
++      return this.usesSelector;
++   }
++
+    private void checkPermissions(CommandSourceStack var1) throws CommandSyntaxException {
+       if (this.usesSelector && !var1.hasPermission(2)) {
+          throw EntityArgument.ERROR_SELECTORS_NOT_ALLOWED.create();
+       }
+    }
+@@ -177,13 +191,11 @@
  
              return Collections.emptyList();
           } else {

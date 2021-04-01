@@ -1,6 +1,18 @@
 --- net/minecraft/world/level/GameRules.java
 +++ net/minecraft/world/level/GameRules.java
-@@ -58,14 +58,16 @@
+@@ -25,10 +25,11 @@
+ import net.minecraft.server.level.ServerPlayer;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class GameRules {
++   public static final int DEFAULT_RANDOM_TICK_SPEED = 3;
+    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Map<GameRules.Key<?>, GameRules.Type<?>> GAME_RULE_TYPES = Maps.newTreeMap(Comparator.comparing((var0) -> {
+       return var0.id;
+    }));
+    public static final GameRules.Key<GameRules.BooleanValue> RULE_DOFIRETICK;
+@@ -58,14 +59,16 @@
     public static final GameRules.Key<GameRules.BooleanValue> RULE_DOINSOMNIA;
     public static final GameRules.Key<GameRules.BooleanValue> RULE_DO_IMMEDIATE_RESPAWN;
     public static final GameRules.Key<GameRules.BooleanValue> RULE_DROWNING_DAMAGE;
@@ -17,7 +29,7 @@
     private static <T extends GameRules.Value<T>> GameRules.Key<T> register(String var0, GameRules.Category var1, GameRules.Type<T> var2) {
        GameRules.Key var3 = new GameRules.Key(var0, var1);
        GameRules.Type var4 = (GameRules.Type)GAME_RULE_TYPES.put(var3, var2);
-@@ -190,14 +192,16 @@
+@@ -190,14 +193,16 @@
  
        }));
        RULE_DROWNING_DAMAGE = register("drowningDamage", GameRules.Category.PLAYER, GameRules.BooleanValue.create(true));
@@ -34,3 +46,19 @@
     public static class BooleanValue extends GameRules.Value<GameRules.BooleanValue> {
        private boolean value;
  
+@@ -281,10 +286,15 @@
+ 
+       public int get() {
+          return this.value;
+       }
+ 
++      public void set(int var1, @Nullable MinecraftServer var2) {
++         this.value = var1;
++         this.onChanged(var2);
++      }
++
+       public String serialize() {
+          return Integer.toString(this.value);
+       }
+ 
+       protected void deserialize(String var1) {

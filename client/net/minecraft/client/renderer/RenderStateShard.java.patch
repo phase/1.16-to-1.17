@@ -1,6 +1,6 @@
 --- net/minecraft/client/renderer/RenderStateShard.java
 +++ net/minecraft/client/renderer/RenderStateShard.java
-@@ -1,19 +1,25 @@
+@@ -1,21 +1,27 @@
  package net.minecraft.client.renderer;
  
 +import com.google.common.collect.ImmutableList;
@@ -14,8 +14,8 @@
  import java.util.Objects;
  import java.util.Optional;
  import java.util.OptionalDouble;
+-import javax.annotation.Nullable;
 +import java.util.function.Supplier;
- import javax.annotation.Nullable;
  import net.minecraft.Util;
  import net.minecraft.client.Minecraft;
  import net.minecraft.client.renderer.texture.TextureAtlas;
@@ -24,9 +24,12 @@
 +import org.apache.commons.lang3.tuple.Triple;
  
  public abstract class RenderStateShard {
++   private static final float VIEW_SCALE_Z_EPSILON = 0.99975586F;
     protected final String name;
     private final Runnable setupState;
     private final Runnable clearState;
+    protected static final RenderStateShard.TransparencyStateShard NO_TRANSPARENCY = new RenderStateShard.TransparencyStateShard("no_transparency", () -> {
+       RenderSystem.disableBlend();
 @@ -54,28 +60,69 @@
        RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
     }, () -> {
@@ -120,20 +123,27 @@
     protected static final RenderStateShard.OutputStateShard TRANSLUCENT_TARGET;
     protected static final RenderStateShard.OutputStateShard PARTICLES_TARGET;
     protected static final RenderStateShard.OutputStateShard WEATHER_TARGET;
-@@ -120,63 +164,53 @@
-       } else {
-          return false;
-       }
+@@ -109,74 +153,45 @@
+ 
+    public void clearRenderState() {
+       this.clearState.run();
     }
  
-+   protected boolean valueEquals(RenderStateShard var1) {
-+      return this.name.equals(var1.name);
-+   }
-+
-    public int hashCode() {
-       return this.name.hashCode();
-    }
- 
+-   public boolean equals(@Nullable Object var1) {
+-      if (this == var1) {
+-         return true;
+-      } else if (var1 != null && this.getClass() == var1.getClass()) {
+-         RenderStateShard var2 = (RenderStateShard)var1;
+-         return this.name.equals(var2.name);
+-      } else {
+-         return false;
+-      }
+-   }
+-
+-   public int hashCode() {
+-      return this.name.hashCode();
+-   }
+-
     public String toString() {
        return this.name;
     }
@@ -195,7 +205,7 @@
        NO_DEPTH_TEST = new RenderStateShard.DepthTestStateShard("always", 519);
        EQUAL_DEPTH_TEST = new RenderStateShard.DepthTestStateShard("==", 514);
        LEQUAL_DEPTH_TEST = new RenderStateShard.DepthTestStateShard("<=", 515);
-@@ -192,29 +226,19 @@
+@@ -192,29 +207,19 @@
        }, () -> {
           RenderSystem.polygonOffset(0.0F, 0.0F);
           RenderSystem.disablePolygonOffset();
@@ -232,7 +242,32 @@
        });
        OUTLINE_TARGET = new RenderStateShard.OutputStateShard("outline_target", () -> {
           Minecraft.getInstance().levelRenderer.entityTarget().bindWrite(false);
-@@ -324,16 +348,10 @@
+@@ -299,24 +304,10 @@
+ 
+          });
+          this.width = var1;
+       }
+ 
+-      public boolean equals(@Nullable Object var1) {
+-         if (this == var1) {
+-            return true;
+-         } else if (var1 != null && this.getClass() == var1.getClass()) {
+-            return !super.equals(var1) ? false : Objects.equals(this.width, ((RenderStateShard.LineStateShard)var1).width);
+-         } else {
+-            return false;
+-         }
+-      }
+-
+-      public int hashCode() {
+-         return Objects.hash(new Object[]{super.hashCode(), this.width});
+-      }
+-
+       public String toString() {
+          return this.name + '[' + (this.width.isPresent() ? this.width.getAsDouble() : "window_scale") + ']';
+       }
+    }
+ 
+@@ -324,16 +315,10 @@
        public OutputStateShard(String var1, Runnable var2, Runnable var3) {
           super(var1, var2, var3);
        }
@@ -249,7 +284,70 @@
           super(var1, var2, var3);
        }
     }
-@@ -442,26 +460,10 @@
+@@ -364,33 +349,17 @@
+          });
+          this.writeColor = var1;
+          this.writeDepth = var2;
+       }
+ 
+-      public boolean equals(Object var1) {
+-         if (this == var1) {
+-            return true;
+-         } else if (var1 != null && this.getClass() == var1.getClass()) {
+-            RenderStateShard.WriteMaskStateShard var2 = (RenderStateShard.WriteMaskStateShard)var1;
+-            return this.writeColor == var2.writeColor && this.writeDepth == var2.writeDepth;
+-         } else {
+-            return false;
+-         }
+-      }
+-
+-      public int hashCode() {
+-         return Objects.hash(new Object[]{this.writeColor, this.writeDepth});
+-      }
+-
+       public String toString() {
+          return this.name + "[writeColor=" + this.writeColor + ", writeDepth=" + this.writeDepth + ']';
+       }
+    }
+ 
+    public static class DepthTestStateShard extends RenderStateShard {
+       private final String functionName;
+-      private final int function;
+ 
+       public DepthTestStateShard(String var1, int var2) {
+          super("depth_test", () -> {
+             if (var2 != 519) {
+                RenderSystem.enableDepthTest();
+@@ -403,28 +372,12 @@
+                RenderSystem.depthFunc(515);
+             }
+ 
+          });
+          this.functionName = var1;
+-         this.function = var2;
+       }
+ 
+-      public boolean equals(Object var1) {
+-         if (this == var1) {
+-            return true;
+-         } else if (var1 != null && this.getClass() == var1.getClass()) {
+-            RenderStateShard.DepthTestStateShard var2 = (RenderStateShard.DepthTestStateShard)var1;
+-            return this.function == var2.function;
+-         } else {
+-            return false;
+-         }
+-      }
+-
+-      public int hashCode() {
+-         return Integer.hashCode(this.function);
+-      }
+-
+       public String toString() {
+          return this.name + '[' + this.functionName + ']';
+       }
+    }
+ 
+@@ -442,26 +395,10 @@
  
           }, var1);
        }
@@ -276,7 +374,27 @@
           super("overlay", () -> {
              if (var1) {
                 Minecraft.getInstance().gameRenderer.overlayTexture().setupOverlayColor();
-@@ -518,66 +520,19 @@
+@@ -498,237 +435,142 @@
+       public BooleanStateShard(String var1, Runnable var2, Runnable var3, boolean var4) {
+          super(var1, var2, var3);
+          this.enabled = var4;
+       }
+ 
+-      public boolean equals(Object var1) {
+-         if (this == var1) {
+-            return true;
+-         } else if (var1 != null && this.getClass() == var1.getClass()) {
+-            RenderStateShard.BooleanStateShard var2 = (RenderStateShard.BooleanStateShard)var1;
+-            return this.enabled == var2.enabled;
+-         } else {
+-            return false;
+-         }
+-      }
+-
+-      public int hashCode() {
+-         return Boolean.hashCode(this.enabled);
+-      }
+-
        public String toString() {
           return this.name + '[' + this.enabled + ']';
        }
@@ -324,9 +442,9 @@
 -   }
 -
     public static final class OffsetTexturingStateShard extends RenderStateShard.TexturingStateShard {
-       private final float uOffset;
-       private final float vOffset;
- 
+-      private final float uOffset;
+-      private final float vOffset;
+-
        public OffsetTexturingStateShard(float var1, float var2) {
           super("offset_texturing", () -> {
 -            RenderSystem.matrixMode(5890);
@@ -341,11 +459,27 @@
 -            RenderSystem.matrixMode(5888);
 +            RenderSystem.resetTextureMatrix();
           });
-          this.uOffset = var1;
-          this.vOffset = var2;
+-         this.uOffset = var1;
+-         this.vOffset = var2;
        }
+-
+-      public boolean equals(Object var1) {
+-         if (this == var1) {
+-            return true;
+-         } else if (var1 != null && this.getClass() == var1.getClass()) {
+-            RenderStateShard.OffsetTexturingStateShard var2 = (RenderStateShard.OffsetTexturingStateShard)var1;
+-            return Float.compare(var2.uOffset, this.uOffset) == 0 && Float.compare(var2.vOffset, this.vOffset) == 0;
+-         } else {
+-            return false;
+-         }
+-      }
+-
+-      public int hashCode() {
+-         return Objects.hash(new Object[]{this.uOffset, this.vOffset});
+-      }
+    }
  
-@@ -601,39 +556,28 @@
+    public static class TexturingStateShard extends RenderStateShard {
        public TexturingStateShard(String var1, Runnable var2, Runnable var3) {
           super(var1, var2, var3);
        }
@@ -383,13 +517,21 @@
 -         this.mipmap = false;
 -      }
 -
-       public boolean equals(Object var1) {
-          if (this == var1) {
-             return true;
-          } else if (var1 != null && this.getClass() == var1.getClass()) {
-             RenderStateShard.TextureStateShard var2 = (RenderStateShard.TextureStateShard)var1;
-@@ -649,86 +593,114 @@
- 
+-      public boolean equals(Object var1) {
+-         if (this == var1) {
+-            return true;
+-         } else if (var1 != null && this.getClass() == var1.getClass()) {
+-            RenderStateShard.TextureStateShard var2 = (RenderStateShard.TextureStateShard)var1;
+-            return this.texture.equals(var2.texture) && this.blur == var2.blur && this.mipmap == var2.mipmap;
+-         } else {
+-            return false;
+-         }
+-      }
+-
+-      public int hashCode() {
+-         return this.texture.hashCode();
+-      }
+-
        public String toString() {
           return this.name + '[' + this.texture + "(blur=" + this.blur + ", mipmap=" + this.mipmap + ")]";
        }
@@ -435,19 +577,24 @@
 -            return this.smooth == var2.smooth;
 -         } else {
 -            return false;
+-         }
 +      protected Optional<ResourceLocation> cutoutTexture() {
 +         return this.cutoutTexture;
-+      }
-+
+       }
+ 
+-      public int hashCode() {
+-         return Boolean.hashCode(this.smooth);
 +      public static RenderStateShard.MultiTextureStateShard.Builder builder() {
 +         return new RenderStateShard.MultiTextureStateShard.Builder();
-+      }
-+
+       }
+ 
+-      public String toString() {
+-         return this.name + '[' + (this.smooth ? "smooth" : "flat") + ']';
 +      public static final class Builder {
 +         private final com.google.common.collect.ImmutableList.Builder<Triple<ResourceLocation, Boolean, Boolean>> builder = new com.google.common.collect.ImmutableList.Builder();
 +
 +         public Builder() {
-          }
++         }
 +
 +         public RenderStateShard.MultiTextureStateShard.Builder add(ResourceLocation var1, boolean var2, boolean var3) {
 +            this.builder.add(Triple.of(var1, var2, var3));
@@ -458,32 +605,14 @@
 +            return new RenderStateShard.MultiTextureStateShard(this.builder.build());
 +         }
        }
-+   }
- 
--      public int hashCode() {
--         return Boolean.hashCode(this.smooth);
-+   public static class EmptyTextureStateShard extends RenderStateShard {
-+      public EmptyTextureStateShard(Runnable var1, Runnable var2) {
-+         super("texture", var1, var2);
-       }
- 
--      public String toString() {
--         return this.name + '[' + (this.smooth ? "smooth" : "flat") + ']';
-+      private EmptyTextureStateShard() {
-+         super("texture", () -> {
-+         }, () -> {
-+         });
-       }
-+
-+      protected Optional<ResourceLocation> cutoutTexture() {
-+         return Optional.empty();
-+      }
     }
  
 -   public static class AlphaStateShard extends RenderStateShard {
 -      private final float cutoff;
-+   public static class ShaderStateShard extends RenderStateShard {
-+      private final Optional<Supplier<ShaderInstance>> shader;
++   public static class EmptyTextureStateShard extends RenderStateShard {
++      public EmptyTextureStateShard(Runnable var1, Runnable var2) {
++         super("texture", var1, var2);
++      }
  
 -      public AlphaStateShard(float var1) {
 -         super("alpha", () -> {
@@ -493,49 +622,56 @@
 -            } else {
 -               RenderSystem.disableAlphaTest();
 -            }
+-
++      private EmptyTextureStateShard() {
++         super("texture", () -> {
+          }, () -> {
+-            RenderSystem.disableAlphaTest();
+-            RenderSystem.defaultAlphaFunc();
+          });
+-         this.cutoff = var1;
+       }
+ 
+-      public boolean equals(@Nullable Object var1) {
+-         if (this == var1) {
+-            return true;
+-         } else if (var1 != null && this.getClass() == var1.getClass()) {
+-            if (!super.equals(var1)) {
+-               return false;
+-            } else {
+-               return this.cutoff == ((RenderStateShard.AlphaStateShard)var1).cutoff;
+-            }
+-         } else {
+-            return false;
+-         }
++      protected Optional<ResourceLocation> cutoutTexture() {
++         return Optional.empty();
+       }
++   }
+ 
+-      public int hashCode() {
+-         return Objects.hash(new Object[]{super.hashCode(), this.cutoff});
++   public static class ShaderStateShard extends RenderStateShard {
++      private final Optional<Supplier<ShaderInstance>> shader;
++
 +      public ShaderStateShard(Supplier<ShaderInstance> var1) {
 +         super("shader", () -> {
 +            RenderSystem.setShader(var1);
 +         }, () -> {
 +         });
 +         this.shader = Optional.of(var1);
-+      }
+       }
  
 +      public ShaderStateShard() {
 +         super("shader", () -> {
 +            RenderSystem.setShader(() -> {
 +               return null;
 +            });
-          }, () -> {
--            RenderSystem.disableAlphaTest();
--            RenderSystem.defaultAlphaFunc();
-          });
--         this.cutoff = var1;
++         }, () -> {
++         });
 +         this.shader = Optional.empty();
-       }
- 
--      public boolean equals(@Nullable Object var1) {
-+      public boolean equals(Object var1) {
-          if (this == var1) {
-             return true;
-          } else if (var1 != null && this.getClass() == var1.getClass()) {
--            if (!super.equals(var1)) {
--               return false;
--            } else {
--               return this.cutoff == ((RenderStateShard.AlphaStateShard)var1).cutoff;
--            }
-+            RenderStateShard.ShaderStateShard var2 = (RenderStateShard.ShaderStateShard)var1;
-+            return this.shader.equals(var2.shader);
-          } else {
-             return false;
-          }
-       }
- 
-       public int hashCode() {
--         return Objects.hash(new Object[]{super.hashCode(), this.cutoff});
-+         return this.shader.hashCode();
-       }
- 
++      }
++
        public String toString() {
 -         return this.name + '[' + this.cutoff + ']';
 +         return this.name + '[' + this.shader + "]";

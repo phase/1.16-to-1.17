@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java
 +++ net/minecraft/world/level/block/piston/PistonMovingBlockEntity.java
-@@ -9,25 +9,25 @@
+@@ -9,25 +9,28 @@
  import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.util.Mth;
  import net.minecraft.world.entity.Entity;
@@ -23,12 +23,15 @@
  
 -public class PistonMovingBlockEntity extends BlockEntity implements TickableBlockEntity {
 +public class PistonMovingBlockEntity extends BlockEntity {
++   private static final int TICKS_TO_EXTEND = 2;
++   private static final double PUSH_OFFSET = 0.01D;
++   public static final double TICK_MOVEMENT = 0.51D;
     private BlockState movedState;
     private Direction direction;
     private boolean extending;
     private boolean isSourcePiston;
     private static final ThreadLocal<Direction> NOCLIP = ThreadLocal.withInitial(() -> {
-@@ -36,20 +36,20 @@
+@@ -36,20 +39,20 @@
     private float progress;
     private float progressO;
     private long lastTicked;
@@ -57,7 +60,27 @@
     public CompoundTag getUpdateTag() {
        return this.save(new CompoundTag());
     }
-@@ -80,78 +80,78 @@
+@@ -72,86 +75,98 @@
+       }
+ 
+       return Mth.lerp(var1, this.progressO, this.progress);
+    }
+ 
++   public float getXOff(float var1) {
++      return (float)this.direction.getStepX() * this.getExtendedProgress(this.getProgress(var1));
++   }
++
++   public float getYOff(float var1) {
++      return (float)this.direction.getStepY() * this.getExtendedProgress(this.getProgress(var1));
++   }
++
++   public float getZOff(float var1) {
++      return (float)this.direction.getStepZ() * this.getExtendedProgress(this.getProgress(var1));
++   }
++
+    private float getExtendedProgress(float var1) {
+       return this.extending ? var1 - 1.0F : 1.0F - var1;
+    }
  
     private BlockState getCollisionRelatedBlockState() {
        return !this.isExtending() && this.isSourcePiston() && this.movedState.getBlock() instanceof PistonBaseBlock ? (BlockState)((BlockState)((BlockState)Blocks.PISTON_HEAD.defaultBlockState().setValue(PistonHeadBlock.SHORT, this.progress > 0.25F)).setValue(PistonHeadBlock.TYPE, this.movedState.is(Blocks.STICKY_PISTON) ? PistonType.STICKY : PistonType.DEFAULT)).setValue(PistonHeadBlock.FACING, this.movedState.getValue(PistonBaseBlock.FACING)) : this.movedState;
@@ -176,7 +199,7 @@
              }
           }
        }
-@@ -161,25 +161,25 @@
+@@ -161,25 +176,25 @@
        NOCLIP.set(var0);
        var1.move(MoverType.PISTON, new Vec3(var2 * (double)var4.getStepX(), var2 * (double)var4.getStepY(), var2 * (double)var4.getStepZ()));
        NOCLIP.set((Object)null);
@@ -215,7 +238,7 @@
           }
        }
     }
-@@ -212,18 +212,18 @@
+@@ -212,18 +227,18 @@
        case NORTH:
           return var2.maxZ - var0.minZ;
        }
@@ -239,7 +262,7 @@
           double var8 = getMovement(var6, var7, var5) + 0.01D;
           double var10 = getMovement(var6, var7, var5.intersect(var6)) + 0.01D;
           if (Math.abs(var8 - var10) < 0.01D) {
-@@ -257,55 +257,55 @@
+@@ -257,55 +272,55 @@
           }
        }
  

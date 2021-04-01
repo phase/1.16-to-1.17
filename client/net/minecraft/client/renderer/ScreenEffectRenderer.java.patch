@@ -12,19 +12,29 @@
  import javax.annotation.Nullable;
  import net.minecraft.client.Minecraft;
  import net.minecraft.client.player.LocalPlayer;
-@@ -23,11 +24,10 @@
+@@ -22,17 +23,19 @@
+ import net.minecraft.world.level.block.state.BlockState;
  
  public class ScreenEffectRenderer {
     private static final ResourceLocation UNDERWATER_LOCATION = new ResourceLocation("textures/misc/underwater.png");
  
++   public ScreenEffectRenderer() {
++   }
++
     public static void renderScreenEffect(Minecraft var0, PoseStack var1) {
 -      RenderSystem.disableAlphaTest();
        LocalPlayer var2 = var0.player;
        if (!var2.noPhysics) {
           BlockState var3 = getViewBlockingState(var2);
           if (var3 != null) {
-             renderTex(var0, var0.getBlockRenderer().getBlockModelShaper().getParticleIcon(var3), var1);
-@@ -42,11 +42,10 @@
+-            renderTex(var0, var0.getBlockRenderer().getBlockModelShaper().getParticleIcon(var3), var1);
++            renderTex(var0.getBlockRenderer().getBlockModelShaper().getParticleIcon(var3), var1);
+          }
+       }
+ 
+       if (!var0.player.isSpectator()) {
+          if (var0.player.isEyeInFluid(FluidTags.WATER)) {
+@@ -42,11 +45,10 @@
           if (var0.player.isOnFire()) {
              renderFire(var0, var1);
           }
@@ -36,33 +46,55 @@
     @Nullable
     private static BlockState getViewBlockingState(Player var0) {
        BlockPos.MutableBlockPos var1 = new BlockPos.MutableBlockPos();
-@@ -64,11 +63,11 @@
+@@ -63,68 +65,72 @@
+       }
  
        return null;
     }
  
-    private static void renderTex(Minecraft var0, TextureAtlasSprite var1, PoseStack var2) {
+-   private static void renderTex(Minecraft var0, TextureAtlasSprite var1, PoseStack var2) {
 -      var0.getTextureManager().bind(var1.atlas().location());
-+      RenderSystem.setShaderTexture(0, var1.atlas().location());
-       BufferBuilder var3 = Tesselator.getInstance().getBuilder();
-       float var4 = 0.1F;
-       float var5 = -1.0F;
-       float var6 = 1.0F;
-       float var7 = -1.0F;
-@@ -77,54 +76,57 @@
-       float var10 = var1.getU0();
-       float var11 = var1.getU1();
-       float var12 = var1.getV0();
-       float var13 = var1.getV1();
-       Matrix4f var14 = var2.last().pose();
+-      BufferBuilder var3 = Tesselator.getInstance().getBuilder();
+-      float var4 = 0.1F;
+-      float var5 = -1.0F;
+-      float var6 = 1.0F;
+-      float var7 = -1.0F;
+-      float var8 = 1.0F;
+-      float var9 = -0.5F;
+-      float var10 = var1.getU0();
+-      float var11 = var1.getU1();
+-      float var12 = var1.getV0();
+-      float var13 = var1.getV1();
+-      Matrix4f var14 = var2.last().pose();
 -      var3.begin(7, DefaultVertexFormat.POSITION_COLOR_TEX);
-+      var3.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-       var3.vertex(var14, -1.0F, -1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var11, var13).endVertex();
-       var3.vertex(var14, 1.0F, -1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var10, var13).endVertex();
-       var3.vertex(var14, 1.0F, 1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var10, var12).endVertex();
-       var3.vertex(var14, -1.0F, 1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var11, var12).endVertex();
-       var3.end();
-       BufferUploader.end(var3);
+-      var3.vertex(var14, -1.0F, -1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var11, var13).endVertex();
+-      var3.vertex(var14, 1.0F, -1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var10, var13).endVertex();
+-      var3.vertex(var14, 1.0F, 1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var10, var12).endVertex();
+-      var3.vertex(var14, -1.0F, 1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var11, var12).endVertex();
+-      var3.end();
+-      BufferUploader.end(var3);
++   private static void renderTex(TextureAtlasSprite var0, PoseStack var1) {
++      RenderSystem.setShaderTexture(0, var0.atlas().location());
++      RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
++      BufferBuilder var2 = Tesselator.getInstance().getBuilder();
++      float var3 = 0.1F;
++      float var4 = -1.0F;
++      float var5 = 1.0F;
++      float var6 = -1.0F;
++      float var7 = 1.0F;
++      float var8 = -0.5F;
++      float var9 = var0.getU0();
++      float var10 = var0.getU1();
++      float var11 = var0.getV0();
++      float var12 = var0.getV1();
++      Matrix4f var13 = var1.last().pose();
++      var2.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
++      var2.vertex(var13, -1.0F, -1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var10, var12).endVertex();
++      var2.vertex(var13, 1.0F, -1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var9, var12).endVertex();
++      var2.vertex(var13, 1.0F, 1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var9, var11).endVertex();
++      var2.vertex(var13, -1.0F, 1.0F, -0.5F).color(0.1F, 0.1F, 0.1F, 1.0F).uv(var10, var11).endVertex();
++      var2.end();
++      BufferUploader.end(var2);
     }
  
     private static void renderWater(Minecraft var0, PoseStack var1) {
@@ -115,7 +147,7 @@
        float var6 = (var4 + var5) / 2.0F;
        float var7 = var3.getV0();
        float var8 = var3.getV1();
-@@ -144,11 +146,11 @@
+@@ -144,11 +150,11 @@
           float var20 = 0.5F;
           float var21 = -0.5F;
           var1.translate((double)((float)(-(var16 * 2 - 1)) * 0.24F), -0.30000001192092896D, 0.0D);

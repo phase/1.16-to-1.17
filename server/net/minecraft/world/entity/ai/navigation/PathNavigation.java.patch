@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/ai/navigation/PathNavigation.java
 +++ net/minecraft/world/entity/ai/navigation/PathNavigation.java
-@@ -7,17 +7,17 @@
+@@ -7,26 +7,27 @@
  import javax.annotation.Nullable;
  import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
@@ -19,10 +19,38 @@
  import net.minecraft.world.level.pathfinder.NodeEvaluator;
  import net.minecraft.world.level.pathfinder.Path;
  import net.minecraft.world.level.pathfinder.PathFinder;
-@@ -121,11 +121,11 @@
+ import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public abstract class PathNavigation {
++   private static final int MAX_TIME_RECOMPUTE = 20;
+    protected final Mob mob;
+    protected final Level level;
+    @Nullable
+    protected Path path;
+    protected double speedModifier;
+@@ -113,27 +114,36 @@
+    public Path createPath(BlockPos var1, int var2) {
+       return this.createPath(ImmutableSet.of(var1), 8, false, var2);
+    }
+ 
+    @Nullable
++   public Path createPath(BlockPos var1, int var2, int var3) {
++      return this.createPath(ImmutableSet.of(var1), 8, false, var2, (float)var3);
++   }
++
++   @Nullable
+    public Path createPath(Entity var1, int var2) {
+       return this.createPath(ImmutableSet.of(var1.blockPosition()), 16, true, var2);
+    }
  
     @Nullable
     protected Path createPath(Set<BlockPos> var1, int var2, boolean var3, int var4) {
++      return this.createPath(var1, var2, var3, var4, (float)this.mob.getAttributeValue(Attributes.FOLLOW_RANGE));
++   }
++
++   @Nullable
++   protected Path createPath(Set<BlockPos> var1, int var2, boolean var3, int var4, float var5) {
        if (var1.isEmpty()) {
           return null;
 -      } else if (this.mob.getY() < 0.0D) {
@@ -32,7 +60,15 @@
           return null;
        } else if (this.path != null && !this.path.isDone() && var1.contains(this.targetPos)) {
           return this.path;
-@@ -313,11 +313,11 @@
+       } else {
+          this.level.getProfiler().push("pathfind");
+-         float var5 = (float)this.mob.getAttributeValue(Attributes.FOLLOW_RANGE);
+          BlockPos var6 = var3 ? this.mob.blockPosition().above() : this.mob.blockPosition();
+          int var7 = (int)(var5 + (float)var2);
+          PathNavigationRegion var8 = new PathNavigationRegion(this.level, var6.offset(-var7, -var7, -var7), var6.offset(var7, var7, var7));
+          Path var9 = this.pathFinder.findPath(var8, this.mob, var1, var5, var4, this.maxVisitedNodesMultiplier);
+          this.level.getProfiler().pop();
+@@ -313,11 +323,11 @@
        if (this.path != null) {
           for(int var1 = 0; var1 < this.path.getNodeCount(); ++var1) {
              Node var2 = this.path.getNode(var1);
@@ -45,3 +81,17 @@
                    this.path.replaceNode(var1 + 1, var2.cloneAndMove(var3.x, var2.y + 1, var3.z));
                 }
              }
+@@ -354,9 +364,13 @@
+          }
+ 
+       }
+    }
+ 
++   public float getMaxDistanceToWaypoint() {
++      return this.maxDistanceToWaypoint;
++   }
++
+    public boolean isStuck() {
+       return this.isStuck;
+    }
+ }

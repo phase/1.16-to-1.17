@@ -1,6 +1,87 @@
 --- net/minecraft/world/inventory/MerchantMenu.java
 +++ net/minecraft/world/inventory/MerchantMenu.java
-@@ -109,23 +109,23 @@
+@@ -11,12 +11,26 @@
+ import net.minecraft.world.item.trading.Merchant;
+ import net.minecraft.world.item.trading.MerchantOffer;
+ import net.minecraft.world.item.trading.MerchantOffers;
+ 
+ public class MerchantMenu extends AbstractContainerMenu {
++   protected static final int PAYMENT1_SLOT = 0;
++   protected static final int PAYMENT2_SLOT = 1;
++   protected static final int RESULT_SLOT = 2;
++   private static final int INV_SLOT_START = 3;
++   private static final int INV_SLOT_END = 30;
++   private static final int USE_ROW_SLOT_START = 30;
++   private static final int USE_ROW_SLOT_END = 39;
++   private static final int SELLSLOT1_X = 136;
++   private static final int SELLSLOT2_X = 162;
++   private static final int BUYSLOT_X = 220;
++   private static final int ROW_Y = 37;
+    private final Merchant trader;
+    private final MerchantContainer tradeContainer;
++   private int merchantLevel;
++   private boolean showProgressBar;
++   private boolean canRestock;
+ 
+    public MerchantMenu(int var1, Inventory var2) {
+       this(var1, var2, new ClientSideMerchant(var2.player));
+    }
+ 
+@@ -39,10 +53,14 @@
+          this.addSlot(new Slot(var2, var4, 108 + var4 * 18, 142));
+       }
+ 
+    }
+ 
++   public void setShowProgressBar(boolean var1) {
++      this.showProgressBar = var1;
++   }
++
+    public void slotsChanged(Container var1) {
+       this.tradeContainer.updateSellItem();
+       super.slotsChanged(var1);
+    }
+ 
+@@ -52,10 +70,38 @@
+ 
+    public boolean stillValid(Player var1) {
+       return this.trader.getTradingPlayer() == var1;
+    }
+ 
++   public int getTraderXp() {
++      return this.trader.getVillagerXp();
++   }
++
++   public int getFutureTraderXp() {
++      return this.tradeContainer.getFutureXp();
++   }
++
++   public void setXp(int var1) {
++      this.trader.overrideXp(var1);
++   }
++
++   public int getTraderLevel() {
++      return this.merchantLevel;
++   }
++
++   public void setMerchantLevel(int var1) {
++      this.merchantLevel = var1;
++   }
++
++   public void setCanRestock(boolean var1) {
++      this.canRestock = var1;
++   }
++
++   public boolean canRestock() {
++      return this.canRestock;
++   }
++
+    public boolean canTakeItemForPickAll(ItemStack var1, Slot var2) {
+       return false;
+    }
+ 
+    public ItemStack quickMoveStack(Player var1, int var2) {
+@@ -109,23 +155,23 @@
  
     public void removed(Player var1) {
        super.removed(var1);
@@ -28,7 +109,7 @@
        }
     }
  
-@@ -161,11 +161,11 @@
+@@ -161,11 +207,11 @@
  
     private void moveFromInventoryToPaymentSlot(int var1, ItemStack var2) {
        if (!var2.isEmpty()) {
@@ -41,7 +122,7 @@
                 int var7 = Math.min(var2.getMaxStackSize() - var6, var4.getCount());
                 ItemStack var8 = var4.copy();
                 int var9 = var6 + var7;
-@@ -179,13 +179,9 @@
+@@ -179,13 +225,17 @@
           }
        }
  
@@ -49,9 +130,15 @@
  
 -   private boolean isSameItem(ItemStack var1, ItemStack var2) {
 -      return var1.getItem() == var2.getItem() && ItemStack.tagMatches(var1, var2);
--   }
--
++   public void setOffers(MerchantOffers var1) {
++      this.trader.overrideOffers(var1);
+    }
+ 
     public MerchantOffers getOffers() {
        return this.trader.getOffers();
     }
++
++   public boolean showProgressBar() {
++      return this.showProgressBar;
++   }
  }

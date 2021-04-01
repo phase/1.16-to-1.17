@@ -24,8 +24,8 @@
 -   public static final WorldCarver<ProbabilityFeatureConfiguration> CANYON;
 -   public static final WorldCarver<ProbabilityFeatureConfiguration> UNDERWATER_CANYON;
 -   public static final WorldCarver<ProbabilityFeatureConfiguration> UNDERWATER_CAVE;
-+   public static final WorldCarver<CarverConfiguration> CAVE;
-+   public static final WorldCarver<CarverConfiguration> NETHER_CAVE;
++   public static final WorldCarver<CaveCarverConfiguration> CAVE;
++   public static final WorldCarver<CaveCarverConfiguration> NETHER_CAVE;
 +   public static final WorldCarver<CanyonCarverConfiguration> CANYON;
     protected static final BlockState AIR;
     protected static final BlockState CAVE_AIR;
@@ -148,7 +148,7 @@
 -      if (var3.get(var17)) {
 +   protected boolean carveBlock(CarvingContext var1, C var2, ChunkAccess var3, Function<BlockPos, Biome> var4, BitSet var5, Random var6, BlockPos.MutableBlockPos var7, BlockPos.MutableBlockPos var8, int var9, MutableBoolean var10) {
 +      BlockState var11 = var3.getBlockState(var7);
-+      BlockState var12 = var3.getBlockState(var8.setWithOffset(var7, Direction.UP));
++      BlockState var12 = var3.getBlockState(var8.setWithOffset(var7, (Direction)Direction.UP));
 +      if (var11.is(Blocks.GRASS_BLOCK) || var11.is(Blocks.MYCELIUM)) {
 +         var10.setTrue();
 +      }
@@ -166,7 +166,7 @@
 -
 -         if (!this.canReplaceBlock(var18, var19)) {
 -            return false;
-+         if (var7.getY() < var1.getMinGenY() + 9 && !isDebugEnabled(var2)) {
++         if (var7.getY() < var2.lavaLevel.resolveY(var1) && !isDebugEnabled(var2)) {
 +            var3.setBlockState(var7, LAVA.createLegacyBlock(), false);
           } else {
 -            if (var14 < 11) {
@@ -180,7 +180,7 @@
 -                  }
 +            var3.setBlockState(var7, getCaveAirState(var2), false);
 +            if (var10.isTrue()) {
-+               var8.setWithOffset(var7, Direction.DOWN);
++               var8.setWithOffset(var7, (Direction)Direction.DOWN);
 +               if (var3.getBlockState(var8).is(Blocks.DIRT)) {
 +                  var3.setBlockState(var8, ((Biome)var4.apply(var7)).getGenerationSettings().getSurfaceBuilderConfig().getTopMaterial(), false);
                 }
@@ -195,7 +195,7 @@
  
 -   public abstract boolean carve(ChunkAccess var1, Function<BlockPos, Biome> var2, Random var3, int var4, int var5, int var6, int var7, int var8, BitSet var9, C var10);
 +   private static BlockState getCaveAirState(CarverConfiguration var0) {
-+      return isDebugEnabled(var0) ? var0.getDebugSettings().getAirState() : CAVE_AIR;
++      return isDebugEnabled(var0) ? var0.debugSettings.getAirState() : CAVE_AIR;
 +   }
  
 -   public abstract boolean isStartChunk(Random var1, int var2, int var3, C var4);
@@ -268,7 +268,7 @@
  
 -   protected abstract boolean skip(double var1, double var3, double var5, int var7);
 +   private static boolean isDebugEnabled(CarverConfiguration var0) {
-+      return var0.getDebugSettings().isDebugMode();
++      return var0.debugSettings.isDebugMode();
 +   }
  
     static {
@@ -277,8 +277,8 @@
 -      CANYON = register("canyon", new CanyonWorldCarver(ProbabilityFeatureConfiguration.CODEC));
 -      UNDERWATER_CANYON = register("underwater_canyon", new UnderwaterCanyonWorldCarver(ProbabilityFeatureConfiguration.CODEC));
 -      UNDERWATER_CAVE = register("underwater_cave", new UnderwaterCaveWorldCarver(ProbabilityFeatureConfiguration.CODEC));
-+      CAVE = register("cave", new CaveWorldCarver(CarverConfiguration.CODEC));
-+      NETHER_CAVE = register("nether_cave", new NetherWorldCarver(CarverConfiguration.CODEC));
++      CAVE = register("cave", new CaveWorldCarver(CaveCarverConfiguration.CODEC));
++      NETHER_CAVE = register("nether_cave", new NetherWorldCarver(CaveCarverConfiguration.CODEC));
 +      CANYON = register("canyon", new CanyonWorldCarver(CanyonCarverConfiguration.CODEC));
        AIR = Blocks.AIR.defaultBlockState();
        CAVE_AIR = Blocks.CAVE_AIR.defaultBlockState();

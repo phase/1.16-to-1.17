@@ -1,24 +1,13 @@
 --- net/minecraft/world/level/levelgen/feature/StructureFeature.java
 +++ net/minecraft/world/level/levelgen/feature/StructureFeature.java
-@@ -4,22 +4,25 @@
- import com.google.common.collect.HashBiMap;
- import com.google.common.collect.ImmutableList;
- import com.google.common.collect.ImmutableMap;
- import com.google.common.collect.Maps;
- import com.mojang.serialization.Codec;
-+import com.mojang.serialization.DataResult;
- import java.util.List;
- import java.util.Locale;
- import java.util.Map;
- import javax.annotation.Nullable;
- import net.minecraft.core.BlockPos;
- import net.minecraft.core.Registry;
+@@ -15,11 +15,14 @@
  import net.minecraft.core.RegistryAccess;
  import net.minecraft.core.SectionPos;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.ListTag;
-+import net.minecraft.nbt.NbtOps;
  import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.util.random.WeightedRandomList;
  import net.minecraft.world.level.ChunkPos;
 +import net.minecraft.world.level.LevelHeightAccessor;
  import net.minecraft.world.level.LevelReader;
@@ -26,7 +15,42 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeSource;
  import net.minecraft.world.level.biome.MobSpawnSettings;
-@@ -103,40 +106,48 @@
+@@ -35,11 +38,10 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.OceanRuinConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.ProbabilityFeatureConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.RuinedPortalConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.ShipwreckConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.StructureFeatureConfiguration;
+-import net.minecraft.world.level.levelgen.structure.BoundingBox;
+ import net.minecraft.world.level.levelgen.structure.NetherFossilFeature;
+ import net.minecraft.world.level.levelgen.structure.OceanRuinFeature;
+ import net.minecraft.world.level.levelgen.structure.StructurePiece;
+ import net.minecraft.world.level.levelgen.structure.StructureStart;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
+@@ -69,10 +71,11 @@
+    public static final StructureFeature<NoneFeatureConfiguration> NETHER_FOSSIL;
+    public static final StructureFeature<JigsawConfiguration> BASTION_REMNANT;
+    public static final List<StructureFeature<?>> NOISE_AFFECTING_FEATURES;
+    private static final ResourceLocation JIGSAW_RENAME;
+    private static final Map<ResourceLocation, ResourceLocation> RENAMES;
++   public static final int MAX_STRUCTURE_RANGE = 8;
+    private final Codec<ConfiguredStructureFeature<C, StructureFeature<C>>> configuredStructureCodec;
+ 
+    private static <F extends StructureFeature<?>> F register(String var0, F var1, GenerationStep.Decoration var2) {
+       STRUCTURES_REGISTRY.put(var0.toLowerCase(Locale.ROOT), var1);
+       STEP.put(var1, var2);
+@@ -93,50 +96,48 @@
+ 
+    public static void bootstrap() {
+    }
+ 
+    @Nullable
+-   public static StructureStart<?> loadStaticStart(StructureManager var0, CompoundTag var1, long var2) {
++   public static StructureStart<?> loadStaticStart(ServerLevel var0, CompoundTag var1, long var2) {
+       String var4 = var1.getString("id");
+       if ("INVALID".equals(var4)) {
+          return StructureStart.INVALID_START;
+       } else {
           StructureFeature var5 = (StructureFeature)Registry.STRUCTURE_FEATURE.get(new ResourceLocation(var4.toLowerCase(Locale.ROOT)));
           if (var5 == null) {
              LOGGER.error((String)"Unknown feature id: {}", (Object)var4);
@@ -39,21 +63,11 @@
 -            ListTag var10 = var1.getList("Children", 10);
 +            ChunkPos var6 = new ChunkPos(var1.getInt("ChunkX"), var1.getInt("ChunkZ"));
 +            int var7 = var1.getInt("references");
-+            BoundingBox var8;
-+            if (var1.contains("BB")) {
-+               DataResult var10000 = BoundingBox.CODEC.parse(NbtOps.INSTANCE, var1.get("BB"));
-+               Logger var10001 = LOGGER;
-+               var10001.getClass();
-+               var8 = (BoundingBox)var10000.resultOrPartial(var10001::error).orElse(new BoundingBox(BlockPos.ZERO));
-+            } else {
-+               var8 = BoundingBox.getUnknownBox();
-+            }
++            ListTag var8 = var1.getList("Children", 10);
  
-+            ListTag var9 = var1.getList("Children", 10);
-+
              try {
 -               StructureStart var11 = var5.createStart(var6, var7, var9, var8, var2);
-+               StructureStart var10 = var5.createStart(var6, var8, var7, var2);
++               StructureStart var9 = var5.createStart(var6, var7, var2);
  
 -               for(int var12 = 0; var12 < var10.size(); ++var12) {
 -                  CompoundTag var13 = var10.getCompound(var12);
@@ -63,24 +77,24 @@
 -                  StructurePieceType var17 = (StructurePieceType)Registry.STRUCTURE_PIECE.get(var16);
 -                  if (var17 == null) {
 -                     LOGGER.error((String)"Unknown structure piece id: {}", (Object)var16);
-+               for(int var11 = 0; var11 < var9.size(); ++var11) {
-+                  CompoundTag var12 = var9.getCompound(var11);
-+                  String var13 = var12.getString("id").toLowerCase(Locale.ROOT);
-+                  ResourceLocation var14 = new ResourceLocation(var13);
-+                  ResourceLocation var15 = (ResourceLocation)RENAMES.getOrDefault(var14, var14);
-+                  StructurePieceType var16 = (StructurePieceType)Registry.STRUCTURE_PIECE.get(var15);
-+                  if (var16 == null) {
-+                     LOGGER.error((String)"Unknown structure piece id: {}", (Object)var15);
++               for(int var10 = 0; var10 < var8.size(); ++var10) {
++                  CompoundTag var11 = var8.getCompound(var10);
++                  String var12 = var11.getString("id").toLowerCase(Locale.ROOT);
++                  ResourceLocation var13 = new ResourceLocation(var12);
++                  ResourceLocation var14 = (ResourceLocation)RENAMES.getOrDefault(var13, var13);
++                  StructurePieceType var15 = (StructurePieceType)Registry.STRUCTURE_PIECE.get(var14);
++                  if (var15 == null) {
++                     LOGGER.error((String)"Unknown structure piece id: {}", (Object)var14);
                    } else {
                       try {
 -                        StructurePiece var18 = var17.load(var0, var13);
 -                        var11.getPieces().add(var18);
 -                     } catch (Exception var19) {
 -                        LOGGER.error((String)"Exception loading structure piece with id {}", (Object)var16, (Object)var19);
-+                        StructurePiece var17 = var16.load(var0, var12);
-+                        var10.getPieces().add(var17);
-+                     } catch (Exception var18) {
-+                        LOGGER.error((String)"Exception loading structure piece with id {}", (Object)var15, (Object)var18);
++                        StructurePiece var16 = var15.load(var0, var11);
++                        var9.addPiece(var16);
++                     } catch (Exception var17) {
++                        LOGGER.error((String)"Exception loading structure piece with id {}", (Object)var14, (Object)var17);
                       }
                    }
                 }
@@ -88,15 +102,15 @@
 -               return var11;
 -            } catch (Exception var20) {
 -               LOGGER.error((String)"Failed Start with id {}", (Object)var4, (Object)var20);
-+               return var10;
-+            } catch (Exception var19) {
-+               LOGGER.error((String)"Failed Start with id {}", (Object)var4, (Object)var19);
++               return var9;
++            } catch (Exception var18) {
++               LOGGER.error((String)"Failed Start with id {}", (Object)var4, (Object)var18);
                 return null;
              }
           }
        }
     }
-@@ -150,12 +161,12 @@
+@@ -150,12 +151,12 @@
     }
  
     @Nullable
@@ -111,7 +125,7 @@
        for(WorldgenRandom var13 = new WorldgenRandom(); var12 <= var4; ++var12) {
           for(int var14 = -var12; var14 <= var12; ++var14) {
              boolean var15 = var14 == -var12 || var14 == var12;
-@@ -164,20 +175,23 @@
+@@ -164,20 +165,23 @@
                 boolean var17 = var16 == -var12 || var16 == var12;
                 if (var15 || var17) {
                    int var18 = var10 + var9 * var14;
@@ -144,7 +158,7 @@
  
                    if (var12 == 0) {
                       break;
-@@ -215,25 +229,25 @@
+@@ -215,25 +219,25 @@
        }
  
        return new ChunkPos(var9 * var7 + var11, var10 * var7 + var12);
@@ -157,8 +171,8 @@
  
 -   private StructureStart<C> createStart(int var1, int var2, BoundingBox var3, int var4, long var5) {
 -      return this.getStartFactory().create(this, var1, var2, var3, var4, var5);
-+   private StructureStart<C> createStart(ChunkPos var1, BoundingBox var2, int var3, long var4) {
-+      return this.getStartFactory().create(this, var1, var2, var3, var4);
++   private StructureStart<C> createStart(ChunkPos var1, int var2, long var3) {
++      return this.getStartFactory().create(this, var1, var2, var3);
     }
  
 -   public StructureStart<?> generate(RegistryAccess var1, ChunkGenerator var2, BiomeSource var3, StructureManager var4, long var5, ChunkPos var7, Biome var8, int var9, WorldgenRandom var10, StructureFeatureConfiguration var11, C var12) {
@@ -171,7 +185,7 @@
 +   public StructureStart<?> generate(RegistryAccess var1, ChunkGenerator var2, BiomeSource var3, StructureManager var4, long var5, ChunkPos var7, Biome var8, int var9, WorldgenRandom var10, StructureFeatureConfiguration var11, C var12, LevelHeightAccessor var13) {
 +      ChunkPos var14 = this.getPotentialFeatureChunk(var11, var5, var10, var7.x, var7.z);
 +      if (var7.x == var14.x && var7.z == var14.z && this.isFeatureChunk(var2, var3, var5, var10, var7, var8, var14, var12, var13)) {
-+         StructureStart var15 = this.createStart(var7, BoundingBox.getUnknownBox(), var9, var5);
++         StructureStart var15 = this.createStart(var7, var9, var5);
 +         var15.generatePieces(var1, var2, var4, var7, var8, var12, var13);
 +         if (var15.isValid()) {
 +            return var15;
@@ -180,7 +194,28 @@
  
        return StructureStart.INVALID_START;
     }
-@@ -269,14 +283,14 @@
+@@ -242,16 +246,16 @@
+ 
+    public String getFeatureName() {
+       return (String)STRUCTURES_REGISTRY.inverse().get(this);
+    }
+ 
+-   public List<MobSpawnSettings.SpawnerData> getSpecialEnemies() {
+-      return ImmutableList.of();
++   public WeightedRandomList<MobSpawnSettings.SpawnerData> getSpecialEnemies() {
++      return MobSpawnSettings.EMPTY_MOB_LIST;
+    }
+ 
+-   public List<MobSpawnSettings.SpawnerData> getSpecialAnimals() {
+-      return ImmutableList.of();
++   public WeightedRandomList<MobSpawnSettings.SpawnerData> getSpecialAnimals() {
++      return MobSpawnSettings.EMPTY_MOB_LIST;
+    }
+ 
+    static {
+       PILLAGER_OUTPOST = register("Pillager_Outpost", new PillagerOutpostFeature(JigsawConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
+       MINESHAFT = register("Mineshaft", new MineshaftFeature(MineshaftConfiguration.CODEC), GenerationStep.Decoration.UNDERGROUND_STRUCTURES);
+@@ -269,14 +273,14 @@
        END_CITY = register("EndCity", new EndCityFeature(NoneFeatureConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
        BURIED_TREASURE = register("Buried_Treasure", new BuriedTreasureFeature(ProbabilityFeatureConfiguration.CODEC), GenerationStep.Decoration.UNDERGROUND_STRUCTURES);
        VILLAGE = register("Village", new VillageFeature(JigsawConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
@@ -194,6 +229,6 @@
  
     public interface StructureStartFactory<C extends FeatureConfiguration> {
 -      StructureStart<C> create(StructureFeature<C> var1, int var2, int var3, BoundingBox var4, int var5, long var6);
-+      StructureStart<C> create(StructureFeature<C> var1, ChunkPos var2, BoundingBox var3, int var4, long var5);
++      StructureStart<C> create(StructureFeature<C> var1, ChunkPos var2, int var3, long var4);
     }
  }

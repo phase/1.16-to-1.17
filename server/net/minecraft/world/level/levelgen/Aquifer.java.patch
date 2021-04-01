@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/Aquifer.java
 +++ net/minecraft/world/level/levelgen/Aquifer.java
-@@ -1,0 +1,205 @@
+@@ -1,0 +1,223 @@
 +package net.minecraft.world.level.levelgen;
 +
 +import java.util.Arrays;
@@ -10,6 +10,17 @@
 +import net.minecraft.world.level.levelgen.synth.NormalNoise;
 +
 +public class Aquifer {
++   private static final int X_RANGE = 10;
++   private static final int Y_RANGE = 9;
++   private static final int Z_RANGE = 10;
++   private static final int X_SEPARATION = 6;
++   private static final int Y_SEPARATION = 3;
++   private static final int Z_SEPARATION = 6;
++   private static final int X_SPACING = 16;
++   private static final int Y_SPACING = 12;
++   private static final int Z_SPACING = 16;
++   private static final int ALWAYS_LAVA_BELOW_Y_INDEX = 9;
++   public static final int ALWAYS_USE_SEA_LEVEL_WHEN_ABOVE = 30;
 +   private final NormalNoise barrierNoise;
 +   private final NormalNoise waterLevelNoise;
 +   private final NoiseGeneratorSettings noiseGeneratorSettings;
@@ -118,10 +129,10 @@
 +      double var43 = this.similarity(var8, var9);
 +      this.lastWaterLevel = var16;
 +      this.shouldScheduleWaterUpdate = var41 > 0.0D;
-+      if (this.lastWaterLevel >= var2 && var2 <= 9) {
++      if (this.lastWaterLevel >= var2 && isLavaLevel(var2 - this.noiseGeneratorSettings.noiseSettings().minY() - 1)) {
 +         this.lastBarrierDensity = 1.0D;
 +      } else if (var41 > -1.0D) {
-+         double var44 = 1.0D + (this.barrierNoise.getValue((double)var1, (double)var2, (double)var3) + 0.1D) / 4.0D;
++         double var44 = 1.0D + (this.barrierNoise.getValue((double)var1, (double)var2, (double)var3) + 0.05D) / 4.0D;
 +         double var46 = this.calculatePressure(var2, var44, var16, var17);
 +         double var47 = this.calculatePressure(var2, var44, var16, var18);
 +         double var31 = this.calculatePressure(var2, var44, var17, var18);
@@ -136,13 +147,20 @@
 +
 +   }
 +
++   public static boolean isLavaLevel(int var0) {
++      return var0 < 9;
++   }
++
 +   private double similarity(int var1, int var2) {
 +      double var3 = 25.0D;
 +      return 1.0D - (double)Math.abs(var2 - var1) / 25.0D;
 +   }
 +
 +   private double calculatePressure(int var1, double var2, int var4, int var5) {
-+      return 0.5D * (double)Math.abs(var4 - var5) * var2 - Math.abs(0.5D * (double)(var4 + var5) - (double)var1 - 0.5D);
++      int var6 = Math.abs(var4 - var5);
++      double var7 = 0.5D * (double)(var4 + var5);
++      double var9 = Math.abs(var7 - (double)var1 - 0.5D);
++      return 0.5D * (double)var6 * var2 - var9;
 +   }
 +
 +   private int gridX(int var1) {

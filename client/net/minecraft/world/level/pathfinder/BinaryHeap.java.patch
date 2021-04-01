@@ -1,0 +1,70 @@
+--- net/minecraft/world/level/pathfinder/BinaryHeap.java
++++ net/minecraft/world/level/pathfinder/BinaryHeap.java
+@@ -26,10 +26,14 @@
+ 
+    public void clear() {
+       this.size = 0;
+    }
+ 
++   public Node peek() {
++      return this.heap[0];
++   }
++
+    public Node pop() {
+       Node var1 = this.heap[0];
+       this.heap[0] = this.heap[--this.size];
+       this.heap[this.size] = null;
+       if (this.size > 0) {
+@@ -38,10 +42,24 @@
+ 
+       var1.heapIdx = -1;
+       return var1;
+    }
+ 
++   public void remove(Node var1) {
++      this.heap[var1.heapIdx] = this.heap[--this.size];
++      this.heap[this.size] = null;
++      if (this.size > var1.heapIdx) {
++         if (this.heap[var1.heapIdx].f < var1.f) {
++            this.upHeap(var1.heapIdx);
++         } else {
++            this.downHeap(var1.heapIdx);
++         }
++      }
++
++      var1.heapIdx = -1;
++   }
++
+    public void changeCost(Node var1, float var2) {
+       float var3 = var1.f;
+       var1.f = var2;
+       if (var2 < var3) {
+          this.upHeap(var1.heapIdx);
+@@ -49,10 +67,14 @@
+          this.downHeap(var1.heapIdx);
+       }
+ 
+    }
+ 
++   public int size() {
++      return this.size;
++   }
++
+    private void upHeap(int var1) {
+       Node var2 = this.heap[var1];
+ 
+       int var4;
+       for(float var3 = var2.f; var1 > 0; var1 = var4) {
+@@ -117,6 +139,12 @@
+    }
+ 
+    public boolean isEmpty() {
+       return this.size == 0;
+    }
++
++   public Node[] getHeap() {
++      Node[] var1 = new Node[this.size()];
++      System.arraycopy(this.heap, 0, var1, 0, this.size());
++      return var1;
++   }
+ }

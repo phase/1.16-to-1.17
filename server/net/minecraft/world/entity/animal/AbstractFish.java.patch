@@ -17,14 +17,13 @@
  import net.minecraft.tags.FluidTags;
  import net.minecraft.util.Mth;
  import net.minecraft.world.InteractionHand;
-@@ -31,18 +29,18 @@
+@@ -31,18 +29,17 @@
  import net.minecraft.world.entity.ai.goal.RandomSwimmingGoal;
  import net.minecraft.world.entity.ai.navigation.PathNavigation;
  import net.minecraft.world.entity.ai.navigation.WaterBoundPathNavigation;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.ItemStack;
 -import net.minecraft.world.item.Items;
-+import net.minecraft.world.item.ItemUtils;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.block.Blocks;
@@ -38,7 +37,7 @@
     public AbstractFish(EntityType<? extends AbstractFish> var1, Level var2) {
        super(var1, var2);
        this.moveControl = new AbstractFish.FishMoveControl(this);
-@@ -75,11 +73,11 @@
+@@ -75,11 +72,11 @@
     protected void defineSynchedData() {
        super.defineSynchedData();
        this.entityData.define(FROM_BUCKET, false);
@@ -51,7 +50,7 @@
  
     public void setFromBucket(boolean var1) {
        this.entityData.set(FROM_BUCKET, var1);
-@@ -133,31 +131,15 @@
+@@ -133,42 +130,25 @@
  
        super.aiStep();
     }
@@ -66,25 +65,40 @@
 -         if (!this.level.isClientSide) {
 -            CriteriaTriggers.FILLED_BUCKET.trigger((ServerPlayer)var1, var4);
 -         }
--
++      return (InteractionResult)Bucketable.bucketMobPickup(var1, var2, this).orElse(super.mobInteract(var1, var2));
++   }
+ 
 -         if (var3.isEmpty()) {
 -            var1.setItemInHand(var2, var4);
 -         } else if (!var1.inventory.add(var4)) {
 -            var1.drop(var4, false);
 -         }
--
++   public void saveToBucketTag(ItemStack var1) {
++      Bucketable.saveDefaultDataToBucketTag(this, var1);
++   }
+ 
 -         this.remove();
 -         return InteractionResult.sidedSuccess(this.level.isClientSide);
 -      } else {
 -         return super.mobInteract(var1, var2);
 -      }
-+      return (InteractionResult)ItemUtils.bucketMobPickup(var1, var2, this, SoundEvents.BUCKET_FILL_FISH, () -> {
-+         ItemStack var1 = this.getBucketItemStack();
-+         this.saveToBucketTag(var1);
-+         return var1;
-+      }).orElse(super.mobInteract(var1, var2));
++   public void loadFromBucketTag(CompoundTag var1) {
++      Bucketable.loadDefaultDataFromBucketTag(this, var1);
     }
  
-    protected void saveToBucketTag(ItemStack var1) {
-       if (this.hasCustomName()) {
-          var1.setHoverName(this.getCustomName());
+-   protected void saveToBucketTag(ItemStack var1) {
+-      if (this.hasCustomName()) {
+-         var1.setHoverName(this.getCustomName());
+-      }
+-
++   public SoundEvent getPickupSound() {
++      return SoundEvents.BUCKET_FILL_FISH;
+    }
+ 
+-   protected abstract ItemStack getBucketItemStack();
+-
+    protected boolean canRandomSwim() {
+       return true;
+    }
+ 
+    protected abstract SoundEvent getFlopSound();

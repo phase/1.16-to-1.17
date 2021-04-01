@@ -1,18 +1,19 @@
 --- net/minecraft/server/level/ServerChunkCache.java
 +++ net/minecraft/server/level/ServerChunkCache.java
-@@ -21,11 +21,10 @@
+@@ -21,11 +21,11 @@
  import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.SectionPos;
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.server.level.progress.ChunkProgressListener;
 -import net.minecraft.util.Mth;
++import net.minecraft.util.VisibleForDebug;
  import net.minecraft.util.profiling.ProfilerFiller;
  import net.minecraft.util.thread.BlockableEventLoop;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.ai.village.poi.PoiManager;
  import net.minecraft.world.level.BlockGetter;
-@@ -37,10 +36,11 @@
+@@ -37,10 +37,11 @@
  import net.minecraft.world.level.chunk.ChunkAccess;
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.chunk.ChunkSource;
@@ -24,10 +25,18 @@
  import net.minecraft.world.level.storage.LevelData;
  import net.minecraft.world.level.storage.LevelStorageSource;
  
-@@ -61,20 +61,20 @@
+@@ -55,26 +56,28 @@
+    public final ChunkMap chunkMap;
+    private final DimensionDataStorage dataStorage;
+    private long lastInhabitedUpdate;
+    private boolean spawnEnemies = true;
+    private boolean spawnFriendlies = true;
++   private static final int CACHE_SIZE = 4;
+    private final long[] lastChunkPos = new long[4];
     private final ChunkStatus[] lastChunkStatus = new ChunkStatus[4];
     private final ChunkAccess[] lastChunk = new ChunkAccess[4];
     @Nullable
++   @VisibleForDebug
     private NaturalSpawner.SpawnState lastSpawnState;
  
 -   public ServerChunkCache(ServerLevel var1, LevelStorageSource.LevelStorageAccess var2, DataFixer var3, StructureManager var4, Executor var5, ChunkGenerator var6, int var7, boolean var8, ChunkProgressListener var9, Supplier<DimensionDataStorage> var10) {
@@ -51,7 +60,35 @@
        this.clearCache();
     }
  
-@@ -257,21 +257,16 @@
+@@ -182,10 +185,27 @@
+       Arrays.fill(this.lastChunkPos, ChunkPos.INVALID_CHUNK_POS);
+       Arrays.fill(this.lastChunkStatus, (Object)null);
+       Arrays.fill(this.lastChunk, (Object)null);
+    }
+ 
++   public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getChunkFuture(int var1, int var2, ChunkStatus var3, boolean var4) {
++      boolean var5 = Thread.currentThread() == this.mainThread;
++      CompletableFuture var6;
++      if (var5) {
++         var6 = this.getChunkFutureMainThread(var1, var2, var3, var4);
++         this.mainThreadProcessor.managedBlock(var6::isDone);
++      } else {
++         var6 = CompletableFuture.supplyAsync(() -> {
++            return this.getChunkFutureMainThread(var1, var2, var3, var4);
++         }, this.mainThreadProcessor).thenCompose((var0) -> {
++            return var0;
++         });
++      }
++
++      return var6;
++   }
++
+    private CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getChunkFutureMainThread(int var1, int var2, ChunkStatus var3, boolean var4) {
+       ChunkPos var5 = new ChunkPos(var1, var2);
+       long var6 = var5.toLong();
+       int var8 = 33 + ChunkStatus.getDistance(var3);
+       ChunkHolder var9 = this.getVisibleChunkIfPresent(var6);
+@@ -257,21 +277,16 @@
           this.clearCache();
           return true;
        }
@@ -74,7 +111,7 @@
  
     private boolean checkChunkFuture(long var1, Function<ChunkHolder, CompletableFuture<Either<LevelChunk, ChunkHolder.ChunkLoadingFailure>>> var3) {
        ChunkHolder var4 = this.getVisibleChunkIfPresent(var1);
-@@ -364,11 +359,11 @@
+@@ -364,11 +379,11 @@
        }
  
     }
@@ -87,7 +124,7 @@
     @VisibleForTesting
     public int getPendingTasksCount() {
        return this.mainThreadProcessor.getPendingTasksCount();
-@@ -381,12 +376,12 @@
+@@ -381,12 +396,12 @@
     public int getLoadedChunksCount() {
        return this.chunkMap.size();
     }
@@ -102,3 +139,28 @@
           var4.blockChanged(var1);
        }
  
+@@ -441,19 +456,24 @@
+    public void setSpawnSettings(boolean var1, boolean var2) {
+       this.spawnEnemies = var1;
+       this.spawnFriendlies = var2;
+    }
+ 
++   public String getChunkDebugData(ChunkPos var1) {
++      return this.chunkMap.getChunkDebugData(var1);
++   }
++
+    public DimensionDataStorage getDataStorage() {
+       return this.dataStorage;
+    }
+ 
+    public PoiManager getPoiManager() {
+       return this.chunkMap.getPoiManager();
+    }
+ 
+    @Nullable
++   @VisibleForDebug
+    public NaturalSpawner.SpawnState getLastSpawnState() {
+       return this.lastSpawnState;
+    }
+ 
+    final class MainThreadExecutor extends BlockableEventLoop<Runnable> {

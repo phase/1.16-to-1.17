@@ -1,11 +1,50 @@
 --- net/minecraft/world/damagesource/CombatTracker.java
 +++ net/minecraft/world/damagesource/CombatTracker.java
-@@ -216,6 +216,11 @@
+@@ -15,10 +15,12 @@
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+ 
+ public class CombatTracker {
++   public static final int RESET_DAMAGE_STATUS_TIME = 100;
++   public static final int RESET_COMBAT_STATUS_TIME = 300;
+    private final List<CombatEntry> entries = Lists.newArrayList();
+    private final LivingEntity mob;
+    private int lastDamageTime;
+    private int combatStartTime;
+    private int combatEndTime;
+@@ -189,10 +191,20 @@
+ 
+    private String getFallLocation(CombatEntry var1) {
+       return var1.getLocation() == null ? "generic" : var1.getLocation();
+    }
+ 
++   public boolean isTakingDamage() {
++      this.recheckStatus();
++      return this.takingDamage;
++   }
++
++   public boolean isInCombat() {
++      this.recheckStatus();
++      return this.inCombat;
++   }
++
+    public int getCombatDuration() {
+       return this.inCombat ? this.mob.tickCount - this.combatStartTime : this.combatEndTime - this.combatStartTime;
+    }
+ 
+    private void resetPreparedStatus() {
+@@ -216,6 +228,16 @@
     }
  
     public LivingEntity getMob() {
        return this.mob;
     }
++
++   @Nullable
++   public CombatEntry getLastEntry() {
++      return this.entries.isEmpty() ? null : (CombatEntry)this.entries.get(this.entries.size() - 1);
++   }
 +
 +   public int getKillerId() {
 +      LivingEntity var1 = this.getKiller();

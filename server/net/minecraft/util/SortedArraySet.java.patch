@@ -1,0 +1,69 @@
+--- net/minecraft/util/SortedArraySet.java
++++ net/minecraft/util/SortedArraySet.java
+@@ -4,12 +4,14 @@
+ import java.util.AbstractSet;
+ import java.util.Arrays;
+ import java.util.Comparator;
+ import java.util.Iterator;
+ import java.util.NoSuchElementException;
++import javax.annotation.Nullable;
+ 
+ public class SortedArraySet<T> extends AbstractSet<T> {
++   private static final int DEFAULT_INITIAL_CAPACITY = 10;
+    private final Comparator<T> comparator;
+    private T[] contents;
+    private int size;
+ 
+    private SortedArraySet(int var1, Comparator<T> var2) {
+@@ -19,14 +21,26 @@
+       } else {
+          this.contents = castRawArray(new Object[var1]);
+       }
+    }
+ 
++   public static <T extends Comparable<T>> SortedArraySet<T> create() {
++      return create(10);
++   }
++
+    public static <T extends Comparable<T>> SortedArraySet<T> create(int var0) {
+       return new SortedArraySet(var0, Comparator.naturalOrder());
+    }
+ 
++   public static <T> SortedArraySet<T> create(Comparator<T> var0) {
++      return create(var0, 10);
++   }
++
++   public static <T> SortedArraySet<T> create(Comparator<T> var0, int var1) {
++      return new SortedArraySet(var1, var0);
++   }
++
+    private static <T> T[] castRawArray(Object[] var0) {
+       return (Object[])var0;
+    }
+ 
+    private int findIndex(T var1) {
+@@ -103,14 +117,24 @@
+       } else {
+          return false;
+       }
+    }
+ 
++   @Nullable
++   public T get(T var1) {
++      int var2 = this.findIndex(var1);
++      return var2 >= 0 ? this.getInternal(var2) : null;
++   }
++
+    public T first() {
+       return this.getInternal(0);
+    }
+ 
++   public T last() {
++      return this.getInternal(this.size - 1);
++   }
++
+    public boolean contains(Object var1) {
+       int var2 = this.findIndex(var1);
+       return var2 >= 0;
+    }
+ 

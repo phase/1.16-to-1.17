@@ -4,7 +4,8 @@
  package net.minecraft.world.level.levelgen;
  
  import com.mojang.serialization.Codec;
- import java.util.Arrays;
+-import java.util.Arrays;
++import java.util.List;
 +import java.util.concurrent.CompletableFuture;
 +import java.util.concurrent.Executor;
  import net.minecraft.core.BlockPos;
@@ -17,30 +18,39 @@
  import net.minecraft.world.level.biome.FixedBiomeSource;
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
-@@ -43,53 +44,56 @@
-       BlockState[] var1 = this.settings.getLayers();
+@@ -37,59 +38,53 @@
+    }
  
-       for(int var2 = 0; var2 < var1.length; ++var2) {
-          BlockState var3 = var1[var2] == null ? Blocks.AIR.defaultBlockState() : var1[var2];
-          if (!Heightmap.Types.MOTION_BLOCKING.isOpaque().test(var3)) {
+    public void buildSurfaceAndBedrock(WorldGenRegion var1, ChunkAccess var2) {
+    }
+ 
+-   public int getSpawnHeight() {
+-      BlockState[] var1 = this.settings.getLayers();
+-
+-      for(int var2 = 0; var2 < var1.length; ++var2) {
+-         BlockState var3 = var1[var2] == null ? Blocks.AIR.defaultBlockState() : var1[var2];
+-         if (!Heightmap.Types.MOTION_BLOCKING.isOpaque().test(var3)) {
 -            return var2 - 1;
-+            return this.settings.getMinBuildHeight() + var2 - 1;
-          }
-       }
- 
+-         }
+-      }
+-
 -      return var1.length;
-+      return this.settings.getMinBuildHeight() + var1.length;
++   public int getSpawnHeight(LevelHeightAccessor var1) {
++      return var1.getMinBuildHeight() + Math.min(var1.getHeight(), this.settings.getLayers().size());
     }
  
 -   public void fillFromNoise(LevelAccessor var1, StructureFeatureManager var2, ChunkAccess var3) {
+-      BlockState[] var4 = this.settings.getLayers();
 +   public CompletableFuture<ChunkAccess> fillFromNoise(Executor var1, StructureFeatureManager var2, ChunkAccess var3) {
-       BlockState[] var4 = this.settings.getLayers();
++      List var4 = this.settings.getLayers();
        BlockPos.MutableBlockPos var5 = new BlockPos.MutableBlockPos();
        Heightmap var6 = var3.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
        Heightmap var7 = var3.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
  
-       for(int var8 = 0; var8 < var4.length; ++var8) {
-          BlockState var9 = var4[var8];
+-      for(int var8 = 0; var8 < var4.length; ++var8) {
+-         BlockState var9 = var4[var8];
++      for(int var8 = 0; var8 < Math.min(var3.getHeight(), var4.size()); ++var8) {
++         BlockState var9 = (BlockState)var4.get(var8);
           if (var9 != null) {
 -            for(int var10 = 0; var10 < 16; ++var10) {
 -               for(int var11 = 0; var11 < 16; ++var11) {
@@ -65,14 +75,14 @@
 -   public int getBaseHeight(int var1, int var2, Heightmap.Types var3) {
 -      BlockState[] var4 = this.settings.getLayers();
 +   public int getBaseHeight(int var1, int var2, Heightmap.Types var3, LevelHeightAccessor var4) {
-+      BlockState[] var5 = this.settings.getLayers();
++      List var5 = this.settings.getLayers();
  
 -      for(int var5 = var4.length - 1; var5 >= 0; --var5) {
 -         BlockState var6 = var4[var5];
 -         if (var6 != null && var3.isOpaque().test(var6)) {
 -            return var5 + 1;
-+      for(int var6 = var5.length - 1; var6 >= 0; --var6) {
-+         BlockState var7 = var5[var6];
++      for(int var6 = Math.min(var5.size(), var4.getMaxBuildHeight()) - 1; var6 >= 0; --var6) {
++         BlockState var7 = (BlockState)var5.get(var6);
 +         if (var7 != null && var3.isOpaque().test(var7)) {
 +            return var4.getMinBuildHeight() + var6 + 1;
           }
@@ -85,7 +95,7 @@
 -   public BlockGetter getBaseColumn(int var1, int var2) {
 -      return new NoiseColumn((BlockState[])Arrays.stream(this.settings.getLayers()).map((var0) -> {
 +   public NoiseColumn getBaseColumn(int var1, int var2, LevelHeightAccessor var3) {
-+      return new NoiseColumn(0, (BlockState[])Arrays.stream(this.settings.getLayers()).map((var0) -> {
++      return new NoiseColumn(var3.getMinBuildHeight(), (BlockState[])this.settings.getLayers().stream().limit((long)var3.getHeight()).map((var0) -> {
           return var0 == null ? Blocks.AIR.defaultBlockState() : var0;
        }).toArray((var0) -> {
           return new BlockState[var0];

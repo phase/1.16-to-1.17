@@ -1,25 +1,27 @@
 --- com/mojang/blaze3d/audio/OggAudioStream.java
 +++ com/mojang/blaze3d/audio/OggAudioStream.java
-@@ -147,17 +147,17 @@
-                         this.convertMono(var11.getFloatBuffer(0, var9), var1);
-                         var12 = true;
-                         return var12;
-                      }
+@@ -17,10 +17,11 @@
+ import org.lwjgl.stb.STBVorbisInfo;
+ import org.lwjgl.system.MemoryStack;
+ import org.lwjgl.system.MemoryUtil;
  
--                     if (var10 == 2) {
--                        this.convertStereo(var11.getFloatBuffer(0, var9), var11.getFloatBuffer(1, var9), var1);
--                        var12 = true;
--                        return var12;
-+                     if (var10 != 2) {
-+                        throw new IllegalStateException("Invalid number of channels: " + var10);
-                      }
+ public class OggAudioStream implements AudioStream {
++   private static final int EXPECTED_MAX_FRAME_SIZE = 8192;
+    private long handle;
+    private final AudioFormat audioFormat;
+    private final InputStream input;
+    private ByteBuffer buffer = MemoryUtil.memAlloc(8192);
  
--                     throw new IllegalStateException("Invalid number of channels: " + var10);
-+                     this.convertStereo(var11.getFloatBuffer(0, var9), var11.getFloatBuffer(1, var9), var1);
-+                     var12 = true;
-+                     return var12;
-                   }
-                }
-             }
-          } catch (Throwable var23) {
-             var3 = var23;
+@@ -246,11 +247,11 @@
+             this.currentBuffer.flip();
+             this.buffers.add(this.currentBuffer);
+             this.createNewBuffer();
+          }
+ 
+-         int var2 = Mth.clamp((int)(var1 * 32767.5F - 0.5F), -32768, 32767);
++         int var2 = Mth.clamp((int)((int)(var1 * 32767.5F - 0.5F)), (int)-32768, (int)32767);
+          this.currentBuffer.putShort((short)var2);
+          this.byteCount += 2;
+       }
+ 
+       public ByteBuffer get() {

@@ -1,0 +1,61 @@
+--- net/minecraft/world/level/levelgen/feature/foliageplacers/PineFoliagePlacer.java
++++ net/minecraft/world/level/levelgen/feature/foliageplacers/PineFoliagePlacer.java
+@@ -1,43 +1,43 @@
+ package net.minecraft.world.level.levelgen.feature.foliageplacers;
+ 
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import java.util.Random;
+-import java.util.Set;
++import java.util.function.BiConsumer;
+ import net.minecraft.core.BlockPos;
+-import net.minecraft.util.UniformInt;
+-import net.minecraft.world.level.LevelSimulatedRW;
++import net.minecraft.util.valueproviders.IntProvider;
++import net.minecraft.world.level.LevelSimulatedReader;
++import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
+-import net.minecraft.world.level.levelgen.structure.BoundingBox;
+ 
+ public class PineFoliagePlacer extends FoliagePlacer {
+    public static final Codec<PineFoliagePlacer> CODEC = RecordCodecBuilder.create((var0) -> {
+-      return foliagePlacerParts(var0).and(UniformInt.codec(0, 16, 8).fieldOf("height").forGetter((var0x) -> {
++      return foliagePlacerParts(var0).and(IntProvider.codec(0, 24).fieldOf("height").forGetter((var0x) -> {
+          return var0x.height;
+       })).apply(var0, PineFoliagePlacer::new);
+    });
+-   private final UniformInt height;
++   private final IntProvider height;
+ 
+-   public PineFoliagePlacer(UniformInt var1, UniformInt var2, UniformInt var3) {
++   public PineFoliagePlacer(IntProvider var1, IntProvider var2, IntProvider var3) {
+       super(var1, var2);
+       this.height = var3;
+    }
+ 
+    protected FoliagePlacerType<?> type() {
+       return FoliagePlacerType.PINE_FOLIAGE_PLACER;
+    }
+ 
+-   protected void createFoliage(LevelSimulatedRW var1, Random var2, TreeConfiguration var3, int var4, FoliagePlacer.FoliageAttachment var5, int var6, int var7, Set<BlockPos> var8, int var9, BoundingBox var10) {
+-      int var11 = 0;
++   protected void createFoliage(LevelSimulatedReader var1, BiConsumer<BlockPos, BlockState> var2, Random var3, TreeConfiguration var4, int var5, FoliagePlacer.FoliageAttachment var6, int var7, int var8, int var9) {
++      int var10 = 0;
+ 
+-      for(int var12 = var9; var12 >= var9 - var6; --var12) {
+-         this.placeLeavesRow(var1, var2, var3, var5.foliagePos(), var11, var8, var12, var5.doubleTrunk(), var10);
+-         if (var11 >= 1 && var12 == var9 - var6 + 1) {
+-            --var11;
+-         } else if (var11 < var7 + var5.radiusOffset()) {
+-            ++var11;
++      for(int var11 = var9; var11 >= var9 - var7; --var11) {
++         this.placeLeavesRow(var1, var2, var3, var4, var6.pos(), var10, var11, var6.doubleTrunk());
++         if (var10 >= 1 && var11 == var9 - var7 + 1) {
++            --var10;
++         } else if (var10 < var8 + var6.radiusOffset()) {
++            ++var10;
+          }
+       }
+ 
+    }
+ 

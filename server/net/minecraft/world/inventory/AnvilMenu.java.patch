@@ -1,6 +1,29 @@
 --- net/minecraft/world/inventory/AnvilMenu.java
 +++ net/minecraft/world/inventory/AnvilMenu.java
-@@ -36,15 +36,15 @@
+@@ -17,13 +17,22 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class AnvilMenu extends ItemCombinerMenu {
+    private static final Logger LOGGER = LogManager.getLogger();
++   private static final boolean DEBUG_COST = false;
++   public static final int MAX_NAME_LENGTH = 35;
+    private int repairItemCountCost;
+    private String itemName;
+    private final DataSlot cost;
++   private static final int COST_FAIL = 0;
++   private static final int COST_BASE = 1;
++   private static final int COST_ADDED_BASE = 1;
++   private static final int COST_REPAIR_MATERIAL = 1;
++   private static final int COST_REPAIR_SACRIFICE = 2;
++   private static final int COST_INCOMPATIBLE_PENALTY = 1;
++   private static final int COST_RENAME = 1;
+ 
+    public AnvilMenu(int var1, Inventory var2) {
+       this(var1, var2, ContainerLevelAccess.NULL);
+    }
+ 
+@@ -36,15 +45,15 @@
     protected boolean isValidBlock(BlockState var1) {
        return var1.is(BlockTags.ANVIL);
     }
@@ -19,7 +42,7 @@
  
        this.inputSlots.setItem(0, ItemStack.EMPTY);
        if (this.repairItemCountCost > 0) {
-@@ -60,11 +60,11 @@
+@@ -60,11 +69,11 @@
        }
  
        this.cost.set(0);
@@ -32,7 +55,7 @@
                 var1x.removeBlock(var2x, false);
                 var1x.levelEvent(1029, var2x, 0);
              } else {
-@@ -74,11 +74,10 @@
+@@ -74,11 +83,10 @@
           } else {
              var1x.levelEvent(1030, var2x, 0);
           }
@@ -44,7 +67,7 @@
     public void createResult() {
        ItemStack var1 = this.inputSlots.getItem(0);
        this.cost.set(1);
-@@ -93,11 +92,11 @@
+@@ -93,11 +101,11 @@
           ItemStack var6 = this.inputSlots.getItem(1);
           Map var7 = EnchantmentHelper.getEnchantments(var5);
           int var19 = var3 + var1.getBaseRepairCost() + (var6.isEmpty() ? 0 : var6.getBaseRepairCost());
@@ -57,7 +80,7 @@
              int var11;
              if (var5.isDamageableItem() && var5.getItem().isValidRepairItem(var1, var6)) {
                 var9 = Math.min(var5.getDamageValue(), var5.getMaxDamage() / 4);
-@@ -114,11 +113,11 @@
+@@ -114,11 +122,11 @@
                    var9 = Math.min(var5.getDamageValue(), var5.getMaxDamage() / 4);
                 }
  
@@ -70,7 +93,7 @@
                    return;
                 }
  
-@@ -161,11 +160,11 @@
+@@ -161,11 +169,11 @@
  
                    int var14 = (Integer)var7.getOrDefault(var25, 0);
                    int var15 = (Integer)var21.get(var25);
@@ -83,7 +106,7 @@
  
                    Iterator var17 = var7.keySet().iterator();
  
-@@ -233,11 +232,11 @@
+@@ -233,11 +241,11 @@
  
           if (var4 == var2 && var4 > 0 && this.cost.get() >= 40) {
              this.cost.set(39);
@@ -96,3 +119,14 @@
  
           if (!var5.isEmpty()) {
              int var20 = var5.getBaseRepairCost();
+@@ -273,6 +281,10 @@
+          }
+       }
+ 
+       this.createResult();
+    }
++
++   public int getCost() {
++      return this.cost.get();
++   }
+ }

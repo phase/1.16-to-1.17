@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/chunk/PalettedContainer.java
 +++ net/minecraft/world/level/chunk/PalettedContainer.java
-@@ -1,23 +1,21 @@
+@@ -1,25 +1,26 @@
  package net.minecraft.world.level.chunk;
  
 +import com.mojang.datafixers.util.Pair;
@@ -26,10 +26,15 @@
 +import net.minecraft.util.ThreadingDetector;
  
  public class PalettedContainer<T> implements PaletteResize<T> {
++   private static final int SIZE = 4096;
++   public static final int GLOBAL_PALETTE_BITS = 9;
++   public static final int MIN_PALETTE_SIZE = 4;
     private final Palette<T> globalPalette;
     private final PaletteResize<T> dummyPaletteResize = (var0, var1x) -> {
        return 0;
-@@ -27,28 +25,25 @@
+    };
+    private final IdMapper<T> registry;
+@@ -27,28 +28,25 @@
     private final Function<T, CompoundTag> writer;
     private final T defaultValue;
     protected BitStorage storage;
@@ -67,7 +72,7 @@
     public PalettedContainer(Palette<T> var1, IdMapper<T> var2, Function<CompoundTag, T> var3, Function<T, CompoundTag> var4, T var5) {
        this.globalPalette = var1;
        this.registry = var2;
-@@ -79,26 +74,22 @@
+@@ -79,26 +77,22 @@
           this.storage = new BitStorage(this.bits, 4096);
        }
     }
@@ -96,7 +101,7 @@
     public T getAndSet(int var1, int var2, int var3, T var4) {
        this.acquire();
        Object var5 = this.getAndSet(getIndex(var1, var2, var3), var4);
-@@ -108,18 +99,18 @@
+@@ -108,18 +102,24 @@
  
     public T getAndSetUnchecked(int var1, int var2, int var3, T var4) {
        return this.getAndSet(getIndex(var1, var2, var3), var4);
@@ -111,9 +116,38 @@
     }
  
 -   protected void set(int var1, T var2) {
++   public void set(int var1, int var2, int var3, T var4) {
++      this.acquire();
++      this.set(getIndex(var1, var2, var3), var4);
++      this.release();
++   }
++
 +   private void set(int var1, T var2) {
        int var3 = this.palette.idFor(var2);
        this.storage.set(var1, var3);
     }
  
     public T get(int var1, int var2, int var3) {
+@@ -129,10 +129,22 @@
+    protected T get(int var1) {
+       Object var2 = this.palette.valueFor(this.storage.get(var1));
+       return var2 == null ? this.defaultValue : var2;
+    }
+ 
++   public void read(FriendlyByteBuf var1) {
++      this.acquire();
++      byte var2 = var1.readByte();
++      if (this.bits != var2) {
++         this.setBits(var2);
++      }
++
++      this.palette.read(var1);
++      var1.readLongArray(this.storage.getRaw());
++      this.release();
++   }
++
+    public void write(FriendlyByteBuf var1) {
+       this.acquire();
+       var1.writeByte(this.bits);
+       this.palette.write(var1);
+       var1.writeLongArray(this.storage.getRaw());

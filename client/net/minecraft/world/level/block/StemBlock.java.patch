@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/StemBlock.java
 +++ net/minecraft/world/level/block/StemBlock.java
-@@ -1,17 +1,17 @@
+@@ -1,34 +1,39 @@
  package net.minecraft.world.level.block;
  
  import java.util.Random;
@@ -9,6 +9,7 @@
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.server.level.ServerLevel;
++import net.minecraft.tags.BlockTags;
  import net.minecraft.util.Mth;
  import net.minecraft.world.item.Item;
  import net.minecraft.world.item.ItemStack;
@@ -20,10 +21,14 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.StateDefinition;
  import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-@@ -21,14 +21,16 @@
+ import net.minecraft.world.level.block.state.properties.IntegerProperty;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.VoxelShape;
  
  public class StemBlock extends BushBlock implements BonemealableBlock {
++   public static final int MAX_AGE = 7;
     public static final IntegerProperty AGE;
++   protected static final float AABB_OFFSET = 1.0F;
     protected static final VoxelShape[] SHAPE_BY_AGE;
     private final StemGrownBlock fruit;
 +   private final Supplier<Item> seedSupplier;
@@ -39,7 +44,18 @@
  
     public VoxelShape getShape(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
        return SHAPE_BY_AGE[(Integer)var1.getValue(AGE)];
-@@ -58,22 +60,12 @@
+@@ -48,32 +53,22 @@
+                var2.setBlock(var3, var1, 2);
+             } else {
+                Direction var7 = Direction.Plane.HORIZONTAL.getRandomDirection(var4);
+                BlockPos var8 = var3.relative(var7);
+                BlockState var9 = var2.getBlockState(var8.below());
+-               if (var2.getBlockState(var8).isAir() && (var9.is(Blocks.FARMLAND) || var9.is(Blocks.DIRT) || var9.is(Blocks.COARSE_DIRT) || var9.is(Blocks.PODZOL) || var9.is(Blocks.GRASS_BLOCK))) {
++               if (var2.getBlockState(var8).isAir() && (var9.is(Blocks.FARMLAND) || var9.is(BlockTags.DIRT) || var9.is(Blocks.GRASS_BLOCK))) {
+                   var2.setBlockAndUpdate(var8, this.fruit.defaultBlockState());
+                   var2.setBlockAndUpdate(var3, (BlockState)this.fruit.getAttachedStem().defaultBlockState().setValue(HorizontalDirectionalBlock.FACING, var7));
+                }
+             }
           }
  
        }

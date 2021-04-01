@@ -1,6 +1,6 @@
 --- net/minecraft/server/commands/ForceLoadCommand.java
 +++ net/minecraft/server/commands/ForceLoadCommand.java
-@@ -10,10 +10,11 @@
+@@ -10,26 +10,31 @@
  import it.unimi.dsi.fastutil.longs.LongSet;
  import net.minecraft.commands.CommandSourceStack;
  import net.minecraft.commands.Commands;
@@ -12,7 +12,27 @@
  import net.minecraft.server.level.ColumnPos;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.world.level.ChunkPos;
-@@ -47,11 +48,11 @@
+ 
+ public class ForceLoadCommand {
++   private static final int MAX_CHUNK_LIMIT = 256;
+    private static final Dynamic2CommandExceptionType ERROR_TOO_MANY_CHUNKS = new Dynamic2CommandExceptionType((var0, var1) -> {
+       return new TranslatableComponent("commands.forceload.toobig", new Object[]{var0, var1});
+    });
+    private static final Dynamic2CommandExceptionType ERROR_NOT_TICKING = new Dynamic2CommandExceptionType((var0, var1) -> {
+       return new TranslatableComponent("commands.forceload.query.failure", new Object[]{var0, var1});
+    });
+    private static final SimpleCommandExceptionType ERROR_ALL_ADDED = new SimpleCommandExceptionType(new TranslatableComponent("commands.forceload.added.failure"));
+    private static final SimpleCommandExceptionType ERROR_NONE_REMOVED = new SimpleCommandExceptionType(new TranslatableComponent("commands.forceload.removed.failure"));
+ 
++   public ForceLoadCommand() {
++   }
++
+    public static void register(CommandDispatcher<CommandSourceStack> var0) {
+       var0.register((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal("forceload").requires((var0x) -> {
+          return var0x.hasPermission(2);
+       })).then(Commands.literal("add").then(((RequiredArgumentBuilder)Commands.argument("from", ColumnPosArgument.columnPos()).executes((var0x) -> {
+          return changeForceLoad((CommandSourceStack)var0x.getSource(), ColumnPosArgument.getColumnPos(var0x, "from"), ColumnPosArgument.getColumnPos(var0x, "from"), true);
+@@ -47,11 +52,11 @@
           return queryForceLoad((CommandSourceStack)var0x.getSource(), ColumnPosArgument.getColumnPos(var0x, "pos"));
        }))));
     }
@@ -25,7 +45,7 @@
        boolean var5 = var3.getForcedChunks().contains(var2.toLong());
        if (var5) {
           var0.sendSuccess(new TranslatableComponent("commands.forceload.query.success", new Object[]{var2, var4.location()}), false);
-@@ -95,14 +96,14 @@
+@@ -95,14 +100,14 @@
        int var4 = Math.min(var1.x, var2.x);
        int var5 = Math.min(var1.z, var2.z);
        int var6 = Math.max(var1.x, var2.x);

@@ -19,7 +19,39 @@
  import net.minecraft.world.entity.EntitySelector;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.LivingEntity;
-@@ -223,20 +222,20 @@
+@@ -70,15 +69,31 @@
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+ import net.minecraft.world.phys.AABB;
+ 
+ public class Cat extends TamableAnimal {
++   public static final double TEMPT_SPEED_MOD = 0.6D;
++   public static final double WALK_SPEED_MOD = 0.8D;
++   public static final double SPRINT_SPEED_MOD = 1.33D;
+    private static final Ingredient TEMPT_INGREDIENT;
+    private static final EntityDataAccessor<Integer> DATA_TYPE_ID;
+    private static final EntityDataAccessor<Boolean> IS_LYING;
+    private static final EntityDataAccessor<Boolean> RELAX_STATE_ONE;
+    private static final EntityDataAccessor<Integer> DATA_COLLAR_COLOR;
++   public static final int TYPE_TABBY = 0;
++   public static final int TYPE_BLACK = 1;
++   public static final int TYPE_RED = 2;
++   public static final int TYPE_SIAMESE = 3;
++   public static final int TYPE_BRITISH = 4;
++   public static final int TYPE_CALICO = 5;
++   public static final int TYPE_PERSIAN = 6;
++   public static final int TYPE_RAGDOLL = 7;
++   public static final int TYPE_WHITE = 8;
++   public static final int TYPE_JELLIE = 9;
++   public static final int TYPE_ALL_BLACK = 10;
++   private static final int NUMBER_OF_CAT_TYPES = 11;
++   private static final int NUMBER_OF_CAT_TYPES_EXCEPT_ALL_BLACK = 10;
+    public static final Map<Integer, ResourceLocation> TEXTURE_BY_TYPE;
+    private Cat.CatAvoidEntityGoal<Player> avoidPlayersGoal;
+    private TemptGoal temptGoal;
+    private float lieDownAmount;
+    private float lieDownAmountO;
+@@ -223,20 +238,20 @@
  
     public static AttributeSupplier.Builder createAttributes() {
        return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 10.0D).add(Attributes.MOVEMENT_SPEED, 0.30000001192092896D).add(Attributes.ATTACK_DAMAGE, 3.0D);
@@ -44,20 +76,32 @@
     private float getAttackDamage() {
        return (float)this.getAttributeValue(Attributes.ATTACK_DAMAGE);
     }
-@@ -284,11 +283,11 @@
+@@ -284,11 +299,23 @@
           this.relaxStateOneAmount = Math.max(0.0F, this.relaxStateOneAmount - 0.13F);
        }
  
     }
  
 -   public Cat getBreedOffspring(ServerLevel var1, AgableMob var2) {
++   public float getLieDownAmount(float var1) {
++      return Mth.lerp(var1, this.lieDownAmountO, this.lieDownAmount);
++   }
++
++   public float getLieDownAmountTail(float var1) {
++      return Mth.lerp(var1, this.lieDownAmountOTail, this.lieDownAmountTail);
++   }
++
++   public float getRelaxStateOneAmount(float var1) {
++      return Mth.lerp(var1, this.relaxStateOneAmountO, this.relaxStateOneAmount);
++   }
++
 +   public Cat getBreedOffspring(ServerLevel var1, AgeableMob var2) {
        Cat var3 = (Cat)EntityType.CAT.create(var1);
        if (var2 instanceof Cat) {
           if (this.random.nextBoolean()) {
              var3.setCatType(this.getCatType());
           } else {
-@@ -351,11 +350,11 @@
+@@ -351,11 +378,11 @@
           InteractionResult var6;
           if (this.isTame()) {
              if (this.isOwnedBy(var1)) {
@@ -70,7 +114,7 @@
                    }
  
                    var6 = super.mobInteract(var1, var2);
-@@ -367,20 +366,20 @@
+@@ -367,20 +394,20 @@
                 }
  
                 DyeColor var5 = ((DyeItem)var4).getDyeColor();
@@ -93,7 +137,7 @@
                 this.setOrderedToSit(true);
                 this.level.broadcastEntityEvent(this, (byte)7);
              } else {
-@@ -422,10 +421,14 @@
+@@ -422,10 +449,14 @@
           this.goalSelector.addGoal(4, this.avoidPlayersGoal);
        }
  
@@ -108,7 +152,7 @@
        DATA_TYPE_ID = SynchedEntityData.defineId(Cat.class, EntityDataSerializers.INT);
        IS_LYING = SynchedEntityData.defineId(Cat.class, EntityDataSerializers.BOOLEAN);
        RELAX_STATE_ONE = SynchedEntityData.defineId(Cat.class, EntityDataSerializers.BOOLEAN);
-@@ -472,11 +475,11 @@
+@@ -472,11 +503,11 @@
                    return false;
                 }
  

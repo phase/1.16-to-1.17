@@ -1,6 +1,21 @@
 --- net/minecraft/world/level/biome/MultiNoiseBiomeSource.java
 +++ net/minecraft/world/level/biome/MultiNoiseBiomeSource.java
-@@ -71,14 +71,14 @@
+@@ -55,10 +55,14 @@
+    private final List<Pair<Biome.ClimateParameters, Supplier<Biome>>> parameters;
+    private final boolean useY;
+    private final long seed;
+    private final Optional<Pair<Registry<Biome>, MultiNoiseBiomeSource.Preset>> preset;
+ 
++   public MultiNoiseBiomeSource(long var1, List<Pair<Biome.ClimateParameters, Supplier<Biome>>> var3) {
++      this(var1, var3, Optional.empty());
++   }
++
+    private MultiNoiseBiomeSource(long var1, List<Pair<Biome.ClimateParameters, Supplier<Biome>>> var3, Optional<Pair<Registry<Biome>, MultiNoiseBiomeSource.Preset>> var4) {
+       this(var1, var3, DEFAULT_NOISE_PARAMETERS, DEFAULT_NOISE_PARAMETERS, DEFAULT_NOISE_PARAMETERS, DEFAULT_NOISE_PARAMETERS, var4);
+    }
+ 
+    private MultiNoiseBiomeSource(long var1, List<Pair<Biome.ClimateParameters, Supplier<Biome>>> var3, MultiNoiseBiomeSource.NoiseParameters var4, MultiNoiseBiomeSource.NoiseParameters var5, MultiNoiseBiomeSource.NoiseParameters var6, MultiNoiseBiomeSource.NoiseParameters var7) {
+@@ -71,18 +75,27 @@
        this.preset = var8;
        this.temperatureParams = var4;
        this.humidityParams = var5;
@@ -18,4 +33,50 @@
        this.useY = false;
     }
  
++   public static MultiNoiseBiomeSource overworld(Registry<Biome> var0, long var1) {
++      ImmutableList var3 = parameters(var0);
++      MultiNoiseBiomeSource.NoiseParameters var4 = new MultiNoiseBiomeSource.NoiseParameters(-9, new double[]{1.0D, 0.0D, 3.0D, 3.0D, 3.0D, 3.0D});
++      MultiNoiseBiomeSource.NoiseParameters var5 = new MultiNoiseBiomeSource.NoiseParameters(-7, new double[]{1.0D, 2.0D, 4.0D, 4.0D});
++      MultiNoiseBiomeSource.NoiseParameters var6 = new MultiNoiseBiomeSource.NoiseParameters(-9, new double[]{1.0D, 0.0D, 0.0D, 1.0D, 1.0D, 0.0D});
++      MultiNoiseBiomeSource.NoiseParameters var7 = new MultiNoiseBiomeSource.NoiseParameters(-8, new double[]{1.2D, 0.6D, 0.0D, 0.0D, 1.0D, 0.0D});
++      return new MultiNoiseBiomeSource(var1, var3, var4, var5, var6, var7, Optional.empty());
++   }
++
     protected Codec<? extends BiomeSource> codec() {
+       return CODEC;
+    }
+ 
+    public BiomeSource withSeed(long var1) {
+@@ -101,10 +114,16 @@
+       return (Biome)this.parameters.stream().min(Comparator.comparing((var1x) -> {
+          return ((Biome.ClimateParameters)var1x.getFirst()).fitness(var5);
+       })).map(Pair::getSecond).map(Supplier::get).orElse(net.minecraft.data.worldgen.biome.Biomes.THE_VOID);
+    }
+ 
++   public static ImmutableList<Pair<Biome.ClimateParameters, Supplier<Biome>>> parameters(Registry<Biome> var0) {
++      return ImmutableList.of(Pair.of(new Biome.ClimateParameters(0.0F, 0.0F, 0.0F, 0.0F, 0.0F), () -> {
++         return (Biome)var0.getOrThrow(Biomes.PLAINS);
++      }));
++   }
++
+    public boolean stable(long var1) {
+       return this.seed == var1 && this.preset.isPresent() && Objects.equals(((Pair)this.preset.get()).getSecond(), MultiNoiseBiomeSource.Preset.NETHER);
+    }
+ 
+    static {
+@@ -193,10 +212,15 @@
+       public NoiseParameters(int var1, List<Double> var2) {
+          this.firstOctave = var1;
+          this.amplitudes = new DoubleArrayList(var2);
+       }
+ 
++      public NoiseParameters(int var1, double... var2) {
++         this.firstOctave = var1;
++         this.amplitudes = new DoubleArrayList(var2);
++      }
++
+       public int firstOctave() {
+          return this.firstOctave;
+       }
+ 
+       public DoubleList amplitudes() {

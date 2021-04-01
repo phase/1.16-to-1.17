@@ -1,0 +1,78 @@
+--- net/minecraft/util/thread/BlockableEventLoop.java
++++ net/minecraft/util/thread/BlockableEventLoop.java
+@@ -1,24 +1,33 @@
+ package net.minecraft.util.thread;
+ 
++import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.Queues;
++import java.util.List;
+ import java.util.Queue;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.Executor;
+ import java.util.concurrent.locks.LockSupport;
+ import java.util.function.BooleanSupplier;
++import java.util.function.Supplier;
++import net.minecraft.util.profiling.registry.MeasuredMetric;
++import net.minecraft.util.profiling.registry.MeasurementCategory;
++import net.minecraft.util.profiling.registry.MeasurementRegistry;
++import net.minecraft.util.profiling.registry.Metric;
++import net.minecraft.util.profiling.registry.ProfilerMeasured;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+-public abstract class BlockableEventLoop<R extends Runnable> implements ProcessorHandle<R>, Executor {
++public abstract class BlockableEventLoop<R extends Runnable> implements ProfilerMeasured, ProcessorHandle<R>, Executor {
+    private final String name;
+    private static final Logger LOGGER = LogManager.getLogger();
+    private final Queue<R> pendingRunnables = Queues.newConcurrentLinkedQueue();
+    private int blockingCount;
+ 
+    protected BlockableEventLoop(String var1) {
+       this.name = var1;
++      MeasurementRegistry.INSTANCE.add(this);
+    }
+ 
+    protected abstract R wrapRunnable(Runnable var1);
+ 
+    protected abstract boolean shouldRun(R var1);
+@@ -39,10 +48,14 @@
+ 
+    public String name() {
+       return this.name;
+    }
+ 
++   public <V> CompletableFuture<V> submit(Supplier<V> var1) {
++      return this.scheduleExecutables() ? CompletableFuture.supplyAsync(var1, this) : CompletableFuture.completedFuture(var1.get());
++   }
++
+    private CompletableFuture<Void> submitAsync(Runnable var1) {
+       return CompletableFuture.supplyAsync(() -> {
+          var1.run();
+          return null;
+       }, this);
+@@ -78,10 +91,14 @@
+          var1.run();
+       }
+ 
+    }
+ 
++   protected void dropAllTasks() {
++      this.pendingRunnables.clear();
++   }
++
+    protected void runAllTasks() {
+       while(this.pollTask()) {
+       }
+ 
+    }
+@@ -124,6 +141,10 @@
+       } catch (Exception var3) {
+          LOGGER.fatal((String)"Error executing task on {}", (Object)this.name(), (Object)var3);
+       }
+ 
+    }
++
++   public List<MeasuredMetric> metrics() {
++      return ImmutableList.of(new MeasuredMetric(new Metric(this.name + "-tasks-pending"), this::getPendingTasksCount, MeasurementCategory.EVENT_LOOP));
++   }
+ }

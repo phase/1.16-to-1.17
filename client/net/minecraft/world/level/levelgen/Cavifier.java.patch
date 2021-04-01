@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/Cavifier.java
 +++ net/minecraft/world/level/levelgen/Cavifier.java
-@@ -1,0 +1,150 @@
+@@ -1,0 +1,168 @@
 +package net.minecraft.world.level.levelgen;
 +
 +import net.minecraft.util.Mth;
@@ -25,6 +25,8 @@
 +   private final NormalNoise spaghettiRoughnessModulator;
 +   private final NormalNoise caveEntranceNoiseSource;
 +   private final NormalNoise cheeseNoiseSource;
++   private static final int CHEESE_NOISE_RANGE = 128;
++   private static final int SURFACE_DENSITY_THRESHOLD = 170;
 +
 +   public Cavifier(RandomSource var1, int var2) {
 +      this.minCellY = var2;
@@ -43,40 +45,53 @@
 +      this.spaghettiRoughnessModulator = NormalNoise.create(new SimpleRandomSource(var1.nextLong()), -8, (double[])(1.0D));
 +      this.caveEntranceNoiseSource = NormalNoise.create(new SimpleRandomSource(var1.nextLong()), -8, (double[])(1.0D, 1.0D, 1.0D));
 +      this.layerNoiseSource = NormalNoise.create(new SimpleRandomSource(var1.nextLong()), -8, (double[])(1.0D));
-+      this.cheeseNoiseSource = NormalNoise.create(new SimpleRandomSource(var1.nextLong()), -6, (double[])(1.0D, 1.0D, 0.0D, 1.0D, 0.0D, 1.0D, 1.0D));
++      this.cheeseNoiseSource = NormalNoise.create(new SimpleRandomSource(var1.nextLong()), -8, (double[])(0.5D, 1.0D, 2.0D, 1.0D, 2.0D, 1.0D, 0.0D, 2.0D, 0.0D));
 +   }
 +
 +   public double cavify(int var1, int var2, int var3, double var4) {
-+      boolean var6 = var4 < 375.0D;
++      boolean var6 = var4 < 170.0D;
 +      double var7 = this.spaghettiRoughness(var1, var2, var3);
 +      double var9 = this.getSpaghetti3d(var1, var2, var3);
 +      if (var6) {
-+         return Math.min(var4, (var9 + var7) * 128.0D * 64.0D);
++         return Math.min(var4, (var9 + var7) * 128.0D * 5.0D);
 +      } else {
-+         double var11 = this.cheeseNoiseSource.getValue((double)var1, (double)((float)var2 / 2.0F), (double)var3);
++         double var11 = this.cheeseNoiseSource.getValue((double)var1, (double)var2 / 1.5D, (double)var3);
 +         double var13 = Mth.clamp(var11 + 0.25D, -1.0D, 1.0D);
-+         double var15 = this.getLayerizedCaverns(var1, var2, var3);
-+         double var17 = this.getSpaghetti2d(var1, var2, var3);
-+         double var19 = var13 + var15;
-+         double var21 = Math.min(var19, Math.min(var9, var17) + var7);
-+         double var23 = Math.max(var21, this.getPillars(var1, var2, var3));
-+         return 128.0D * Mth.clamp(var23, -1.0D, 1.0D);
++         double var15 = (double)((float)(30 - var2) / 8.0F);
++         double var17 = var13 + Mth.clampedLerp(0.5D, 0.0D, var15);
++         double var19 = this.getLayerizedCaverns(var1, var2, var3);
++         double var21 = this.getSpaghetti2d(var1, var2, var3);
++         double var23 = var17 + var19;
++         double var25 = Math.min(var23, Math.min(var9, var21) + var7);
++         double var27 = Math.max(var25, this.getPillars(var1, var2, var3));
++         return 128.0D * Mth.clamp(var27, -1.0D, 1.0D);
 +      }
++   }
++
++   private double addEntrances(double var1, int var3, int var4, int var5) {
++      double var6 = this.caveEntranceNoiseSource.getValue((double)(var3 * 2), (double)var4, (double)(var5 * 2));
++      var6 = NoiseUtils.biasTowardsExtreme(var6, 1.0D);
++      boolean var8 = false;
++      double var9 = (double)(var4 - 0) / 40.0D;
++      var6 += Mth.clampedLerp(0.5D, var1, var9);
++      double var11 = 3.0D;
++      var6 = 4.0D * var6 + 3.0D;
++      return Math.min(var1, var6);
 +   }
 +
 +   private double getPillars(int var1, int var2, int var3) {
 +      double var4 = 0.0D;
 +      double var6 = 2.0D;
 +      double var8 = NoiseUtils.sampleNoiseAndMapToRange(this.pillarRarenessModulator, (double)var1, (double)var2, (double)var3, 0.0D, 2.0D);
-+      boolean var10 = false;
-+      boolean var11 = true;
-+      double var12 = NoiseUtils.sampleNoiseAndMapToRange(this.pillarThicknessModulator, (double)var1, (double)var2, (double)var3, 0.0D, 1.0D);
-+      var12 = Math.pow(var12, 3.0D);
-+      double var14 = 25.0D;
-+      double var16 = 0.3D;
-+      double var18 = this.pillarNoiseSource.getValue((double)var1 * 25.0D, (double)var2 * 0.3D, (double)var3 * 25.0D);
-+      var18 = var12 * (var18 * 2.0D - var8);
-+      return var18 > 0.02D ? var18 : Double.NEGATIVE_INFINITY;
++      double var10 = 0.0D;
++      double var12 = 1.1D;
++      double var14 = NoiseUtils.sampleNoiseAndMapToRange(this.pillarThicknessModulator, (double)var1, (double)var2, (double)var3, 0.0D, 1.1D);
++      var14 = Math.pow(var14, 3.0D);
++      double var16 = 25.0D;
++      double var18 = 0.3D;
++      double var20 = this.pillarNoiseSource.getValue((double)var1 * 25.0D, (double)var2 * 0.3D, (double)var3 * 25.0D);
++      var20 = var14 * (var20 * 2.0D - var8);
++      return var20 > 0.03D ? var20 : Double.NEGATIVE_INFINITY;
 +   }
 +
 +   private double getLayerizedCaverns(int var1, int var2, int var3) {
@@ -128,6 +143,9 @@
 +   }
 +
 +   static final class QuantizedSpaghettiRarity {
++      private QuantizedSpaghettiRarity() {
++      }
++
 +      private static double getSphaghettiRarity2D(double var0) {
 +         if (var0 < -0.75D) {
 +            return 0.5D;

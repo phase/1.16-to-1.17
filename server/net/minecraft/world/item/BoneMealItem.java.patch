@@ -1,6 +1,6 @@
 --- net/minecraft/world/item/BoneMealItem.java
 +++ net/minecraft/world/item/BoneMealItem.java
-@@ -1,15 +1,15 @@
+@@ -1,26 +1,32 @@
  package net.minecraft.world.item;
  
  import java.util.Objects;
@@ -9,15 +9,32 @@
  import javax.annotation.Nullable;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
++import net.minecraft.core.particles.ParticleTypes;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.tags.BlockTags;
 -import net.minecraft.tags.Tag;
  import net.minecraft.world.InteractionResult;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.level.Level;
++import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.biome.Biomes;
  import net.minecraft.world.level.block.BaseCoralWallFanBlock;
-@@ -71,43 +71,45 @@
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.BonemealableBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+ 
+ public class BoneMealItem extends Item {
++   public static final int GRASS_SPREAD_WIDTH = 3;
++   public static final int GRASS_SPREAD_HEIGHT = 1;
++   public static final int GRASS_COUNT_MULTIPLIER = 3;
++
+    public BoneMealItem(Item.Properties var1) {
+       super(var1);
+    }
+ 
+    public InteractionResult useOn(UseOnContext var1) {
+@@ -71,43 +77,45 @@
     public static boolean growWaterPlant(ItemStack var0, Level var1, BlockPos var2, @Nullable Direction var3) {
        if (var1.getBlockState(var2).is(Blocks.WATER) && var1.getFluidState(var2).getAmount() == 8) {
           if (!(var1 instanceof ServerLevel)) {
@@ -84,3 +101,51 @@
              }
  
              var0.shrink(1);
+@@ -115,6 +123,47 @@
+          }
+       } else {
+          return false;
+       }
+    }
++
++   public static void addGrowthParticles(LevelAccessor var0, BlockPos var1, int var2) {
++      if (var2 == 0) {
++         var2 = 15;
++      }
++
++      BlockState var3 = var0.getBlockState(var1);
++      if (!var3.isAir()) {
++         double var4 = 0.5D;
++         double var6;
++         if (var3.is(Blocks.WATER)) {
++            var2 *= 3;
++            var6 = 1.0D;
++            var4 = 3.0D;
++         } else if (var3.isSolidRender(var0, var1)) {
++            var1 = var1.above();
++            var2 *= 3;
++            var4 = 3.0D;
++            var6 = 1.0D;
++         } else {
++            var6 = var3.getShape(var0, var1).max(Direction.Axis.Y);
++         }
++
++         var0.addParticle(ParticleTypes.HAPPY_VILLAGER, (double)var1.getX() + 0.5D, (double)var1.getY() + 0.5D, (double)var1.getZ() + 0.5D, 0.0D, 0.0D, 0.0D);
++         Random var8 = var0.getRandom();
++
++         for(int var9 = 0; var9 < var2; ++var9) {
++            double var10 = var8.nextGaussian() * 0.02D;
++            double var12 = var8.nextGaussian() * 0.02D;
++            double var14 = var8.nextGaussian() * 0.02D;
++            double var16 = 0.5D - var4;
++            double var18 = (double)var1.getX() + var16 + var8.nextDouble() * var4 * 2.0D;
++            double var20 = (double)var1.getY() + var8.nextDouble() * var6;
++            double var22 = (double)var1.getZ() + var16 + var8.nextDouble() * var4 * 2.0D;
++            if (!var0.getBlockState((new BlockPos(var18, var20, var22)).below()).isAir()) {
++               var0.addParticle(ParticleTypes.HAPPY_VILLAGER, var18, var20, var22, var10, var12, var14);
++            }
++         }
++
++      }
++   }
+ }

@@ -1,6 +1,18 @@
 --- net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
 +++ net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
-@@ -36,11 +36,10 @@
+@@ -6,10 +6,11 @@
+ import java.util.List;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.protocol.game.ClientboundAddMobPacket;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.sounds.SoundEvent;
+@@ -36,11 +37,10 @@
  import net.minecraft.world.entity.boss.enderdragon.phases.EnderDragonPhaseManager;
  import net.minecraft.world.entity.monster.Enemy;
  import net.minecraft.world.entity.player.Player;
@@ -12,7 +24,21 @@
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
  import net.minecraft.world.level.material.Material;
-@@ -100,10 +99,23 @@
+@@ -54,10 +54,13 @@
+ 
+ public class EnderDragon extends Mob implements Enemy {
+    private static final Logger LOGGER = LogManager.getLogger();
+    public static final EntityDataAccessor<Integer> DATA_PHASE;
+    private static final TargetingConditions CRYSTAL_DESTROY_TARGETING;
++   private static final int GROWL_INTERVAL_MIN = 200;
++   private static final int GROWL_INTERVAL_MAX = 400;
++   private static final float SITTING_ALLOWED_DAMAGE_PERCENTAGE = 0.25F;
+    public final double[][] positions = new double[64][3];
+    public int posPointer = -1;
+    private final EnderDragonPart[] subEntities;
+    public final EnderDragonPart head = new EnderDragonPart(this, "head", 1.0F, 1.0F);
+    private final EnderDragonPart neck = new EnderDragonPart(this, "neck", 3.0F, 3.0F);
+@@ -100,10 +103,23 @@
  
     public static AttributeSupplier.Builder createAttributes() {
        return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 200.0D);
@@ -36,7 +62,7 @@
        this.getEntityData().define(DATA_PHASE, EnderDragonPhase.HOVERING.getId());
     }
  
-@@ -125,39 +137,31 @@
+@@ -125,39 +141,31 @@
        var5[2] = Mth.lerp((double)var2, this.positions[var3][2], this.positions[var4][2]);
        return var5;
     }
@@ -86,7 +112,7 @@
           } else if (this.inWall) {
              this.flapTime += var2 * 0.5F;
           } else {
-@@ -332,11 +336,11 @@
+@@ -332,11 +340,11 @@
        }
     }
  
@@ -99,7 +125,7 @@
              this.setHealth(this.getHealth() + 1.0F);
           }
        }
-@@ -412,25 +416,24 @@
+@@ -412,25 +420,24 @@
        for(int var10 = var2; var10 <= var5; ++var10) {
           for(int var11 = var3; var11 <= var6; ++var11) {
              for(int var12 = var4; var12 <= var7; ++var12) {
@@ -128,7 +154,7 @@
        return var8;
     }
  
-@@ -479,11 +482,11 @@
+@@ -479,11 +486,11 @@
     protected boolean reallyHurt(DamageSource var1, float var2) {
        return super.hurt(var1, var2);
     }
@@ -141,7 +167,7 @@
           this.dragonFight.setDragonKilled(this);
        }
  
-@@ -506,46 +509,37 @@
+@@ -506,46 +513,37 @@
        short var5 = 500;
        if (this.dragonFight != null && !this.dragonFight.hasPreviouslyKilledDragon()) {
           var5 = 12000;
@@ -193,3 +219,56 @@
           for(int var1 = 0; var1 < 24; ++var1) {
              int var2 = 5;
              int var4;
+@@ -759,10 +757,31 @@
+ 
+    protected float getSoundVolume() {
+       return 5.0F;
+    }
+ 
++   public float getHeadPartYOffset(int var1, double[] var2, double[] var3) {
++      DragonPhaseInstance var4 = this.phaseManager.getCurrentPhase();
++      EnderDragonPhase var5 = var4.getPhase();
++      double var6;
++      if (var5 != EnderDragonPhase.LANDING && var5 != EnderDragonPhase.TAKEOFF) {
++         if (var4.isSitting()) {
++            var6 = (double)var1;
++         } else if (var1 == 6) {
++            var6 = 0.0D;
++         } else {
++            var6 = var3[1] - var2[1];
++         }
++      } else {
++         BlockPos var8 = this.level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, EndPodiumFeature.END_PODIUM_LOCATION);
++         float var9 = Math.max(Mth.sqrt(var8.distSqr(this.position(), true)) / 4.0F, 1.0F);
++         var6 = (double)((float)var1 / var9);
++      }
++
++      return (float)var6;
++   }
++
+    public Vec3 getHeadLookVector(float var1) {
+       DragonPhaseInstance var2 = this.phaseManager.getCurrentPhase();
+       EnderDragonPhase var3 = var2.getPhase();
+       Vec3 var4;
+       float var6;
+@@ -832,10 +851,20 @@
+ 
+    public boolean canChangeDimensions() {
+       return false;
+    }
+ 
++   public void recreateFromPacket(ClientboundAddMobPacket var1) {
++      super.recreateFromPacket(var1);
++      EnderDragonPart[] var2 = this.getSubEntities();
++
++      for(int var3 = 0; var3 < var2.length; ++var3) {
++         var2[var3].setId(var3 + var1.getId());
++      }
++
++   }
++
+    static {
+       DATA_PHASE = SynchedEntityData.defineId(EnderDragon.class, EntityDataSerializers.INT);
+       CRYSTAL_DESTROY_TARGETING = (new TargetingConditions()).range(64.0D);
+    }
+ }

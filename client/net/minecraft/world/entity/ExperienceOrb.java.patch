@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/ExperienceOrb.java
 +++ net/minecraft/world/entity/ExperienceOrb.java
-@@ -1,30 +1,34 @@
+@@ -1,30 +1,39 @@
  package net.minecraft.world.entity;
  
 +import java.util.Iterator;
@@ -28,6 +28,11 @@
 -   public int tickCount;
 -   public int age;
 -   public int throwTime;
++   private static final int LIFETIME = 6000;
++   private static final int ENTITY_SCAN_PERIOD = 20;
++   private static final int MAX_FOLLOW_DIST = 8;
++   private static final int ORB_GROUPS_PER_AREA = 40;
++   private static final double ORB_MERGE_DISTANCE = 0.5D;
 +   private int age;
     private int health;
     private int value;
@@ -39,7 +44,7 @@
        this(EntityType.EXPERIENCE_ORB, var1);
        this.setPos(var2, var4, var6);
        this.yRot = (float)(this.random.nextDouble() * 360.0D);
-@@ -33,25 +37,22 @@
+@@ -33,25 +42,22 @@
     }
  
     public ExperienceOrb(EntityType<? extends ExperienceOrb> var1, Level var2) {
@@ -68,7 +73,7 @@
        this.zo = this.getZ();
        if (this.isEyeInFluid(FluidTags.WATER)) {
           this.setUnderwaterMovement();
-@@ -66,51 +67,103 @@
+@@ -66,51 +72,103 @@
  
        if (!this.level.noCollision(this.getBoundingBox())) {
           this.moveTowardsClosestSpace(this.getX(), (this.getBoundingBox().minY + this.getBoundingBox().maxY) / 2.0D, this.getZ());
@@ -190,7 +195,7 @@
        this.setDeltaMovement(var1.x * 0.9900000095367432D, Math.min(var1.y + 5.000000237487257E-4D, 0.05999999865889549D), var1.z * 0.9900000095367432D);
     }
  
-@@ -122,32 +175,34 @@
+@@ -122,54 +180,63 @@
           return false;
        } else {
           this.markHurt();
@@ -224,26 +229,51 @@
 +         if (var1.takeXpDelay == 0) {
              var1.takeXpDelay = 2;
              var1.take(this, 1);
-             Entry var2 = EnchantmentHelper.getRandomItemWith(Enchantments.MENDING, var1, ItemStack::isDamaged);
-             if (var2 != null) {
-                ItemStack var3 = (ItemStack)var2.getValue();
-@@ -160,11 +215,14 @@
- 
-             if (this.value > 0) {
-                var1.giveExperiencePoints(this.value);
+-            Entry var2 = EnchantmentHelper.getRandomItemWith(Enchantments.MENDING, var1, ItemStack::isDamaged);
+-            if (var2 != null) {
+-               ItemStack var3 = (ItemStack)var2.getValue();
+-               if (!var3.isEmpty() && var3.isDamaged()) {
+-                  int var4 = Math.min(this.xpToDurability(this.value), var3.getDamageValue());
+-                  this.value -= this.durabilityToXp(var4);
+-                  var3.setDamageValue(var3.getDamageValue() - var4);
+-               }
++            int var2 = this.repairPlayerItems(var1, this.value);
++            if (var2 > 0) {
++               var1.giveExperiencePoints(var2);
              }
  
--            this.remove();
+-            if (this.value > 0) {
+-               var1.giveExperiencePoints(this.value);
 +            --this.count;
 +            if (this.count == 0) {
 +               this.discard();
-+            }
+             }
+-
+-            this.remove();
           }
  
        }
     }
  
-@@ -233,6 +291,10 @@
++   private int repairPlayerItems(Player var1, int var2) {
++      Entry var3 = EnchantmentHelper.getRandomItemWith(Enchantments.MENDING, var1, ItemStack::isDamaged);
++      if (var3 != null) {
++         ItemStack var4 = (ItemStack)var3.getValue();
++         int var5 = Math.min(this.xpToDurability(this.value), var4.getDamageValue());
++         var4.setDamageValue(var4.getDamageValue() - var5);
++         int var6 = var2 - this.durabilityToXp(var5);
++         return var6 > 0 ? this.repairPlayerItems(var1, var6) : 0;
++      } else {
++         return var2;
++      }
++   }
++
+    private int durabilityToXp(int var1) {
+       return var1 / 2;
+    }
+ 
+    private int xpToDurability(int var1) {
+@@ -233,6 +300,10 @@
     }
  
     public Packet<?> getAddEntityPacket() {

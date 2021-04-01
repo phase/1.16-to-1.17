@@ -1,6 +1,6 @@
 --- net/minecraft/network/protocol/game/ServerboundSetStructureBlockPacket.java
 +++ net/minecraft/network/protocol/game/ServerboundSetStructureBlockPacket.java
-@@ -1,37 +1,34 @@
+@@ -1,37 +1,37 @@
  package net.minecraft.network.protocol.game;
  
 -import java.io.IOException;
@@ -29,6 +29,9 @@
 -   private boolean showBoundingBox;
 -   private float integrity;
 -   private long seed;
++   private static final int FLAG_IGNORE_ENTITIES = 1;
++   private static final int FLAG_SHOW_AIR = 2;
++   private static final int FLAG_SHOW_BOUNDING_BOX = 4;
 +   private final BlockPos pos;
 +   private final StructureBlockEntity.UpdateType updateType;
 +   private final StructureMode mode;
@@ -54,7 +57,7 @@
        this.mode = var3;
        this.name = var4;
        this.offset = var5;
-@@ -44,19 +41,19 @@
+@@ -44,19 +44,19 @@
        this.showBoundingBox = var12;
        this.integrity = var13;
        this.seed = var14;
@@ -68,16 +71,17 @@
 -      this.name = var1.readUtf(32767);
 +      this.name = var1.readUtf();
        boolean var2 = true;
-       this.offset = new BlockPos(Mth.clamp(var1.readByte(), -48, 48), Mth.clamp(var1.readByte(), -48, 48), Mth.clamp(var1.readByte(), -48, 48));
+-      this.offset = new BlockPos(Mth.clamp(var1.readByte(), -48, 48), Mth.clamp(var1.readByte(), -48, 48), Mth.clamp(var1.readByte(), -48, 48));
++      this.offset = new BlockPos(Mth.clamp((int)var1.readByte(), (int)-48, (int)48), Mth.clamp((int)var1.readByte(), (int)-48, (int)48), Mth.clamp((int)var1.readByte(), (int)-48, (int)48));
        boolean var3 = true;
 -      this.size = new BlockPos(Mth.clamp(var1.readByte(), 0, 48), Mth.clamp(var1.readByte(), 0, 48), Mth.clamp(var1.readByte(), 0, 48));
-+      this.size = new Vec3i(Mth.clamp(var1.readByte(), 0, 48), Mth.clamp(var1.readByte(), 0, 48), Mth.clamp(var1.readByte(), 0, 48));
++      this.size = new Vec3i(Mth.clamp((int)var1.readByte(), (int)0, (int)48), Mth.clamp((int)var1.readByte(), (int)0, (int)48), Mth.clamp((int)var1.readByte(), (int)0, (int)48));
        this.mirror = (Mirror)var1.readEnum(Mirror.class);
        this.rotation = (Rotation)var1.readEnum(Rotation.class);
        this.data = var1.readUtf(12);
        this.integrity = Mth.clamp(var1.readFloat(), 0.0F, 1.0F);
        this.seed = var1.readVarLong();
-@@ -64,11 +61,11 @@
+@@ -64,11 +64,11 @@
        this.ignoreEntities = (var4 & 1) != 0;
        this.showAir = (var4 & 2) != 0;
        this.showBoundingBox = (var4 & 4) != 0;
@@ -90,7 +94,7 @@
        var1.writeEnum(this.mode);
        var1.writeUtf(this.name);
        var1.writeByte(this.offset.getX());
-@@ -120,11 +117,11 @@
+@@ -120,11 +120,11 @@
  
     public BlockPos getOffset() {
        return this.offset;

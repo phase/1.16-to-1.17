@@ -1,12 +1,15 @@
 --- net/minecraft/world/item/Item.java
 +++ net/minecraft/world/item/Item.java
-@@ -2,49 +2,54 @@
+@@ -1,50 +1,61 @@
+ package net.minecraft.world.item;
  
  import com.google.common.collect.ImmutableMultimap;
  import com.google.common.collect.Maps;
  import com.google.common.collect.Multimap;
++import java.util.List;
  import java.util.Map;
 -import java.util.Random;
++import java.util.Optional;
  import java.util.UUID;
  import javax.annotation.Nullable;
 +import net.minecraft.SharedConstants;
@@ -36,6 +39,7 @@
  import net.minecraft.world.food.FoodProperties;
 +import net.minecraft.world.inventory.ClickAction;
 +import net.minecraft.world.inventory.Slot;
++import net.minecraft.world.inventory.tooltip.TooltipComponent;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.level.ClipContext;
  import net.minecraft.world.level.ItemLike;
@@ -53,12 +57,15 @@
     protected static final UUID BASE_ATTACK_DAMAGE_UUID = UUID.fromString("CB3F55D3-645C-4F38-A497-9C13A33DB5CF");
     protected static final UUID BASE_ATTACK_SPEED_UUID = UUID.fromString("FA233E1C-4180-4865-B01B-BCCE9785ACA3");
 -   protected static final Random random = new Random();
++   public static final int MAX_STACK_SIZE = 64;
++   public static final int EAT_DURATION = 32;
++   public static final int MAX_BAR_WIDTH = 13;
     protected final CreativeModeTab category;
     private final Rarity rarity;
     private final int maxStackSize;
     private final int maxDamage;
     private final boolean isFireResistant;
-@@ -73,15 +78,25 @@
+@@ -73,15 +84,25 @@
        this.craftingRemainingItem = var1.craftingRemainingItem;
        this.maxDamage = var1.maxDamage;
        this.maxStackSize = var1.maxStackSize;
@@ -84,12 +91,25 @@
     }
  
     public boolean canAttackBlock(BlockState var1, Level var2, BlockPos var3, Player var4) {
-@@ -128,10 +143,18 @@
+@@ -128,10 +149,31 @@
  
     public boolean canBeDepleted() {
        return this.maxDamage > 0;
     }
  
++   public boolean isBarVisible(ItemStack var1) {
++      return var1.isDamaged();
++   }
++
++   public int getBarWidth(ItemStack var1) {
++      return Math.round(13.0F - (float)var1.getDamageValue() * 13.0F / (float)this.maxDamage);
++   }
++
++   public int getBarColor(ItemStack var1) {
++      float var2 = Math.max(0.0F, ((float)this.maxDamage - (float)var1.getDamageValue()) / (float)this.maxDamage);
++      return Mth.hsvToRgb(var2 / 3.0F, 1.0F, 1.0F);
++   }
++
 +   public boolean overrideStackedOnOther(ItemStack var1, Slot var2, ClickAction var3, Player var4) {
 +      return false;
 +   }
@@ -103,7 +123,40 @@
     }
  
     public boolean mineBlock(ItemStack var1, Level var2, BlockState var3, BlockPos var4, LivingEntity var5) {
-@@ -234,11 +257,11 @@
+@@ -144,10 +186,14 @@
+ 
+    public InteractionResult interactLivingEntity(ItemStack var1, Player var2, LivingEntity var3, InteractionHand var4) {
+       return InteractionResult.PASS;
+    }
+ 
++   public Component getDescription() {
++      return new TranslatableComponent(this.getDescriptionId());
++   }
++
+    public String toString() {
+       return Registry.ITEM.getKey(this).getPath();
+    }
+ 
+    protected String getOrCreateDescriptionId() {
+@@ -202,10 +248,17 @@
+    }
+ 
+    public void releaseUsing(ItemStack var1, Level var2, LivingEntity var3, int var4) {
+    }
+ 
++   public void appendHoverText(ItemStack var1, @Nullable Level var2, List<Component> var3, TooltipFlag var4) {
++   }
++
++   public Optional<TooltipComponent> getTooltipImage(ItemStack var1) {
++      return Optional.empty();
++   }
++
+    public Component getName(ItemStack var1) {
+       return new TranslatableComponent(this.getDescriptionId(var1));
+    }
+ 
+    public boolean isFoil(ItemStack var1) {
+@@ -234,11 +287,11 @@
     }
  
     protected static BlockHitResult getPlayerPOVHitResult(Level var0, Player var1, ClipContext.Fluid var2) {
@@ -116,7 +169,7 @@
        float var8 = -Mth.cos(-var3 * 0.017453292F);
        float var9 = Mth.sin(-var3 * 0.017453292F);
        float var10 = var7 * var8;
-@@ -276,21 +299,17 @@
+@@ -276,21 +329,17 @@
     public Multimap<Attribute, AttributeModifier> getDefaultAttributeModifiers(EquipmentSlot var1) {
        return ImmutableMultimap.of();
     }
@@ -139,7 +192,7 @@
     }
  
     @Nullable
-@@ -312,10 +331,19 @@
+@@ -312,10 +361,19 @@
  
     public boolean canBeHurtBy(DamageSource var1) {
        return !this.isFireResistant || !var1.isFire();

@@ -21,7 +21,7 @@
  import net.minecraft.network.chat.ClickEvent;
  import net.minecraft.network.chat.CommonComponents;
  import net.minecraft.network.chat.Component;
-@@ -23,11 +27,10 @@
+@@ -23,26 +27,32 @@
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.resources.ResourceLocation;
@@ -33,7 +33,49 @@
  import net.minecraft.world.item.WrittenBookItem;
  
  public class BookViewScreen extends Screen {
-@@ -155,12 +158,13 @@
++   public static final int PAGE_INDICATOR_TEXT_Y_OFFSET = 16;
++   public static final int PAGE_TEXT_X_OFFSET = 36;
++   public static final int PAGE_TEXT_Y_OFFSET = 30;
+    public static final BookViewScreen.BookAccess EMPTY_ACCESS = new BookViewScreen.BookAccess() {
+       public int getPageCount() {
+          return 0;
+       }
+ 
+       public FormattedText getPageRaw(int var1) {
+          return FormattedText.EMPTY;
+       }
+    };
+    public static final ResourceLocation BOOK_LOCATION = new ResourceLocation("textures/gui/book.png");
++   protected static final int TEXT_WIDTH = 114;
++   protected static final int TEXT_HEIGHT = 128;
++   protected static final int IMAGE_WIDTH = 192;
++   protected static final int IMAGE_HEIGHT = 192;
+    private BookViewScreen.BookAccess bookAccess;
+    private int currentPage;
+    private List<FormattedCharSequence> cachedPageComponents;
+    private int cachedPage;
+    private Component pageMsg;
+@@ -67,17 +77,17 @@
+       this.playTurnSound = var2;
+    }
+ 
+    public void setBookAccess(BookViewScreen.BookAccess var1) {
+       this.bookAccess = var1;
+-      this.currentPage = Mth.clamp(this.currentPage, 0, var1.getPageCount());
++      this.currentPage = Mth.clamp((int)this.currentPage, (int)0, (int)var1.getPageCount());
+       this.updateButtonVisibility();
+       this.cachedPage = -1;
+    }
+ 
+    public boolean setPage(int var1) {
+-      int var2 = Mth.clamp(var1, 0, this.bookAccess.getPageCount() - 1);
++      int var2 = Mth.clamp((int)var1, (int)0, (int)(this.bookAccess.getPageCount() - 1));
+       if (var2 != this.currentPage) {
+          this.currentPage = var2;
+          this.updateButtonVisibility();
+          this.cachedPage = -1;
+          return true;
+@@ -155,12 +165,13 @@
        }
     }
  
@@ -49,7 +91,7 @@
        this.blit(var1, var5, 2, 0, 0, 192, 192);
        if (this.cachedPage != this.currentPage) {
           FormattedText var7 = this.bookAccess.getPage(this.currentPage);
-@@ -215,17 +219,21 @@
+@@ -215,17 +226,21 @@
              return false;
           }
        } else {
@@ -72,7 +114,7 @@
        if (this.cachedPageComponents.isEmpty()) {
           return null;
        } else {
-@@ -253,19 +261,33 @@
+@@ -253,19 +268,33 @@
              return null;
           }
        }
@@ -112,7 +154,7 @@
     public static class WritableBookAccess implements BookViewScreen.BookAccess {
        private final List<String> pages;
  
-@@ -273,11 +295,11 @@
+@@ -273,11 +302,11 @@
           this.pages = readPages(var1);
        }
  
@@ -125,7 +167,7 @@
        public int getPageCount() {
           return this.pages.size();
        }
-@@ -294,11 +316,11 @@
+@@ -294,11 +323,11 @@
           this.pages = readPages(var1);
        }
  
@@ -138,7 +180,7 @@
        public int getPageCount() {
           return this.pages.size();
        }
-@@ -326,14 +348,13 @@
+@@ -326,14 +355,13 @@
        default FormattedText getPage(int var1) {
           return var1 >= 0 && var1 < this.getPageCount() ? this.getPageRaw(var1) : FormattedText.EMPTY;
        }

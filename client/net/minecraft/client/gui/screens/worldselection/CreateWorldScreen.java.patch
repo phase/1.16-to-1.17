@@ -24,7 +24,19 @@
  import net.minecraft.server.packs.repository.PackSource;
  import net.minecraft.server.packs.repository.RepositorySource;
  import net.minecraft.server.packs.repository.ServerPacksSource;
-@@ -65,28 +67,27 @@
+@@ -53,10 +55,11 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class CreateWorldScreen extends Screen {
+    private static final Logger LOGGER = LogManager.getLogger();
++   private static final String TEMP_WORLD_PREFIX = "mcworld-";
+    private static final Component GAME_MODEL_LABEL = new TranslatableComponent("selectWorld.gameMode");
+    private static final Component SEED_LABEL = new TranslatableComponent("selectWorld.enterSeed");
+    private static final Component SEED_INFO = new TranslatableComponent("selectWorld.seedInfo");
+    private static final Component NAME_LABEL = new TranslatableComponent("selectWorld.enterName");
+    private static final Component OUTPUT_DIR_INFO = new TranslatableComponent("selectWorld.resultFolder");
+@@ -65,28 +68,27 @@
     private EditBox nameEdit;
     private String resultFolder;
     private CreateWorldScreen.SelectedGameMode gameMode;
@@ -58,7 +70,7 @@
     private String initName;
     private GameRules gameRules;
     public final WorldGenSettingsComponent worldGenSettingsComponent;
-@@ -94,12 +95,11 @@
+@@ -94,12 +96,11 @@
     public CreateWorldScreen(@Nullable Screen var1, LevelSettings var2, WorldGenSettings var3, @Nullable Path var4, DataPackConfig var5, RegistryAccess.RegistryHolder var6) {
        this(var1, var5, new WorldGenSettingsComponent(var6, var3, WorldPreset.of(var3), OptionalLong.of(var3.seed())));
        this.initName = var2.levelName();
@@ -72,7 +84,7 @@
           this.gameMode = CreateWorldScreen.SelectedGameMode.HARDCORE;
        } else if (var2.gameType().isSurvival()) {
           this.gameMode = CreateWorldScreen.SelectedGameMode.SURVIVAL;
-@@ -116,12 +116,11 @@
+@@ -116,12 +117,11 @@
     }
  
     private CreateWorldScreen(@Nullable Screen var1, DataPackConfig var2, WorldGenSettingsComponent var3) {
@@ -86,7 +98,7 @@
        this.initName = I18n.get("selectWorld.newWorld");
        this.dataPacks = var2;
        this.worldGenSettingsComponent = var3;
-@@ -146,54 +145,24 @@
+@@ -146,54 +146,24 @@
           this.updateResultFolder();
        });
        this.children.add(this.nameEdit);
@@ -154,7 +166,7 @@
        }));
        this.gameRulesButton = (Button)this.addButton(new Button(var1, 185, 150, 20, new TranslatableComponent("selectWorld.gameRules"), (var1x) -> {
           this.minecraft.setScreen(new EditGameRulesScreen(this.gameRules.copy(), (var1) -> {
-@@ -203,25 +172,29 @@
+@@ -203,25 +173,29 @@
              });
           }));
        }));
@@ -186,7 +198,7 @@
        this.gameModeHelp2 = new TranslatableComponent("selectWorld.gameMode." + this.gameMode.name + ".line2");
     }
  
-@@ -258,52 +231,55 @@
+@@ -258,52 +232,55 @@
           if (var1.isDebug()) {
              GameRules var3 = new GameRules();
              ((GameRules.BooleanValue)var3.getRule(GameRules.RULE_DAYLIGHT)).set(false, (MinecraftServer)null);
@@ -255,7 +267,7 @@
           this.modeButton.active = false;
           if (this.oldGameMode == null) {
              this.oldGameMode = this.gameMode;
-@@ -315,23 +291,23 @@
+@@ -315,23 +292,23 @@
           this.modeButton.active = true;
           if (this.oldGameMode != null) {
              this.setGameMode(this.oldGameMode);
@@ -285,7 +297,7 @@
     public boolean keyPressed(int var1, int var2, int var3) {
        if (super.keyPressed(var1, var2, var3)) {
           return true;
-@@ -342,12 +318,12 @@
+@@ -342,12 +319,12 @@
           return true;
        }
     }
@@ -300,7 +312,7 @@
        }
  
     }
-@@ -366,11 +342,11 @@
+@@ -366,11 +343,11 @@
     }
  
     public void render(PoseStack var1, int var2, int var3, float var4) {
@@ -313,7 +325,7 @@
           this.worldGenSettingsComponent.render(var1, var2, var3, var4);
        } else {
           drawString(var1, this.font, NAME_LABEL, this.width / 2 - 100, 47, -6250336);
-@@ -427,11 +403,11 @@
+@@ -427,11 +404,11 @@
           this.dataPacks = var4;
        } else {
           this.minecraft.tell(() -> {
@@ -326,7 +338,7 @@
                 this.minecraft.tell(() -> {
                    this.minecraft.setScreen(new ConfirmScreen((var1) -> {
                       if (var1) {
-@@ -626,11 +602,11 @@
+@@ -626,11 +603,11 @@
     private Pair<File, PackRepository> getDataPackSelectionSettings() {
        Path var1 = this.getTempDataPackDir();
        if (var1 != null) {
@@ -339,7 +351,7 @@
  
           this.tempDataPackRepository.setSelected(this.dataPacks.getEnabled());
           return Pair.of(var2, this.tempDataPackRepository);
-@@ -651,12 +627,18 @@
+@@ -651,12 +628,18 @@
        CREATIVE("creative", GameType.CREATIVE),
        DEBUG("spectator", GameType.SPECTATOR);
  

@@ -31,7 +31,22 @@
     public JsonElement toJson() {
        if (this.values.length == 1) {
           return this.values[0].serialize();
-@@ -153,14 +148,13 @@
+@@ -132,10 +127,14 @@
+    private static Ingredient fromValues(Stream<? extends Ingredient.Value> var0) {
+       Ingredient var1 = new Ingredient(var0);
+       return var1.values.length == 0 ? EMPTY : var1;
+    }
+ 
++   public static Ingredient of() {
++      return EMPTY;
++   }
++
+    public static Ingredient of(ItemLike... var0) {
+       return of(Arrays.stream(var0).map(ItemStack::new));
+    }
+ 
+    public static Ingredient of(ItemStack... var0) {
+@@ -153,14 +152,13 @@
     public static Ingredient of(Tag<Item> var0) {
        return fromValues(Stream.of(new Ingredient.TagValue(var0)));
     }
@@ -49,28 +64,47 @@
     public static Ingredient fromJson(@Nullable JsonElement var0) {
        if (var0 != null && !var0.isJsonNull()) {
           if (var0.isJsonObject()) {
-@@ -193,16 +187,14 @@
-                return new JsonSyntaxException("Unknown item '" + var1 + "'");
-             });
-             return new Ingredient.ItemValue(new ItemStack(var3));
-          } else if (var0.has("tag")) {
-             var1 = new ResourceLocation(GsonHelper.getAsString(var0, "tag"));
+@@ -183,29 +181,21 @@
+    }
+ 
+    private static Ingredient.Value valueFromJson(JsonObject var0) {
+       if (var0.has("item") && var0.has("tag")) {
+          throw new JsonParseException("An ingredient entry is either a tag or an item, not both");
++      } else if (var0.has("item")) {
++         Item var3 = ShapedRecipe.itemFromJson(var0);
++         return new Ingredient.ItemValue(new ItemStack(var3));
++      } else if (var0.has("tag")) {
++         ResourceLocation var1 = new ResourceLocation(GsonHelper.getAsString(var0, "tag"));
++         Tag var2 = SerializationTags.getInstance().getTagOrThrow(Registry.ITEM_REGISTRY, var1, (var0x) -> {
++            return new JsonSyntaxException("Unknown item tag '" + var0x + "'");
++         });
++         return new Ingredient.TagValue(var2);
+       } else {
+-         ResourceLocation var1;
+-         if (var0.has("item")) {
+-            var1 = new ResourceLocation(GsonHelper.getAsString(var0, "item"));
+-            Item var3 = (Item)Registry.ITEM.getOptional(var1).orElseThrow(() -> {
+-               return new JsonSyntaxException("Unknown item '" + var1 + "'");
+-            });
+-            return new Ingredient.ItemValue(new ItemStack(var3));
+-         } else if (var0.has("tag")) {
+-            var1 = new ResourceLocation(GsonHelper.getAsString(var0, "tag"));
 -            Tag var2 = SerializationTags.getInstance().getItems().getTag(var1);
 -            if (var2 == null) {
 -               throw new JsonSyntaxException("Unknown item tag '" + var1 + "'");
 -            } else {
 -               return new Ingredient.TagValue(var2);
 -            }
-+            Tag var2 = SerializationTags.getInstance().getTagOrThrow(Registry.ITEM_REGISTRY, var1, (var0x) -> {
-+               return new JsonSyntaxException("Unknown item tag '" + var0x + "'");
-+            });
-+            return new Ingredient.TagValue(var2);
-          } else {
-             throw new JsonParseException("An ingredient entry needs either a tag or an item");
-          }
+-         } else {
+-            throw new JsonParseException("An ingredient entry needs either a tag or an item");
+-         }
++         throw new JsonParseException("An ingredient entry needs either a tag or an item");
        }
     }
-@@ -226,11 +218,13 @@
+ 
+    static class TagValue implements Ingredient.Value {
+       private final Tag<Item> tag;
+@@ -226,11 +216,13 @@
           return var1;
        }
  

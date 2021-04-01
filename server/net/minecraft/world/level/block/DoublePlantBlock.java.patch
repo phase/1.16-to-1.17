@@ -1,6 +1,18 @@
 --- net/minecraft/world/level/block/DoublePlantBlock.java
 +++ net/minecraft/world/level/block/DoublePlantBlock.java
-@@ -36,11 +36,12 @@
+@@ -1,10 +1,11 @@
+ package net.minecraft.world.level.block;
+ 
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
++import net.minecraft.util.Mth;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.context.BlockPlaceContext;
+ import net.minecraft.world.level.Level;
+@@ -36,11 +37,12 @@
     }
  
     @Nullable
@@ -14,7 +26,24 @@
     public void setPlacedBy(Level var1, BlockPos var2, BlockState var3, LivingEntity var4, ItemStack var5) {
        var1.setBlock(var2.above(), (BlockState)this.defaultBlockState().setValue(HALF, DoubleBlockHalf.UPPER), 3);
     }
-@@ -78,11 +79,11 @@
+@@ -52,13 +54,13 @@
+          BlockState var4 = var2.getBlockState(var3.below());
+          return var4.is(this) && var4.getValue(HALF) == DoubleBlockHalf.LOWER;
+       }
+    }
+ 
+-   public void placeAt(LevelAccessor var1, BlockPos var2, int var3) {
+-      var1.setBlock(var2, (BlockState)this.defaultBlockState().setValue(HALF, DoubleBlockHalf.LOWER), var3);
+-      var1.setBlock(var2.above(), (BlockState)this.defaultBlockState().setValue(HALF, DoubleBlockHalf.UPPER), var3);
++   public void placeAt(LevelAccessor var1, BlockState var2, BlockPos var3, int var4) {
++      var1.setBlock(var3, (BlockState)var2.setValue(HALF, DoubleBlockHalf.LOWER), var4);
++      var1.setBlock(var3.above(), (BlockState)var2.setValue(HALF, DoubleBlockHalf.UPPER), var4);
+    }
+ 
+    public void playerWillDestroy(Level var1, BlockPos var2, BlockState var3, Player var4) {
+       if (!var1.isClientSide) {
+          if (var4.isCreative()) {
+@@ -78,11 +80,11 @@
     protected static void preventCreativeDropFromBottomPart(Level var0, BlockPos var1, BlockState var2, Player var3) {
        DoubleBlockHalf var4 = (DoubleBlockHalf)var2.getValue(HALF);
        if (var4 == DoubleBlockHalf.UPPER) {
@@ -27,3 +56,17 @@
           }
        }
  
+@@ -94,9 +96,13 @@
+ 
+    public BlockBehaviour.OffsetType getOffsetType() {
+       return BlockBehaviour.OffsetType.XZ;
+    }
+ 
++   public long getSeed(BlockState var1, BlockPos var2) {
++      return Mth.getSeed(var2.getX(), var2.below(var1.getValue(HALF) == DoubleBlockHalf.LOWER ? 0 : 1).getY(), var2.getZ());
++   }
++
+    static {
+       HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
+    }
+ }

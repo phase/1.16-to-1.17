@@ -59,7 +59,7 @@
     public FallingBlockEntity(Level var1, double var2, double var4, double var6, BlockState var8) {
        this(EntityType.FALLING_BLOCK, var1);
        this.blockState = var8;
-@@ -77,34 +76,34 @@
+@@ -77,34 +76,38 @@
  
     public void setStartPos(BlockPos var1) {
        this.entityData.set(DATA_START_POS, var1);
@@ -67,10 +67,14 @@
  
 -   protected boolean isMovementNoisy() {
 -      return false;
-+   protected Entity.MovementEmission getMovementEmission() {
-+      return Entity.MovementEmission.NONE;
++   public BlockPos getStartPos() {
++      return (BlockPos)this.entityData.get(DATA_START_POS);
     }
  
++   protected Entity.MovementEmission getMovementEmission() {
++      return Entity.MovementEmission.NONE;
++   }
++
     protected void defineSynchedData() {
        this.entityData.define(DATA_START_POS, BlockPos.ZERO);
     }
@@ -99,7 +103,7 @@
           }
  
           if (!this.isNoGravity()) {
-@@ -124,37 +123,37 @@
+@@ -124,37 +127,37 @@
                    var4 = true;
                 }
              }
@@ -143,7 +147,7 @@
                                   CompoundTag var12 = var11.save(new CompoundTag());
                                   Iterator var13 = this.blockData.getAllKeys().iterator();
  
-@@ -164,65 +163,84 @@
+@@ -164,65 +167,84 @@
                                      if (!"x".equals(var14) && !"y".equals(var14) && !"z".equals(var14)) {
                                         var12.put(var14, var15.copy());
                                      }
@@ -246,7 +250,7 @@
           var1.put("TileEntityData", this.blockData);
        }
  
-@@ -231,11 +249,11 @@
+@@ -231,11 +253,11 @@
     protected void readAdditionalSaveData(CompoundTag var1) {
        this.blockState = NbtUtils.readBlockState(var1.getCompound("BlockState"));
        this.time = var1.getInt("Time");
@@ -259,7 +263,7 @@
           this.hurtEntities = true;
        }
  
-@@ -251,12 +269,14 @@
+@@ -251,14 +273,24 @@
           this.blockState = Blocks.SAND.defaultBlockState();
        }
  
@@ -267,12 +271,43 @@
  
 -   public void setHurtsEntities(boolean var1) {
 -      this.hurtEntities = var1;
++   public Level getLevel() {
++      return this.level;
+    }
+ 
 +   public void setHurtsEntities(float var1, int var2) {
 +      this.hurtEntities = true;
 +      this.fallDamagePerDistance = var1;
 +      this.fallDamageMax = var2;
-    }
- 
++   }
++
++   public boolean displayFireAnimation() {
++      return false;
++   }
++
     public void fillCrashReportCategory(CrashReportCategory var1) {
        super.fillCrashReportCategory(var1);
        var1.setDetail("Immitating BlockState", (Object)this.blockState.toString());
+    }
+ 
+@@ -272,9 +304,20 @@
+ 
+    public Packet<?> getAddEntityPacket() {
+       return new ClientboundAddEntityPacket(this, Block.getId(this.getBlockState()));
+    }
+ 
++   public void recreateFromPacket(ClientboundAddEntityPacket var1) {
++      super.recreateFromPacket(var1);
++      this.blockState = Block.stateById(var1.getData());
++      this.blocksBuilding = true;
++      double var2 = var1.getX();
++      double var4 = var1.getY();
++      double var6 = var1.getZ();
++      this.setPos(var2, var4 + (double)((1.0F - this.getBbHeight()) / 2.0F), var6);
++      this.setStartPos(this.blockPosition());
++   }
++
+    static {
+       DATA_START_POS = SynchedEntityData.defineId(FallingBlockEntity.class, EntityDataSerializers.BLOCK_POS);
+    }
+ }

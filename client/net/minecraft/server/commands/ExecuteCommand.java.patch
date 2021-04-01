@@ -1,6 +1,60 @@
 --- net/minecraft/server/commands/ExecuteCommand.java
 +++ net/minecraft/server/commands/ExecuteCommand.java
-@@ -396,12 +396,12 @@
+@@ -22,10 +22,11 @@
+ import java.util.Iterator;
+ import java.util.OptionalInt;
+ import java.util.function.BiPredicate;
+ import java.util.function.BinaryOperator;
+ import java.util.function.IntFunction;
++import java.util.function.Supplier;
+ import net.minecraft.advancements.critereon.MinMaxBounds;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.commands.Commands;
+ import net.minecraft.commands.SharedSuggestionProvider;
+ import net.minecraft.commands.arguments.DimensionArgument;
+@@ -69,10 +70,11 @@
+ import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
+ import net.minecraft.world.scores.Objective;
+ import net.minecraft.world.scores.Score;
+ 
+ public class ExecuteCommand {
++   private static final int MAX_TEST_AREA = 32768;
+    private static final Dynamic2CommandExceptionType ERROR_AREA_TOO_LARGE = new Dynamic2CommandExceptionType((var0, var1) -> {
+       return new TranslatableComponent("commands.execute.blocks.toobig", new Object[]{var0, var1});
+    });
+    private static final SimpleCommandExceptionType ERROR_CONDITIONAL_FAILED = new SimpleCommandExceptionType(new TranslatableComponent("commands.execute.conditional.fail"));
+    private static final DynamicCommandExceptionType ERROR_CONDITIONAL_FAILED_COUNT = new DynamicCommandExceptionType((var0) -> {
+@@ -87,10 +89,13 @@
+    private static final SuggestionProvider<CommandSourceStack> SUGGEST_PREDICATE = (var0, var1) -> {
+       PredicateManager var2 = ((CommandSourceStack)var0.getSource()).getServer().getPredicateManager();
+       return SharedSuggestionProvider.suggestResource((Iterable)var2.getKeys(), var1);
+    };
+ 
++   public ExecuteCommand() {
++   }
++
+    public static void register(CommandDispatcher<CommandSourceStack> var0) {
+       LiteralCommandNode var1 = var0.register((LiteralArgumentBuilder)Commands.literal("execute").requires((var0x) -> {
+          return var0x.hasPermission(2);
+       }));
+       var0.register((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal("execute").requires((var0x) -> {
+@@ -236,13 +241,13 @@
+    private static CommandSourceStack storeData(CommandSourceStack var0, DataAccessor var1, NbtPathArgument.NbtPath var2, IntFunction<Tag> var3, boolean var4) {
+       return var0.withCallback((var4x, var5, var6) -> {
+          try {
+             CompoundTag var7 = var1.getData();
+             int var8 = var4 ? var6 : (var5 ? 1 : 0);
+-            var2.set(var7, () -> {
++            var2.set(var7, (Supplier)(() -> {
+                return (Tag)var3.apply(var8);
+-            });
++            }));
+             var1.setData(var7);
+          } catch (CommandSyntaxException var9) {
+          }
+ 
+       }, CALLBACK_CHAINER);
+@@ -396,22 +401,22 @@
     private static OptionalInt checkRegions(CommandContext<CommandSourceStack> var0, boolean var1) throws CommandSyntaxException {
        return checkRegions(((CommandSourceStack)var0.getSource()).getLevel(), BlockPosArgument.getLoadedBlockPos(var0, "start"), BlockPosArgument.getLoadedBlockPos(var0, "end"), BlockPosArgument.getLoadedBlockPos(var0, "destination"), var1);
     }
@@ -8,10 +62,24 @@
     private static OptionalInt checkRegions(ServerLevel var0, BlockPos var1, BlockPos var2, BlockPos var3, boolean var4) throws CommandSyntaxException {
 -      BoundingBox var5 = new BoundingBox(var1, var2);
 -      BoundingBox var6 = new BoundingBox(var3, var3.offset(var5.getLength()));
-+      BoundingBox var5 = BoundingBox.createProper(var1, var2);
-+      BoundingBox var6 = BoundingBox.createProper(var3, var3.offset(var5.getLength()));
-       BlockPos var7 = new BlockPos(var6.x0 - var5.x0, var6.y0 - var5.y0, var6.z0 - var5.z0);
+-      BlockPos var7 = new BlockPos(var6.x0 - var5.x0, var6.y0 - var5.y0, var6.z0 - var5.z0);
++      BoundingBox var5 = BoundingBox.fromCorners(var1, var2);
++      BoundingBox var6 = BoundingBox.fromCorners(var3, var3.offset(var5.getLength()));
++      BlockPos var7 = new BlockPos(var6.minX() - var5.minX(), var6.minY() - var5.minY(), var6.minZ() - var5.minZ());
        int var8 = var5.getXSpan() * var5.getYSpan() * var5.getZSpan();
        if (var8 > 32768) {
           throw ERROR_AREA_TOO_LARGE.create(32768, var8);
        } else {
+          int var9 = 0;
+ 
+-         for(int var10 = var5.z0; var10 <= var5.z1; ++var10) {
+-            for(int var11 = var5.y0; var11 <= var5.y1; ++var11) {
+-               for(int var12 = var5.x0; var12 <= var5.x1; ++var12) {
++         for(int var10 = var5.minZ(); var10 <= var5.maxZ(); ++var10) {
++            for(int var11 = var5.minY(); var11 <= var5.maxY(); ++var11) {
++               for(int var12 = var5.minX(); var12 <= var5.maxX(); ++var12) {
+                   BlockPos var13 = new BlockPos(var12, var11, var10);
+                   BlockPos var14 = var13.offset(var7);
+                   BlockState var15 = var0.getBlockState(var13);
+                   if (!var4 || !var15.is(Blocks.AIR)) {
+                      if (var15 != var0.getBlockState(var14)) {

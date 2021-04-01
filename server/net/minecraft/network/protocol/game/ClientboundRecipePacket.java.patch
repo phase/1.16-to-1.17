@@ -1,6 +1,6 @@
 --- net/minecraft/network/protocol/game/ClientboundRecipePacket.java
 +++ net/minecraft/network/protocol/game/ClientboundRecipePacket.java
-@@ -1,84 +1,54 @@
+@@ -1,84 +1,70 @@
  package net.minecraft.network.protocol.game;
  
  import com.google.common.collect.ImmutableList;
@@ -76,24 +76,39 @@
 -      while(var2.hasNext()) {
 -         var3 = (ResourceLocation)var2.next();
 -         var1.writeResourceLocation(var3);
--      }
--
 +      var1.writeCollection(this.recipes, FriendlyByteBuf::writeResourceLocation);
-       if (this.state == ClientboundRecipePacket.State.INIT) {
++      if (this.state == ClientboundRecipePacket.State.INIT) {
++         var1.writeCollection(this.toHighlight, FriendlyByteBuf::writeResourceLocation);
+       }
+ 
+-      if (this.state == ClientboundRecipePacket.State.INIT) {
 -         var1.writeVarInt(this.toHighlight.size());
 -         var2 = this.toHighlight.iterator();
--
++   }
+ 
 -         while(var2.hasNext()) {
 -            var3 = (ResourceLocation)var2.next();
 -            var1.writeResourceLocation(var3);
 -         }
-+         var1.writeCollection(this.toHighlight, FriendlyByteBuf::writeResourceLocation);
-       }
- 
-    }
- 
+-      }
 +   public void handle(ClientGamePacketListener var1) {
 +      var1.handleAddOrRemoveRecipes(this);
++   }
+ 
++   public List<ResourceLocation> getRecipes() {
++      return this.recipes;
+    }
+ 
++   public List<ResourceLocation> getHighlights() {
++      return this.toHighlight;
++   }
++
++   public RecipeBookSettings getBookSettings() {
++      return this.bookSettings;
++   }
++
++   public ClientboundRecipePacket.State getState() {
++      return this.state;
 +   }
 +
     public static enum State {

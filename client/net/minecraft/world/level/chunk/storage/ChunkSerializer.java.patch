@@ -17,7 +17,21 @@
  import net.minecraft.world.level.biome.BiomeSource;
  import net.minecraft.world.level.block.entity.BlockEntity;
  import net.minecraft.world.level.chunk.ChunkAccess;
-@@ -69,22 +67,22 @@
+@@ -59,32 +57,36 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class ChunkSerializer {
+    private static final Logger LOGGER = LogManager.getLogger();
++   public static final String TAG_UPGRADE_DATA = "UpgradeData";
+ 
++   public ChunkSerializer() {
++   }
++
+    public static ProtoChunk read(ServerLevel var0, StructureManager var1, PoiManager var2, ChunkPos var3, CompoundTag var4) {
+       ChunkGenerator var5 = var0.getChunkSource().getGenerator();
+       BiomeSource var6 = var5.getBiomeSource();
+       CompoundTag var7 = var4.getCompound("Level");
        ChunkPos var8 = new ChunkPos(var7.getInt("xPos"), var7.getInt("zPos"));
        if (!Objects.equals(var3, var8)) {
           LOGGER.error("Chunk file at {} is in the wrong location; relocating. (Expected {}, got {})", var3, var3, var8);
@@ -46,7 +60,7 @@
        LevelLightEngine var19 = var18.getLightEngine();
        if (var13) {
           var19.retainData(var3, true);
-@@ -92,15 +90,15 @@
+@@ -92,15 +94,15 @@
  
        for(int var20 = 0; var20 < var14.size(); ++var20) {
           CompoundTag var21 = var14.getCompound(var20);
@@ -64,7 +78,7 @@
              var2.checkConsistencyWithBlocks(var3, var23);
           }
  
-@@ -142,25 +140,25 @@
+@@ -142,25 +144,25 @@
              var25 = ChunkTickList.create(var10000, var10001, var10002::get);
           } else {
              var25 = var12;
@@ -94,7 +108,20 @@
                 BlockPos var26 = (BlockPos)var41.next();
                 if (((ChunkAccess)var38).getBlockState(var26).getLightEmission() != 0) {
                    var39.addLight(var26);
-@@ -264,19 +262,18 @@
+@@ -184,11 +186,11 @@
+          }
+       }
+ 
+       Heightmap.primeHeightmaps((ChunkAccess)var38, var42);
+       CompoundTag var44 = var7.getCompound("Structures");
+-      ((ChunkAccess)var38).setAllStarts(unpackStructureStart(var1, var44, var0.getSeed()));
++      ((ChunkAccess)var38).setAllStarts(unpackStructureStart(var0, var44, var0.getSeed()));
+       ((ChunkAccess)var38).setAllReferences(unpackStructureReferences(var3, var44));
+       if (var7.getBoolean("shouldSave")) {
+          ((ChunkAccess)var38).setUnsaved(true);
+       }
+ 
+@@ -264,19 +266,18 @@
        LevelChunkSection[] var6 = var1.getSections();
        ListTag var7 = new ListTag();
        ThreadedLevelLightEngine var8 = var0.getChunkSource().getLightEngine();
@@ -117,7 +144,7 @@
                 var12.getStates().write(var15, "Palette", "BlockStates");
              }
  
-@@ -303,87 +300,71 @@
+@@ -303,88 +304,72 @@
        }
  
        ListTag var11 = new ListTag();
@@ -235,13 +262,15 @@
        }
  
 -      var4.put("Heightmaps", var15);
+-      var4.put("Structures", packStructureData(var2, var1.getAllStarts(), var1.getAllReferences()));
 +      var4.put("Heightmaps", var27);
-       var4.put("Structures", packStructureData(var2, var1.getAllStarts(), var1.getAllReferences()));
++      var4.put("Structures", packStructureData(var0, var2, var1.getAllStarts(), var1.getAllReferences()));
        return var3;
     }
  
     public static ChunkStatus.ChunkType getChunkTypeFromTag(@Nullable CompoundTag var0) {
-@@ -395,35 +376,31 @@
+       if (var0 != null) {
+@@ -395,65 +380,61 @@
        }
  
        return ChunkStatus.ChunkType.PROTOCHUNK;
@@ -294,16 +323,48 @@
        }
  
     }
-@@ -433,11 +410,11 @@
-       CompoundTag var4 = new CompoundTag();
-       Iterator var5 = var1.entrySet().iterator();
  
-       while(var5.hasNext()) {
-          Entry var6 = (Entry)var5.next();
+-   private static CompoundTag packStructureData(ChunkPos var0, Map<StructureFeature<?>, StructureStart<?>> var1, Map<StructureFeature<?>, LongSet> var2) {
+-      CompoundTag var3 = new CompoundTag();
++   private static CompoundTag packStructureData(ServerLevel var0, ChunkPos var1, Map<StructureFeature<?>, StructureStart<?>> var2, Map<StructureFeature<?>, LongSet> var3) {
+       CompoundTag var4 = new CompoundTag();
+-      Iterator var5 = var1.entrySet().iterator();
++      CompoundTag var5 = new CompoundTag();
++      Iterator var6 = var2.entrySet().iterator();
+ 
+-      while(var5.hasNext()) {
+-         Entry var6 = (Entry)var5.next();
 -         var4.put(((StructureFeature)var6.getKey()).getFeatureName(), ((StructureStart)var6.getValue()).createTag(var0.x, var0.z));
-+         var4.put(((StructureFeature)var6.getKey()).getFeatureName(), ((StructureStart)var6.getValue()).createTag(var0));
++      while(var6.hasNext()) {
++         Entry var7 = (Entry)var6.next();
++         var5.put(((StructureFeature)var7.getKey()).getFeatureName(), ((StructureStart)var7.getValue()).createTag(var0, var1));
        }
  
-       var3.put("Starts", var4);
-       CompoundTag var8 = new CompoundTag();
-       Iterator var9 = var2.entrySet().iterator();
+-      var3.put("Starts", var4);
+-      CompoundTag var8 = new CompoundTag();
+-      Iterator var9 = var2.entrySet().iterator();
++      var4.put("Starts", var5);
++      CompoundTag var9 = new CompoundTag();
++      Iterator var10 = var3.entrySet().iterator();
+ 
+-      while(var9.hasNext()) {
+-         Entry var7 = (Entry)var9.next();
+-         var8.put(((StructureFeature)var7.getKey()).getFeatureName(), new LongArrayTag((LongSet)var7.getValue()));
++      while(var10.hasNext()) {
++         Entry var8 = (Entry)var10.next();
++         var9.put(((StructureFeature)var8.getKey()).getFeatureName(), new LongArrayTag((LongSet)var8.getValue()));
+       }
+ 
+-      var3.put("References", var8);
+-      return var3;
++      var4.put("References", var9);
++      return var4;
+    }
+ 
+-   private static Map<StructureFeature<?>, StructureStart<?>> unpackStructureStart(StructureManager var0, CompoundTag var1, long var2) {
++   private static Map<StructureFeature<?>, StructureStart<?>> unpackStructureStart(ServerLevel var0, CompoundTag var1, long var2) {
+       HashMap var4 = Maps.newHashMap();
+       CompoundTag var5 = var1.getCompound("Starts");
+       Iterator var6 = var5.getAllKeys().iterator();
+ 
+       while(var6.hasNext()) {

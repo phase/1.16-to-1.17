@@ -1,6 +1,15 @@
 --- net/minecraft/world/entity/player/Inventory.java
 +++ net/minecraft/world/entity/player/Inventory.java
-@@ -20,29 +20,26 @@
+@@ -12,37 +12,40 @@
+ import net.minecraft.nbt.ListTag;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+ import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.tags.Tag;
+ import net.minecraft.world.Container;
+ import net.minecraft.world.ContainerHelper;
+ import net.minecraft.world.Nameable;
  import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.item.ArmorItem;
@@ -10,6 +19,11 @@
  import net.minecraft.world.level.block.state.BlockState;
  
  public class Inventory implements Container, Nameable {
++   public static final int POP_TIME_DURATION = 5;
++   public static final int INVENTORY_SIZE = 36;
++   private static final int SELECTION_SIZE = 9;
++   public static final int SLOT_OFFHAND = 40;
++   public static final int NOT_FOUND_INDEX = -1;
     public final NonNullList<ItemStack> items;
     public final NonNullList<ItemStack> armor;
     public final NonNullList<ItemStack> offhand;
@@ -30,7 +44,7 @@
  
     public ItemStack getSelected() {
        return isHotbarSlot(this.selected) ? (ItemStack)this.items.get(this.selected) : ItemStack.EMPTY;
-@@ -51,17 +48,13 @@
+@@ -51,27 +54,45 @@
     public static int getSelectionSize() {
        return 9;
     }
@@ -49,9 +63,54 @@
           if (((ItemStack)this.items.get(var1)).isEmpty()) {
              return var1;
           }
-@@ -82,11 +75,11 @@
+       }
+ 
+       return -1;
     }
  
++   public void setPickedItem(ItemStack var1) {
++      int var2 = this.findSlotMatchingItem(var1);
++      if (isHotbarSlot(var2)) {
++         this.selected = var2;
++      } else {
++         if (var2 == -1) {
++            this.selected = this.getSuitableHotbarSlot();
++            if (!((ItemStack)this.items.get(this.selected)).isEmpty()) {
++               int var3 = this.getFreeSlot();
++               if (var3 != -1) {
++                  this.items.set(var3, this.items.get(this.selected));
++               }
++            }
++
++            this.items.set(this.selected, var1);
++         } else {
++            this.pickSlot(var2);
++         }
++
++      }
++   }
++
+    public void pickSlot(int var1) {
+       this.selected = this.getSuitableHotbarSlot();
+       ItemStack var2 = (ItemStack)this.items.get(this.selected);
+       this.items.set(this.selected, this.items.get(var1));
+       this.items.set(var1, var2);
+@@ -79,14 +100,24 @@
+ 
+    public static boolean isHotbarSlot(int var0) {
+       return var0 >= 0 && var0 < 9;
+    }
+ 
++   public int findSlotMatchingItem(ItemStack var1) {
++      for(int var2 = 0; var2 < this.items.size(); ++var2) {
++         if (!((ItemStack)this.items.get(var2)).isEmpty() && ItemStack.isSameItemSameTags(var1, (ItemStack)this.items.get(var2))) {
++            return var2;
++         }
++      }
++
++      return -1;
++   }
++
     public int findSlotMatchingUnusedItem(ItemStack var1) {
        for(int var2 = 0; var2 < this.items.size(); ++var2) {
           ItemStack var3 = (ItemStack)this.items.get(var2);
@@ -62,9 +121,30 @@
        }
  
        return -1;
-@@ -113,18 +106,19 @@
+@@ -110,21 +141,40 @@
+       }
+ 
+       return this.selected;
     }
  
++   public void swapPaint(double var1) {
++      if (var1 > 0.0D) {
++         var1 = 1.0D;
++      }
++
++      if (var1 < 0.0D) {
++         var1 = -1.0D;
++      }
++
++      for(this.selected = (int)((double)this.selected - var1); this.selected < 0; this.selected += 9) {
++      }
++
++      while(this.selected >= 9) {
++         this.selected -= 9;
++      }
++
++   }
++
     public int clearOrCountMatchingItems(Predicate<ItemStack> var1, int var2, Container var3) {
        byte var4 = 0;
        boolean var5 = var2 == 0;
@@ -88,7 +168,7 @@
     private int addResource(ItemStack var1) {
        int var2 = this.getSlotWithRemainingSpace(var1);
        if (var2 == -1) {
-@@ -214,11 +208,11 @@
+@@ -214,11 +264,11 @@
                 if (var1 >= 0) {
                    this.items.set(var1, var2.copy());
                    ((ItemStack)this.items.get(var1)).setPopTime(5);
@@ -101,7 +181,7 @@
                 } else {
                    return false;
                 }
-@@ -231,11 +225,11 @@
+@@ -231,11 +281,11 @@
                    } else {
                       var2.setCount(this.addResource(var1, var2));
                    }
@@ -114,7 +194,7 @@
                 } else {
                    return var2.getCount() < var3;
                 }
-@@ -251,29 +245,34 @@
+@@ -251,29 +301,34 @@
              throw new ReportedException(var4);
           }
        }
@@ -160,7 +240,22 @@
  
     public ItemStack removeItem(int var1, int var2) {
        NonNullList var3 = null;
-@@ -503,20 +502,12 @@
+@@ -463,10 +518,14 @@
+ 
+    public Component getName() {
+       return new TranslatableComponent("container.inventory");
+    }
+ 
++   public ItemStack getArmor(int var1) {
++      return (ItemStack)this.armor.get(var1);
++   }
++
+    public void hurtArmor(DamageSource var1, float var2) {
+       if (var2 > 0.0F) {
+          var2 /= 4.0F;
+          if (var2 < 1.0F) {
+             var2 = 1.0F;
+@@ -503,20 +562,16 @@
  
     public void setChanged() {
        ++this.timesChanged;
@@ -168,8 +263,10 @@
  
 -   public void setCarried(ItemStack var1) {
 -      this.carried = var1;
--   }
--
++   public int getTimesChanged() {
++      return this.timesChanged;
+    }
+ 
 -   public ItemStack getCarried() {
 -      return this.carried;
 -   }
@@ -182,3 +279,32 @@
           return var1.distanceToSqr(this.player) <= 64.0D;
        }
     }
+@@ -537,10 +592,28 @@
+       }
+ 
+       return false;
+    }
+ 
++   public boolean contains(Tag<Item> var1) {
++      Iterator var2 = this.compartments.iterator();
++
++      while(var2.hasNext()) {
++         List var3 = (List)var2.next();
++         Iterator var4 = var3.iterator();
++
++         while(var4.hasNext()) {
++            ItemStack var5 = (ItemStack)var4.next();
++            if (!var5.isEmpty() && var5.is(var1)) {
++               return true;
++            }
++         }
++      }
++
++      return false;
++   }
++
+    public void replaceWith(Inventory var1) {
+       for(int var2 = 0; var2 < this.getContainerSize(); ++var2) {
+          this.setItem(var2, var1.getItem(var2));
+       }
+ 

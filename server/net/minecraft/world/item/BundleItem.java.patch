@@ -1,13 +1,18 @@
 --- net/minecraft/world/item/BundleItem.java
 +++ net/minecraft/world/item/BundleItem.java
-@@ -1,0 +1,187 @@
+@@ -1,0 +1,223 @@
 +package net.minecraft.world.item;
 +
++import java.util.List;
 +import java.util.Optional;
 +import java.util.stream.Stream;
++import net.minecraft.ChatFormatting;
++import net.minecraft.core.NonNullList;
 +import net.minecraft.nbt.CompoundTag;
 +import net.minecraft.nbt.ListTag;
 +import net.minecraft.nbt.Tag;
++import net.minecraft.network.chat.Component;
++import net.minecraft.network.chat.TranslatableComponent;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.stats.Stats;
 +import net.minecraft.util.Mth;
@@ -18,13 +23,22 @@
 +import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.inventory.ClickAction;
 +import net.minecraft.world.inventory.Slot;
++import net.minecraft.world.inventory.tooltip.BundleTooltip;
++import net.minecraft.world.inventory.tooltip.TooltipComponent;
 +import net.minecraft.world.level.Level;
 +
 +public class BundleItem extends Item {
++   private static final String TAG_ITEMS = "Items";
++   public static final int MAX_WEIGHT = 64;
++   private static final int BUNDLE_IN_BUNDLE_WEIGHT = 4;
 +   private static final int BAR_COLOR = Mth.color(0.4F, 0.4F, 1.0F);
 +
 +   public BundleItem(Item.Properties var1) {
 +      super(var1);
++   }
++
++   public static float getFullnessDisplay(ItemStack var0) {
++      return (float)getContentWeight(var0) / 64.0F;
 +   }
 +
 +   public boolean overrideStackedOnOther(ItemStack var1, Slot var2, ClickAction var3, Player var4) {
@@ -67,6 +81,18 @@
 +      } else {
 +         return InteractionResultHolder.fail(var4);
 +      }
++   }
++
++   public boolean isBarVisible(ItemStack var1) {
++      return getContentWeight(var1) > 0;
++   }
++
++   public int getBarWidth(ItemStack var1) {
++      return Math.min(1 + 12 * getContentWeight(var1) / 64, 13);
++   }
++
++   public int getBarColor(ItemStack var1) {
++      return BAR_COLOR;
 +   }
 +
 +   private static int add(ItemStack var0, ItemStack var1) {
@@ -182,6 +208,16 @@
 +         CompoundTag.class.getClass();
 +         return var10000.map(CompoundTag.class::cast).map(ItemStack::of);
 +      }
++   }
++
++   public Optional<TooltipComponent> getTooltipImage(ItemStack var1) {
++      NonNullList var2 = NonNullList.create();
++      getContents(var1).forEach(var2::add);
++      return Optional.of(new BundleTooltip(var2, getContentWeight(var1)));
++   }
++
++   public void appendHoverText(ItemStack var1, Level var2, List<Component> var3, TooltipFlag var4) {
++      var3.add((new TranslatableComponent("item.minecraft.bundle.fullness", new Object[]{getContentWeight(var1), 64})).withStyle(ChatFormatting.GRAY));
 +   }
 +
 +   public void onDestroyed(ItemEntity var1) {

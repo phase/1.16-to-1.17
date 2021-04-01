@@ -1,6 +1,74 @@
 --- net/minecraft/world/entity/ai/Brain.java
 +++ net/minecraft/world/entity/ai/Brain.java
-@@ -361,11 +361,11 @@
+@@ -1,7 +1,8 @@
+ package net.minecraft.world.entity.ai;
+ 
++import com.google.common.annotations.VisibleForTesting;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableSet;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Sets;
+ import com.google.common.collect.UnmodifiableIterator;
+@@ -26,10 +27,11 @@
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.Util;
+ import net.minecraft.core.Registry;
+ import net.minecraft.server.level.ServerLevel;
++import net.minecraft.util.VisibleForDebug;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.ai.behavior.Behavior;
+ import net.minecraft.world.entity.ai.memory.ExpirableValue;
+ import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+ import net.minecraft.world.entity.ai.memory.MemoryStatus;
+@@ -42,10 +44,11 @@
+ import org.apache.logging.log4j.Logger;
+ 
+ public class Brain<E extends LivingEntity> {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private final Supplier<Codec<Brain<E>>> codec;
++   private static final int SCHEDULE_UPDATE_DELAY = 20;
+    private final Map<MemoryModuleType<?>, Optional<? extends ExpirableValue<?>>> memories = Maps.newHashMap();
+    private final Map<SensorType<? extends Sensor<? super E>>, Sensor<? super E>> sensors = Maps.newLinkedHashMap();
+    private final Map<Integer, Map<Activity, Set<Behavior<? super E>>>> availableBehaviorsByPriority = Maps.newTreeMap();
+    private Schedule schedule;
+    private final Map<Activity, Set<Pair<MemoryModuleType<?>, MemoryStatus>>> activityRequirements;
+@@ -199,10 +202,16 @@
+ 
+    public <U> Optional<U> getMemory(MemoryModuleType<U> var1) {
+       return ((Optional)this.memories.get(var1)).map(ExpirableValue::getValue);
+    }
+ 
++   @Deprecated
++   @VisibleForDebug
++   public Map<MemoryModuleType<?>, Optional<? extends ExpirableValue<?>>> getMemories() {
++      return this.memories;
++   }
++
+    public <U> boolean isMemoryValue(MemoryModuleType<U> var1, U var2) {
+       return !this.hasMemoryValue(var1) ? false : this.getMemory(var1).filter((var1x) -> {
+          return var1x.equals(var2);
+       }).isPresent();
+    }
+@@ -227,10 +236,17 @@
+    public void setCoreActivities(Set<Activity> var1) {
+       this.coreActivities = var1;
+    }
+ 
+    @Deprecated
++   @VisibleForDebug
++   public Set<Activity> getActiveActivities() {
++      return this.activeActivities;
++   }
++
++   @Deprecated
++   @VisibleForDebug
+    public List<Behavior<? super E>> getRunningBehaviors() {
+       ObjectArrayList var1 = new ObjectArrayList();
+       Iterator var2 = this.availableBehaviorsByPriority.values().iterator();
+ 
+       while(var2.hasNext()) {
+@@ -361,11 +377,11 @@
  
     public void addActivityWithConditions(Activity var1, ImmutableList<? extends Pair<Integer, ? extends Behavior<? super E>>> var2, Set<Pair<MemoryModuleType<?>, MemoryStatus>> var3) {
        this.addActivityAndRemoveMemoriesWhenStopped(var1, var2, var3, Sets.newHashSet());
@@ -13,3 +81,19 @@
           this.activityMemoriesToEraseWhenStopped.put(var1, var4);
        }
  
+@@ -380,10 +396,15 @@
+          })).add(var6.getSecond());
+       }
+ 
+    }
+ 
++   @VisibleForTesting
++   public void removeAllBehaviors() {
++      this.availableBehaviorsByPriority.clear();
++   }
++
+    public boolean isActive(Activity var1) {
+       return this.activeActivities.contains(var1);
+    }
+ 
+    public Brain<E> copyWithoutBehaviors() {

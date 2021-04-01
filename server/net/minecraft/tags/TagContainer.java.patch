@@ -1,6 +1,6 @@
 --- net/minecraft/tags/TagContainer.java
 +++ net/minecraft/tags/TagContainer.java
-@@ -1,61 +1,116 @@
+@@ -1,61 +1,134 @@
  package net.minecraft.tags;
  
 +import com.google.common.collect.ImmutableMap;
@@ -63,8 +63,6 @@
 +   }
  
 -   default void bindToGlobal() {
--      StaticTags.resetAll(this);
--      Blocks.rebuildCache();
 +   public <T, E extends Exception> ResourceLocation getIdOrThrow(ResourceKey<? extends Registry<T>> var1, Tag<T> var2, Supplier<E> var3) throws E {
 +      TagCollection var4 = this.get(var1);
 +      if (var4 == null) {
@@ -77,6 +75,21 @@
 +            return var5;
 +         }
 +      }
++   }
++
++   public void getAll(TagContainer.CollectionConsumer var1) {
++      this.collections.forEach((var1x, var2) -> {
++         acceptCap(var1, var1x, var2);
++      });
++   }
++
++   private static <T> void acceptCap(TagContainer.CollectionConsumer var0, ResourceKey<? extends Registry<?>> var1, TagCollection<?> var2) {
++      var0.accept(var1, var2);
++   }
++
++   public void bindToGlobal() {
+       StaticTags.resetAll(this);
+       Blocks.rebuildCache();
     }
  
 -   default void serializeToNetwork(FriendlyByteBuf var1) {
@@ -84,35 +97,6 @@
 -      this.getItems().serializeToNetwork(var1, Registry.ITEM);
 -      this.getFluids().serializeToNetwork(var1, Registry.FLUID);
 -      this.getEntityTypes().serializeToNetwork(var1, Registry.ENTITY_TYPE);
-+   public void getAll(TagContainer.CollectionConsumer var1) {
-+      this.collections.forEach((var1x, var2) -> {
-+         acceptCap(var1, var1x, var2);
-+      });
-    }
- 
--   static TagContainer deserializeFromNetwork(FriendlyByteBuf var0) {
--      TagCollection var1 = TagCollection.loadFromNetwork(var0, Registry.BLOCK);
--      TagCollection var2 = TagCollection.loadFromNetwork(var0, Registry.ITEM);
--      TagCollection var3 = TagCollection.loadFromNetwork(var0, Registry.FLUID);
--      TagCollection var4 = TagCollection.loadFromNetwork(var0, Registry.ENTITY_TYPE);
--      return of(var1, var2, var3, var4);
-+   private static <T> void acceptCap(TagContainer.CollectionConsumer var0, ResourceKey<? extends Registry<?>> var1, TagCollection<?> var2) {
-+      var0.accept(var1, var2);
-    }
- 
--   static TagContainer of(final TagCollection<Block> var0, final TagCollection<Item> var1, final TagCollection<Fluid> var2, final TagCollection<EntityType<?>> var3) {
--      return new TagContainer() {
--         public TagCollection<Block> getBlocks() {
--            return var0;
--         }
-+   public void bindToGlobal() {
-+      StaticTags.resetAll(this);
-+      Blocks.rebuildCache();
-+   }
- 
--         public TagCollection<Item> getItems() {
--            return var1;
--         }
 +   public Map<ResourceKey<? extends Registry<?>>, TagCollection.NetworkPayload> serializeToNetwork(final RegistryAccess var1) {
 +      final HashMap var2 = Maps.newHashMap();
 +      this.getAll(new TagContainer.CollectionConsumer() {
@@ -123,21 +107,54 @@
 +            } else {
 +               TagContainer.LOGGER.error((String)"Unknown registry {}", (Object)var1x);
 +            }
++
++         }
++      });
++      return var2;
+    }
+ 
+-   static TagContainer deserializeFromNetwork(FriendlyByteBuf var0) {
+-      TagCollection var1 = TagCollection.loadFromNetwork(var0, Registry.BLOCK);
+-      TagCollection var2 = TagCollection.loadFromNetwork(var0, Registry.ITEM);
+-      TagCollection var3 = TagCollection.loadFromNetwork(var0, Registry.FLUID);
+-      TagCollection var4 = TagCollection.loadFromNetwork(var0, Registry.ENTITY_TYPE);
+-      return of(var1, var2, var3, var4);
++   public static TagContainer deserializeFromNetwork(RegistryAccess var0, Map<ResourceKey<? extends Registry<?>>, TagCollection.NetworkPayload> var1) {
++      TagContainer.Builder var2 = new TagContainer.Builder();
++      var1.forEach((var2x, var3) -> {
++         addTagsFromPayload(var0, var2, var2x, var3);
++      });
++      return var2.build();
+    }
+ 
+-   static TagContainer of(final TagCollection<Block> var0, final TagCollection<Item> var1, final TagCollection<Fluid> var2, final TagCollection<EntityType<?>> var3) {
+-      return new TagContainer() {
+-         public TagCollection<Block> getBlocks() {
+-            return var0;
+-         }
++   private static <T> void addTagsFromPayload(RegistryAccess var0, TagContainer.Builder var1, ResourceKey<? extends Registry<? extends T>> var2, TagCollection.NetworkPayload var3) {
++      Optional var4 = var0.registry(var2);
++      if (var4.isPresent()) {
++         var1.add(var2, TagCollection.createFromNetwork(var3, (Registry)var4.get()));
++      } else {
++         LOGGER.error((String)"Unknown registry {}", (Object)var2);
++      }
+ 
+-         public TagCollection<Item> getItems() {
+-            return var1;
+-         }
++   }
  
 -         public TagCollection<Fluid> getFluids() {
 -            return var2;
-          }
-+      });
-+      return var2;
-+   }
+-         }
++   public static class Builder {
++      private final ImmutableMap.Builder<ResourceKey<? extends Registry<?>>, TagCollection<?>> result = ImmutableMap.builder();
  
 -         public TagCollection<EntityType<?>> getEntityTypes() {
 -            return var3;
 -         }
 -      };
-+   public static class Builder {
-+      private final ImmutableMap.Builder<ResourceKey<? extends Registry<?>>, TagCollection<?>> result = ImmutableMap.builder();
-+
 +      public Builder() {
 +      }
 +

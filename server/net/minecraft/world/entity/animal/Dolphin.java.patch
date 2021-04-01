@@ -1,6 +1,17 @@
 --- net/minecraft/world/entity/animal/Dolphin.java
 +++ net/minecraft/world/entity/animal/Dolphin.java
-@@ -16,10 +16,11 @@
+@@ -6,20 +6,22 @@
+ import java.util.Optional;
+ import java.util.Random;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
++import net.minecraft.core.particles.ParticleOptions;
+ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.sounds.SoundEvent;
  import net.minecraft.sounds.SoundEvents;
@@ -12,7 +23,7 @@
  import net.minecraft.world.InteractionHand;
  import net.minecraft.world.InteractionResult;
  import net.minecraft.world.damagesource.DamageSource;
-@@ -34,12 +35,12 @@
+@@ -34,12 +36,12 @@
  import net.minecraft.world.entity.MoverType;
  import net.minecraft.world.entity.Pose;
  import net.minecraft.world.entity.SpawnGroupData;
@@ -27,7 +38,7 @@
  import net.minecraft.world.entity.ai.goal.DolphinJumpGoal;
  import net.minecraft.world.entity.ai.goal.FollowBoatGoal;
  import net.minecraft.world.entity.ai.goal.Goal;
-@@ -50,11 +51,11 @@
+@@ -50,11 +52,11 @@
  import net.minecraft.world.entity.ai.goal.TryFindWaterGoal;
  import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
  import net.minecraft.world.entity.ai.navigation.PathNavigation;
@@ -40,8 +51,14 @@
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.level.Level;
-@@ -72,12 +73,12 @@
+@@ -68,16 +70,18 @@
+ public class Dolphin extends WaterAnimal {
+    private static final EntityDataAccessor<BlockPos> TREASURE_POS;
+    private static final EntityDataAccessor<Boolean> GOT_FISH;
+    private static final EntityDataAccessor<Integer> MOISTNESS_LEVEL;
     private static final TargetingConditions SWIM_WITH_PLAYER_TARGETING;
++   public static final int TOTAL_AIR_SUPPLY = 4800;
++   private static final int TOTAL_MOISTNESS_LEVEL = 2400;
     public static final Predicate<ItemEntity> ALLOWED_ITEMS;
  
     public Dolphin(EntityType<? extends Dolphin> var1, Level var2) {
@@ -55,7 +72,7 @@
  
     @Nullable
     public SpawnGroupData finalizeSpawn(ServerLevelAccessor var1, DifficultyInstance var2, MobSpawnType var3, @Nullable SpawnGroupData var4, @Nullable CompoundTag var5) {
-@@ -216,11 +217,11 @@
+@@ -216,11 +220,11 @@
           if (this.canHoldItem(var2)) {
              this.onItemPickup(var1);
              this.setItemSlot(EquipmentSlot.MAINHAND, var2);
@@ -68,10 +85,31 @@
  
     }
  
-@@ -260,17 +261,17 @@
+@@ -258,19 +262,38 @@
+          }
+ 
        }
     }
  
++   public void handleEntityEvent(byte var1) {
++      if (var1 == 38) {
++         this.addParticlesAroundSelf(ParticleTypes.HAPPY_VILLAGER);
++      } else {
++         super.handleEntityEvent(var1);
++      }
++
++   }
++
++   private void addParticlesAroundSelf(ParticleOptions var1) {
++      for(int var2 = 0; var2 < 7; ++var2) {
++         double var3 = this.random.nextGaussian() * 0.01D;
++         double var5 = this.random.nextGaussian() * 0.01D;
++         double var7 = this.random.nextGaussian() * 0.01D;
++         this.level.addParticle(var1, this.getRandomX(1.0D), this.getRandomY() + 0.2D, this.getRandomZ(1.0D), var3, var5, var7);
++      }
++
++   }
++
     protected InteractionResult mobInteract(Player var1, InteractionHand var2) {
        ItemStack var3 = var1.getItemInHand(var2);
 -      if (!var3.isEmpty() && var3.getItem().is(ItemTags.FISHES)) {
@@ -88,7 +126,7 @@
  
           return InteractionResult.sidedSuccess(this.level.isClientSide);
        } else {
-@@ -399,19 +400,19 @@
+@@ -399,19 +422,19 @@
  
        public void tick() {
           Level var1 = this.dolphin.level;
@@ -111,7 +149,7 @@
  
              if (var3 == null) {
                 this.stuck = true;
-@@ -535,55 +536,6 @@
+@@ -535,55 +558,6 @@
              var4.setDeltaMovement((double)(0.3F * -Mth.sin(Dolphin.this.yRot * 0.017453292F) * Mth.cos(Dolphin.this.xRot * 0.017453292F) + Mth.cos(var6) * var7), (double)(0.3F * Mth.sin(Dolphin.this.xRot * 0.017453292F) * 1.5F), (double)(0.3F * Mth.cos(Dolphin.this.yRot * 0.017453292F) * Mth.cos(Dolphin.this.xRot * 0.017453292F) + Mth.sin(var6) * var7));
              Dolphin.this.level.addFreshEntity(var4);
           }

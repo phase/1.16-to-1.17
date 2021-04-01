@@ -1,6 +1,21 @@
 --- net/minecraft/world/level/BlockGetter.java
 +++ net/minecraft/world/level/BlockGetter.java
-@@ -14,11 +14,11 @@
+@@ -1,27 +1,34 @@
+ package net.minecraft.world.level;
+ 
++import java.util.Optional;
+ import java.util.function.BiFunction;
+ import java.util.function.Function;
+ import java.util.function.Supplier;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.level.block.entity.BlockEntity;
++import net.minecraft.world.level.block.entity.BlockEntityType;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.material.FluidState;
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.Vec3;
@@ -11,9 +26,17 @@
     @Nullable
     BlockEntity getBlockEntity(BlockPos var1);
  
++   default <T extends BlockEntity> Optional<T> getBlockEntity(BlockPos var1, BlockEntityType<T> var2) {
++      BlockEntity var3 = this.getBlockEntity(var1);
++      return var3 != null && var3.getType() == var2 ? Optional.of(var3) : Optional.empty();
++   }
++
     BlockState getBlockState(BlockPos var1);
  
-@@ -30,20 +30,27 @@
+    FluidState getFluidState(BlockPos var1);
+ 
+    default int getLightEmission(BlockPos var1) {
+@@ -30,20 +37,27 @@
  
     default int getMaxLightLevel() {
        return 15;
@@ -46,7 +69,7 @@
           Vec3 var5 = var1x.getFrom();
           Vec3 var6 = var1x.getTo();
           VoxelShape var7 = var1x.getBlockShape(var3, this, var2);
-@@ -86,27 +93,25 @@
+@@ -86,27 +100,25 @@
           BlockPos var2 = var1.below();
           return this.getBlockState(var2).getCollisionShape(this, var2);
        });
@@ -84,7 +107,7 @@
           } else {
              double var22 = var5 - var11;
              double var24 = var7 - var13;
-@@ -122,11 +127,11 @@
+@@ -122,11 +134,11 @@
              double var41 = var35 * (var30 > 0 ? 1.0D - Mth.frac(var15) : Mth.frac(var15));
  
              Object var43;
@@ -97,7 +120,7 @@
                 if (var37 < var39) {
                    if (var37 < var41) {
                       var17 += var28;
-@@ -141,11 +146,11 @@
+@@ -141,11 +153,11 @@
                 } else {
                    var19 += var30;
                    var41 += var35;

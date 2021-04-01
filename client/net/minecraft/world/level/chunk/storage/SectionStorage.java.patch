@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/chunk/storage/SectionStorage.java
 +++ net/minecraft/world/level/chunk/storage/SectionStorage.java
-@@ -24,11 +24,11 @@
+@@ -24,29 +24,32 @@
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.NbtOps;
  import net.minecraft.nbt.Tag;
@@ -13,7 +13,9 @@
  
  public class SectionStorage<R> implements AutoCloseable {
     private static final Logger LOGGER = LogManager.getLogger();
-@@ -37,16 +37,18 @@
++   private static final String SECTIONS_TAG = "Sections";
+    private final IOWorker worker;
+    private final Long2ObjectMap<Optional<R>> storage = new Long2ObjectOpenHashMap();
     private final LongLinkedOpenHashSet dirty = new LongLinkedOpenHashSet();
     private final Function<Runnable, Codec<R>> codec;
     private final Function<Runnable, R> factory;
@@ -33,7 +35,7 @@
  
     protected void tick(BooleanSupplier var1) {
        while(!this.dirty.isEmpty() && var1.getAsBoolean()) {
-@@ -60,43 +62,47 @@
+@@ -60,43 +63,47 @@
     protected Optional<R> get(long var1) {
        return (Optional)this.storage.get(var1);
     }
@@ -100,7 +102,7 @@
  
     private void readColumn(ChunkPos var1) {
        this.readColumn(var1, NbtOps.INSTANCE, this.tryRead(var1));
-@@ -112,23 +118,23 @@
+@@ -112,23 +119,23 @@
        }
     }
  
@@ -128,7 +130,7 @@
                    this.setDirty(var11);
                 })).parse(var3x);
                 Logger var10001 = LOGGER;
-@@ -160,12 +166,12 @@
+@@ -160,12 +167,12 @@
     }
  
     private <T> Dynamic<T> writeColumn(ChunkPos var1, DynamicOps<T> var2) {
@@ -143,7 +145,7 @@
           if (var7 != null && var7.isPresent()) {
              DataResult var8 = ((Codec)this.codec.apply(() -> {
                 this.setDirty(var5);
-@@ -180,10 +186,14 @@
+@@ -180,10 +187,14 @@
        }
  
        return new Dynamic(var2, var2.createMap(ImmutableMap.of(var2.createString("Sections"), var2.createMap(var3), var2.createString("DataVersion"), var2.createInt(SharedConstants.getCurrentVersion().getWorldVersion()))));
@@ -158,7 +160,7 @@
  
     protected void setDirty(long var1) {
        Optional var3 = (Optional)this.storage.get(var1);
-@@ -198,12 +208,12 @@
+@@ -198,12 +209,12 @@
        return var0.get("DataVersion").asInt(1945);
     }
  

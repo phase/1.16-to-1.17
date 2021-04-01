@@ -14,11 +14,51 @@
  import java.util.Set;
  import java.util.Map.Entry;
  import javax.annotation.Nullable;
-@@ -23,23 +22,25 @@
+@@ -22,24 +21,65 @@
+    private AdvancementList.Listener listener;
  
     public AdvancementList() {
     }
  
++   private void remove(Advancement var1) {
++      Iterator var2 = var1.getChildren().iterator();
++
++      while(var2.hasNext()) {
++         Advancement var3 = (Advancement)var2.next();
++         this.remove(var3);
++      }
++
++      LOGGER.info((String)"Forgot about advancement {}", (Object)var1.getId());
++      this.advancements.remove(var1.getId());
++      if (var1.getParent() == null) {
++         this.roots.remove(var1);
++         if (this.listener != null) {
++            this.listener.onRemoveAdvancementRoot(var1);
++         }
++      } else {
++         this.tasks.remove(var1);
++         if (this.listener != null) {
++            this.listener.onRemoveAdvancementTask(var1);
++         }
++      }
++
++   }
++
++   public void remove(Set<ResourceLocation> var1) {
++      Iterator var2 = var1.iterator();
++
++      while(var2.hasNext()) {
++         ResourceLocation var3 = (ResourceLocation)var2.next();
++         Advancement var4 = (Advancement)this.advancements.get(var3);
++         if (var4 == null) {
++            LOGGER.warn((String)"Told to remove advancement {} but I don't know what that is", (Object)var3);
++         } else {
++            this.remove(var4);
++         }
++      }
++
++   }
++
     public void add(Map<ResourceLocation, Advancement.Builder> var1) {
 -      Function var2 = Functions.forMap(this.advancements, (Object)null);
 +      HashMap var2 = Maps.newHashMap(var1);
@@ -44,7 +84,7 @@
                 var3 = true;
                 var4.remove();
                 if (var8.getParent() == null) {
-@@ -55,11 +56,11 @@
+@@ -55,11 +95,11 @@
                 }
              }
           }
@@ -57,3 +97,63 @@
                 if (!var4.hasNext()) {
                    break label42;
                 }
+@@ -71,10 +111,20 @@
+       }
+ 
+       LOGGER.info((String)"Loaded {} advancements", (Object)this.advancements.size());
+    }
+ 
++   public void clear() {
++      this.advancements.clear();
++      this.roots.clear();
++      this.tasks.clear();
++      if (this.listener != null) {
++         this.listener.onAdvancementsCleared();
++      }
++
++   }
++
+    public Iterable<Advancement> getRoots() {
+       return this.roots;
+    }
+ 
+    public Collection<Advancement> getAllAdvancements() {
+@@ -84,11 +134,38 @@
+    @Nullable
+    public Advancement get(ResourceLocation var1) {
+       return (Advancement)this.advancements.get(var1);
+    }
+ 
++   public void setListener(@Nullable AdvancementList.Listener var1) {
++      this.listener = var1;
++      if (var1 != null) {
++         Iterator var2 = this.roots.iterator();
++
++         Advancement var3;
++         while(var2.hasNext()) {
++            var3 = (Advancement)var2.next();
++            var1.onAddAdvancementRoot(var3);
++         }
++
++         var2 = this.tasks.iterator();
++
++         while(var2.hasNext()) {
++            var3 = (Advancement)var2.next();
++            var1.onAddAdvancementTask(var3);
++         }
++      }
++
++   }
++
+    public interface Listener {
+       void onAddAdvancementRoot(Advancement var1);
+ 
++      void onRemoveAdvancementRoot(Advancement var1);
++
+       void onAddAdvancementTask(Advancement var1);
++
++      void onRemoveAdvancementTask(Advancement var1);
++
++      void onAdvancementsCleared();
+    }
+ }

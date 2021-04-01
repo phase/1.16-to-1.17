@@ -50,7 +50,27 @@
  import net.minecraft.world.item.ItemCooldowns;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
-@@ -117,11 +120,11 @@
+@@ -108,20 +111,31 @@
+ import net.minecraft.world.scores.PlayerTeam;
+ import net.minecraft.world.scores.Scoreboard;
+ import net.minecraft.world.scores.Team;
+ 
+ public abstract class Player extends LivingEntity {
++   public static final String UUID_PREFIX_OFFLINE_PLAYER = "OfflinePlayer:";
++   public static final int MAX_NAME_LENGTH = 16;
++   public static final int MAX_HEALTH = 20;
++   public static final int SLEEP_DURATION = 100;
++   public static final int WAKE_UP_DURATION = 10;
++   public static final int ENDER_SLOT_OFFSET = 200;
++   public static final float CROUCH_BB_HEIGHT = 1.5F;
++   public static final float SWIMMING_BB_WIDTH = 0.6F;
++   public static final float SWIMMING_BB_HEIGHT = 0.6F;
++   public static final float DEFAULT_EYE_HEIGHT = 1.62F;
+    public static final EntityDimensions STANDING_DIMENSIONS = EntityDimensions.scalable(0.6F, 1.8F);
+    private static final Map<Pose, EntityDimensions> POSES;
++   private static final int FLY_ACHIEVEMENT_SPEED = 25;
+    private static final EntityDataAccessor<Float> DATA_PLAYER_ABSORPTION_ID;
+    private static final EntityDataAccessor<Integer> DATA_SCORE_ID;
     protected static final EntityDataAccessor<Byte> DATA_PLAYER_MODE_CUSTOMISATION;
     protected static final EntityDataAccessor<Byte> DATA_PLAYER_MAIN_HAND;
     protected static final EntityDataAccessor<CompoundTag> DATA_SHOULDER_LEFT;
@@ -63,7 +83,7 @@
     public AbstractContainerMenu containerMenu;
     protected FoodData foodData = new FoodData();
     protected int jumpTriggerTime;
-@@ -134,11 +137,11 @@
+@@ -134,11 +148,11 @@
     public double xCloak;
     public double yCloak;
     public double zCloak;
@@ -76,7 +96,7 @@
     public float experienceProgress;
     protected int enchantmentSeed;
     protected final float defaultFlySpeed = 0.02F;
-@@ -278,11 +281,11 @@
+@@ -278,11 +292,11 @@
        return this.wasUnderwater;
     }
  
@@ -89,7 +109,7 @@
  
     }
  
-@@ -428,11 +431,11 @@
+@@ -428,11 +442,11 @@
     protected void closeContainer() {
        this.containerMenu = this.inventoryMenu;
     }
@@ -102,7 +122,7 @@
        } else {
           double var1 = this.getX();
           double var3 = this.getY();
-@@ -442,17 +445,10 @@
+@@ -442,17 +456,10 @@
           this.bob = 0.0F;
           this.checkRidingStatistics(this.getX() - var1, this.getY() - var3, this.getZ() - var5);
        }
@@ -120,7 +140,7 @@
        this.updateSwingTime();
        this.yHeadRot = this.yRot;
     }
-@@ -489,24 +485,31 @@
+@@ -489,24 +496,31 @@
        }
  
        this.bob += (var1 - this.bob) * 0.4F;
@@ -157,7 +177,7 @@
        this.playShoulderEntityAmbientSound(this.getShoulderEntityLeft());
        this.playShoulderEntityAmbientSound(this.getShoulderEntityRight());
        if (!this.level.isClientSide && (this.fallDistance > 0.5F || this.isInWater()) || this.abilities.flying || this.isSleeping()) {
-@@ -562,11 +565,11 @@
+@@ -562,11 +576,11 @@
  
        this.awardStat(Stats.DEATHS);
        this.resetStat(Stats.CUSTOM.get(Stats.TIME_SINCE_DEATH));
@@ -170,7 +190,7 @@
     protected void dropEquipment() {
        super.dropEquipment();
        if (!this.level.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY)) {
-@@ -589,12 +592,14 @@
+@@ -589,12 +603,14 @@
     protected SoundEvent getHurtSound(DamageSource var1) {
        if (var1 == DamageSource.ON_FIRE) {
           return SoundEvents.PLAYER_HURT_ON_FIRE;
@@ -186,7 +206,7 @@
  
     protected SoundEvent getDeathSound() {
        return SoundEvents.PLAYER_DEATH;
-@@ -755,14 +760,16 @@
+@@ -755,14 +771,16 @@
     public boolean isInvulnerableTo(DamageSource var1) {
        if (super.isInvulnerableTo(var1)) {
           return true;
@@ -204,7 +224,7 @@
        }
     }
  
-@@ -802,10 +809,14 @@
+@@ -802,10 +820,14 @@
           this.disableShield(true);
        }
  
@@ -219,7 +239,7 @@
        Team var3 = var1.getTeam();
        if (var2 == null) {
           return true;
-@@ -817,11 +828,11 @@
+@@ -817,11 +839,11 @@
     protected void hurtArmor(DamageSource var1, float var2) {
        this.inventory.hurtArmor(var1, var2);
     }
@@ -232,7 +252,7 @@
           }
  
           if (var1 >= 3.0F) {
-@@ -1218,12 +1229,12 @@
+@@ -1218,12 +1240,12 @@
     }
  
     public void respawn() {
@@ -247,7 +267,7 @@
           this.containerMenu.removed(this);
        }
  
-@@ -1235,10 +1246,21 @@
+@@ -1235,10 +1257,21 @@
  
     public GameProfile getGameProfile() {
        return this.gameProfile;
@@ -269,7 +289,7 @@
        this.sleepCounter = 0;
        return Either.right(Unit.INSTANCE);
     }
-@@ -1447,26 +1469,26 @@
+@@ -1447,26 +1480,26 @@
           }
        }
  
@@ -299,7 +319,20 @@
           }
        }
  
-@@ -1617,20 +1639,17 @@
+@@ -1505,11 +1538,11 @@
+    }
+ 
+    public void giveExperiencePoints(int var1) {
+       this.increaseScore(var1);
+       this.experienceProgress += (float)var1 / (float)this.getXpNeededForNextLevel();
+-      this.totalExperience = Mth.clamp(this.totalExperience + var1, 0, Integer.MAX_VALUE);
++      this.totalExperience = Mth.clamp((int)(this.totalExperience + var1), (int)0, (int)Integer.MAX_VALUE);
+ 
+       while(this.experienceProgress < 0.0F) {
+          float var2 = this.experienceProgress * (float)this.getXpNeededForNextLevel();
+          if (this.experienceLevel > 0) {
+             this.giveExperienceLevels(-1);
+@@ -1617,20 +1650,17 @@
  
     public boolean shouldShowName() {
        return true;
@@ -322,7 +355,7 @@
     }
  
     public PlayerEnderChestContainer getEnderChestInventory() {
-@@ -1647,24 +1666,24 @@
+@@ -1647,24 +1677,24 @@
        }
     }
  
@@ -351,7 +384,7 @@
  
     public Iterable<ItemStack> getHandSlots() {
        return Lists.newArrayList(new ItemStack[]{this.getMainHandItem(), this.getOffhandItem()});
-@@ -1788,56 +1807,16 @@
+@@ -1788,56 +1818,16 @@
  
     public boolean isModelPartShown(PlayerModelPart var1) {
        return ((Byte)this.getEntityData().get(DATA_PLAYER_MODE_CUSTOMISATION) & var1.getMask()) == var1.getMask();
@@ -412,7 +445,7 @@
  
     public boolean isReducedDebugInfo() {
        return this.reducedDebugInfo;
-@@ -1983,10 +1962,22 @@
+@@ -1983,10 +1973,22 @@
  
           return this.getPosition(var1).add((new Vec3(var2, -0.11D, 0.85D)).zRot(-var12).xRot(-var4).yRot(-var5));
        }

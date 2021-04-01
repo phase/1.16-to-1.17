@@ -50,7 +50,32 @@
  import net.minecraft.world.phys.EntityHitResult;
  import net.minecraft.world.phys.HitResult;
  import net.minecraft.world.phys.Vec3;
-@@ -90,14 +94,121 @@
+@@ -56,10 +60,12 @@
+ import org.apache.logging.log4j.Logger;
+ 
+ public class GameRenderer implements ResourceManagerReloadListener, AutoCloseable {
+    private static final ResourceLocation NAUSEA_LOCATION = new ResourceLocation("textures/misc/nausea.png");
+    private static final Logger LOGGER = LogManager.getLogger();
++   private static final boolean DEPTH_BUFFER_DEBUG = false;
++   public static final float PROJECTION_Z_NEAR = 0.05F;
+    private final Minecraft minecraft;
+    private final ResourceManager resourceManager;
+    private final Random random = new Random();
+    private float renderDistance;
+    public final ItemInHandRenderer itemInHandRenderer;
+@@ -78,10 +84,11 @@
+    private final OverlayTexture overlayTexture = new OverlayTexture();
+    private boolean panoramicMode;
+    private float zoom = 1.0F;
+    private float zoomX;
+    private float zoomY;
++   public static final int ITEM_ACTIVATION_ANIMATION_LENGTH = 40;
+    @Nullable
+    private ItemStack itemActivationItem;
+    private int itemActivationTicks;
+    private float itemActivationOffX;
+    private float itemActivationOffY;
+@@ -90,14 +97,121 @@
     private static final ResourceLocation[] EFFECTS = new ResourceLocation[]{new ResourceLocation("shaders/post/notch.json"), new ResourceLocation("shaders/post/fxaa.json"), new ResourceLocation("shaders/post/art.json"), new ResourceLocation("shaders/post/bumpy.json"), new ResourceLocation("shaders/post/blobs2.json"), new ResourceLocation("shaders/post/pencil.json"), new ResourceLocation("shaders/post/color_convolve.json"), new ResourceLocation("shaders/post/deconverge.json"), new ResourceLocation("shaders/post/flip.json"), new ResourceLocation("shaders/post/invert.json"), new ResourceLocation("shaders/post/ntsc.json"), new ResourceLocation("shaders/post/outline.json"), new ResourceLocation("shaders/post/phosphor.json"), new ResourceLocation("shaders/post/scan_pincushion.json"), new ResourceLocation("shaders/post/sobel.json"), new ResourceLocation("shaders/post/bits.json"), new ResourceLocation("shaders/post/desaturate.json"), new ResourceLocation("shaders/post/green.json"), new ResourceLocation("shaders/post/blur.json"), new ResourceLocation("shaders/post/wobble.json"), new ResourceLocation("shaders/post/blobs.json"), new ResourceLocation("shaders/post/antialias.json"), new ResourceLocation("shaders/post/creeper.json"), new ResourceLocation("shaders/post/spider.json")};
     public static final int EFFECT_NONE;
     private int effectIndex;
@@ -172,7 +197,7 @@
        this.itemInHandRenderer = var1.getItemInHandRenderer();
        this.mapRenderer = new MapRenderer(var1.getTextureManager());
        this.lightTexture = new LightTexture(this, var1);
-@@ -108,10 +219,15 @@
+@@ -108,12 +222,33 @@
     public void close() {
        this.lightTexture.close();
        this.mapRenderer.close();
@@ -185,10 +210,55 @@
 +
     }
  
++   public void setRenderHand(boolean var1) {
++      this.renderHand = var1;
++   }
++
++   public void setRenderBlockOutline(boolean var1) {
++      this.renderBlockOutline = var1;
++   }
++
++   public void setPanoramicMode(boolean var1) {
++      this.panoramicMode = var1;
++   }
++
++   public boolean isPanoramicMode() {
++      return this.panoramicMode;
++   }
++
     public void shutdownEffect() {
        if (this.postEffect != null) {
           this.postEffect.close();
-@@ -161,10 +277,11 @@
+       }
+ 
+@@ -139,10 +274,26 @@
+          this.loadEffect(new ResourceLocation("shaders/post/invert.json"));
+       }
+ 
+    }
+ 
++   public void cycleEffect() {
++      if (this.minecraft.getCameraEntity() instanceof Player) {
++         if (this.postEffect != null) {
++            this.postEffect.close();
++         }
++
++         this.effectIndex = (this.effectIndex + 1) % (EFFECTS.length + 1);
++         if (this.effectIndex == EFFECT_NONE) {
++            this.postEffect = null;
++         } else {
++            this.loadEffect(EFFECTS[this.effectIndex]);
++         }
++
++      }
++   }
++
+    private void loadEffect(ResourceLocation var1) {
+       if (this.postEffect != null) {
+          this.postEffect.close();
+       }
+ 
+@@ -161,10 +312,11 @@
        }
  
     }
@@ -200,7 +270,7 @@
        }
  
        this.postEffect = null;
-@@ -174,10 +291,101 @@
+@@ -174,10 +326,106 @@
           this.loadEffect(EFFECTS[this.effectIndex]);
        }
  
@@ -297,12 +367,17 @@
 +      this.shaders.clear();
 +   }
 +
++   @Nullable
++   public ShaderInstance getShader(@Nullable String var1) {
++      return var1 == null ? null : (ShaderInstance)this.shaders.get(var1);
++   }
++
     public void tick() {
        this.tickFov();
        this.lightTexture.tick();
        if (this.minecraft.getCameraEntity() == null) {
           this.minecraft.setCameraEntity(this.minecraft.player);
-@@ -305,13 +513,13 @@
+@@ -305,13 +553,13 @@
           if (var1.getEntity() instanceof LivingEntity && ((LivingEntity)var1.getEntity()).isDeadOrDying()) {
              float var6 = Math.min((float)((LivingEntity)var1.getEntity()).deathTime + var2, 20.0F);
              var4 /= (double)((1.0F - 500.0F / (var6 + 500.0F)) * 2.0F + 1.0F);
@@ -319,10 +394,22 @@
           return var4;
        }
     }
-@@ -352,11 +560,11 @@
+@@ -350,13 +598,23 @@
+          var1.mulPose(Vector3f.ZP.rotationDegrees(Mth.sin(var5 * 3.1415927F) * var6 * 3.0F));
+          var1.mulPose(Vector3f.XP.rotationDegrees(Math.abs(Mth.cos(var5 * 3.1415927F - 0.2F) * var6) * 5.0F));
        }
     }
  
++   public void renderZoomed(float var1, float var2, float var3) {
++      this.zoom = var1;
++      this.zoomX = var2;
++      this.zoomY = var3;
++      this.setRenderBlockOutline(false);
++      this.setRenderHand(false);
++      this.renderLevel(1.0F, 0L, new PoseStack());
++      this.zoom = 1.0F;
++   }
++
     private void renderItemInHand(PoseStack var1, Camera var2, float var3) {
        if (!this.panoramicMode) {
 -         this.resetProjectionMatrix(this.getProjectionMatrix(var2, var3, false));
@@ -332,7 +419,7 @@
           var4.normal().setIdentity();
           var1.pushPose();
           this.bobHurt(var1, var3);
-@@ -383,28 +591,29 @@
+@@ -383,28 +641,29 @@
  
        }
     }
@@ -373,7 +460,7 @@
        return var2 > 200 ? 1.0F : 0.7F + Mth.sin(((float)var2 - var1) * 3.1415927F * 0.2F) * 0.3F;
     }
  
-@@ -431,80 +640,75 @@
+@@ -431,80 +690,75 @@
  
              this.minecraft.levelRenderer.doEntityOutline();
              if (this.postEffect != null && this.effectActive) {
@@ -434,21 +521,23 @@
  
 -         CrashReport var10;
 -         CrashReportCategory var11;
+-         if (this.minecraft.overlay != null) {
 +         CrashReport var12;
 +         CrashReportCategory var13;
-          if (this.minecraft.overlay != null) {
++         if (this.minecraft.getOverlay() != null) {
              try {
 -               this.minecraft.overlay.render(var8, var5, var6, this.minecraft.getDeltaFrameTime());
 -            } catch (Throwable var13) {
 -               var10 = CrashReport.forThrowable(var13, "Rendering overlay");
 -               var11 = var10.addCategory("Overlay render details");
 -               var11.setDetail("Overlay name", () -> {
-+               this.minecraft.overlay.render(var10, var5, var6, this.minecraft.getDeltaFrameTime());
+-                  return this.minecraft.overlay.getClass().getCanonicalName();
++               this.minecraft.getOverlay().render(var10, var5, var6, this.minecraft.getDeltaFrameTime());
 +            } catch (Throwable var15) {
 +               var12 = CrashReport.forThrowable(var15, "Rendering overlay");
 +               var13 = var12.addCategory("Overlay render details");
 +               var13.setDetail("Overlay name", () -> {
-                   return this.minecraft.overlay.getClass().getCanonicalName();
++                  return this.minecraft.getOverlay().getClass().getCanonicalName();
                 });
 -               throw new ReportedException(var10);
 +               throw new ReportedException(var12);
@@ -482,7 +571,7 @@
  
        }
     }
-@@ -564,11 +768,11 @@
+@@ -564,11 +818,11 @@
        if (!this.renderBlockOutline) {
           return false;
        } else {
@@ -495,7 +584,7 @@
              if (var4 != null && var4.getType() == HitResult.Type.BLOCK) {
                 BlockPos var5 = ((BlockHitResult)var4).getBlockPos();
                 BlockState var6 = this.minecraft.level.getBlockState(var5);
-@@ -596,34 +800,36 @@
+@@ -596,34 +850,36 @@
        boolean var5 = this.shouldRenderBlockOutline();
        this.minecraft.getProfiler().popPush("camera");
        Camera var6 = this.mainCamera;
@@ -546,7 +635,7 @@
           RenderSystem.clear(256, Minecraft.ON_OSX);
           this.renderItemInHand(var4, var6, var1);
        }
-@@ -656,13 +862,10 @@
+@@ -656,13 +912,10 @@
           float var7 = var5 * var6;
           float var8 = 10.25F * var7 * var6 - 24.95F * var6 * var6 + 25.5F * var7 - 13.8F * var6 + 4.0F * var5;
           float var9 = var8 * 3.1415927F;
@@ -560,7 +649,7 @@
           PoseStack var12 = new PoseStack();
           var12.pushPose();
           var12.translate((double)((float)(var1 / 2) + var10 * Mth.abs(Mth.sin(var9 * 2.0F))), (double)((float)(var2 / 2) + var11 * Mth.abs(Mth.sin(var9 * 2.0F))), -50.0D);
-@@ -670,15 +873,13 @@
+@@ -670,15 +923,13 @@
           var12.scale(var13, -var13, var13);
           var12.mulPose(Vector3f.YP.rotationDegrees(900.0F * Mth.abs(Mth.sin(var9))));
           var12.mulPose(Vector3f.XP.rotationDegrees(6.0F * Mth.cos(var5 * 8.0F)));
@@ -577,7 +666,7 @@
        }
     }
  
-@@ -695,21 +896,21 @@
+@@ -695,27 +946,32 @@
        double var15 = ((double)var3 - var11) / 2.0D;
        RenderSystem.disableDepthTest();
        RenderSystem.depthMask(false);
@@ -586,6 +675,7 @@
 -      RenderSystem.color4f(var6, var7, var8, 1.0F);
 -      this.minecraft.getTextureManager().bind(NAUSEA_LOCATION);
 +      RenderSystem.setShaderColor(var6, var7, var8, 1.0F);
++      RenderSystem.setShader(GameRenderer::getPositionTexShader);
 +      RenderSystem.setShaderTexture(0, NAUSEA_LOCATION);
        Tesselator var17 = Tesselator.getInstance();
        BufferBuilder var18 = var17.getBuilder();
@@ -603,7 +693,17 @@
        RenderSystem.depthMask(true);
        RenderSystem.enableDepthTest();
     }
-@@ -732,9 +933,264 @@
+ 
++   public Minecraft getMinecraft() {
++      return this.minecraft;
++   }
++
+    public float getDarkenWorldAmount(float var1) {
+       return Mth.lerp(var1, this.darkenWorldAmountO, this.darkenWorldAmount);
+    }
+ 
+    public float getRenderDistance() {
+@@ -732,9 +988,269 @@
  
     public OverlayTexture overlayTexture() {
        return this.overlayTexture;
@@ -662,6 +762,11 @@
 +   @Nullable
 +   public static ShaderInstance getPositionTexColorNormalShader() {
 +      return positionTexColorNormalShader;
++   }
++
++   @Nullable
++   public static ShaderInstance getPositionTexLightmapColorShader() {
++      return positionTexLightmapColorShader;
 +   }
 +
 +   @Nullable

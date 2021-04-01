@@ -1,6 +1,6 @@
 --- net/minecraft/network/protocol/game/ClientboundCommandsPacket.java
 +++ net/minecraft/network/protocol/game/ClientboundCommandsPacket.java
-@@ -11,61 +11,49 @@
+@@ -11,61 +11,56 @@
  import com.mojang.brigadier.tree.LiteralCommandNode;
  import com.mojang.brigadier.tree.RootCommandNode;
  import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -23,6 +23,13 @@
  
  public class ClientboundCommandsPacket implements Packet<ClientGamePacketListener> {
 -   private RootCommandNode<SharedSuggestionProvider> root;
++   private static final byte MASK_TYPE = 3;
++   private static final byte FLAG_EXECUTABLE = 4;
++   private static final byte FLAG_REDIRECT = 8;
++   private static final byte FLAG_CUSTOM_SUGGESTIONS = 16;
++   private static final byte TYPE_ROOT = 0;
++   private static final byte TYPE_LITERAL = 1;
++   private static final byte TYPE_ARGUMENT = 2;
 +   private final RootCommandNode<SharedSuggestionProvider> root;
  
 -   public ClientboundCommandsPacket() {
@@ -76,7 +83,7 @@
        do {
           if (var1.isEmpty()) {
              return;
-@@ -97,16 +85,18 @@
+@@ -97,16 +92,18 @@
        }
  
        return var1;
@@ -100,7 +107,7 @@
        return var1;
     }
  
-@@ -120,11 +110,11 @@
+@@ -120,11 +117,11 @@
  
     @Nullable
     private static ArgumentBuilder<SharedSuggestionProvider, ?> createBuilder(FriendlyByteBuf var0, byte var1) {
@@ -113,7 +120,7 @@
              return null;
           } else {
              RequiredArgumentBuilder var5 = RequiredArgumentBuilder.argument(var3, var4);
-@@ -133,11 +123,11 @@
+@@ -133,11 +130,11 @@
              }
  
              return var5;
@@ -126,7 +133,22 @@
  
     private static void writeNode(FriendlyByteBuf var0, CommandNode<SharedSuggestionProvider> var1, Map<CommandNode<SharedSuggestionProvider>, Integer> var2) {
        byte var3 = 0;
-@@ -208,21 +198,21 @@
+@@ -192,10 +189,14 @@
+ 
+    public void handle(ClientGamePacketListener var1) {
+       var1.handleCommands(this);
+    }
+ 
++   public RootCommandNode<SharedSuggestionProvider> getRoot() {
++      return this.root;
++   }
++
+    static class Entry {
+       @Nullable
+       private final ArgumentBuilder<SharedSuggestionProvider, ?> builder;
+       private final byte flags;
+       private final int redirect;
+@@ -208,21 +209,21 @@
           this.flags = var2;
           this.redirect = var3;
           this.children = var4;
@@ -151,7 +173,7 @@
                 if ((this.flags & 4) != 0) {
                    this.builder.executes((var0) -> {
                       return 0;
-@@ -238,21 +228,21 @@
+@@ -238,21 +239,21 @@
  
           int var4;
           int var5;

@@ -12,7 +12,15 @@
  import net.minecraft.BlockUtil;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
-@@ -37,10 +40,11 @@
+@@ -30,17 +33,19 @@
+ import net.minecraft.world.entity.Pose;
+ import net.minecraft.world.entity.animal.Animal;
+ import net.minecraft.world.entity.animal.WaterAnimal;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.Item;
++import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.GameRules;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.Blocks;
@@ -24,7 +32,24 @@
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
-@@ -86,22 +90,21 @@
+@@ -52,10 +57,16 @@
+    private static final EntityDataAccessor<Float> DATA_ID_DAMAGE;
+    private static final EntityDataAccessor<Integer> DATA_ID_TYPE;
+    private static final EntityDataAccessor<Boolean> DATA_ID_PADDLE_LEFT;
+    private static final EntityDataAccessor<Boolean> DATA_ID_PADDLE_RIGHT;
+    private static final EntityDataAccessor<Integer> DATA_ID_BUBBLE_TIME;
++   public static final int PADDLE_LEFT = 0;
++   public static final int PADDLE_RIGHT = 1;
++   private static final int TIME_TO_EJECT = 60;
++   private static final double PADDLE_SPEED = 0.39269909262657166D;
++   public static final double PADDLE_SOUND_TIME = 0.7853981852531433D;
++   public static final int BUBBLE_TIME = 60;
+    private final float[] paddlePositions;
+    private float invFriction;
+    private float outOfControlTicks;
+    private float deltaRotation;
+    private int lerpSteps;
+@@ -86,22 +97,21 @@
     }
  
     public Boat(Level var1, double var2, double var4, double var6) {
@@ -49,7 +74,7 @@
     protected void defineSynchedData() {
        this.entityData.define(DATA_ID_HURT, 0);
        this.entityData.define(DATA_ID_HURTDIR, 1);
-@@ -137,22 +140,23 @@
+@@ -137,22 +147,23 @@
     }
  
     public boolean hurt(DamageSource var1, float var2) {
@@ -76,7 +101,7 @@
           return true;
        } else {
           return true;
-@@ -171,10 +175,11 @@
+@@ -171,10 +182,11 @@
        this.level.addParticle(ParticleTypes.SPLASH, this.getX() + (double)this.random.nextFloat(), this.getY() + 0.7D, this.getZ() + (double)this.random.nextFloat(), 0.0D, 0.0D, 0.0D);
        if (this.random.nextInt(20) == 0) {
           this.level.playLocalSound(this.getX(), this.getY(), this.getZ(), this.getSwimSplashSound(), this.getSoundSource(), 1.0F, 0.8F + 0.4F * this.random.nextFloat(), false);
@@ -88,20 +113,38 @@
     public void push(Entity var1) {
        if (var1 instanceof Boat) {
           if (var1.getBoundingBox().minY < this.getBoundingBox().maxY) {
-@@ -203,11 +208,11 @@
+@@ -202,14 +214,29 @@
+       case DARK_OAK:
           return Items.DARK_OAK_BOAT;
        }
     }
  
++   public void animateHurt() {
++      this.setHurtDir(-this.getHurtDir());
++      this.setHurtTime(10);
++      this.setDamage(this.getDamage() * 11.0F);
++   }
++
     public boolean isPickable() {
 -      return !this.removed;
 +      return !this.isRemoved();
     }
  
++   public void lerpTo(double var1, double var3, double var5, float var7, float var8, int var9, boolean var10) {
++      this.lerpX = var1;
++      this.lerpY = var3;
++      this.lerpZ = var5;
++      this.lerpYRot = (double)var7;
++      this.lerpXRot = (double)var8;
++      this.lerpSteps = 10;
++   }
++
     public Direction getMotionDirection() {
        return this.getDirection().getClockWise();
     }
-@@ -234,11 +239,11 @@
+ 
+    public void tick() {
+@@ -234,11 +261,11 @@
        }
  
        super.tick();
@@ -114,7 +157,7 @@
  
           this.floatBoat();
           if (this.level.isClientSide) {
-@@ -260,10 +265,11 @@
+@@ -260,10 +287,11 @@
                 if (var2 != null) {
                    Vec3 var3 = this.getViewVector(1.0F);
                    double var4 = var1 == 1 ? -var3.z : var3.z;
@@ -126,7 +169,7 @@
  
              float[] var10000 = this.paddlePositions;
              var10000[var1] = (float)((double)var10000[var1] + 0.39269909262657166D);
-@@ -319,11 +325,13 @@
+@@ -319,11 +347,13 @@
                 Vec3 var3 = this.getDeltaMovement();
                 if (this.bubbleColumnDirectionIsDown) {
                    this.setDeltaMovement(var3.add(0.0D, -0.7D, 0.0D));
@@ -141,7 +184,22 @@
  
              this.isAboveBubbleColumn = false;
           }
-@@ -466,11 +474,11 @@
+@@ -368,10 +398,14 @@
+    public void setPaddleState(boolean var1, boolean var2) {
+       this.entityData.set(DATA_ID_PADDLE_LEFT, var1);
+       this.entityData.set(DATA_ID_PADDLE_RIGHT, var2);
+    }
+ 
++   public float getRowingTime(int var1, float var2) {
++      return this.getPaddleState(var1) ? (float)Mth.clampedLerp((double)this.paddlePositions[var1] - 0.39269909262657166D, (double)this.paddlePositions[var1], (double)var2) : 0.0F;
++   }
++
+    private Boat.Status getStatus() {
+       Boat.Status var1 = this.isUnderwater();
+       if (var1 != null) {
+          this.waterLevel = this.getBoundingBox().maxY;
+          return var1;
+@@ -466,11 +500,11 @@
        int var4 = Mth.floor(var1.minY);
        int var5 = Mth.ceil(var1.minY + 0.001D);
        int var6 = Mth.floor(var1.minZ);
@@ -154,7 +212,7 @@
        for(int var10 = var2; var10 < var3; ++var10) {
           for(int var11 = var4; var11 < var5; ++var11) {
              for(int var12 = var6; var12 < var7; ++var12) {
-@@ -591,11 +599,11 @@
+@@ -591,11 +625,11 @@
     }
  
     public void positionRider(Entity var1) {
@@ -167,7 +225,7 @@
              if (var4 == 0) {
                 var2 = 0.2F;
              } else {
-@@ -620,32 +628,39 @@
+@@ -620,32 +654,39 @@
  
        }
     }
@@ -222,7 +280,22 @@
        }
  
        return super.getDismountLocationForPassenger(var1);
-@@ -693,13 +708,13 @@
+@@ -658,10 +699,14 @@
+       var1.yRotO += var3 - var2;
+       var1.yRot += var3 - var2;
+       var1.setYHeadRot(var1.yRot);
+    }
+ 
++   public void onPassengerTurned(Entity var1) {
++      this.clampRotation(var1);
++   }
++
+    protected void addAdditionalSaveData(CompoundTag var1) {
+       var1.putString("Type", this.getBoatType().getName());
+    }
+ 
+    protected void readAdditionalSaveData(CompoundTag var1) {
+@@ -693,13 +738,13 @@
                 if (this.status != Boat.Status.ON_LAND) {
                    this.fallDistance = 0.0F;
                    return;
@@ -239,7 +312,22 @@
                       for(var6 = 0; var6 < 3; ++var6) {
                          this.spawnAtLocation(this.getBoatType().getPlanks());
                       }
-@@ -767,12 +782,11 @@
+@@ -745,10 +790,14 @@
+ 
+    private int getBubbleTime() {
+       return (Integer)this.entityData.get(DATA_ID_BUBBLE_TIME);
+    }
+ 
++   public float getBubbleAngle(float var1) {
++      return Mth.lerp(var1, this.bubbleAngleO, this.bubbleAngle);
++   }
++
+    public void setHurtDir(int var1) {
+       this.entityData.set(DATA_ID_HURTDIR, var1);
+    }
+ 
+    public int getHurtDir() {
+@@ -767,22 +816,32 @@
        return this.getPassengers().size() < 2 && !this.isEyeInFluid(FluidTags.WATER);
     }
  
@@ -250,6 +338,27 @@
 +      return this.getFirstPassenger();
     }
  
++   public void setInput(boolean var1, boolean var2, boolean var3, boolean var4) {
++      this.inputLeft = var1;
++      this.inputRight = var2;
++      this.inputUp = var3;
++      this.inputDown = var4;
++   }
++
     public Packet<?> getAddEntityPacket() {
        return new ClientboundAddEntityPacket(this);
     }
+ 
+    public boolean isUnderWater() {
+       return this.status == Boat.Status.UNDER_WATER || this.status == Boat.Status.UNDER_FLOWING_WATER;
+    }
+ 
++   public ItemStack getPickResult() {
++      return new ItemStack(this.getDropItem());
++   }
++
+    static {
+       DATA_ID_HURT = SynchedEntityData.defineId(Boat.class, EntityDataSerializers.INT);
+       DATA_ID_HURTDIR = SynchedEntityData.defineId(Boat.class, EntityDataSerializers.INT);
+       DATA_ID_DAMAGE = SynchedEntityData.defineId(Boat.class, EntityDataSerializers.FLOAT);
+       DATA_ID_TYPE = SynchedEntityData.defineId(Boat.class, EntityDataSerializers.INT);

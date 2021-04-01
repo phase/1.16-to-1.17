@@ -21,7 +21,7 @@
     public void update(Map<String, Criterion> var1, String[][] var2) {
        Set var3 = var1.keySet();
        this.criteria.entrySet().removeIf((var1x) -> {
-@@ -114,30 +119,18 @@
+@@ -114,37 +119,78 @@
     public String toString() {
        return "AdvancementProgress{criteria=" + this.criteria + ", requirements=" + Arrays.deepToString(this.requirements) + '}';
     }
@@ -29,31 +29,90 @@
     public void serializeToNetwork(FriendlyByteBuf var1) {
 -      var1.writeVarInt(this.criteria.size());
 -      Iterator var2 = this.criteria.entrySet().iterator();
--
++      var1.writeMap(this.criteria, FriendlyByteBuf::writeUtf, (var0, var1x) -> {
++         var1x.serializeToNetwork(var0);
++      });
++   }
+ 
 -      while(var2.hasNext()) {
 -         Entry var3 = (Entry)var2.next();
 -         var1.writeUtf((String)var3.getKey());
 -         ((CriterionProgress)var3.getValue()).serializeToNetwork(var1);
--      }
--
-+      var1.writeMap(this.criteria, FriendlyByteBuf::writeUtf, (var0, var1x) -> {
-+         var1x.serializeToNetwork(var0);
-+      });
-    }
- 
-    public static AdvancementProgress fromNetwork(FriendlyByteBuf var0) {
--      AdvancementProgress var1 = new AdvancementProgress();
--      int var2 = var0.readVarInt();
--
--      for(int var3 = 0; var3 < var2; ++var3) {
--         var1.criteria.put(var0.readUtf(32767), CriterionProgress.fromNetwork(var0));
--      }
--
--      return var1;
++   public static AdvancementProgress fromNetwork(FriendlyByteBuf var0) {
 +      Map var1 = var0.readMap(FriendlyByteBuf::readUtf, CriterionProgress::fromNetwork);
 +      return new AdvancementProgress(var1);
++   }
++
++   @Nullable
++   public CriterionProgress getCriterion(String var1) {
++      return (CriterionProgress)this.criteria.get(var1);
++   }
++
++   public float getPercent() {
++      if (this.criteria.isEmpty()) {
++         return 0.0F;
++      } else {
++         float var1 = (float)this.requirements.length;
++         float var2 = (float)this.countCompletedRequirements();
++         return var2 / var1;
+       }
++   }
+ 
++   @Nullable
++   public String getProgressText() {
++      if (this.criteria.isEmpty()) {
++         return null;
++      } else {
++         int var1 = this.requirements.length;
++         if (var1 <= 1) {
++            return null;
++         } else {
++            int var2 = this.countCompletedRequirements();
++            return var2 + "/" + var1;
++         }
++      }
     }
  
-    @Nullable
-    public CriterionProgress getCriterion(String var1) {
-       return (CriterionProgress)this.criteria.get(var1);
+-   public static AdvancementProgress fromNetwork(FriendlyByteBuf var0) {
+-      AdvancementProgress var1 = new AdvancementProgress();
+-      int var2 = var0.readVarInt();
++   private int countCompletedRequirements() {
++      int var1 = 0;
++      String[][] var2 = this.requirements;
++      int var3 = var2.length;
+ 
+-      for(int var3 = 0; var3 < var2; ++var3) {
+-         var1.criteria.put(var0.readUtf(32767), CriterionProgress.fromNetwork(var0));
++      for(int var4 = 0; var4 < var3; ++var4) {
++         String[] var5 = var2[var4];
++         boolean var6 = false;
++         String[] var7 = var5;
++         int var8 = var5.length;
++
++         for(int var9 = 0; var9 < var8; ++var9) {
++            String var10 = var7[var9];
++            CriterionProgress var11 = this.getCriterion(var10);
++            if (var11 != null && var11.isDone()) {
++               var6 = true;
++               break;
++            }
++         }
++
++         if (var6) {
++            ++var1;
++         }
+       }
+ 
+       return var1;
+    }
+ 
+-   @Nullable
+-   public CriterionProgress getCriterion(String var1) {
+-      return (CriterionProgress)this.criteria.get(var1);
+-   }
+-
+    public Iterable<String> getRemainingCriteria() {
+       ArrayList var1 = Lists.newArrayList();
+       Iterator var2 = this.criteria.entrySet().iterator();
+ 
+       while(var2.hasNext()) {

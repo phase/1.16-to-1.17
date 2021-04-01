@@ -18,7 +18,7 @@
  import net.minecraft.world.level.block.ChestBlock;
  import net.minecraft.world.level.block.HorizontalDirectionalBlock;
  import net.minecraft.world.level.block.StemBlock;
-@@ -32,43 +35,43 @@
+@@ -32,43 +35,44 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -27,6 +27,7 @@
 -   public static final UpgradeData EMPTY = new UpgradeData();
 -   private static final Direction8[] DIRECTIONS = Direction8.values();
 +   public static final UpgradeData EMPTY;
++   private static final String TAG_INDICES = "Indices";
 +   private static final Direction8[] DIRECTIONS;
     private final EnumSet<Direction8> sides;
     private final int[][] index;
@@ -82,10 +83,14 @@
  
     }
  
-@@ -104,11 +107,11 @@
+@@ -101,25 +105,25 @@
+          boolean var10 = var3.size() == 1;
+          ChunkPos var11 = var0.getPos();
+          int var12 = var11.getMinBlockX() + (var10 && (var9 || var8) ? 1 : (var7 ? 0 : 15));
           int var13 = var11.getMinBlockX() + (var10 && (var9 || var8) ? 14 : (var7 ? 0 : 15));
           int var14 = var11.getMinBlockZ() + (!var10 || !var6 && !var7 ? (var9 ? 0 : 15) : 1);
-          int var15 = var11.getMinBlockZ() + (!var10 || !var6 && !var7 ? (var9 ? 0 : 15) : 14);
+-         int var15 = var11.getMinBlockZ() + (!var10 || !var6 && !var7 ? (var9 ? 0 : 15) : 14);
++         int var15 = var11.getMinBlockZ() + (var10 && (var6 || var7) ? 14 : (var9 ? 0 : 15));
           Direction[] var16 = Direction.values();
           BlockPos.MutableBlockPos var17 = new BlockPos.MutableBlockPos();
 -         Iterator var18 = BlockPos.betweenClosed(var12, 0, var14, var13, var2.getMaxBuildHeight() - 1, var15).iterator();
@@ -95,7 +100,19 @@
              BlockPos var19 = (BlockPos)var18.next();
              BlockState var20 = var2.getBlockState(var19);
              BlockState var21 = var20;
-@@ -136,11 +139,11 @@
+             Direction[] var22 = var16;
+             int var23 = var16.length;
+ 
+             for(int var24 = 0; var24 < var23; ++var24) {
+                Direction var25 = var22[var24];
+-               var17.setWithOffset(var19, var25);
++               var17.setWithOffset(var19, (Direction)var25);
+                var21 = updateState(var21, var25, var2, var19, var17);
+             }
+ 
+             Block.updateOrDestroy(var20, var21, var2, var19, 18);
+          }
+@@ -136,11 +140,11 @@
        BlockPos.MutableBlockPos var3 = new BlockPos.MutableBlockPos();
        ChunkPos var4 = var1.getPos();
        Level var5 = var1.getLevel();
@@ -108,7 +125,7 @@
           this.index[var6] = null;
           if (var7 != null && var8 != null && var8.length > 0) {
              Direction[] var9 = Direction.values();
-@@ -151,20 +154,20 @@
+@@ -151,20 +155,20 @@
              for(int var13 = 0; var13 < var12; ++var13) {
                 int var14 = var11[var13];
                 int var15 = var14 & 15;
@@ -123,15 +140,16 @@
  
                 for(int var22 = 0; var22 < var21; ++var22) {
                    Direction var23 = var20[var22];
-                   var3.setWithOffset(var2, var23);
+-                  var3.setWithOffset(var2, var23);
 -                  if (var2.getX() >> 4 == var4.x && var2.getZ() >> 4 == var4.z) {
++                  var3.setWithOffset(var2, (Direction)var23);
 +                  if (SectionPos.blockToSectionCoord(var2.getX()) == var4.x && SectionPos.blockToSectionCoord(var2.getZ()) == var4.z) {
                       var19 = updateState(var19, var23, var5, var2, var3);
                    }
                 }
  
                 Block.updateOrDestroy(var18, var19, var5, var2, 18);
-@@ -172,11 +175,11 @@
+@@ -172,11 +176,11 @@
           }
        }
  
@@ -144,7 +162,7 @@
           this.index[var6] = null;
        }
  
-@@ -221,10 +224,17 @@
+@@ -221,10 +225,17 @@
  
        var1.putByte("Sides", (byte)var3);
        return var1;
@@ -162,3 +180,16 @@
           public BlockState updateShape(BlockState var1, Direction var2, BlockState var3, LevelAccessor var4, BlockPos var5, BlockPos var6) {
              return var1;
           }
+@@ -308,11 +319,11 @@
+                   Direction[] var11 = DIRECTIONS;
+                   int var12 = var11.length;
+ 
+                   for(int var13 = 0; var13 < var12; ++var13) {
+                      Direction var14 = var11[var13];
+-                     var2.setWithOffset(var9, var14);
++                     var2.setWithOffset(var9, (Direction)var14);
+                      BlockState var15 = var1.getBlockState(var2);
+                      if (var15.hasProperty(BlockStateProperties.DISTANCE) && (Integer)var10.getValue(BlockStateProperties.DISTANCE) > var4) {
+                         var7.add(var2.immutable());
+                      }
+                   }

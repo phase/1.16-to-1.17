@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/projectile/Projectile.java
 +++ net/minecraft/world/entity/projectile/Projectile.java
-@@ -2,25 +2,29 @@
+@@ -2,45 +2,43 @@
  
  import java.util.Iterator;
  import java.util.UUID;
@@ -22,7 +22,7 @@
  
  public abstract class Projectile extends Entity {
     private UUID ownerUUID;
-    private int ownerNetworkId;
+-   private int ownerNetworkId;
     private boolean leftOwner;
 +   private boolean hasBeenShot;
  
@@ -30,7 +30,28 @@
        super(var1, var2);
     }
  
-@@ -48,21 +52,28 @@
+    public void setOwner(@Nullable Entity var1) {
+       if (var1 != null) {
+          this.ownerUUID = var1.getUUID();
+-         this.ownerNetworkId = var1.getId();
+       }
+ 
+    }
+ 
+    @Nullable
+    public Entity getOwner() {
+-      if (this.ownerUUID != null && this.level instanceof ServerLevel) {
+-         return ((ServerLevel)this.level).getEntity(this.ownerUUID);
+-      } else {
+-         return this.ownerNetworkId != 0 ? this.level.getEntity(this.ownerNetworkId) : null;
+-      }
++      return this.ownerUUID != null && this.level instanceof ServerLevel ? ((ServerLevel)this.level).getEntity(this.ownerUUID) : null;
+    }
+ 
+    protected void addAdditionalSaveData(CompoundTag var1) {
+       if (this.ownerUUID != null) {
+          var1.putUUID("Owner", this.ownerUUID);
+@@ -48,21 +46,32 @@
  
        if (this.leftOwner) {
           var1.putBoolean("LeftOwner", true);
@@ -39,6 +60,10 @@
 +      var1.putBoolean("HasBeenShot", this.hasBeenShot);
     }
  
++   protected boolean ownedBy(Entity var1) {
++      return var1.getUUID().equals(this.ownerUUID);
++   }
++
     protected void readAdditionalSaveData(CompoundTag var1) {
        if (var1.hasUUID("Owner")) {
           this.ownerUUID = var1.getUUID("Owner");
@@ -59,7 +84,7 @@
        }
  
        super.tick();
-@@ -111,10 +122,14 @@
+@@ -111,20 +120,37 @@
           this.onHitEntity((EntityHitResult)var1);
        } else if (var2 == HitResult.Type.BLOCK) {
           this.onHitBlock((BlockHitResult)var1);
@@ -74,7 +99,30 @@
     protected void onHitEntity(EntityHitResult var1) {
     }
  
-@@ -148,6 +163,11 @@
+    protected void onHitBlock(BlockHitResult var1) {
+       BlockState var3 = this.level.getBlockState(var1.getBlockPos());
+       var3.onProjectileHit(this.level, var3, var1, this);
+    }
+ 
++   public void lerpMotion(double var1, double var3, double var5) {
++      this.setDeltaMovement(var1, var3, var5);
++      if (this.xRotO == 0.0F && this.yRotO == 0.0F) {
++         float var7 = Mth.sqrt(var1 * var1 + var5 * var5);
++         this.xRot = (float)(Mth.atan2(var3, (double)var7) * 57.2957763671875D);
++         this.yRot = (float)(Mth.atan2(var1, var5) * 57.2957763671875D);
++         this.xRotO = this.xRot;
++         this.yRotO = this.yRot;
++         this.moveTo(this.getX(), this.getY(), this.getZ(), this.yRot, this.xRot);
++      }
++
++   }
++
+    protected boolean canHitEntity(Entity var1) {
+       if (!var1.isSpectator() && var1.isAlive() && var1.isPickable()) {
+          Entity var2 = this.getOwner();
+          return var2 == null || this.leftOwner || !var2.isPassengerOfSameVehicle(var1);
+       } else {
+@@ -148,6 +174,20 @@
           var0 += 360.0F;
        }
  
@@ -84,5 +132,14 @@
 +   public Packet<?> getAddEntityPacket() {
 +      Entity var1 = this.getOwner();
 +      return new ClientboundAddEntityPacket(this, var1 == null ? 0 : var1.getId());
++   }
++
++   public void recreateFromPacket(ClientboundAddEntityPacket var1) {
++      super.recreateFromPacket(var1);
++      Entity var2 = this.level.getEntity(var1.getData());
++      if (var2 != null) {
++         this.setOwner(var2);
++      }
++
 +   }
  }

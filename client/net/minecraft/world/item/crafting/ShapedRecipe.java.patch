@@ -1,6 +1,18 @@
 --- net/minecraft/world/item/crafting/ShapedRecipe.java
 +++ net/minecraft/world/item/crafting/ShapedRecipe.java
-@@ -174,10 +174,19 @@
+@@ -19,10 +19,11 @@
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.GsonHelper;
+ import net.minecraft.world.inventory.CraftingContainer;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Level;
+ 
+ public class ShapedRecipe implements CraftingRecipe {
+    private final int width;
+    private final int height;
+@@ -174,10 +175,19 @@
  
           return var8;
        }
@@ -20,7 +32,54 @@
        for(var1 = 0; var1 < var0.length() && var0.charAt(var1) == ' '; ++var1) {
        }
  
-@@ -266,11 +275,11 @@
+@@ -235,20 +245,33 @@
+ 
+       var1.put(" ", Ingredient.EMPTY);
+       return var1;
+    }
+ 
+-   public static ItemStack itemFromJson(JsonObject var0) {
++   public static ItemStack itemStackFromJson(JsonObject var0) {
++      Item var1 = itemFromJson(var0);
++      if (var0.has("data")) {
++         throw new JsonParseException("Disallowed data tag found");
++      } else {
++         int var2 = GsonHelper.getAsInt(var0, "count", 1);
++         if (var2 < 1) {
++            throw new JsonSyntaxException("Invalid output count: " + var2);
++         } else {
++            return new ItemStack(var1, var2);
++         }
++      }
++   }
++
++   public static Item itemFromJson(JsonObject var0) {
+       String var1 = GsonHelper.getAsString(var0, "item");
+       Item var2 = (Item)Registry.ITEM.getOptional(new ResourceLocation(var1)).orElseThrow(() -> {
+          return new JsonSyntaxException("Unknown item '" + var1 + "'");
+       });
+-      if (var0.has("data")) {
+-         throw new JsonParseException("Disallowed data tag found");
++      if (var2 == Items.AIR) {
++         throw new JsonSyntaxException("Invalid item: " + var1);
+       } else {
+-         int var3 = GsonHelper.getAsInt(var0, "count", 1);
+-         return new ItemStack(var2, var3);
++         return var2;
+       }
+    }
+ 
+    public static class Serializer implements RecipeSerializer<ShapedRecipe> {
+       public Serializer() {
+@@ -259,18 +282,18 @@
+          Map var4 = ShapedRecipe.keyFromJson(GsonHelper.getAsJsonObject(var2, "key"));
+          String[] var5 = ShapedRecipe.shrink(ShapedRecipe.patternFromJson(GsonHelper.getAsJsonArray(var2, "pattern")));
+          int var6 = var5[0].length();
+          int var7 = var5.length;
+          NonNullList var8 = ShapedRecipe.dissolvePattern(var5, var4, var6, var7);
+-         ItemStack var9 = ShapedRecipe.itemFromJson(GsonHelper.getAsJsonObject(var2, "result"));
++         ItemStack var9 = ShapedRecipe.itemStackFromJson(GsonHelper.getAsJsonObject(var2, "result"));
+          return new ShapedRecipe(var1, var3, var6, var7, var8, var9);
        }
  
        public ShapedRecipe fromNetwork(ResourceLocation var1, FriendlyByteBuf var2) {

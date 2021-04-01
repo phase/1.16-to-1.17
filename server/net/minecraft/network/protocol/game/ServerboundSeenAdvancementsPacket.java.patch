@@ -1,10 +1,11 @@
 --- net/minecraft/network/protocol/game/ServerboundSeenAdvancementsPacket.java
 +++ net/minecraft/network/protocol/game/ServerboundSeenAdvancementsPacket.java
-@@ -1,28 +1,28 @@
+@@ -1,28 +1,42 @@
  package net.minecraft.network.protocol.game;
  
 -import java.io.IOException;
 +import javax.annotation.Nullable;
++import net.minecraft.advancements.Advancement;
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.resources.ResourceLocation;
@@ -17,9 +18,20 @@
 +   private final ResourceLocation tab;
  
 -   public ServerboundSeenAdvancementsPacket() {
--   }
--
++   public ServerboundSeenAdvancementsPacket(ServerboundSeenAdvancementsPacket.Action var1, @Nullable ResourceLocation var2) {
++      this.action = var1;
++      this.tab = var2;
+    }
+ 
 -   public void read(FriendlyByteBuf var1) throws IOException {
++   public static ServerboundSeenAdvancementsPacket openedTab(Advancement var0) {
++      return new ServerboundSeenAdvancementsPacket(ServerboundSeenAdvancementsPacket.Action.OPENED_TAB, var0.getId());
++   }
++
++   public static ServerboundSeenAdvancementsPacket closedScreen() {
++      return new ServerboundSeenAdvancementsPacket(ServerboundSeenAdvancementsPacket.Action.CLOSED_SCREEN, (ResourceLocation)null);
++   }
++
 +   public ServerboundSeenAdvancementsPacket(FriendlyByteBuf var1) {
        this.action = (ServerboundSeenAdvancementsPacket.Action)var1.readEnum(ServerboundSeenAdvancementsPacket.Action.class);
        if (this.action == ServerboundSeenAdvancementsPacket.Action.OPENED_TAB) {
@@ -37,7 +49,7 @@
           var1.writeResourceLocation(this.tab);
        }
  
-@@ -34,10 +34,11 @@
+@@ -34,10 +48,11 @@
  
     public ServerboundSeenAdvancementsPacket.Action getAction() {
        return this.action;

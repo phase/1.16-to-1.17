@@ -1,0 +1,127 @@
+--- net/minecraft/world/level/border/WorldBorder.java
++++ net/minecraft/world/level/border/WorldBorder.java
+@@ -36,10 +36,14 @@
+ 
+    public boolean isWithinBounds(ChunkPos var1) {
+       return (double)var1.getMaxBlockX() > this.getMinX() && (double)var1.getMinBlockX() < this.getMaxX() && (double)var1.getMaxBlockZ() > this.getMinZ() && (double)var1.getMinBlockZ() < this.getMaxZ();
+    }
+ 
++   public boolean isWithinBounds(double var1, double var3) {
++      return var1 > this.getMinX() && var1 < this.getMaxX() && var3 > this.getMinZ() && var3 < this.getMaxZ();
++   }
++
+    public boolean isWithinBounds(AABB var1) {
+       return var1.maxX > this.getMinX() && var1.minX < this.getMaxX() && var1.maxZ > this.getMinZ() && var1.minZ < this.getMaxZ();
+    }
+ 
+    public double getDistanceToBorder(Entity var1) {
+@@ -58,10 +62,14 @@
+       double var13 = Math.min(var9, var11);
+       var13 = Math.min(var13, var5);
+       return Math.min(var13, var7);
+    }
+ 
++   public BorderStatus getStatus() {
++      return this.extent.getStatus();
++   }
++
+    public double getMinX() {
+       return this.extent.getMinX();
+    }
+ 
+    public double getMinZ() {
+@@ -137,10 +145,14 @@
+ 
+    public void addListener(BorderChangeListener var1) {
+       this.listeners.add(var1);
+    }
+ 
++   public void removeListener(BorderChangeListener var1) {
++      this.listeners.remove(var1);
++   }
++
+    public void setAbsoluteMaxSize(int var1) {
+       this.absoluteMaxSize = var1;
+       this.extent.onAbsoluteMaxSizeChange();
+    }
+ 
+@@ -176,10 +188,14 @@
+          var4.onBorderSetDamagePerBlock(this, var1);
+       }
+ 
+    }
+ 
++   public double getLerpSpeed() {
++      return this.extent.getLerpSpeed();
++   }
++
+    public int getWarningTime() {
+       return this.warningTime;
+    }
+ 
+    public void setWarningTime(int var1) {
+@@ -358,10 +374,18 @@
+ 
+       public double getSize() {
+          return this.size;
+       }
+ 
++      public BorderStatus getStatus() {
++         return BorderStatus.STATIONARY;
++      }
++
++      public double getLerpSpeed() {
++         return 0.0D;
++      }
++
+       public long getLerpRemainingTime() {
+          return 0L;
+       }
+ 
+       public double getLerpTarget() {
+@@ -427,18 +451,26 @@
+       public double getSize() {
+          double var1 = (double)(Util.getMillis() - this.lerpBegin) / this.lerpDuration;
+          return var1 < 1.0D ? Mth.lerp(var1, this.from, this.to) : this.to;
+       }
+ 
++      public double getLerpSpeed() {
++         return Math.abs(this.from - this.to) / (double)(this.lerpEnd - this.lerpBegin);
++      }
++
+       public long getLerpRemainingTime() {
+          return this.lerpEnd - Util.getMillis();
+       }
+ 
+       public double getLerpTarget() {
+          return this.to;
+       }
+ 
++      public BorderStatus getStatus() {
++         return this.to < this.from ? BorderStatus.SHRINKING : BorderStatus.GROWING;
++      }
++
+       public void onCenterChange() {
+       }
+ 
+       public void onAbsoluteMaxSizeChange() {
+       }
+@@ -461,14 +493,18 @@
+ 
+       double getMaxZ();
+ 
+       double getSize();
+ 
++      double getLerpSpeed();
++
+       long getLerpRemainingTime();
+ 
+       double getLerpTarget();
+ 
++      BorderStatus getStatus();
++
+       void onAbsoluteMaxSizeChange();
+ 
+       void onCenterChange();
+ 
+       WorldBorder.BorderExtent update();

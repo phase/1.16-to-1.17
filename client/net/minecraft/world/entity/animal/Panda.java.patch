@@ -13,7 +13,7 @@
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.entity.LivingEntity;
-@@ -49,19 +49,19 @@
+@@ -49,29 +49,36 @@
  import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
  import net.minecraft.world.entity.ai.targeting.TargetingConditions;
  import net.minecraft.world.entity.item.ItemEntity;
@@ -34,7 +34,24 @@
  public class Panda extends Animal {
     private static final EntityDataAccessor<Integer> UNHAPPY_COUNTER;
     private static final EntityDataAccessor<Integer> SNEEZE_COUNTER;
-@@ -228,11 +228,11 @@
+    private static final EntityDataAccessor<Integer> EAT_COUNTER;
+    private static final EntityDataAccessor<Byte> MAIN_GENE_ID;
+    private static final EntityDataAccessor<Byte> HIDDEN_GENE_ID;
+    private static final EntityDataAccessor<Byte> DATA_ID_FLAGS;
+    private static final TargetingConditions BREED_TARGETING;
++   private static final int FLAG_SNEEZE = 2;
++   private static final int FLAG_ROLL = 4;
++   private static final int FLAG_SIT = 8;
++   private static final int FLAG_ON_BACK = 16;
++   private static final int EAT_TICK_INTERVAL = 5;
++   public static final int TOTAL_ROLL_STEPS = 32;
++   private static final int TOTAL_UNHAPPY_TIME = 32;
+    private boolean gotBamboo;
+    private boolean didBite;
+    public int rollCounter;
+    private Vec3 rollDelta;
+    private float sitAmount;
+@@ -228,11 +235,11 @@
        this.setMainGene(Panda.Gene.byName(var1.getString("MainGene")));
        this.setHiddenGene(Panda.Gene.byName(var1.getString("HiddenGene")));
     }
@@ -47,7 +64,22 @@
           var3.setGeneFromParents(this, (Panda)var2);
        }
  
-@@ -370,10 +370,11 @@
+@@ -278,10 +285,14 @@
+ 
+    public boolean isPlayful() {
+       return this.getVariant() == Panda.Gene.PLAYFUL;
+    }
+ 
++   public boolean isBrown() {
++      return this.getVariant() == Panda.Gene.BROWN;
++   }
++
+    public boolean isWeak() {
+       return this.getVariant() == Panda.Gene.WEAK;
+    }
+ 
+    public boolean isAggressive() {
+@@ -370,10 +381,11 @@
           this.addEatingParticles();
           if (!this.level.isClientSide && this.getEatCounter() > 80 && this.random.nextInt(20) == 1) {
              if (this.getEatCounter() > 100 && this.isFoodOrCake(this.getItemBySlot(EquipmentSlot.MAINHAND))) {
@@ -59,7 +91,7 @@
                 this.sit(false);
              }
  
-@@ -493,11 +494,11 @@
+@@ -493,11 +505,11 @@
           this.onItemPickup(var1);
           ItemStack var2 = var1.getItem();
           this.setItemSlot(EquipmentSlot.MAINHAND, var2);
@@ -72,7 +104,7 @@
     }
  
     public boolean hurt(DamageSource var1, float var2) {
-@@ -509,11 +510,11 @@
+@@ -509,11 +521,11 @@
     public SpawnGroupData finalizeSpawn(ServerLevelAccessor var1, DifficultyInstance var2, MobSpawnType var3, @Nullable SpawnGroupData var4, @Nullable CompoundTag var5) {
        this.setMainGene(Panda.Gene.getRandom(this.random));
        this.setHiddenGene(Panda.Gene.getRandom(this.random));
@@ -85,7 +117,7 @@
        return super.finalizeSpawn(var1, var2, var3, (SpawnGroupData)var4, var5);
     }
  
-@@ -579,29 +580,31 @@
+@@ -579,29 +591,31 @@
           if (this.getTarget() != null) {
              this.gotBamboo = true;
           }
@@ -121,7 +153,7 @@
           return InteractionResult.SUCCESS;
        } else {
           return InteractionResult.PASS;
-@@ -620,15 +623,15 @@
+@@ -620,15 +634,15 @@
     protected void playStepSound(BlockPos var1, BlockState var2) {
        this.playSound(SoundEvents.PANDA_STEP, 0.15F, 1.0F);
     }
@@ -139,7 +171,7 @@
     @Nullable
     protected SoundEvent getDeathSound() {
        return SoundEvents.PANDA_DEATH;
-@@ -650,12 +653,12 @@
+@@ -650,12 +664,12 @@
        MAIN_GENE_ID = SynchedEntityData.defineId(Panda.class, EntityDataSerializers.BYTE);
        HIDDEN_GENE_ID = SynchedEntityData.defineId(Panda.class, EntityDataSerializers.BYTE);
        DATA_ID_FLAGS = SynchedEntityData.defineId(Panda.class, EntityDataSerializers.BYTE);
@@ -154,7 +186,7 @@
  
     static class PandaPanicGoal extends PanicGoal {
        private final Panda panda;
-@@ -969,11 +972,13 @@
+@@ -969,11 +983,13 @@
           } else {
              if (this.lookAt == null) {
                 if (this.lookAtType == Player.class) {
@@ -169,3 +201,15 @@
  
              return this.panda.canPerformAction() && this.lookAt != null;
           }
+@@ -1025,10 +1041,11 @@
+       AGGRESSIVE(6, "aggressive", false);
+ 
+       private static final Panda.Gene[] BY_ID = (Panda.Gene[])Arrays.stream(values()).sorted(Comparator.comparingInt(Panda.Gene::getId)).toArray((var0) -> {
+          return new Panda.Gene[var0];
+       });
++      private static final int MAX_GENE = 6;
+       private final int id;
+       private final String name;
+       private final boolean isRecessive;
+ 
+       private Gene(int var3, String var4, boolean var5) {

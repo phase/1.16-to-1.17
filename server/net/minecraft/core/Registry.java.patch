@@ -1,6 +1,13 @@
 --- net/minecraft/core/Registry.java
 +++ net/minecraft/core/Registry.java
-@@ -13,20 +13,21 @@
+@@ -7,26 +7,29 @@
+ import com.mojang.serialization.DynamicOps;
+ import com.mojang.serialization.Keyable;
+ import com.mojang.serialization.Lifecycle;
+ import java.util.Map;
+ import java.util.Optional;
++import java.util.Random;
+ import java.util.Set;
  import java.util.Map.Entry;
  import java.util.function.Supplier;
  import java.util.stream.Stream;
@@ -17,13 +24,14 @@
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.stats.StatType;
  import net.minecraft.stats.Stats;
-+import net.minecraft.util.FloatProviderType;
++import net.minecraft.util.valueproviders.FloatProviderType;
++import net.minecraft.util.valueproviders.IntProviderType;
  import net.minecraft.world.effect.MobEffect;
  import net.minecraft.world.effect.MobEffects;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.ai.attributes.Attribute;
  import net.minecraft.world.entity.ai.attributes.Attributes;
-@@ -55,10 +56,12 @@
+@@ -55,10 +58,12 @@
  import net.minecraft.world.level.block.entity.BlockEntityType;
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.chunk.ChunkStatus;
@@ -36,7 +44,19 @@
  import net.minecraft.world.level.levelgen.carver.WorldCarver;
  import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  import net.minecraft.world.level.levelgen.feature.ConfiguredStructureFeature;
-@@ -86,10 +89,16 @@
+@@ -71,10 +76,11 @@
+ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProviderType;
+ import net.minecraft.world.level.levelgen.feature.structures.StructurePoolElementType;
+ import net.minecraft.world.level.levelgen.feature.structures.StructureTemplatePool;
+ import net.minecraft.world.level.levelgen.feature.treedecorators.TreeDecoratorType;
+ import net.minecraft.world.level.levelgen.feature.trunkplacers.TrunkPlacerType;
++import net.minecraft.world.level.levelgen.heightproviders.HeightProviderType;
+ import net.minecraft.world.level.levelgen.placement.FeatureDecorator;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.PosRuleTestType;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.RuleTestType;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorList;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorType;
+@@ -86,10 +92,16 @@
  import net.minecraft.world.level.storage.loot.entries.LootPoolEntryType;
  import net.minecraft.world.level.storage.loot.functions.LootItemFunctionType;
  import net.minecraft.world.level.storage.loot.functions.LootItemFunctions;
@@ -53,7 +73,7 @@
  import org.apache.logging.log4j.Logger;
  
  public abstract class Registry<T> implements Codec<T>, Keyable, IdMap<T> {
-@@ -115,10 +124,12 @@
+@@ -115,10 +127,12 @@
     public static final ResourceKey<Registry<PosRuleTestType<?>>> POS_RULE_TEST_REGISTRY;
     public static final ResourceKey<Registry<MenuType<?>>> MENU_REGISTRY;
     public static final ResourceKey<Registry<RecipeType<?>>> RECIPE_TYPE_REGISTRY;
@@ -66,7 +86,7 @@
     public static final ResourceKey<Registry<VillagerProfession>> VILLAGER_PROFESSION_REGISTRY;
     public static final ResourceKey<Registry<PoiType>> POINT_OF_INTEREST_TYPE_REGISTRY;
     public static final ResourceKey<Registry<MemoryModuleType<?>>> MEMORY_MODULE_TYPE_REGISTRY;
-@@ -126,13 +137,17 @@
+@@ -126,13 +140,17 @@
     public static final ResourceKey<Registry<Schedule>> SCHEDULE_REGISTRY;
     public static final ResourceKey<Registry<Activity>> ACTIVITY_REGISTRY;
     public static final ResourceKey<Registry<LootPoolEntryType>> LOOT_ENTRY_REGISTRY;
@@ -84,7 +104,7 @@
     public static final Registry<MobEffect> MOB_EFFECT;
     public static final DefaultedRegistry<Block> BLOCK;
     public static final Registry<Enchantment> ENCHANTMENT;
-@@ -148,10 +163,11 @@
+@@ -148,10 +166,11 @@
     public static final Registry<PosRuleTestType<?>> POS_RULE_TEST;
     public static final Registry<MenuType<?>> MENU;
     public static final Registry<RecipeType<?>> RECIPE_TYPE;
@@ -96,7 +116,7 @@
     public static final DefaultedRegistry<VillagerProfession> VILLAGER_PROFESSION;
     public static final DefaultedRegistry<PoiType> POINT_OF_INTEREST_TYPE;
     public static final DefaultedRegistry<MemoryModuleType<?>> MEMORY_MODULE_TYPE;
-@@ -159,20 +175,25 @@
+@@ -159,10 +178,19 @@
     public static final Registry<Schedule> SCHEDULE;
     public static final Registry<Activity> ACTIVITY;
     public static final Registry<LootPoolEntryType> LOOT_POOL_ENTRY_TYPE;
@@ -105,24 +125,18 @@
 +   public static final Registry<LootNumberProviderType> LOOT_NUMBER_PROVIDER_TYPE;
 +   public static final Registry<LootNbtProviderType> LOOT_NBT_PROVIDER_TYPE;
 +   public static final Registry<LootScoreProviderType> LOOT_SCORE_PROVIDER_TYPE;
++   public static final ResourceKey<Registry<FloatProviderType<?>>> FLOAT_PROVIDER_TYPE_REGISTRY;
++   public static final Registry<FloatProviderType<?>> FLOAT_PROVIDER_TYPES;
++   public static final ResourceKey<Registry<IntProviderType<?>>> INT_PROVIDER_TYPE_REGISTRY;
++   public static final Registry<IntProviderType<?>> INT_PROVIDER_TYPES;
++   public static final ResourceKey<Registry<HeightProviderType<?>>> HEIGHT_PROVIDER_TYPE_REGISTRY;
++   public static final Registry<HeightProviderType<?>> HEIGHT_PROVIDER_TYPES;
     public static final ResourceKey<Registry<NoiseGeneratorSettings>> NOISE_GENERATOR_SETTINGS_REGISTRY;
     public static final ResourceKey<Registry<ConfiguredSurfaceBuilder<?>>> CONFIGURED_SURFACE_BUILDER_REGISTRY;
     public static final ResourceKey<Registry<ConfiguredWorldCarver<?>>> CONFIGURED_CARVER_REGISTRY;
     public static final ResourceKey<Registry<ConfiguredFeature<?, ?>>> CONFIGURED_FEATURE_REGISTRY;
     public static final ResourceKey<Registry<ConfiguredStructureFeature<?, ?>>> CONFIGURED_STRUCTURE_FEATURE_REGISTRY;
-    public static final ResourceKey<Registry<StructureProcessorList>> PROCESSOR_LIST_REGISTRY;
-    public static final ResourceKey<Registry<StructureTemplatePool>> TEMPLATE_POOL_REGISTRY;
-    public static final ResourceKey<Registry<Biome>> BIOME_REGISTRY;
-    public static final ResourceKey<Registry<SurfaceBuilder<?>>> SURFACE_BUILDER_REGISTRY;
-    public static final Registry<SurfaceBuilder<?>> SURFACE_BUILDER;
-+   public static final ResourceKey<Registry<FloatProviderType<?>>> FLOAT_PROVIDER_TYPE_REGISTRY;
-+   public static final Registry<FloatProviderType<?>> FLOAT_PROVIDER_TYPES;
-    public static final ResourceKey<Registry<WorldCarver<?>>> CARVER_REGISTRY;
-    public static final Registry<WorldCarver<?>> CARVER;
-    public static final ResourceKey<Registry<Feature<?>>> FEATURE_REGISTRY;
-    public static final Registry<Feature<?>> FEATURE;
-    public static final ResourceKey<Registry<StructureFeature<?>>> STRUCTURE_FEATURE_REGISTRY;
-@@ -209,14 +230,11 @@
+@@ -209,14 +237,11 @@
     }
  
     public static <T extends WritableRegistry<?>> void checkRegistry(WritableRegistry<T> var0) {
@@ -138,20 +152,44 @@
           if (var1 instanceof DefaultedRegistry) {
              ResourceLocation var2 = ((DefaultedRegistry)var1).getDefaultKey();
              Validate.notNull(var1.get(var2), "Missing default of DefaultedMappedRegistry: " + var2);
-@@ -324,10 +342,12 @@
+@@ -307,10 +332,14 @@
  
+    public Optional<T> getOptional(@Nullable ResourceLocation var1) {
+       return Optional.ofNullable(this.get(var1));
+    }
+ 
++   public Optional<T> getOptional(@Nullable ResourceKey<T> var1) {
++      return Optional.ofNullable(this.get(var1));
++   }
++
+    public T getOrThrow(ResourceKey<T> var1) {
+       Object var2 = this.get(var1);
+       if (var2 == null) {
+          throw new IllegalStateException("Missing: " + var1);
+       } else {
+@@ -320,14 +349,21 @@
+ 
+    public abstract Set<ResourceLocation> keySet();
+ 
+    public abstract Set<Entry<ResourceKey<T>, T>> entrySet();
+ 
++   @Nullable
++   public abstract T getRandom(Random var1);
++
     public Stream<T> stream() {
        return StreamSupport.stream(this.spliterator(), false);
     }
  
 +   public abstract boolean containsKey(ResourceLocation var1);
 +
++   public abstract boolean containsKey(ResourceKey<T> var1);
++
     public static <T> T register(Registry<? super T> var0, String var1, T var2) {
        return register(var0, new ResourceLocation(var1), var2);
     }
  
     public static <V, T extends V> T register(Registry<V> var0, ResourceLocation var1, T var2) {
-@@ -357,10 +377,12 @@
+@@ -357,10 +393,12 @@
        POS_RULE_TEST_REGISTRY = createRegistryKey("pos_rule_test");
        MENU_REGISTRY = createRegistryKey("menu");
        RECIPE_TYPE_REGISTRY = createRegistryKey("recipe_type");
@@ -164,7 +202,7 @@
        VILLAGER_PROFESSION_REGISTRY = createRegistryKey("villager_profession");
        POINT_OF_INTEREST_TYPE_REGISTRY = createRegistryKey("point_of_interest_type");
        MEMORY_MODULE_TYPE_REGISTRY = createRegistryKey("memory_module_type");
-@@ -368,13 +390,19 @@
+@@ -368,13 +406,19 @@
        SCHEDULE_REGISTRY = createRegistryKey("schedule");
        ACTIVITY_REGISTRY = createRegistryKey("activity");
        LOOT_ENTRY_REGISTRY = createRegistryKey("loot_pool_entry_type");
@@ -184,7 +222,7 @@
        });
        FLUID = registerDefaulted(FLUID_REGISTRY, "empty", () -> {
           return Fluids.EMPTY;
-@@ -428,10 +456,13 @@
+@@ -428,10 +472,13 @@
           return RecipeSerializer.SHAPELESS_RECIPE;
        });
        ATTRIBUTE = registerSimple(ATTRIBUTE_REGISTRY, () -> {
@@ -198,7 +236,7 @@
        });
        VILLAGER_TYPE = registerDefaulted(VILLAGER_TYPE_REGISTRY, "plains", () -> {
           return VillagerType.PLAINS;
-@@ -461,10 +492,19 @@
+@@ -461,10 +508,31 @@
           return LootItemFunctions.SET_COUNT;
        });
        LOOT_CONDITION_TYPE = registerSimple(LOOT_ITEM_REGISTRY, () -> {
@@ -213,23 +251,20 @@
 +      LOOT_SCORE_PROVIDER_TYPE = registerSimple(LOOT_SCORE_PROVIDER_REGISTRY, () -> {
 +         return ScoreboardNameProviders.CONTEXT;
 +      });
++      FLOAT_PROVIDER_TYPE_REGISTRY = createRegistryKey("float_provider_type");
++      FLOAT_PROVIDER_TYPES = registerSimple(FLOAT_PROVIDER_TYPE_REGISTRY, () -> {
++         return FloatProviderType.CONSTANT;
++      });
++      INT_PROVIDER_TYPE_REGISTRY = createRegistryKey("int_provider_type");
++      INT_PROVIDER_TYPES = registerSimple(INT_PROVIDER_TYPE_REGISTRY, () -> {
++         return IntProviderType.CONSTANT;
++      });
++      HEIGHT_PROVIDER_TYPE_REGISTRY = createRegistryKey("height_provider_type");
++      HEIGHT_PROVIDER_TYPES = registerSimple(HEIGHT_PROVIDER_TYPE_REGISTRY, () -> {
++         return HeightProviderType.CONSTANT;
++      });
        NOISE_GENERATOR_SETTINGS_REGISTRY = createRegistryKey("worldgen/noise_settings");
        CONFIGURED_SURFACE_BUILDER_REGISTRY = createRegistryKey("worldgen/configured_surface_builder");
        CONFIGURED_CARVER_REGISTRY = createRegistryKey("worldgen/configured_carver");
        CONFIGURED_FEATURE_REGISTRY = createRegistryKey("worldgen/configured_feature");
        CONFIGURED_STRUCTURE_FEATURE_REGISTRY = createRegistryKey("worldgen/configured_structure_feature");
-@@ -473,10 +513,14 @@
-       BIOME_REGISTRY = createRegistryKey("worldgen/biome");
-       SURFACE_BUILDER_REGISTRY = createRegistryKey("worldgen/surface_builder");
-       SURFACE_BUILDER = registerSimple(SURFACE_BUILDER_REGISTRY, () -> {
-          return SurfaceBuilder.DEFAULT;
-       });
-+      FLOAT_PROVIDER_TYPE_REGISTRY = createRegistryKey("worldgen/float_provider_type");
-+      FLOAT_PROVIDER_TYPES = registerSimple(FLOAT_PROVIDER_TYPE_REGISTRY, () -> {
-+         return FloatProviderType.CONSTANT;
-+      });
-       CARVER_REGISTRY = createRegistryKey("worldgen/carver");
-       CARVER = registerSimple(CARVER_REGISTRY, () -> {
-          return WorldCarver.CAVE;
-       });
-       FEATURE_REGISTRY = createRegistryKey("worldgen/feature");

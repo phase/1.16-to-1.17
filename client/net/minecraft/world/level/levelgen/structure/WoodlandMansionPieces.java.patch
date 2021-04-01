@@ -1,0 +1,179 @@
+--- net/minecraft/world/level/levelgen/structure/WoodlandMansionPieces.java
++++ net/minecraft/world/level/levelgen/structure/WoodlandMansionPieces.java
+@@ -9,10 +9,11 @@
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.util.Tuple;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.MobSpawnType;
+ import net.minecraft.world.entity.SpawnGroupData;
+ import net.minecraft.world.entity.monster.AbstractIllager;
+@@ -28,16 +29,28 @@
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+ import net.minecraft.world.level.storage.loot.BuiltInLootTables;
+ 
+ public class WoodlandMansionPieces {
++   public WoodlandMansionPieces() {
++   }
++
+    public static void generateMansion(StructureManager var0, BlockPos var1, Rotation var2, List<WoodlandMansionPieces.WoodlandMansionPiece> var3, Random var4) {
+       WoodlandMansionPieces.MansionGrid var5 = new WoodlandMansionPieces.MansionGrid(var4);
+       WoodlandMansionPieces.MansionPiecePlacer var6 = new WoodlandMansionPieces.MansionPiecePlacer(var0, var4);
+       var6.createMansion(var1, var2, var3, var5);
+    }
+ 
++   public static void main(String[] var0) {
++      Random var1 = new Random();
++      long var2 = var1.nextLong();
++      System.out.println("Seed: " + var2);
++      var1.setSeed(var2);
++      WoodlandMansionPieces.MansionGrid var4 = new WoodlandMansionPieces.MansionGrid(var1);
++      var4.print();
++   }
++
+    static class ThirdFloorRoomCollection extends WoodlandMansionPieces.SecondFloorRoomCollection {
+       private ThirdFloorRoomCollection() {
+          super(null);
+       }
+    }
+@@ -173,10 +186,26 @@
+          return this.get(var1 - 1, var2) == var3 || this.get(var1 + 1, var2) == var3 || this.get(var1, var2 + 1) == var3 || this.get(var1, var2 - 1) == var3;
+       }
+    }
+ 
+    static class MansionGrid {
++      private static final int DEFAULT_SIZE = 11;
++      private static final int CLEAR = 0;
++      private static final int CORRIDOR = 1;
++      private static final int ROOM = 2;
++      private static final int START_ROOM = 3;
++      private static final int TEST_ROOM = 4;
++      private static final int BLOCKED = 5;
++      private static final int ROOM_1x1 = 65536;
++      private static final int ROOM_1x2 = 131072;
++      private static final int ROOM_2x2 = 262144;
++      private static final int ROOM_ORIGIN_FLAG = 1048576;
++      private static final int ROOM_DOOR_FLAG = 2097152;
++      private static final int ROOM_STAIRS_FLAG = 4194304;
++      private static final int ROOM_CORRIDOR_FLAG = 8388608;
++      private static final int ROOM_TYPE_MASK = 983040;
++      private static final int ROOM_ID_MASK = 65535;
+       private final Random random;
+       private final WoodlandMansionPieces.SimpleGrid baseGrid;
+       private final WoodlandMansionPieces.SimpleGrid thirdFloorGrid;
+       private final WoodlandMansionPieces.SimpleGrid[] floorRooms;
+       private final int entranceX;
+@@ -459,10 +488,40 @@
+             }
+ 
+             ++var4;
+          }
+       }
++
++      public void print() {
++         for(int var1 = 0; var1 < 2; ++var1) {
++            WoodlandMansionPieces.SimpleGrid var2 = var1 == 0 ? this.baseGrid : this.thirdFloorGrid;
++
++            for(int var3 = 0; var3 < var2.height; ++var3) {
++               for(int var4 = 0; var4 < var2.width; ++var4) {
++                  int var5 = var2.get(var4, var3);
++                  if (var5 == 1) {
++                     System.out.print("+");
++                  } else if (var5 == 4) {
++                     System.out.print("x");
++                  } else if (var5 == 2) {
++                     System.out.print("X");
++                  } else if (var5 == 3) {
++                     System.out.print("O");
++                  } else if (var5 == 5) {
++                     System.out.print("#");
++                  } else {
++                     System.out.print(" ");
++                  }
++               }
++
++               System.out.println("");
++            }
++
++            System.out.println("");
++         }
++
++      }
+    }
+ 
+    static class MansionPiecePlacer {
+       private final StructureManager structureManager;
+       private final Random random;
+@@ -973,48 +1032,42 @@
+       private PlacementData() {
+       }
+    }
+ 
+    public static class WoodlandMansionPiece extends TemplateStructurePiece {
+-      private final String templateName;
+-      private final Rotation rotation;
+-      private final Mirror mirror;
+-
+       public WoodlandMansionPiece(StructureManager var1, String var2, BlockPos var3, Rotation var4) {
+          this(var1, var2, var3, var4, Mirror.NONE);
+       }
+ 
+       public WoodlandMansionPiece(StructureManager var1, String var2, BlockPos var3, Rotation var4, Mirror var5) {
+-         super(StructurePieceType.WOODLAND_MANSION_PIECE, 0);
+-         this.templateName = var2;
+-         this.templatePosition = var3;
+-         this.rotation = var4;
+-         this.mirror = var5;
+-         this.loadTemplate(var1);
++         super(StructurePieceType.WOODLAND_MANSION_PIECE, 0, var1, makeLocation(var2), var2, makeSettings(var5, var4), var3);
+       }
+ 
+-      public WoodlandMansionPiece(StructureManager var1, CompoundTag var2) {
+-         super(StructurePieceType.WOODLAND_MANSION_PIECE, var2);
+-         this.templateName = var2.getString("Template");
+-         this.rotation = Rotation.valueOf(var2.getString("Rot"));
+-         this.mirror = Mirror.valueOf(var2.getString("Mi"));
+-         this.loadTemplate(var1);
++      public WoodlandMansionPiece(ServerLevel var1, CompoundTag var2) {
++         super(StructurePieceType.WOODLAND_MANSION_PIECE, var2, var1, (var1x) -> {
++            return makeSettings(Mirror.valueOf(var2.getString("Mi")), Rotation.valueOf(var2.getString("Rot")));
++         });
+       }
+ 
+-      private void loadTemplate(StructureManager var1) {
+-         StructureTemplate var2 = var1.getOrCreate(new ResourceLocation("woodland_mansion/" + this.templateName));
+-         StructurePlaceSettings var3 = (new StructurePlaceSettings()).setIgnoreEntities(true).setRotation(this.rotation).setMirror(this.mirror).addProcessor(BlockIgnoreProcessor.STRUCTURE_BLOCK);
+-         this.setup(var2, this.templatePosition, var3);
++      protected ResourceLocation makeTemplateLocation() {
++         return makeLocation(this.templateName);
+       }
+ 
+-      protected void addAdditionalSaveData(CompoundTag var1) {
+-         super.addAdditionalSaveData(var1);
+-         var1.putString("Template", this.templateName);
+-         var1.putString("Rot", this.placeSettings.getRotation().name());
+-         var1.putString("Mi", this.placeSettings.getMirror().name());
++      private static ResourceLocation makeLocation(String var0) {
++         return new ResourceLocation("woodland_mansion/" + var0);
+       }
+ 
++      private static StructurePlaceSettings makeSettings(Mirror var0, Rotation var1) {
++         return (new StructurePlaceSettings()).setIgnoreEntities(true).setRotation(var1).setMirror(var0).addProcessor(BlockIgnoreProcessor.STRUCTURE_BLOCK);
++      }
++
++      protected void addAdditionalSaveData(ServerLevel var1, CompoundTag var2) {
++         super.addAdditionalSaveData(var1, var2);
++         var2.putString("Rot", this.placeSettings.getRotation().name());
++         var2.putString("Mi", this.placeSettings.getMirror().name());
++      }
++
+       protected void handleDataMarker(String var1, BlockPos var2, ServerLevelAccessor var3, Random var4, BoundingBox var5) {
+          if (var1.startsWith("Chest")) {
+             Rotation var6 = this.placeSettings.getRotation();
+             BlockState var7 = Blocks.CHEST.defaultBlockState();
+             if ("ChestWest".equals(var1)) {

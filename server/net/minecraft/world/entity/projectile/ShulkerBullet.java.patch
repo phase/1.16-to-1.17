@@ -1,19 +1,46 @@
 --- net/minecraft/world/entity/projectile/ShulkerBullet.java
 +++ net/minecraft/world/entity/projectile/ShulkerBullet.java
-@@ -6,12 +6,10 @@
+@@ -6,11 +6,10 @@
  import javax.annotation.Nullable;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.core.particles.ParticleTypes;
  import net.minecraft.nbt.CompoundTag;
 -import net.minecraft.network.protocol.Packet;
--import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.sounds.SoundSource;
  import net.minecraft.util.Mth;
- import net.minecraft.world.Difficulty;
-@@ -174,11 +172,11 @@
+@@ -27,10 +26,11 @@
+ import net.minecraft.world.phys.EntityHitResult;
+ import net.minecraft.world.phys.HitResult;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class ShulkerBullet extends Projectile {
++   private static final double SPEED = 0.15D;
+    private Entity finalTarget;
+    @Nullable
+    private Direction currentMoveDirection;
+    private int flightSteps;
+    private double targetDeltaX;
+@@ -94,10 +94,15 @@
+    }
+ 
+    protected void defineSynchedData() {
+    }
+ 
++   @Nullable
++   private Direction getMoveDirection() {
++      return this.currentMoveDirection;
++   }
++
+    private void setMoveDirection(@Nullable Direction var1) {
+       this.currentMoveDirection = var1;
+    }
+ 
+    private void selectNextMoveDirection(@Nullable Direction.Axis var1) {
+@@ -174,11 +179,11 @@
        this.flightSteps = 10 + this.random.nextInt(5) * 10;
     }
  
@@ -26,7 +53,7 @@
     }
  
     public void tick() {
-@@ -214,11 +212,11 @@
+@@ -214,11 +219,11 @@
        var1 = this.getDeltaMovement();
        this.setPos(this.getX() + var1.x, this.getY() + var1.y, this.getZ() + var1.z);
        ProjectileUtil.rotateTowardsMovement(this, 0.5F);
@@ -39,7 +66,22 @@
              if (this.flightSteps == 0) {
                 this.selectNextMoveDirection(this.currentMoveDirection == null ? null : this.currentMoveDirection.getAxis());
              }
-@@ -273,26 +271,22 @@
+@@ -246,10 +251,14 @@
+ 
+    public boolean isOnFire() {
+       return false;
+    }
+ 
++   public boolean shouldRenderAtSqrDistance(double var1) {
++      return var1 < 16384.0D;
++   }
++
+    public float getBrightness() {
+       return 1.0F;
+    }
+ 
+    protected void onHitEntity(EntityHitResult var1) {
+@@ -273,26 +282,30 @@
        this.playSound(SoundEvents.SHULKER_BULLET_HIT, 1.0F, 1.0F);
     }
  
@@ -63,8 +105,14 @@
  
        return true;
     }
--
+ 
 -   public Packet<?> getAddEntityPacket() {
 -      return new ClientboundAddEntityPacket(this);
--   }
++   public void recreateFromPacket(ClientboundAddEntityPacket var1) {
++      super.recreateFromPacket(var1);
++      double var2 = var1.getXa();
++      double var4 = var1.getYa();
++      double var6 = var1.getZa();
++      this.setDeltaMovement(var2, var4, var6);
+    }
  }

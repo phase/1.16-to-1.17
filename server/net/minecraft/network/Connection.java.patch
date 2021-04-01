@@ -1,6 +1,39 @@
 --- net/minecraft/network/Connection.java
 +++ net/minecraft/network/Connection.java
-@@ -23,10 +23,11 @@
+@@ -1,32 +1,44 @@
+ package net.minecraft.network;
+ 
+ import com.google.common.collect.Queues;
+ import com.google.common.util.concurrent.ThreadFactoryBuilder;
++import io.netty.bootstrap.Bootstrap;
+ import io.netty.channel.Channel;
++import io.netty.channel.ChannelException;
+ import io.netty.channel.ChannelFuture;
+ import io.netty.channel.ChannelFutureListener;
++import io.netty.channel.ChannelHandler;
+ import io.netty.channel.ChannelHandlerContext;
++import io.netty.channel.ChannelInitializer;
++import io.netty.channel.ChannelOption;
+ import io.netty.channel.DefaultEventLoopGroup;
++import io.netty.channel.EventLoopGroup;
+ import io.netty.channel.SimpleChannelInboundHandler;
++import io.netty.channel.epoll.Epoll;
+ import io.netty.channel.epoll.EpollEventLoopGroup;
++import io.netty.channel.epoll.EpollSocketChannel;
+ import io.netty.channel.local.LocalChannel;
+ import io.netty.channel.local.LocalServerChannel;
+ import io.netty.channel.nio.NioEventLoopGroup;
++import io.netty.channel.socket.nio.NioSocketChannel;
++import io.netty.handler.timeout.ReadTimeoutHandler;
+ import io.netty.handler.timeout.TimeoutException;
+ import io.netty.util.AttributeKey;
+ import io.netty.util.concurrent.Future;
+ import io.netty.util.concurrent.GenericFutureListener;
++import java.net.InetAddress;
+ import java.net.SocketAddress;
+ import java.util.Queue;
+ import javax.annotation.Nullable;
+ import javax.crypto.Cipher;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.network.protocol.Packet;
@@ -12,7 +45,19 @@
  import net.minecraft.server.network.ServerLoginPacketListenerImpl;
  import net.minecraft.util.LazyLoadedValue;
  import net.minecraft.util.Mth;
-@@ -80,11 +81,11 @@
+@@ -35,10 +47,11 @@
+ import org.apache.logging.log4j.Logger;
+ import org.apache.logging.log4j.Marker;
+ import org.apache.logging.log4j.MarkerManager;
+ 
+ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
++   private static final float AVERAGE_PACKETS_SMOOTHING = 0.75F;
+    private static final Logger LOGGER = LogManager.getLogger();
+    public static final Marker ROOT_MARKER = MarkerManager.getMarker("NETWORK");
+    public static final Marker PACKET_MARKER;
+    public static final AttributeKey<ConnectionProtocol> ATTRIBUTE_PROTOCOL;
+    public static final LazyLoadedValue<NioEventLoopGroup> NETWORK_WORKER_GROUP;
+@@ -80,11 +93,11 @@
        this.channel.attr(ATTRIBUTE_PROTOCOL).set(var1);
        this.channel.config().setAutoRead(true);
        LOGGER.debug("Enabled auto read");
@@ -25,7 +70,7 @@
  
     public void exceptionCaught(ChannelHandlerContext var1, Throwable var2) {
        if (var2 instanceof SkipPacketException) {
-@@ -98,11 +99,13 @@
+@@ -98,11 +111,13 @@
                 this.disconnect(new TranslatableComponent("disconnect.timeout"));
              } else {
                 TranslatableComponent var4 = new TranslatableComponent("disconnect.genericReason", new Object[]{"Internal Exception: " + var2});
@@ -40,7 +85,7 @@
                    this.setReadOnly();
                 } else {
                    LOGGER.debug("Double fault", var2);
-@@ -112,11 +115,11 @@
+@@ -112,11 +127,11 @@
  
           }
        }
@@ -53,7 +98,7 @@
              genericsFtw(var2, this.packetListener);
           } catch (RunningOnDifferentThreadException var4) {
           }
-@@ -149,11 +152,11 @@
+@@ -149,11 +164,11 @@
  
     }
  
@@ -66,7 +111,7 @@
           LOGGER.debug("Disabled auto read");
           this.channel.config().setAutoRead(false);
        }
-@@ -184,10 +187,14 @@
+@@ -184,10 +199,14 @@
           });
        }
  
@@ -81,3 +126,82 @@
           synchronized(this.queue) {
              Connection.PacketHolder var2;
              while((var2 = (Connection.PacketHolder)this.queue.poll()) != null) {
+@@ -239,16 +258,63 @@
+ 
+    public boolean isMemoryConnection() {
+       return this.channel instanceof LocalChannel || this.channel instanceof LocalServerChannel;
+    }
+ 
++   public PacketFlow getReceiving() {
++      return this.receiving;
++   }
++
++   public PacketFlow getSending() {
++      return this.receiving.getOpposite();
++   }
++
++   public static Connection connectToServer(InetAddress var0, int var1, boolean var2) {
++      final Connection var3 = new Connection(PacketFlow.CLIENTBOUND);
++      Class var4;
++      LazyLoadedValue var5;
++      if (Epoll.isAvailable() && var2) {
++         var4 = EpollSocketChannel.class;
++         var5 = NETWORK_EPOLL_WORKER_GROUP;
++      } else {
++         var4 = NioSocketChannel.class;
++         var5 = NETWORK_WORKER_GROUP;
++      }
++
++      ((Bootstrap)((Bootstrap)((Bootstrap)(new Bootstrap()).group((EventLoopGroup)var5.get())).handler(new ChannelInitializer<Channel>() {
++         protected void initChannel(Channel var1) {
++            try {
++               var1.config().setOption(ChannelOption.TCP_NODELAY, true);
++            } catch (ChannelException var3x) {
++            }
++
++            var1.pipeline().addLast((String)"timeout", (ChannelHandler)(new ReadTimeoutHandler(30))).addLast((String)"splitter", (ChannelHandler)(new Varint21FrameDecoder())).addLast((String)"decoder", (ChannelHandler)(new PacketDecoder(PacketFlow.CLIENTBOUND))).addLast((String)"prepender", (ChannelHandler)(new Varint21LengthFieldPrepender())).addLast((String)"encoder", (ChannelHandler)(new PacketEncoder(PacketFlow.SERVERBOUND))).addLast((String)"packet_handler", (ChannelHandler)var3);
++         }
++      })).channel(var4)).connect(var0, var1).syncUninterruptibly();
++      return var3;
++   }
++
++   public static Connection connectToLocalServer(SocketAddress var0) {
++      final Connection var1 = new Connection(PacketFlow.CLIENTBOUND);
++      ((Bootstrap)((Bootstrap)((Bootstrap)(new Bootstrap()).group((EventLoopGroup)LOCAL_WORKER_GROUP.get())).handler(new ChannelInitializer<Channel>() {
++         protected void initChannel(Channel var1x) {
++            var1x.pipeline().addLast((String)"packet_handler", (ChannelHandler)var1);
++         }
++      })).channel(LocalChannel.class)).connect(var0).syncUninterruptibly();
++      return var1;
++   }
++
+    public void setEncryptionKey(Cipher var1, Cipher var2) {
+       this.encrypted = true;
+       this.channel.pipeline().addBefore("splitter", "decrypt", new CipherDecoder(var1));
+       this.channel.pipeline().addBefore("prepender", "encrypt", new CipherEncoder(var2));
+    }
+ 
++   public boolean isEncrypted() {
++      return this.encrypted;
++   }
++
+    public boolean isConnected() {
+       return this.channel != null && this.channel.isOpen();
+    }
+ 
+    public boolean isConnecting() {
+@@ -311,10 +377,14 @@
+ 
+    public float getAverageReceivedPackets() {
+       return this.averageReceivedPackets;
+    }
+ 
++   public float getAverageSentPackets() {
++      return this.averageSentPackets;
++   }
++
+    static {
+       PACKET_MARKER = MarkerManager.getMarker("NETWORK_PACKETS", ROOT_MARKER);
+       ATTRIBUTE_PROTOCOL = AttributeKey.valueOf("protocol");
+       NETWORK_WORKER_GROUP = new LazyLoadedValue(() -> {
+          return new NioEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Client IO #%d").setDaemon(true).build());

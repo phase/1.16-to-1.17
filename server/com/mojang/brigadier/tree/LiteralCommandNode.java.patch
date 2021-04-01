@@ -1,0 +1,38 @@
+--- com/mojang/brigadier/tree/LiteralCommandNode.java
++++ com/mojang/brigadier/tree/LiteralCommandNode.java
+@@ -10,19 +10,22 @@
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+ import com.mojang.brigadier.suggestion.Suggestions;
+ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+ import java.util.Collection;
+ import java.util.Collections;
++import java.util.Locale;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.function.Predicate;
+ 
+ public class LiteralCommandNode<S> extends CommandNode<S> {
+    private final String literal;
++   private final String literalLowerCase;
+ 
+    public LiteralCommandNode(String var1, Command<S> var2, Predicate<S> var3, CommandNode<S> var4, RedirectModifier<S> var5, boolean var6) {
+       super(var2, var3, var4, var5, var6);
+       this.literal = var1;
++      this.literalLowerCase = var1.toLowerCase(Locale.ROOT);
+    }
+ 
+    public String getLiteral() {
+       return this.literal;
+    }
+@@ -57,11 +60,11 @@
+ 
+       return -1;
+    }
+ 
+    public CompletableFuture<Suggestions> listSuggestions(CommandContext<S> var1, SuggestionsBuilder var2) {
+-      return this.literal.toLowerCase().startsWith(var2.getRemaining().toLowerCase()) ? var2.suggest(this.literal).buildFuture() : Suggestions.empty();
++      return this.literalLowerCase.startsWith(var2.getRemainingLowerCase()) ? var2.suggest(this.literal).buildFuture() : Suggestions.empty();
+    }
+ 
+    public boolean isValidInput(String var1) {
+       return this.parse(new StringReader(var1)) > -1;
+    }

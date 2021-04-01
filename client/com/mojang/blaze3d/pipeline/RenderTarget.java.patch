@@ -1,6 +1,6 @@
 --- com/mojang/blaze3d/pipeline/RenderTarget.java
 +++ com/mojang/blaze3d/pipeline/RenderTarget.java
-@@ -1,15 +1,19 @@
+@@ -1,17 +1,25 @@
  package com.mojang.blaze3d.pipeline;
  
 -import com.mojang.blaze3d.platform.GlConst;
@@ -18,10 +18,16 @@
 +import net.minecraft.client.renderer.ShaderInstance;
  
  public class RenderTarget {
++   private static final int RED_CHANNEL = 0;
++   private static final int GREEN_CHANNEL = 1;
++   private static final int BLUE_CHANNEL = 2;
++   private static final int ALPHA_CHANNEL = 3;
     public int width;
     public int height;
     public int viewWidth;
-@@ -52,11 +56,11 @@
+    public int viewHeight;
+    public final boolean useDepth;
+@@ -52,11 +60,11 @@
        if (this.frameBufferId >= 0) {
           this.destroyBuffers();
        }
@@ -34,7 +40,7 @@
     public void destroyBuffers() {
        RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
        this.unbindRead();
-@@ -70,36 +74,23 @@
+@@ -70,36 +78,23 @@
           TextureUtil.releaseTextureId(this.colorTextureId);
           this.colorTextureId = -1;
        }
@@ -76,7 +82,7 @@
     public void createBuffers(int var1, int var2, boolean var3) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
        this.viewWidth = var1;
-@@ -111,23 +102,21 @@
+@@ -111,23 +106,25 @@
        if (this.useDepth) {
           this.depthBufferId = TextureUtil.generateTextureId();
           GlStateManager._bindTexture(this.depthBufferId);
@@ -85,11 +91,15 @@
 -         GlStateManager._texParameter(3553, 10242, 10496);
 -         GlStateManager._texParameter(3553, 10243, 10496);
           GlStateManager._texParameter(3553, 34892, 0);
++         GlStateManager._texParameter(3553, 10242, 33071);
++         GlStateManager._texParameter(3553, 10243, 33071);
           GlStateManager._texImage2D(3553, 0, 6402, this.width, this.height, 0, 6402, 5126, (IntBuffer)null);
        }
  
        this.setFilterMode(9728);
        GlStateManager._bindTexture(this.colorTextureId);
++      GlStateManager._texParameter(3553, 10242, 33071);
++      GlStateManager._texParameter(3553, 10243, 33071);
        GlStateManager._texImage2D(3553, 0, 32856, this.width, this.height, 0, 6408, 5121, (IntBuffer)null);
 -      GlStateManager._glBindFramebuffer(GlConst.GL_FRAMEBUFFER, this.frameBufferId);
 -      GlStateManager._glFramebufferTexture2D(GlConst.GL_FRAMEBUFFER, GlConst.GL_COLOR_ATTACHMENT0, 3553, this.colorTextureId, 0);
@@ -103,7 +113,7 @@
        this.checkStatus();
        this.clear(var3);
        this.unbindRead();
-@@ -137,38 +126,31 @@
+@@ -137,26 +134,24 @@
        RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
        this.filterMode = var1;
        GlStateManager._bindTexture(this.colorTextureId);
@@ -136,19 +146,7 @@
              throw new RuntimeException("glCheckFramebufferStatus returned unknown status:" + var1);
           }
        }
-    }
- 
--   public void bindRead() {
--      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
--      GlStateManager._bindTexture(this.colorTextureId);
--   }
--
-    public void unbindRead() {
-       RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
-       GlStateManager._bindTexture(0);
-    }
- 
-@@ -183,24 +165,24 @@
+@@ -183,24 +178,24 @@
  
     }
  
@@ -176,7 +174,7 @@
     }
  
     public void setClearColor(float var1, float var2, float var3, float var4) {
-@@ -229,40 +211,43 @@
+@@ -229,40 +224,43 @@
     private void _blitToScreen(int var1, int var2, boolean var3) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        GlStateManager._colorMask(true, true, true, false);

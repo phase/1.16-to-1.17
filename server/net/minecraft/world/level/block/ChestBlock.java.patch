@@ -1,8 +1,9 @@
 --- net/minecraft/world/level/block/ChestBlock.java
 +++ net/minecraft/world/level/block/ChestBlock.java
-@@ -1,18 +1,20 @@
+@@ -1,18 +1,21 @@
  package net.minecraft.world.level.block;
  
++import it.unimi.dsi.fastutil.floats.Float2FloatFunction;
  import java.util.Iterator;
  import java.util.List;
  import java.util.Optional;
@@ -21,7 +22,7 @@
  import net.minecraft.world.CompoundContainer;
  import net.minecraft.world.Container;
  import net.minecraft.world.Containers;
-@@ -30,10 +32,11 @@
+@@ -30,12 +33,14 @@
  import net.minecraft.world.item.context.BlockPlaceContext;
  import net.minecraft.world.level.BlockGetter;
  import net.minecraft.world.level.Level;
@@ -30,10 +31,27 @@
 +import net.minecraft.world.level.block.entity.BlockEntityTicker;
  import net.minecraft.world.level.block.entity.BlockEntityType;
  import net.minecraft.world.level.block.entity.ChestBlockEntity;
++import net.minecraft.world.level.block.entity.LidBlockEntity;
  import net.minecraft.world.level.block.state.BlockBehaviour;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.StateDefinition;
-@@ -194,10 +197,14 @@
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+ import net.minecraft.world.level.block.state.properties.BooleanProperty;
+@@ -52,10 +57,13 @@
+ 
+ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements SimpleWaterloggedBlock {
+    public static final DirectionProperty FACING;
+    public static final EnumProperty<ChestType> TYPE;
+    public static final BooleanProperty WATERLOGGED;
++   public static final int EVENT_SET_OPEN_COUNT = 1;
++   protected static final int AABB_OFFSET = 1;
++   protected static final int AABB_HEIGHT = 14;
+    protected static final VoxelShape NORTH_AABB;
+    protected static final VoxelShape SOUTH_AABB;
+    protected static final VoxelShape WEST_AABB;
+    protected static final VoxelShape EAST_AABB;
+    protected static final VoxelShape AABB;
+@@ -194,10 +202,14 @@
  
     protected Stat<ResourceLocation> getOpenChestStat() {
        return Stats.CUSTOM.get(Stats.OPEN_CHEST);
@@ -48,7 +66,7 @@
        return (Container)((Optional)var0.combine(var1, var2, var3, var4).apply(CHEST_COMBINER)).orElse((Object)null);
     }
  
-@@ -217,14 +224,19 @@
+@@ -217,14 +229,38 @@
     @Nullable
     public MenuProvider getMenuProvider(BlockState var1, Level var2, BlockPos var3) {
        return (MenuProvider)((Optional)this.combine(var1, var2, var3, false).apply(MENU_PROVIDER_COMBINER)).orElse((Object)null);
@@ -56,10 +74,29 @@
  
 -   public BlockEntity newBlockEntity(BlockGetter var1) {
 -      return new ChestBlockEntity();
-+   public BlockEntity newBlockEntity(BlockPos var1, BlockState var2) {
-+      return new ChestBlockEntity(var1, var2);
++   public static DoubleBlockCombiner.Combiner<ChestBlockEntity, Float2FloatFunction> opennessCombiner(final LidBlockEntity var0) {
++      return new DoubleBlockCombiner.Combiner<ChestBlockEntity, Float2FloatFunction>() {
++         public Float2FloatFunction acceptDouble(ChestBlockEntity var1, ChestBlockEntity var2) {
++            return (var2x) -> {
++               return Math.max(var1.getOpenNess(var2x), var2.getOpenNess(var2x));
++            };
++         }
++
++         public Float2FloatFunction acceptSingle(ChestBlockEntity var1) {
++            return var1::getOpenNess;
++         }
++
++         public Float2FloatFunction acceptNone() {
++            LidBlockEntity var10000 = var0;
++            return var10000::getOpenNess;
++         }
++      };
     }
  
++   public BlockEntity newBlockEntity(BlockPos var1, BlockState var2) {
++      return new ChestBlockEntity(var1, var2);
++   }
++
 +   @Nullable
 +   public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level var1, BlockState var2, BlockEntityType<T> var3) {
 +      return var1.isClientSide ? createTickerHelper(var3, this.blockEntityType(), ChestBlockEntity::lidAnimateTick) : null;
@@ -70,7 +107,7 @@
     }
  
     private static boolean isBlockedChestByBlock(BlockGetter var0, BlockPos var1) {
-@@ -270,10 +282,18 @@
+@@ -270,10 +306,18 @@
  
     public boolean isPathfindable(BlockState var1, BlockGetter var2, BlockPos var3, PathComputationType var4) {
        return false;

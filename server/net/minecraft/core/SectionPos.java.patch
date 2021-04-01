@@ -1,6 +1,6 @@
 --- net/minecraft/core/SectionPos.java
 +++ net/minecraft/core/SectionPos.java
-@@ -5,10 +5,11 @@
+@@ -5,12 +5,31 @@
  import java.util.stream.Stream;
  import java.util.stream.StreamSupport;
  import net.minecraft.util.Mth;
@@ -9,10 +9,30 @@
 +import net.minecraft.world.level.chunk.ChunkAccess;
  
  public class SectionPos extends Vec3i {
++   public static final int SECTION_BITS = 4;
++   public static final int SECTION_SIZE = 16;
++   private static final int SECTION_MASK = 15;
++   public static final int SECTION_HALF_SIZE = 8;
++   public static final int SECTION_MAX_INDEX = 15;
++   private static final int PACKED_X_LENGTH = 22;
++   private static final int PACKED_Y_LENGTH = 20;
++   private static final int PACKED_Z_LENGTH = 22;
++   private static final long PACKED_X_MASK = 4194303L;
++   private static final long PACKED_Y_MASK = 1048575L;
++   private static final long PACKED_Z_MASK = 4194303L;
++   private static final int Y_OFFSET = 0;
++   private static final int Z_OFFSET = 20;
++   private static final int X_OFFSET = 42;
++   private static final int RELATIVE_X_SHIFT = 8;
++   private static final int RELATIVE_Y_SHIFT = 0;
++   private static final int RELATIVE_Z_SHIFT = 4;
++
     private SectionPos(int var1, int var2, int var3) {
        super(var1, var2, var3);
     }
-@@ -24,25 +25,33 @@
+ 
+    public static SectionPos of(int var0, int var1, int var2) {
+@@ -24,25 +43,33 @@
     public static SectionPos of(ChunkPos var0, int var1) {
        return new SectionPos(var0.x, var1, var0.z);
     }
@@ -47,7 +67,7 @@
     }
  
     public static int sectionRelative(int var0) {
-@@ -86,10 +95,14 @@
+@@ -86,10 +113,14 @@
  
     public static int sectionToBlockCoord(int var0) {
        return var0 << 4;
@@ -62,7 +82,7 @@
     }
  
     public static int y(long var0) {
-@@ -111,31 +124,31 @@
+@@ -111,31 +142,31 @@
     public int z() {
        return this.getZ();
     }
@@ -100,7 +120,7 @@
     public static long blockToSection(long var0) {
        return asLong(blockToSectionCoord(BlockPos.getX(var0)), blockToSectionCoord(BlockPos.getY(var0)), blockToSectionCoord(BlockPos.getZ(var0)));
     }
-@@ -155,10 +168,14 @@
+@@ -155,10 +186,14 @@
  
     public ChunkPos chunk() {
        return new ChunkPos(this.x(), this.z());
@@ -115,7 +135,7 @@
        var3 |= ((long)var0 & 4194303L) << 42;
        var3 |= ((long)var1 & 1048575L) << 0;
        var3 |= ((long)var2 & 4194303L) << 20;
-@@ -167,10 +184,14 @@
+@@ -167,10 +202,14 @@
  
     public long asLong() {
        return asLong(this.x(), this.y(), this.z());
@@ -130,7 +150,7 @@
     }
  
     public static Stream<SectionPos> cube(SectionPos var0, int var1) {
-@@ -178,14 +199,14 @@
+@@ -178,14 +217,14 @@
        int var3 = var0.y();
        int var4 = var0.z();
        return betweenClosedStream(var2 - var1, var3 - var1, var4 - var1, var2 + var1, var3 + var1, var4 + var1);

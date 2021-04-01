@@ -1,6 +1,35 @@
 --- net/minecraft/world/level/block/ComposterBlock.java
 +++ net/minecraft/world/level/block/ComposterBlock.java
-@@ -52,10 +52,11 @@
+@@ -5,10 +5,11 @@
+ import java.util.Random;
+ import javax.annotation.Nullable;
+ import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
++import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.sounds.SoundSource;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+@@ -34,12 +35,16 @@
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+ public class ComposterBlock extends Block implements WorldlyContainerHolder {
++   public static final int READY = 8;
++   public static final int MIN_LEVEL = 0;
++   public static final int MAX_LEVEL = 7;
+    public static final IntegerProperty LEVEL;
+    public static final Object2FloatMap<ItemLike> COMPOSTABLES;
++   private static final int AABB_SIDE_THICKNESS = 2;
+    private static final VoxelShape OUTER_SHAPE;
+    private static final VoxelShape[] SHAPES;
+ 
+    public static void bootStrap() {
+       COMPOSTABLES.defaultReturnValue(-1.0F);
+@@ -52,10 +57,11 @@
        add(0.3F, Items.OAK_LEAVES);
        add(0.3F, Items.SPRUCE_LEAVES);
        add(0.3F, Items.DARK_OAK_LEAVES);
@@ -12,7 +41,7 @@
        add(0.3F, Items.BIRCH_SAPLING);
        add(0.3F, Items.JUNGLE_SAPLING);
        add(0.3F, Items.ACACIA_SAPLING);
-@@ -66,13 +67,18 @@
+@@ -66,20 +72,26 @@
        add(0.3F, Items.KELP);
        add(0.3F, Items.MELON_SEEDS);
        add(0.3F, Items.PUMPKIN_SEEDS);
@@ -31,7 +60,15 @@
        add(0.5F, Items.VINE);
        add(0.5F, Items.NETHER_SPROUTS);
        add(0.5F, Items.WEEPING_VINES);
-@@ -115,15 +121,20 @@
+       add(0.5F, Items.TWISTING_VINES);
+       add(0.5F, Items.MELON_SLICE);
++      add(0.5F, Items.GLOW_LICHEN);
+       add(0.65F, Items.SEA_PICKLE);
+       add(0.65F, Items.LILY_PAD);
+       add(0.65F, Items.PUMPKIN);
+       add(0.65F, Items.CARVED_PUMPKIN);
+       add(0.65F, Items.MELON);
+@@ -115,15 +127,20 @@
        add(0.65F, Items.SUNFLOWER);
        add(0.65F, Items.LILAC);
        add(0.65F, Items.ROSE_BUSH);
@@ -52,7 +89,35 @@
        add(0.85F, Items.COOKIE);
        add(1.0F, Items.CAKE);
        add(1.0F, Items.PUMPKIN_PIE);
-@@ -162,11 +173,11 @@
+@@ -136,10 +153,27 @@
+    public ComposterBlock(BlockBehaviour.Properties var1) {
+       super(var1);
+       this.registerDefaultState((BlockState)((BlockState)this.stateDefinition.any()).setValue(LEVEL, 0));
+    }
+ 
++   public static void handleFill(Level var0, BlockPos var1, boolean var2) {
++      BlockState var3 = var0.getBlockState(var1);
++      var0.playLocalSound((double)var1.getX(), (double)var1.getY(), (double)var1.getZ(), var2 ? SoundEvents.COMPOSTER_FILL_SUCCESS : SoundEvents.COMPOSTER_FILL, SoundSource.BLOCKS, 1.0F, 1.0F, false);
++      double var4 = var3.getShape(var0, var1).max(Direction.Axis.Y, 0.5D, 0.5D) + 0.03125D;
++      double var6 = 0.13124999403953552D;
++      double var8 = 0.737500011920929D;
++      Random var10 = var0.getRandom();
++
++      for(int var11 = 0; var11 < 10; ++var11) {
++         double var12 = var10.nextGaussian() * 0.02D;
++         double var14 = var10.nextGaussian() * 0.02D;
++         double var16 = var10.nextGaussian() * 0.02D;
++         var0.addParticle(ParticleTypes.COMPOSTER, (double)var1.getX() + 0.13124999403953552D + 0.737500011920929D * (double)var10.nextFloat(), (double)var1.getY() + var4 + (double)var10.nextFloat() * (1.0D - var4), (double)var1.getZ() + 0.13124999403953552D + 0.737500011920929D * (double)var10.nextFloat(), var12, var14, var16);
++      }
++
++   }
++
+    public VoxelShape getShape(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
+       return SHAPES[(Integer)var1.getValue(LEVEL)];
+    }
+ 
+    public VoxelShape getInteractionShape(BlockState var1, BlockGetter var2, BlockPos var3) {
+@@ -162,11 +196,11 @@
        ItemStack var8 = var4.getItemInHand(var5);
        if (var7 < 8 && COMPOSTABLES.containsKey(var8.getItem())) {
           if (var7 < 7 && !var2.isClientSide) {
@@ -65,7 +130,7 @@
           }
  
           return InteractionResult.sidedSuccess(var2.isClientSide);
-@@ -339,11 +350,11 @@
+@@ -339,11 +373,11 @@
        public boolean canPlaceItemThroughFace(int var1, ItemStack var2, @Nullable Direction var3) {
           return false;
        }

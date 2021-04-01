@@ -1,6 +1,43 @@
 --- net/minecraft/world/item/enchantment/EnchantmentHelper.java
 +++ net/minecraft/world/item/enchantment/EnchantmentHelper.java
-@@ -51,11 +51,11 @@
+@@ -16,11 +16,11 @@
+ import net.minecraft.core.Registry;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.ListTag;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.Mth;
+-import net.minecraft.util.WeighedRandom;
++import net.minecraft.util.random.WeightedRandom;
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.MobType;
+@@ -31,10 +31,13 @@
+ import net.minecraft.world.item.Items;
+ import org.apache.commons.lang3.mutable.MutableFloat;
+ import org.apache.commons.lang3.mutable.MutableInt;
+ 
+ public class EnchantmentHelper {
++   public EnchantmentHelper() {
++   }
++
+    public static int getItemEnchantmentLevel(Enchantment var0, ItemStack var1) {
+       if (var1.isEmpty()) {
+          return 0;
+       } else {
+          ResourceLocation var2 = Registry.ENCHANTMENT.getKey(var0);
+@@ -42,20 +45,20 @@
+ 
+          for(int var4 = 0; var4 < var3.size(); ++var4) {
+             CompoundTag var5 = var3.getCompound(var4);
+             ResourceLocation var6 = ResourceLocation.tryParse(var5.getString("id"));
+             if (var6 != null && var6.equals(var2)) {
+-               return Mth.clamp(var5.getInt("lvl"), 0, 255);
++               return Mth.clamp((int)var5.getInt("lvl"), (int)0, (int)255);
+             }
+          }
+ 
           return 0;
        }
     }
@@ -13,7 +50,7 @@
  
     public static Map<Enchantment, Integer> deserializeEnchantments(ListTag var0) {
        LinkedHashMap var1 = Maps.newLinkedHashMap();
-@@ -81,19 +81,19 @@
+@@ -81,19 +84,19 @@
              int var6 = (Integer)var4.getValue();
              CompoundTag var7 = new CompoundTag();
              var7.putString("id", String.valueOf(Registry.ENCHANTMENT.getKey(var5)));
@@ -35,7 +72,7 @@
  
     }
  
-@@ -302,11 +302,11 @@
+@@ -302,11 +305,11 @@
        }
     }
  
@@ -48,14 +85,18 @@
        }
  
        Iterator var6 = var4.iterator();
-@@ -333,19 +333,22 @@
+@@ -330,22 +333,25 @@
+       if (var6 <= 0) {
+          return var4;
+       } else {
           var2 += 1 + var0.nextInt(var6 / 4 + 1) + var0.nextInt(var6 / 4 + 1);
           float var7 = (var0.nextFloat() + var0.nextFloat() - 1.0F) * 0.15F;
-          var2 = Mth.clamp(Math.round((float)var2 + (float)var2 * var7), 1, Integer.MAX_VALUE);
+-         var2 = Mth.clamp(Math.round((float)var2 + (float)var2 * var7), 1, Integer.MAX_VALUE);
++         var2 = Mth.clamp((int)Math.round((float)var2 + (float)var2 * var7), (int)1, (int)Integer.MAX_VALUE);
           List var8 = getAvailableEnchantmentResults(var2, var1, var3);
           if (!var8.isEmpty()) {
 -            var4.add(WeighedRandom.getRandomItem(var0, var8));
-+            WeighedRandom.getRandomItem(var0, var8).ifPresent(var4::add);
++            WeightedRandom.getRandomItem(var0, var8).ifPresent(var4::add);
  
              while(var0.nextInt(50) <= var2) {
 -               filterCompatibleEnchantments(var8, (EnchantmentInstance)Util.lastOf(var4));
@@ -68,13 +109,13 @@
                 }
  
 -               var4.add(WeighedRandom.getRandomItem(var0, var8));
-+               WeighedRandom.getRandomItem(var0, var8).ifPresent(var4::add);
++               WeightedRandom.getRandomItem(var0, var8).ifPresent(var4::add);
                 var2 /= 2;
              }
           }
  
           return var4;
-@@ -379,11 +382,11 @@
+@@ -379,11 +385,11 @@
     }
  
     public static List<EnchantmentInstance> getAvailableEnchantmentResults(int var0, ItemStack var1, boolean var2) {

@@ -12,7 +12,7 @@
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.server.level.ServerLevel;
-@@ -15,11 +16,10 @@
+@@ -15,20 +16,23 @@
  import net.minecraft.world.entity.player.Inventory;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -24,7 +24,20 @@
  import net.minecraft.world.item.WrittenBookItem;
  import net.minecraft.world.level.block.LecternBlock;
  import net.minecraft.world.level.block.state.BlockState;
-@@ -108,22 +108,21 @@
+ import net.minecraft.world.phys.Vec2;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class LecternBlockEntity extends BlockEntity implements Clearable, MenuProvider {
++   public static final int DATA_PAGE = 0;
++   public static final int NUM_DATA = 1;
++   public static final int SLOT_BOOK = 0;
++   public static final int NUM_SLOTS = 1;
+    private final Container bookAccess = new Container() {
+       public int getContainerSize() {
+          return 1;
+       }
+ 
+@@ -108,22 +112,21 @@
     };
     private ItemStack book;
     private int page;
@@ -50,7 +63,20 @@
     public void setBook(ItemStack var1) {
        this.setBook(var1, (Player)null);
     }
-@@ -159,11 +158,11 @@
+@@ -140,11 +143,11 @@
+       this.pageCount = WrittenBookItem.getPageCount(this.book);
+       this.setChanged();
+    }
+ 
+    private void setPage(int var1) {
+-      int var2 = Mth.clamp(var1, 0, this.pageCount - 1);
++      int var2 = Mth.clamp((int)var1, (int)0, (int)(this.pageCount - 1));
+       if (var2 != this.page) {
+          this.page = var2;
+          this.setChanged();
+          LecternBlock.signalPageChange(this.getLevel(), this.getBlockPos(), this.getBlockState());
+       }
+@@ -159,11 +162,11 @@
        float var1 = this.pageCount > 1 ? (float)this.getPage() / ((float)this.pageCount - 1.0F) : 1.0F;
        return Mth.floor(var1 * 14.0F) + (this.hasBook() ? 1 : 0);
     }
@@ -63,7 +89,7 @@
  
        return var1;
     }
-@@ -185,20 +184,20 @@
+@@ -185,20 +188,20 @@
  
     public boolean onlyOpCanSetNbt() {
        return true;
@@ -83,7 +109,7 @@
  
        this.pageCount = WrittenBookItem.getPageCount(this.book);
 -      this.page = Mth.clamp(var2.getInt("Page"), 0, this.pageCount - 1);
-+      this.page = Mth.clamp(var1.getInt("Page"), 0, this.pageCount - 1);
++      this.page = Mth.clamp((int)var1.getInt("Page"), (int)0, (int)(this.pageCount - 1));
     }
  
     public CompoundTag save(CompoundTag var1) {

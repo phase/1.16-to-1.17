@@ -1,6 +1,6 @@
 --- net/minecraft/client/renderer/debug/DebugRenderer.java
 +++ net/minecraft/client/renderer/debug/DebugRenderer.java
-@@ -3,10 +3,11 @@
+@@ -3,18 +3,20 @@
  import com.mojang.blaze3d.systems.RenderSystem;
  import com.mojang.blaze3d.vertex.BufferBuilder;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -12,7 +12,16 @@
  import java.util.Optional;
  import java.util.function.Predicate;
  import javax.annotation.Nullable;
-@@ -27,11 +28,10 @@
+ import net.minecraft.client.Camera;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
++import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.client.renderer.LevelRenderer;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.projectile.ProjectileUtil;
+@@ -27,11 +29,10 @@
     public final DebugRenderer.SimpleDebugRenderer waterDebugRenderer;
     public final DebugRenderer.SimpleDebugRenderer chunkBorderRenderer;
     public final DebugRenderer.SimpleDebugRenderer heightMapRenderer;
@@ -24,7 +33,7 @@
     public final DebugRenderer.SimpleDebugRenderer worldGenAttemptRenderer;
     public final DebugRenderer.SimpleDebugRenderer solidFaceRenderer;
     public final DebugRenderer.SimpleDebugRenderer chunkRenderer;
-@@ -39,19 +39,19 @@
+@@ -39,19 +40,19 @@
     public final VillageSectionsDebugRenderer villageSectionsDebugRenderer;
     public final BeeDebugRenderer beeDebugRenderer;
     public final RaidDebugRenderer raidDebugRenderer;
@@ -45,7 +54,7 @@
        this.worldGenAttemptRenderer = new WorldGenAttemptRenderer();
        this.solidFaceRenderer = new SolidFaceRenderer(var1);
        this.chunkRenderer = new ChunkDebugRenderer(var1);
-@@ -59,20 +59,20 @@
+@@ -59,20 +60,20 @@
        this.villageSectionsDebugRenderer = new VillageSectionsDebugRenderer();
        this.beeDebugRenderer = new BeeDebugRenderer(var1);
        this.raidDebugRenderer = new RaidDebugRenderer(var1);
@@ -67,7 +76,7 @@
        this.worldGenAttemptRenderer.clear();
        this.solidFaceRenderer.clear();
        this.chunkRenderer.clear();
-@@ -80,10 +80,11 @@
+@@ -80,10 +81,11 @@
        this.villageSectionsDebugRenderer.clear();
        this.beeDebugRenderer.clear();
        this.raidDebugRenderer.clear();
@@ -79,7 +88,7 @@
     public boolean switchRenderChunkborder() {
        this.renderChunkborder = !this.renderChunkborder;
        return this.renderChunkborder;
-@@ -99,11 +100,11 @@
+@@ -99,11 +101,11 @@
  
     public static Optional<Entity> getTargetedEntity(@Nullable Entity var0, int var1) {
        if (var0 == null) {
@@ -92,20 +101,21 @@
           AABB var5 = var0.getBoundingBox().expandTowards(var3).inflate(1.0D);
           int var6 = var1 * var1;
           Predicate var7 = (var0x) -> {
-@@ -141,11 +142,11 @@
+@@ -141,11 +143,12 @@
     }
  
     public static void renderFilledBox(double var0, double var2, double var4, double var6, double var8, double var10, float var12, float var13, float var14, float var15) {
        Tesselator var16 = Tesselator.getInstance();
        BufferBuilder var17 = var16.getBuilder();
 -      var17.begin(5, DefaultVertexFormat.POSITION_COLOR);
++      RenderSystem.setShader(GameRenderer::getPositionColorShader);
 +      var17.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
        LevelRenderer.addChainedFilledBoxVertices(var17, var0, var2, var4, var6, var8, var10, var12, var13, var14, var15);
        var16.end();
     }
  
     public static void renderFloatingText(String var0, int var1, int var2, int var3, int var4) {
-@@ -166,33 +167,34 @@
+@@ -166,33 +169,34 @@
        if (var13.isInitialized() && var12.getEntityRenderDispatcher().options != null) {
           Font var14 = var12.font;
           double var15 = var13.getPosition().x;

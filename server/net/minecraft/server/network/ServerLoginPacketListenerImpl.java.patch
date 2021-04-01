@@ -1,6 +1,13 @@
 --- net/minecraft/server/network/ServerLoginPacketListenerImpl.java
 +++ net/minecraft/server/network/ServerLoginPacketListenerImpl.java
-@@ -42,13 +42,14 @@
+@@ -36,19 +36,21 @@
+ import org.apache.logging.log4j.Logger;
+ 
+ public class ServerLoginPacketListenerImpl implements ServerLoginPacketListener {
+    private static final AtomicInteger UNIQUE_THREAD_ID = new AtomicInteger(0);
+    private static final Logger LOGGER = LogManager.getLogger();
++   private static final int MAX_TICKS_BEFORE_LOGIN = 600;
+    private static final Random RANDOM = new Random();
     private final byte[] nonce = new byte[4];
     private final MinecraftServer server;
     public final Connection connection;
@@ -16,7 +23,7 @@
     public ServerLoginPacketListenerImpl(MinecraftServer var1, Connection var2) {
        this.state = ServerLoginPacketListenerImpl.State.HELLO;
        this.serverId = "";
-@@ -62,11 +63,11 @@
+@@ -62,11 +64,11 @@
           this.handleAcceptedLogin();
        } else if (this.state == ServerLoginPacketListenerImpl.State.DELAY_ACCEPT) {
           ServerPlayer var1 = this.server.getPlayerList().getPlayer(this.gameProfile.getId());
@@ -29,7 +36,7 @@
        }
  
        if (this.tick++ == 600) {
-@@ -110,16 +111,20 @@
+@@ -110,16 +112,20 @@
           ServerPlayer var2 = this.server.getPlayerList().getPlayer(this.gameProfile.getId());
           if (var2 != null) {
              this.state = ServerLoginPacketListenerImpl.State.DELAY_ACCEPT;
@@ -51,7 +58,7 @@
     }
  
     public String getUserName() {
-@@ -146,21 +151,21 @@
+@@ -146,21 +152,21 @@
        try {
           if (!Arrays.equals(this.nonce, var1.getNonce(var2))) {
              throw new IllegalStateException("Protocol error");
@@ -81,7 +88,7 @@
  
              try {
                 ServerLoginPacketListenerImpl.this.gameProfile = ServerLoginPacketListenerImpl.this.server.getSessionService().hasJoinedServer(new GameProfile((UUID)null, var1.getName()), var3, this.getAddress());
-@@ -192,12 +197,12 @@
+@@ -192,12 +198,12 @@
           private InetAddress getAddress() {
              SocketAddress var1 = ServerLoginPacketListenerImpl.this.connection.getRemoteAddress();
              return ServerLoginPacketListenerImpl.this.server.getPreventProxyConnections() && var1 instanceof InetSocketAddress ? ((InetSocketAddress)var1).getAddress() : null;

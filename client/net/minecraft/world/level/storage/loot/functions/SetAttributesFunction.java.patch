@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/storage/loot/functions/SetAttributesFunction.java
 +++ net/minecraft/world/level/storage/loot/functions/SetAttributesFunction.java
-@@ -1,8 +1,9 @@
+@@ -1,20 +1,23 @@
  package net.minecraft.world.level.storage.loot.functions;
  
  import com.google.common.collect.ImmutableList;
@@ -10,9 +10,11 @@
  import com.google.gson.JsonDeserializationContext;
  import com.google.gson.JsonElement;
  import com.google.gson.JsonObject;
-@@ -11,10 +12,11 @@
+ import com.google.gson.JsonPrimitive;
+ import com.google.gson.JsonSerializationContext;
  import com.google.gson.JsonSyntaxException;
  import java.util.ArrayList;
++import java.util.EnumSet;
  import java.util.Iterator;
  import java.util.List;
  import java.util.Random;
@@ -22,7 +24,7 @@
  import net.minecraft.Util;
  import net.minecraft.core.Registry;
  import net.minecraft.resources.ResourceLocation;
-@@ -22,12 +24,13 @@
+@@ -22,12 +25,13 @@
  import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.entity.ai.attributes.Attribute;
  import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -37,7 +39,7 @@
     private final List<SetAttributesFunction.Modifier> modifiers;
  
     private SetAttributesFunction(LootItemCondition[] var1, List<SetAttributesFunction.Modifier> var2) {
-@@ -37,10 +40,16 @@
+@@ -37,10 +41,16 @@
  
     public LootItemFunctionType getType() {
        return LootItemFunctions.SET_ATTRIBUTES;
@@ -54,7 +56,7 @@
        Iterator var4 = this.modifiers.iterator();
  
        while(var4.hasNext()) {
-@@ -49,26 +58,26 @@
+@@ -49,26 +59,34 @@
           if (var6 == null) {
              var6 = UUID.randomUUID();
           }
@@ -67,6 +69,14 @@
        return var1;
     }
  
++   public static SetAttributesFunction.ModifierBuilder modifier(String var0, Attribute var1, AttributeModifier.Operation var2, NumberProvider var3) {
++      return new SetAttributesFunction.ModifierBuilder(var0, var1, var2, var3);
++   }
++
++   public static SetAttributesFunction.Builder setAttributes() {
++      return new SetAttributesFunction.Builder();
++   }
++
     static class Modifier {
        private final String name;
        private final Attribute attribute;
@@ -84,7 +94,7 @@
           this.operation = var3;
           this.amount = var4;
           this.id = var6;
-@@ -109,11 +118,11 @@
+@@ -109,11 +127,11 @@
           Attribute var4 = (Attribute)Registry.ATTRIBUTE.get(var3);
           if (var4 == null) {
              throw new JsonSyntaxException("Unknown attribute: " + var3);
@@ -97,3 +107,61 @@
              if (GsonHelper.isStringValue(var0, "slot")) {
                 var7 = new EquipmentSlot[]{EquipmentSlot.byName(GsonHelper.getAsString(var0, "slot"))};
              } else {
+@@ -226,6 +244,57 @@
+          } else {
+             return new SetAttributesFunction(var3, var5);
+          }
+       }
+    }
++
++   public static class Builder extends LootItemConditionalFunction.Builder<SetAttributesFunction.Builder> {
++      private final List<SetAttributesFunction.Modifier> modifiers = Lists.newArrayList();
++
++      public Builder() {
++      }
++
++      protected SetAttributesFunction.Builder getThis() {
++         return this;
++      }
++
++      public SetAttributesFunction.Builder withModifier(SetAttributesFunction.ModifierBuilder var1) {
++         this.modifiers.add(var1.build());
++         return this;
++      }
++
++      public LootItemFunction build() {
++         return new SetAttributesFunction(this.getConditions(), this.modifiers);
++      }
++   }
++
++   public static class ModifierBuilder {
++      private final String name;
++      private final Attribute attribute;
++      private final AttributeModifier.Operation operation;
++      private final NumberProvider amount;
++      @Nullable
++      private UUID id;
++      private final Set<EquipmentSlot> slots = EnumSet.noneOf(EquipmentSlot.class);
++
++      public ModifierBuilder(String var1, Attribute var2, AttributeModifier.Operation var3, NumberProvider var4) {
++         this.name = var1;
++         this.attribute = var2;
++         this.operation = var3;
++         this.amount = var4;
++      }
++
++      public SetAttributesFunction.ModifierBuilder forSlot(EquipmentSlot var1) {
++         this.slots.add(var1);
++         return this;
++      }
++
++      public SetAttributesFunction.ModifierBuilder withUuid(UUID var1) {
++         this.id = var1;
++         return this;
++      }
++
++      public SetAttributesFunction.Modifier build() {
++         return new SetAttributesFunction.Modifier(this.name, this.attribute, this.operation, this.amount, (EquipmentSlot[])this.slots.toArray(new EquipmentSlot[0]), this.id);
++      }
++   }
+ }

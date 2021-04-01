@@ -1,10 +1,12 @@
 --- net/minecraft/world/entity/LivingEntity.java
 +++ net/minecraft/world/entity/LivingEntity.java
-@@ -49,10 +49,11 @@
+@@ -48,11 +48,13 @@
+ import net.minecraft.sounds.SoundEvent;
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.sounds.SoundSource;
  import net.minecraft.stats.Stats;
  import net.minecraft.tags.BlockTags;
++import net.minecraft.tags.EntityTypeTags;
  import net.minecraft.tags.FluidTags;
 +import net.minecraft.tags.ItemTags;
  import net.minecraft.tags.Tag;
@@ -12,7 +14,7 @@
  import net.minecraft.world.InteractionHand;
  import net.minecraft.world.damagesource.CombatRules;
  import net.minecraft.world.damagesource.CombatTracker;
-@@ -77,10 +78,11 @@
+@@ -77,10 +79,11 @@
  import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.entity.projectile.AbstractArrow;
@@ -24,7 +26,7 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.UseAnim;
-@@ -89,18 +91,20 @@
+@@ -89,18 +92,20 @@
  import net.minecraft.world.item.enchantment.Enchantments;
  import net.minecraft.world.item.enchantment.FrostWalkerEnchantment;
  import net.minecraft.world.level.ClipContext;
@@ -46,7 +48,7 @@
  import net.minecraft.world.level.storage.loot.LootContext;
  import net.minecraft.world.level.storage.loot.LootTable;
  import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
-@@ -112,10 +116,11 @@
+@@ -112,25 +117,46 @@
  import org.apache.logging.log4j.Logger;
  
  public abstract class LivingEntity extends Entity {
@@ -54,11 +56,46 @@
     private static final UUID SPEED_MODIFIER_SOUL_SPEED_UUID = UUID.fromString("87f46a96-686f-4796-b035-22e16ee9e038");
 +   private static final UUID SPEED_MODIFIER_POWDER_SNOW_UUID = UUID.fromString("1eaf83ff-7207-4596-b37a-d7a07b3ec4ce");
     private static final AttributeModifier SPEED_MODIFIER_SPRINTING;
++   public static final int HAND_SLOTS = 2;
++   public static final int ARMOR_SLOTS = 4;
++   public static final int EQUIPMENT_SLOT_OFFSET = 98;
++   public static final int ARMOR_SLOT_OFFSET = 100;
++   public static final int SWING_DURATION = 6;
++   public static final int PLAYER_HURT_EXPERIENCE_TIME = 100;
++   private static final int DAMAGE_SOURCE_TIMEOUT = 40;
++   public static final double MIN_MOVEMENT_DISTANCE = 0.003D;
++   public static final double DEFAULT_BASE_GRAVITY = 0.08D;
++   public static final int DEATH_DURATION = 20;
++   private static final int WAIT_TICKS_BEFORE_ITEM_USE_EFFECTS = 7;
++   private static final int TICKS_PER_ELYTRA_FREE_FALL_EVENT = 10;
++   private static final int FREE_FALL_EVENTS_PER_ELYTRA_BREAK = 2;
++   public static final int USE_ITEM_INTERVAL = 4;
++   protected static final int LIVING_ENTITY_FLAG_IS_USING = 1;
++   protected static final int LIVING_ENTITY_FLAG_OFF_HAND = 2;
++   protected static final int LIVING_ENTITY_FLAG_SPIN_ATTACK = 4;
     protected static final EntityDataAccessor<Byte> DATA_LIVING_ENTITY_FLAGS;
     private static final EntityDataAccessor<Float> DATA_HEALTH_ID;
     private static final EntityDataAccessor<Integer> DATA_EFFECT_COLOR_ID;
     private static final EntityDataAccessor<Boolean> DATA_EFFECT_AMBIENCE_ID;
-@@ -187,10 +192,11 @@
+    private static final EntityDataAccessor<Integer> DATA_ARROW_COUNT_ID;
+    private static final EntityDataAccessor<Integer> DATA_STINGER_COUNT_ID;
+    private static final EntityDataAccessor<Optional<BlockPos>> SLEEPING_POS_ID;
++   protected static final float DEFAULT_EYE_HEIGHT = 1.74F;
+    protected static final EntityDimensions SLEEPING_DIMENSIONS;
++   public static final float EXTRA_RENDER_CULLING_SIZE_WITH_BIG_HAT = 0.5F;
+    private final AttributeMap attributes;
+    private final CombatTracker combatTracker = new CombatTracker(this);
+    private final Map<MobEffect, MobEffectInstance> activeEffects = Maps.newHashMap();
+    private final NonNullList<ItemStack> lastHandItemStacks;
+    private final NonNullList<ItemStack> lastArmorItemStacks;
+    public boolean swinging;
++   private boolean discardFriction;
+    public InteractionHand swingingArm;
+    public int swingTime;
+    public int removeArrowTime;
+    public int removeStingerTime;
+    public int hurtTime;
+@@ -187,10 +213,11 @@
     protected ItemStack useItem;
     protected int useItemRemaining;
     protected int fallFlyTicks;
@@ -70,7 +107,19 @@
     protected int autoSpinAttackTicks;
     private float swimAmount;
     private float swimAmountO;
-@@ -311,11 +317,11 @@
+@@ -198,10 +225,11 @@
+ 
+    protected LivingEntity(EntityType<? extends LivingEntity> var1, Level var2) {
+       super(var1, var2);
+       this.lastHandItemStacks = NonNullList.withSize(2, ItemStack.EMPTY);
+       this.lastArmorItemStacks = NonNullList.withSize(4, ItemStack.EMPTY);
++      this.discardFriction = false;
+       this.invulnerableDuration = 20;
+       this.flyingSpeed = 0.02F;
+       this.effectsDirty = true;
+       this.useItem = ItemStack.EMPTY;
+       this.lastClimbablePos = Optional.empty();
+@@ -311,11 +339,11 @@
  
        if (this.fireImmune() || this.level.isClientSide) {
           this.clearFire();
@@ -83,7 +132,7 @@
              if (!this.canBreatheUnderwater() && !MobEffectUtil.hasWaterBreathing(this) && !var11) {
                 this.setAirSupply(this.decreaseAirSupply(this.getAirSupply()));
                 if (this.getAirSupply() == -20) {
-@@ -347,11 +353,11 @@
+@@ -347,11 +375,11 @@
                 this.onChangedBlock(var12);
              }
           }
@@ -96,7 +145,7 @@
  
        if (this.hurtTime > 0) {
           --this.hurtTime;
-@@ -444,10 +450,36 @@
+@@ -444,10 +472,36 @@
           }
        }
  
@@ -133,7 +182,7 @@
        if (var2 > 0) {
           FrostWalkerEnchantment.onEntityMoved(this, this.level, var1, var2);
        }
-@@ -476,11 +508,11 @@
+@@ -476,11 +530,11 @@
     }
  
     protected void tickDeath() {
@@ -146,7 +195,7 @@
              double var2 = this.random.nextGaussian() * 0.02D;
              double var4 = this.random.nextGaussian() * 0.02D;
              double var6 = this.random.nextGaussian() * 0.02D;
-@@ -563,20 +595,14 @@
+@@ -563,20 +617,22 @@
  
     public void setNoActionTime(int var1) {
        this.noActionTime = var1;
@@ -161,7 +210,14 @@
 -         } else if (var3 == Items.ELYTRA) {
 -            var2 = SoundEvents.ARMOR_EQUIP_ELYTRA;
 -         }
--
++   public boolean shouldDiscardFriction() {
++      return this.discardFriction;
++   }
+ 
++   public void setDiscardFriction(boolean var1) {
++      this.discardFriction = var1;
++   }
++
 +   protected void equipEventAndSound(ItemStack var1) {
 +      SoundEvent var2 = var1.getEquipSound();
 +      if (!var1.isEmpty() && var2 != null && !this.isSpectator()) {
@@ -171,7 +227,7 @@
     }
  
     public void addAdditionalSaveData(CompoundTag var1) {
-@@ -745,14 +771,13 @@
+@@ -745,14 +801,13 @@
  
           var2 *= 0.7D * (double)var4;
        }
@@ -189,7 +245,7 @@
        }
  
        return var2;
-@@ -764,10 +789,14 @@
+@@ -764,10 +819,14 @@
  
     public boolean canAttack(LivingEntity var1, TargetingConditions var2) {
        return var2.test(this, var1);
@@ -204,7 +260,7 @@
  
        MobEffectInstance var2;
        do {
-@@ -939,11 +968,11 @@
+@@ -939,11 +998,11 @@
              this.stopSleeping();
           }
  
@@ -217,7 +273,7 @@
              });
              var2 *= 0.75F;
           }
-@@ -1017,10 +1046,12 @@
+@@ -1017,10 +1076,12 @@
                    var13 = 36;
                 } else if (var1.isFire()) {
                    var13 = 37;
@@ -230,7 +286,7 @@
                 }
  
                 this.level.broadcastEntityEvent(this, var13);
-@@ -1096,11 +1127,11 @@
+@@ -1096,11 +1157,11 @@
           int var5 = var4.length;
  
           for(int var6 = 0; var6 < var5; ++var6) {
@@ -243,7 +299,7 @@
                 break;
              }
           }
-@@ -1176,11 +1207,11 @@
+@@ -1176,11 +1237,11 @@
        }
  
     }
@@ -256,7 +312,7 @@
           if (this.deathScore >= 0 && var3 != null) {
              var3.awardKillScore(this, this.deathScore, var1);
           }
-@@ -1248,18 +1279,12 @@
+@@ -1248,18 +1309,12 @@
  
     protected void dropEquipment() {
     }
@@ -277,7 +333,7 @@
     }
  
     protected void dropCustomDeathLoot(DamageSource var1, int var2, boolean var3) {
-@@ -1333,15 +1358,14 @@
+@@ -1333,15 +1388,14 @@
        if (this.isSpectator()) {
           return false;
        } else {
@@ -295,7 +351,7 @@
           } else {
              return false;
           }
-@@ -1362,23 +1386,23 @@
+@@ -1362,23 +1416,23 @@
  
        return false;
     }
@@ -327,7 +383,7 @@
  
     protected int calculateFallDamage(float var1, float var2) {
        MobEffectInstance var3 = this.getEffect(MobEffects.JUMP);
-@@ -1474,10 +1498,11 @@
+@@ -1474,10 +1528,11 @@
           if (var2 != 0.0F) {
              float var5 = this.getHealth();
              this.setHealth(var5 - var2);
@@ -339,7 +395,7 @@
     }
  
     public CombatTracker getCombatTracker() {
-@@ -1544,47 +1569,47 @@
+@@ -1544,47 +1599,47 @@
        }
  
     }
@@ -404,7 +460,7 @@
           SoundEvent var15 = this.getDeathSound();
           if (var15 != null) {
              this.playSound(var15, this.getSoundVolume(), (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F);
-@@ -1630,21 +1655,22 @@
+@@ -1630,21 +1685,22 @@
        case 41:
        case 42:
        case 43:
@@ -428,7 +484,7 @@
              double var4 = (double)var3 / 127.0D;
              float var6 = (this.random.nextFloat() - 0.5F) * 0.2F;
              float var7 = (this.random.nextFloat() - 0.5F) * 0.2F;
-@@ -1737,16 +1763,16 @@
+@@ -1737,16 +1793,16 @@
        return this.getItemBySlot(EquipmentSlot.OFFHAND);
     }
  
@@ -448,7 +504,7 @@
     public ItemStack getItemInHand(InteractionHand var1) {
        if (var1 == InteractionHand.MAIN_HAND) {
           return this.getItemBySlot(EquipmentSlot.MAINHAND);
-@@ -1827,17 +1853,17 @@
+@@ -1827,17 +1883,17 @@
  
     }
  
@@ -468,7 +524,7 @@
     public boolean shouldShowName() {
        return this.isCustomNameVisible();
     }
-@@ -1998,11 +2024,11 @@
+@@ -1998,20 +2054,24 @@
              double var10 = var25.y;
              if (this.hasEffect(MobEffects.LEVITATION)) {
                 var10 += (0.05D * (double)(this.getEffect(MobEffects.LEVITATION).getAmplifier() + 1) - var25.y) * 0.2D;
@@ -481,7 +537,21 @@
                    var10 = 0.0D;
                 }
              } else if (!this.isNoGravity()) {
-@@ -2033,11 +2059,11 @@
+                var10 -= var2;
+             }
+ 
+-            this.setDeltaMovement(var25.x * (double)var8, var10 * 0.9800000190734863D, var25.z * (double)var8);
++            if (this.shouldDiscardFriction()) {
++               this.setDeltaMovement(var25.x, var10, var25.z);
++            } else {
++               this.setDeltaMovement(var25.x * (double)var8, var10 * 0.9800000190734863D, var25.z * (double)var8);
++            }
+          }
+       }
+ 
+       this.calculateEntityAnimation(this, this instanceof FlyingAnimal);
+    }
+@@ -2033,11 +2093,11 @@
     public Vec3 handleRelativeFrictionAndCalculateMovement(Vec3 var1, float var2) {
        this.moveRelative(this.getFrictionInfluencedSpeed(var2), var1);
        this.setDeltaMovement(this.handleOnClimbable(this.getDeltaMovement()));
@@ -494,24 +564,42 @@
  
        return var3;
     }
-@@ -2430,10 +2456,25 @@
+@@ -2128,10 +2188,12 @@
+          if (!this.glowing) {
+             boolean var3 = this.hasEffect(MobEffects.GLOWING);
+             if (this.getSharedFlag(6) != var3) {
+                this.setSharedFlag(6, var3);
+             }
++
++            this.glowing = var3;
+          }
+ 
+          if (this.isSleeping() && !this.checkBedExists()) {
+             this.stopSleeping();
+          }
+@@ -2430,10 +2492,30 @@
        this.zza *= 0.98F;
        this.updateFallFlying();
        AABB var14 = this.getBoundingBox();
        this.travel(new Vec3((double)this.xxa, (double)this.yya, (double)this.zza));
        this.level.getProfiler().pop();
 +      this.level.getProfiler().push("freezing");
-+      int var9 = this.getTicksFrozen();
-+      if (this.isInPowderSnow && this.canFreeze()) {
-+         this.setTicksFrozen(Math.min(this.getTicksRequiredToFreeze(), var9 + 1));
-+      } else {
-+         this.setTicksFrozen(Math.max(0, var9 - 2));
++      boolean var9 = this.getType().is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES);
++      int var15;
++      if (!this.level.isClientSide) {
++         var15 = this.getTicksFrozen();
++         if (this.isInPowderSnow && this.canFreeze()) {
++            this.setTicksFrozen(Math.min(this.getTicksRequiredToFreeze(), var15 + 1));
++         } else {
++            this.setTicksFrozen(Math.max(0, var15 - 2));
++         }
 +      }
 +
 +      this.removeFrost();
 +      this.tryAddFrost();
-+      if (this.tickCount % 60 == 0 && this.isFullyFrozen() && this.canFreeze()) {
-+         this.hurt(DamageSource.FREEZE, 1.0F);
++      if (!this.level.isClientSide && this.tickCount % 40 == 0 && this.isFullyFrozen() && this.canFreeze()) {
++         var15 = var9 ? 5 : 1;
++         this.hurt(DamageSource.FREEZE, (float)var15);
 +      }
 +
 +      this.level.getProfiler().pop();
@@ -520,7 +608,7 @@
           --this.autoSpinAttackTicks;
           this.checkAutoSpinAttack(var14, this.getBoundingBox());
        }
-@@ -2452,16 +2493,22 @@
+@@ -2452,16 +2534,22 @@
  
     private void updateFallFlying() {
        boolean var1 = this.getSharedFlag(7);
@@ -548,7 +636,7 @@
              var1 = false;
           }
        } else {
-@@ -2587,11 +2634,11 @@
+@@ -2587,11 +2675,11 @@
        }
  
     }
@@ -561,7 +649,7 @@
  
     }
  
-@@ -2617,11 +2664,11 @@
+@@ -2617,11 +2705,11 @@
     public boolean isEffectiveAi() {
        return !this.level.isClientSide;
     }
@@ -574,7 +662,7 @@
     public boolean isPushable() {
        return this.isAlive() && !this.isSpectator() && !this.onClimbable();
     }
-@@ -2888,11 +2935,11 @@
+@@ -2888,11 +2976,11 @@
        BlockPos var17 = new BlockPos(var1, var3, var5);
        Level var18 = this.level;
        if (var18.hasChunkAt(var17)) {
@@ -587,7 +675,7 @@
              if (var21.getMaterial().blocksMotion()) {
                 var19 = true;
              } else {
-@@ -3048,15 +3095,18 @@
+@@ -3048,15 +3136,18 @@
        return ItemStack.EMPTY;
     }
  
@@ -607,7 +695,7 @@
        return var2;
     }
  
-@@ -3102,18 +3152,84 @@
+@@ -3102,18 +3193,85 @@
     public void broadcastBreakEvent(InteractionHand var1) {
        this.broadcastBreakEvent(var1 == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
     }
@@ -669,7 +757,8 @@
 +      if (this.isSpectator()) {
 +         return false;
 +      } else {
-+         return !this.getItemBySlot(EquipmentSlot.HEAD).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.CHEST).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.LEGS).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.FEET).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES);
++         boolean var1 = !this.getItemBySlot(EquipmentSlot.HEAD).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.CHEST).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.LEGS).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES) && !this.getItemBySlot(EquipmentSlot.FEET).is((Tag)ItemTags.FREEZE_IMMUNE_WEARABLES);
++         return var1 && super.canFreeze();
 +      }
 +   }
 +

@@ -1,0 +1,37 @@
+--- net/minecraft/world/level/block/RedstoneTorchBlock.java
++++ net/minecraft/world/level/block/RedstoneTorchBlock.java
+@@ -18,10 +18,14 @@
+ import net.minecraft.world.level.block.state.properties.BooleanProperty;
+ 
+ public class RedstoneTorchBlock extends TorchBlock {
+    public static final BooleanProperty LIT;
+    private static final Map<BlockGetter, List<RedstoneTorchBlock.Toggle>> RECENT_TOGGLES;
++   public static final int RECENT_TOGGLE_TIMER = 60;
++   public static final int MAX_RECENT_TOGGLES = 8;
++   public static final int RESTART_DELAY = 160;
++   private static final int TOGGLE_DELAY = 2;
+ 
+    protected RedstoneTorchBlock(BlockBehaviour.Properties var1) {
+       super(var1, DustParticleOptions.REDSTONE);
+       this.registerDefaultState((BlockState)((BlockState)this.stateDefinition.any()).setValue(LIT, true));
+    }
+@@ -93,10 +97,19 @@
+ 
+    public boolean isSignalSource(BlockState var1) {
+       return true;
+    }
+ 
++   public void animateTick(BlockState var1, Level var2, BlockPos var3, Random var4) {
++      if ((Boolean)var1.getValue(LIT)) {
++         double var5 = (double)var3.getX() + 0.5D + (var4.nextDouble() - 0.5D) * 0.2D;
++         double var7 = (double)var3.getY() + 0.7D + (var4.nextDouble() - 0.5D) * 0.2D;
++         double var9 = (double)var3.getZ() + 0.5D + (var4.nextDouble() - 0.5D) * 0.2D;
++         var2.addParticle(this.flameParticle, var5, var7, var9, 0.0D, 0.0D, 0.0D);
++      }
++   }
++
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
+       var1.add(LIT);
+    }
+ 
+    private static boolean isToggledTooFrequently(Level var0, BlockPos var1, boolean var2) {

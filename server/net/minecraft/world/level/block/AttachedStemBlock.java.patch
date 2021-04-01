@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/AttachedStemBlock.java
 +++ net/minecraft/world/level/block/AttachedStemBlock.java
-@@ -1,12 +1,14 @@
+@@ -1,30 +1,37 @@
  package net.minecraft.world.level.block;
  
  import com.google.common.collect.ImmutableMap;
@@ -10,18 +10,21 @@
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
 +import net.minecraft.world.item.Item;
++import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.level.BlockGetter;
++import net.minecraft.world.level.ItemLike;
  import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.block.state.BlockBehaviour;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.StateDefinition;
-@@ -14,17 +16,19 @@
+ import net.minecraft.world.level.block.state.properties.DirectionProperty;
  import net.minecraft.world.phys.shapes.CollisionContext;
  import net.minecraft.world.phys.shapes.VoxelShape;
  
  public class AttachedStemBlock extends BushBlock {
     public static final DirectionProperty FACING;
 -   private final StemGrownBlock fruit;
++   protected static final float AABB_OFFSET = 2.0F;
     private static final Map<Direction, VoxelShape> AABBS;
 +   private final StemGrownBlock fruit;
 +   private final Supplier<Item> seedSupplier;
@@ -38,3 +41,18 @@
     public VoxelShape getShape(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
        return (VoxelShape)AABBS.get(var1.getValue(FACING));
     }
+@@ -35,10 +42,14 @@
+ 
+    protected boolean mayPlaceOn(BlockState var1, BlockGetter var2, BlockPos var3) {
+       return var1.is(Blocks.FARMLAND);
+    }
+ 
++   public ItemStack getCloneItemStack(BlockGetter var1, BlockPos var2, BlockState var3) {
++      return new ItemStack((ItemLike)this.seedSupplier.get());
++   }
++
+    public BlockState rotate(BlockState var1, Rotation var2) {
+       return (BlockState)var1.setValue(FACING, var2.rotate((Direction)var1.getValue(FACING)));
+    }
+ 
+    public BlockState mirror(BlockState var1, Mirror var2) {

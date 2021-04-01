@@ -1,0 +1,77 @@
+--- net/minecraft/world/level/lighting/DynamicGraphMinFixedPoint.java
++++ net/minecraft/world/level/lighting/DynamicGraphMinFixedPoint.java
+@@ -6,10 +6,11 @@
+ import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
+ import java.util.function.LongPredicate;
+ import net.minecraft.util.Mth;
+ 
+ public abstract class DynamicGraphMinFixedPoint {
++   private static final int NO_COMPUTED_LEVEL = 255;
+    private final int levelCount;
+    private final LongLinkedOpenHashSet[] queues;
+    private final Long2ByteMap computedLevels;
+    private int firstQueuedLevel;
+    private volatile boolean hasWork;
+@@ -122,12 +123,12 @@
+       this.hasWork = this.firstQueuedLevel < this.levelCount;
+    }
+ 
+    private void checkEdge(long var1, long var3, int var5, int var6, int var7, boolean var8) {
+       if (!this.isSource(var3)) {
+-         var5 = Mth.clamp(var5, 0, this.levelCount - 1);
+-         var6 = Mth.clamp(var6, 0, this.levelCount - 1);
++         var5 = Mth.clamp((int)var5, (int)0, (int)(this.levelCount - 1));
++         var6 = Mth.clamp((int)var6, (int)0, (int)(this.levelCount - 1));
+          boolean var9;
+          if (var7 == 255) {
+             var9 = true;
+             var7 = var6;
+          } else {
+@@ -136,11 +137,11 @@
+ 
+          int var10;
+          if (var8) {
+             var10 = Math.min(var7, var5);
+          } else {
+-            var10 = Mth.clamp(this.getComputedLevel(var3, var1, var5), 0, this.levelCount - 1);
++            var10 = Mth.clamp((int)this.getComputedLevel(var3, var1, var5), (int)0, (int)(this.levelCount - 1));
+          }
+ 
+          int var11 = this.getKey(var6, var7);
+          if (var6 != var10) {
+             int var12 = this.getKey(var6, var10);
+@@ -156,19 +157,19 @@
+       }
+    }
+ 
+    protected final void checkNeighbor(long var1, long var3, int var5, boolean var6) {
+       int var7 = this.computedLevels.get(var3) & 255;
+-      int var8 = Mth.clamp(this.computeLevelFromNeighbor(var1, var3, var5), 0, this.levelCount - 1);
++      int var8 = Mth.clamp((int)this.computeLevelFromNeighbor(var1, var3, var5), (int)0, (int)(this.levelCount - 1));
+       if (var6) {
+          this.checkEdge(var1, var3, var8, this.getLevel(var3), var7, true);
+       } else {
+          int var9;
+          boolean var10;
+          if (var7 == 255) {
+             var10 = true;
+-            var9 = Mth.clamp(this.getLevel(var3), 0, this.levelCount - 1);
++            var9 = Mth.clamp((int)this.getLevel(var3), (int)0, (int)(this.levelCount - 1));
+          } else {
+             var9 = var7;
+             var10 = false;
+          }
+ 
+@@ -189,11 +190,11 @@
+       } else {
+          while(this.firstQueuedLevel < this.levelCount && var1 > 0) {
+             --var1;
+             LongLinkedOpenHashSet var2 = this.queues[this.firstQueuedLevel];
+             long var3 = var2.removeFirstLong();
+-            int var5 = Mth.clamp(this.getLevel(var3), 0, this.levelCount - 1);
++            int var5 = Mth.clamp((int)this.getLevel(var3), (int)0, (int)(this.levelCount - 1));
+             if (var2.isEmpty()) {
+                this.checkFirstQueuedLevel(this.levelCount);
+             }
+ 
+             int var6 = this.computedLevels.remove(var3) & 255;

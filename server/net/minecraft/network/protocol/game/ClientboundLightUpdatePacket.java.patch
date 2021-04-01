@@ -1,6 +1,6 @@
 --- net/minecraft/network/protocol/game/ClientboundLightUpdatePacket.java
 +++ net/minecraft/network/protocol/game/ClientboundLightUpdatePacket.java
-@@ -1,152 +1,92 @@
+@@ -1,153 +1,129 @@
  package net.minecraft.network.protocol.game;
  
  import com.google.common.collect.Lists;
@@ -138,22 +138,6 @@
 -      this.emptySkyYMask = var1.readVarInt();
 -      this.emptyBlockYMask = var1.readVarInt();
 -      this.skyUpdates = Lists.newArrayList();
--
--      int var2;
--      for(var2 = 0; var2 < 18; ++var2) {
--         if ((this.skyYMask & 1 << var2) != 0) {
--            this.skyUpdates.add(var1.readByteArray(2048));
--         }
--      }
--
--      this.blockUpdates = Lists.newArrayList();
--
--      for(var2 = 0; var2 < 18; ++var2) {
--         if ((this.blockYMask & 1 << var2) != 0) {
--            this.blockUpdates.add(var1.readByteArray(2048));
--         }
--      }
--
 +      this.skyYMask = var1.readBitSet();
 +      this.blockYMask = var1.readBitSet();
 +      this.emptySkyYMask = var1.readBitSet();
@@ -164,40 +148,90 @@
 +      this.blockUpdates = var1.readList((var0) -> {
 +         return var0.readByteArray(2048);
 +      });
-    }
++   }
  
--   public void write(FriendlyByteBuf var1) throws IOException {
+-      int var2;
+-      for(var2 = 0; var2 < 18; ++var2) {
+-         if ((this.skyYMask & 1 << var2) != 0) {
+-            this.skyUpdates.add(var1.readByteArray(2048));
+-         }
+-      }
 +   public void write(FriendlyByteBuf var1) {
-       var1.writeVarInt(this.x);
-       var1.writeVarInt(this.z);
-       var1.writeBoolean(this.trustEdges);
--      var1.writeVarInt(this.skyYMask);
--      var1.writeVarInt(this.blockYMask);
--      var1.writeVarInt(this.emptySkyYMask);
--      var1.writeVarInt(this.emptyBlockYMask);
--      Iterator var2 = this.skyUpdates.iterator();
--
--      byte[] var3;
--      while(var2.hasNext()) {
--         var3 = (byte[])var2.next();
--         var1.writeByteArray(var3);
--      }
--
--      var2 = this.blockUpdates.iterator();
--
--      while(var2.hasNext()) {
--         var3 = (byte[])var2.next();
--         var1.writeByteArray(var3);
--      }
--
++      var1.writeVarInt(this.x);
++      var1.writeVarInt(this.z);
++      var1.writeBoolean(this.trustEdges);
 +      var1.writeBitSet(this.skyYMask);
 +      var1.writeBitSet(this.blockYMask);
 +      var1.writeBitSet(this.emptySkyYMask);
 +      var1.writeBitSet(this.emptyBlockYMask);
 +      var1.writeCollection(this.skyUpdates, FriendlyByteBuf::writeByteArray);
 +      var1.writeCollection(this.blockUpdates, FriendlyByteBuf::writeByteArray);
++   }
+ 
+-      this.blockUpdates = Lists.newArrayList();
++   public void handle(ClientGamePacketListener var1) {
++      var1.handleLightUpdatePacked(this);
++   }
+ 
+-      for(var2 = 0; var2 < 18; ++var2) {
+-         if ((this.blockYMask & 1 << var2) != 0) {
+-            this.blockUpdates.add(var1.readByteArray(2048));
+-         }
+-      }
++   public int getX() {
++      return this.x;
++   }
+ 
++   public int getZ() {
++      return this.z;
     }
  
-    public void handle(ClientGamePacketListener var1) {
-       var1.handleLightUpdatePacked(this);
+-   public void write(FriendlyByteBuf var1) throws IOException {
+-      var1.writeVarInt(this.x);
+-      var1.writeVarInt(this.z);
+-      var1.writeBoolean(this.trustEdges);
+-      var1.writeVarInt(this.skyYMask);
+-      var1.writeVarInt(this.blockYMask);
+-      var1.writeVarInt(this.emptySkyYMask);
+-      var1.writeVarInt(this.emptyBlockYMask);
+-      Iterator var2 = this.skyUpdates.iterator();
++   public BitSet getSkyYMask() {
++      return this.skyYMask;
++   }
+ 
+-      byte[] var3;
+-      while(var2.hasNext()) {
+-         var3 = (byte[])var2.next();
+-         var1.writeByteArray(var3);
+-      }
++   public BitSet getEmptySkyYMask() {
++      return this.emptySkyYMask;
++   }
+ 
+-      var2 = this.blockUpdates.iterator();
++   public List<byte[]> getSkyUpdates() {
++      return this.skyUpdates;
++   }
+ 
+-      while(var2.hasNext()) {
+-         var3 = (byte[])var2.next();
+-         var1.writeByteArray(var3);
+-      }
++   public BitSet getBlockYMask() {
++      return this.blockYMask;
++   }
+ 
++   public BitSet getEmptyBlockYMask() {
++      return this.emptyBlockYMask;
     }
+ 
+-   public void handle(ClientGamePacketListener var1) {
+-      var1.handleLightUpdatePacked(this);
++   public List<byte[]> getBlockUpdates() {
++      return this.blockUpdates;
+    }
++
++   public boolean getTrustEdges() {
++      return this.trustEdges;
++   }
+ }
