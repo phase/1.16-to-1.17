@@ -12,6 +12,43 @@
     private final float[] xRotOHeads = new float[2];
     private final float[] yRotOHeads = new float[2];
     private final int[] nextHeadUpdate = new int[2];
+@@ -137,20 +138,20 @@
+                var3 += 0.3D - var3 * 0.6000000238418579D;
+             }
+ 
+             var1 = new Vec3(var1.x, var3, var1.z);
+             Vec3 var5 = new Vec3(var2.getX() - this.getX(), 0.0D, var2.getZ() - this.getZ());
+-            if (getHorizontalDistanceSqr(var5) > 9.0D) {
++            if (var5.horizontalDistanceSqr() > 9.0D) {
+                Vec3 var6 = var5.normalize();
+                var1 = var1.add(var6.x * 0.3D - var1.x * 0.6D, 0.0D, var6.z * 0.3D - var1.z * 0.6D);
+             }
+          }
+       }
+ 
+       this.setDeltaMovement(var1);
+-      if (getHorizontalDistanceSqr(var1) > 0.05D) {
+-         this.yRot = (float)Mth.atan2(var1.z, var1.x) * 57.295776F - 90.0F;
++      if (var1.horizontalDistanceSqr() > 0.05D) {
++         this.setYRot((float)Mth.atan2(var1.z, var1.x) * 57.295776F - 90.0F);
+       }
+ 
+       super.aiStep();
+ 
+       int var21;
+@@ -172,11 +173,11 @@
+             double var7 = this.getHeadY(var21 + 1);
+             double var9 = this.getHeadZ(var21 + 1);
+             double var11 = var4.getX() - var25;
+             double var13 = var4.getEyeY() - var7;
+             double var15 = var4.getZ() - var9;
+-            double var17 = (double)Mth.sqrt(var11 * var11 + var15 * var15);
++            double var17 = Math.sqrt(var11 * var11 + var15 * var15);
+             float var19 = (float)(Mth.atan2(var15, var11) * 57.2957763671875D) - 90.0F;
+             float var20 = (float)(-(Mth.atan2(var13, var17) * 57.2957763671875D));
+             this.xRotHeads[var21] = this.rotlerp(this.xRotHeads[var21], var20, 40.0F);
+             this.yRotHeads[var21] = this.rotlerp(this.yRotHeads[var21], var19, 10.0F);
+          } else {
 @@ -206,10 +207,11 @@
  
     protected void customServerAiStep() {
@@ -24,33 +61,78 @@
              this.level.explode(this, this.getX(), this.getEyeY(), this.getZ(), 7.0F, false, var14);
              if (!this.isSilent()) {
                 this.level.globalLevelEvent(1023, this.blockPosition(), 0);
-@@ -246,11 +248,11 @@
+@@ -244,39 +246,23 @@
+                   }
+                }
  
                 var13 = this.getAlternativeTarget(var1);
                 if (var13 > 0) {
-                   Entity var16 = this.level.getEntity(var13);
-                   if (var16 != null && var16.isAlive() && this.distanceToSqr(var16) <= 900.0D && this.canSee(var16)) {
+-                  Entity var16 = this.level.getEntity(var13);
+-                  if (var16 != null && var16.isAlive() && this.distanceToSqr(var16) <= 900.0D && this.canSee(var16)) {
 -                     if (var16 instanceof Player && ((Player)var16).abilities.invulnerable) {
-+                     if (var16 instanceof Player && ((Player)var16).getAbilities().invulnerable) {
-                         this.setAlternativeTarget(var1, 0);
-                      } else {
-                         this.performRangedAttack(var1 + 1, (LivingEntity)var16);
-                         this.nextHeadUpdate[var1 - 1] = this.tickCount + 40 + this.random.nextInt(20);
-                         this.idleHeadUpdates[var1 - 1] = 0;
-@@ -263,11 +265,11 @@
- 
-                   for(int var18 = 0; var18 < 10 && !var15.isEmpty(); ++var18) {
-                      LivingEntity var5 = (LivingEntity)var15.get(this.random.nextInt(var15.size()));
-                      if (var5 != this && var5.isAlive() && this.canSee(var5)) {
-                         if (var5 instanceof Player) {
+-                        this.setAlternativeTarget(var1, 0);
+-                     } else {
+-                        this.performRangedAttack(var1 + 1, (LivingEntity)var16);
+-                        this.nextHeadUpdate[var1 - 1] = this.tickCount + 40 + this.random.nextInt(20);
+-                        this.idleHeadUpdates[var1 - 1] = 0;
+-                     }
++                  LivingEntity var16 = (LivingEntity)this.level.getEntity(var13);
++                  if (var16 != null && this.canAttack(var16) && this.distanceToSqr(var16) <= 900.0D && this.hasLineOfSight(var16)) {
++                     this.performRangedAttack(var1 + 1, var16);
++                     this.nextHeadUpdate[var1 - 1] = this.tickCount + 40 + this.random.nextInt(20);
++                     this.idleHeadUpdates[var1 - 1] = 0;
+                   } else {
+                      this.setAlternativeTarget(var1, 0);
+                   }
+                } else {
+                   List var15 = this.level.getNearbyEntities(LivingEntity.class, TARGETING_CONDITIONS, this, this.getBoundingBox().inflate(20.0D, 8.0D, 20.0D));
+-
+-                  for(int var18 = 0; var18 < 10 && !var15.isEmpty(); ++var18) {
+-                     LivingEntity var5 = (LivingEntity)var15.get(this.random.nextInt(var15.size()));
+-                     if (var5 != this && var5.isAlive() && this.canSee(var5)) {
+-                        if (var5 instanceof Player) {
 -                           if (!((Player)var5).abilities.invulnerable) {
-+                           if (!((Player)var5).getAbilities().invulnerable) {
-                               this.setAlternativeTarget(var1, var5.getId());
-                            }
-                         } else {
-                            this.setAlternativeTarget(var1, var5.getId());
+-                              this.setAlternativeTarget(var1, var5.getId());
+-                           }
+-                        } else {
+-                           this.setAlternativeTarget(var1, var5.getId());
+-                        }
+-                        break;
+-                     }
+-
+-                     var15.remove(var5);
++                  if (!var15.isEmpty()) {
++                     LivingEntity var18 = (LivingEntity)var15.get(this.random.nextInt(var15.size()));
++                     this.setAlternativeTarget(var1, var18.getId());
+                   }
+                }
+             }
+          }
+ 
+@@ -292,17 +278,17 @@
+                var1 = Mth.floor(this.getY());
+                var13 = Mth.floor(this.getX());
+                int var17 = Mth.floor(this.getZ());
+                boolean var19 = false;
+ 
+-               for(int var20 = -1; var20 <= 1; ++var20) {
+-                  for(int var21 = -1; var21 <= 1; ++var21) {
++               for(int var5 = -1; var5 <= 1; ++var5) {
++                  for(int var20 = -1; var20 <= 1; ++var20) {
+                      for(int var7 = 0; var7 <= 3; ++var7) {
+-                        int var22 = var13 + var20;
++                        int var21 = var13 + var5;
+                         int var9 = var1 + var7;
+-                        int var10 = var17 + var21;
+-                        BlockPos var11 = new BlockPos(var22, var9, var10);
++                        int var10 = var17 + var20;
++                        BlockPos var11 = new BlockPos(var21, var9, var10);
+                         BlockState var12 = this.level.getBlockState(var11);
+                         if (canDestroy(var12)) {
+                            var19 = this.level.destroyBlock(var11, true, this) || var19;
                          }
-@@ -317,20 +319,21 @@
+                      }
+@@ -317,20 +303,21 @@
  
           if (this.tickCount % 20 == 0) {
              this.heal(1.0F);
@@ -74,7 +156,7 @@
  
     public void makeStuckInBlock(BlockState var1, Vec3 var2) {
     }
-@@ -456,17 +459,17 @@
+@@ -456,17 +443,17 @@
  
     }
  
@@ -94,3 +176,20 @@
  
     public boolean addEffect(MobEffectInstance var1) {
        return false;
+@@ -527,14 +514,14 @@
+       DATA_TARGETS = ImmutableList.of(DATA_TARGET_A, DATA_TARGET_B, DATA_TARGET_C);
+       DATA_ID_INV = SynchedEntityData.defineId(WitherBoss.class, EntityDataSerializers.INT);
+       LIVING_ENTITY_SELECTOR = (var0) -> {
+          return var0.getMobType() != MobType.UNDEAD && var0.attackable();
+       };
+-      TARGETING_CONDITIONS = (new TargetingConditions()).range(20.0D).selector(LIVING_ENTITY_SELECTOR);
++      TARGETING_CONDITIONS = TargetingConditions.forCombat().range(20.0D).selector(LIVING_ENTITY_SELECTOR);
+    }
+ 
+-   class WitherDoNothingGoal extends Goal {
++   private class WitherDoNothingGoal extends Goal {
+       public WitherDoNothingGoal() {
+          this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.JUMP, Goal.Flag.LOOK));
+       }
+ 
+       public boolean canUse() {

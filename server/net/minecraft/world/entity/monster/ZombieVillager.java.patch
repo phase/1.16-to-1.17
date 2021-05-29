@@ -1,6 +1,17 @@
 --- net/minecraft/world/entity/monster/ZombieVillager.java
 +++ net/minecraft/world/entity/monster/ZombieVillager.java
-@@ -39,17 +39,22 @@
+@@ -1,9 +1,10 @@
+ package net.minecraft.world.entity.monster;
+ 
+ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.Dynamic;
++import java.util.Objects;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Registry;
+@@ -39,17 +40,22 @@
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.trading.MerchantOffers;
  import net.minecraft.world.level.Level;
@@ -24,7 +35,33 @@
     private Tag gossips;
     private CompoundTag tradeOffers;
     private int villagerXp;
-@@ -128,20 +133,21 @@
+@@ -67,11 +73,11 @@
+ 
+    public void addAdditionalSaveData(CompoundTag var1) {
+       super.addAdditionalSaveData(var1);
+       DataResult var10000 = VillagerData.CODEC.encodeStart(NbtOps.INSTANCE, this.getVillagerData());
+       Logger var10001 = LOGGER;
+-      var10001.getClass();
++      Objects.requireNonNull(var10001);
+       var10000.resultOrPartial(var10001::error).ifPresent((var1x) -> {
+          var1.put("VillagerData", var1x);
+       });
+       if (this.tradeOffers != null) {
+          var1.put("Offers", this.tradeOffers);
+@@ -92,11 +98,11 @@
+    public void readAdditionalSaveData(CompoundTag var1) {
+       super.readAdditionalSaveData(var1);
+       if (var1.contains("VillagerData", 10)) {
+          DataResult var2 = VillagerData.CODEC.parse(new Dynamic(NbtOps.INSTANCE, var1.get("VillagerData")));
+          Logger var10001 = LOGGER;
+-         var10001.getClass();
++         Objects.requireNonNull(var10001);
+          var2.resultOrPartial(var10001::error).ifPresent(this::setVillagerData);
+       }
+ 
+       if (var1.contains("Offers", 10)) {
+          this.tradeOffers = var1.getCompound("Offers");
+@@ -128,20 +134,21 @@
        super.tick();
     }
  
@@ -48,7 +85,7 @@
              return InteractionResult.CONSUME;
           }
        } else {
-@@ -168,21 +174,32 @@
+@@ -168,21 +175,32 @@
        this.removeEffect(MobEffects.WEAKNESS);
        this.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, var2, Math.min(this.level.getDifficulty().getId() - 1, 0)));
        this.level.broadcastEntityEvent(this, (byte)16);
@@ -82,7 +119,7 @@
                 if (var8 > 1.0D) {
                    this.spawnAtLocation(var7);
                 }
-@@ -223,12 +240,12 @@
+@@ -223,12 +241,12 @@
           BlockPos.MutableBlockPos var3 = new BlockPos.MutableBlockPos();
  
           for(int var4 = (int)this.getX() - 4; var4 < (int)this.getX() + 4 && var2 < 14; ++var4) {
@@ -97,7 +134,20 @@
                       }
  
                       ++var2;
-@@ -290,10 +307,14 @@
+@@ -239,11 +257,11 @@
+       }
+ 
+       return var1;
+    }
+ 
+-   protected float getVoicePitch() {
++   public float getVoicePitch() {
+       return this.isBaby() ? (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 2.0F : (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F;
+    }
+ 
+    public SoundEvent getAmbientSound() {
+       return SoundEvents.ZOMBIE_VILLAGER_AMBIENT;
+@@ -290,10 +308,14 @@
  
     public VillagerData getVillagerData() {
        return (VillagerData)this.entityData.get(DATA_VILLAGER_DATA);

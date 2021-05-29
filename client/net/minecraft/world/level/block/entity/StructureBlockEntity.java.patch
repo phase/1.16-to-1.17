@@ -209,7 +209,7 @@
     }
  
     public void setIgnoreEntities(boolean var1) {
-@@ -287,91 +268,61 @@
+@@ -287,91 +268,62 @@
        if (this.mode != StructureMode.SAVE) {
           return false;
        } else {
@@ -257,7 +257,7 @@
 +         return this.level.getBlockState(var1x).is(Blocks.STRUCTURE_BLOCK);
 +      });
 +      Level var10001 = this.level;
-+      var10001.getClass();
++      Objects.requireNonNull(var10001);
 +      return var10000.map(var10001::getBlockEntity).filter((var0) -> {
 +         return var0 instanceof StructureBlockEntity;
 +      }).map((var0) -> {
@@ -312,6 +312,7 @@
 +         BlockPos var3 = (BlockPos)var2.next();
 +         BoundingBox var4 = new BoundingBox(var3);
 +         if (var2.hasNext()) {
++            Objects.requireNonNull(var4);
 +            var2.forEachRemaining(var4::encapsulate);
 +         } else {
 +            var4.encapsulate(var0);
@@ -337,7 +338,28 @@
     public boolean saveStructure() {
        return this.saveStructure(true);
     }
-@@ -434,11 +385,11 @@
+@@ -415,18 +367,18 @@
+ 
+    public boolean loadStructure(ServerLevel var1, boolean var2) {
+       if (this.mode == StructureMode.LOAD && this.structureName != null) {
+          StructureManager var3 = var1.getStructureManager();
+ 
+-         StructureTemplate var4;
++         Optional var4;
+          try {
+             var4 = var3.get(this.structureName);
+          } catch (ResourceLocationException var6) {
+             return false;
+          }
+ 
+-         return var4 == null ? false : this.loadStructure(var1, var2, var4);
++         return !var4.isPresent() ? false : this.loadStructure(var1, var2, (StructureTemplate)var4.get());
+       } else {
+          return false;
+       }
+    }
+ 
+@@ -434,11 +386,11 @@
        BlockPos var4 = this.getBlockPos();
        if (!StringUtil.isNullOrEmpty(var3.getAuthor())) {
           this.author = var3.getAuthor();
@@ -350,7 +372,7 @@
           this.structureSize = var5;
           this.setChanged();
           BlockState var7 = var1.getBlockState(var4);
-@@ -446,17 +397,17 @@
+@@ -446,17 +398,17 @@
        }
  
        if (var2 && !var6) {
@@ -370,3 +392,16 @@
     }
  
     public void unloadStructure() {
+@@ -471,11 +423,11 @@
+       if (this.mode == StructureMode.LOAD && !this.level.isClientSide && this.structureName != null) {
+          ServerLevel var1 = (ServerLevel)this.level;
+          StructureManager var2 = var1.getStructureManager();
+ 
+          try {
+-            return var2.get(this.structureName) != null;
++            return var2.get(this.structureName).isPresent();
+          } catch (ResourceLocationException var4) {
+             return false;
+          }
+       } else {
+          return false;

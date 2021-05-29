@@ -21,6 +21,28 @@
     private float clientSideTailAnimation;
     private float clientSideTailAnimationO;
     private float clientSideTailAnimationSpeed;
+@@ -103,19 +105,19 @@
+ 
+    public boolean isMoving() {
+       return (Boolean)this.entityData.get(DATA_ID_MOVING);
+    }
+ 
+-   private void setMoving(boolean var1) {
++   void setMoving(boolean var1) {
+       this.entityData.set(DATA_ID_MOVING, var1);
+    }
+ 
+    public int getAttackDuration() {
+       return 80;
+    }
+ 
+-   private void setActiveAttackTarget(int var1) {
++   void setActiveAttackTarget(int var1) {
+       this.entityData.set(DATA_ID_ATTACK_TARGET, var1);
+    }
+ 
+    public boolean hasActiveAttackTarget() {
+       return (Integer)this.entityData.get(DATA_ID_ATTACK_TARGET) != 0;
 @@ -165,12 +167,12 @@
  
     protected SoundEvent getDeathSound() {
@@ -36,7 +58,26 @@
     protected float getStandingEyeHeight(Pose var1, EntityDimensions var2) {
        return var2.height * 0.5F;
     }
-@@ -266,10 +268,18 @@
+@@ -249,27 +251,35 @@
+ 
+          if (this.isInWaterOrBubble()) {
+             this.setAirSupply(300);
+          } else if (this.onGround) {
+             this.setDeltaMovement(this.getDeltaMovement().add((double)((this.random.nextFloat() * 2.0F - 1.0F) * 0.4F), 0.5D, (double)((this.random.nextFloat() * 2.0F - 1.0F) * 0.4F)));
+-            this.yRot = this.random.nextFloat() * 360.0F;
++            this.setYRot(this.random.nextFloat() * 360.0F);
+             this.onGround = false;
+             this.hasImpulse = true;
+          }
+ 
+          if (this.hasActiveAttackTarget()) {
+-            this.yRot = this.yHeadRot;
++            this.setYRot(this.yHeadRot);
+          }
+       }
+ 
+       super.aiStep();
+    }
  
     protected SoundEvent getFlopSound() {
        return SoundEvents.GUARDIAN_FLOP;
@@ -55,6 +96,68 @@
     }
  
     public boolean checkSpawnObstruction(LevelReader var1) {
+@@ -316,11 +326,11 @@
+    static {
+       DATA_ID_MOVING = SynchedEntityData.defineId(Guardian.class, EntityDataSerializers.BOOLEAN);
+       DATA_ID_ATTACK_TARGET = SynchedEntityData.defineId(Guardian.class, EntityDataSerializers.INT);
+    }
+ 
+-   static class GuardianMoveControl extends MoveControl {
++   private static class GuardianMoveControl extends MoveControl {
+       private final Guardian guardian;
+ 
+       public GuardianMoveControl(Guardian var1) {
+          super(var1);
+          this.guardian = var1;
+@@ -332,18 +342,18 @@
+             double var2 = var1.length();
+             double var4 = var1.x / var2;
+             double var6 = var1.y / var2;
+             double var8 = var1.z / var2;
+             float var10 = (float)(Mth.atan2(var1.z, var1.x) * 57.2957763671875D) - 90.0F;
+-            this.guardian.yRot = this.rotlerp(this.guardian.yRot, var10, 90.0F);
+-            this.guardian.yBodyRot = this.guardian.yRot;
++            this.guardian.setYRot(this.rotlerp(this.guardian.getYRot(), var10, 90.0F));
++            this.guardian.yBodyRot = this.guardian.getYRot();
+             float var11 = (float)(this.speedModifier * this.guardian.getAttributeValue(Attributes.MOVEMENT_SPEED));
+             float var12 = Mth.lerp(0.125F, this.guardian.getSpeed(), var11);
+             this.guardian.setSpeed(var12);
+             double var13 = Math.sin((double)(this.guardian.tickCount + this.guardian.getId()) * 0.5D) * 0.05D;
+-            double var15 = Math.cos((double)(this.guardian.yRot * 0.017453292F));
+-            double var17 = Math.sin((double)(this.guardian.yRot * 0.017453292F));
++            double var15 = Math.cos((double)(this.guardian.getYRot() * 0.017453292F));
++            double var17 = Math.sin((double)(this.guardian.getYRot() * 0.017453292F));
+             double var19 = Math.sin((double)(this.guardian.tickCount + this.guardian.getId()) * 0.75D) * 0.05D;
+             this.guardian.setDeltaMovement(this.guardian.getDeltaMovement().add(var13 * var15, var19 * (var17 + var15) * 0.25D + (double)var12 * var6 * 0.1D, var13 * var17));
+             LookControl var21 = this.guardian.getLookControl();
+             double var22 = this.guardian.getX() + var4 * 2.0D;
+             double var24 = this.guardian.getEyeY() + var6 / var2;
+@@ -364,11 +374,11 @@
+             this.guardian.setMoving(false);
+          }
+       }
+    }
+ 
+-   static class GuardianAttackGoal extends Goal {
++   private static class GuardianAttackGoal extends Goal {
+       private final Guardian guardian;
+       private int attackTime;
+       private final boolean elder;
+ 
+       public GuardianAttackGoal(Guardian var1) {
+@@ -401,11 +411,11 @@
+ 
+       public void tick() {
+          LivingEntity var1 = this.guardian.getTarget();
+          this.guardian.getNavigation().stop();
+          this.guardian.getLookControl().setLookAt(var1, 90.0F, 90.0F);
+-         if (!this.guardian.canSee(var1)) {
++         if (!this.guardian.hasLineOfSight(var1)) {
+             this.guardian.setTarget((LivingEntity)null);
+          } else {
+             ++this.attackTime;
+             if (this.attackTime == 0) {
+                this.guardian.setActiveAttackTarget(this.guardian.getTarget().getId());
 @@ -438,9 +448,9 @@
        public GuardianAttackSelector(Guardian var1) {
           this.guardian = var1;
@@ -62,7 +165,7 @@
  
        public boolean test(@Nullable LivingEntity var1) {
 -         return (var1 instanceof Player || var1 instanceof Squid) && var1.distanceToSqr(this.guardian) > 9.0D;
-+         return (var1 instanceof Player || var1 instanceof Squid || var1 != null && Axolotl.NOT_PLAYING_DEAD_SELECTOR.test(var1)) && var1.distanceToSqr(this.guardian) > 9.0D;
++         return (var1 instanceof Player || var1 instanceof Squid || var1 instanceof Axolotl) && var1.distanceToSqr(this.guardian) > 9.0D;
        }
     }
  }

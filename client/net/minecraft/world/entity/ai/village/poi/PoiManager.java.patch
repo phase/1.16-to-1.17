@@ -1,6 +1,18 @@
 --- net/minecraft/world/entity/ai/village/poi/PoiManager.java
 +++ net/minecraft/world/entity/ai/village/poi/PoiManager.java
-@@ -21,41 +21,47 @@
+@@ -8,10 +8,11 @@
+ import it.unimi.dsi.fastutil.longs.LongSet;
+ import java.io.File;
+ import java.util.Collections;
+ import java.util.Comparator;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.Optional;
+ import java.util.Random;
+ import java.util.Set;
+ import java.util.function.BiConsumer;
+ import java.util.function.BooleanSupplier;
+@@ -21,41 +22,47 @@
  import java.util.stream.Stream;
  import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
@@ -47,14 +59,14 @@
     public boolean existsAtPosition(PoiType var1, BlockPos var2) {
 -      Optional var3 = ((PoiSection)this.getOrCreate(SectionPos.of(var2).asLong())).getType(var2);
 -      return var3.isPresent() && ((PoiType)var3.get()).equals(var1);
-+      var1.getClass();
++      Objects.requireNonNull(var1);
 +      return this.exists(var2, var1::equals);
     }
  
     public Stream<PoiRecord> getInSquare(Predicate<PoiType> var1, BlockPos var2, int var3, PoiManager.Occupancy var4) {
        int var5 = Math.floorDiv(var3, 16) + 1;
        return ChunkPos.rangeClosed(new ChunkPos(var2), var5).flatMap((var3x) -> {
-@@ -71,12 +77,13 @@
+@@ -71,12 +78,13 @@
        return this.getInSquare(var1, var2, var3, var4).filter((var2x) -> {
           return var2x.getPos().distSqr(var2) <= (double)var5;
        });
@@ -69,7 +81,7 @@
           return ((PoiSection)var2x.get()).getRecords(var1, var3);
        });
     }
-@@ -99,10 +106,16 @@
+@@ -99,10 +107,16 @@
        return this.getInRange(var1, var2, var3, var4).map(PoiRecord::getPos).min(Comparator.comparingDouble((var1x) -> {
           return var1x.distSqr(var2);
        }));
@@ -86,7 +98,7 @@
           return var2.test(var1x.getPos());
        }).findFirst().map((var0) -> {
           var0.acquireTicket();
-@@ -117,24 +130,37 @@
+@@ -117,30 +131,43 @@
           return var2.test(var1x.getPos());
        }).findFirst().map(PoiRecord::getPos);
     }
@@ -128,7 +140,14 @@
        return this.distanceTracker.getLevel(var1.asLong());
     }
  
-@@ -158,11 +184,11 @@
+-   private boolean isVillageCenter(long var1) {
++   boolean isVillageCenter(long var1) {
+       Optional var3 = this.get(var1);
+       return var3 == null ? false : (Boolean)var3.map((var0) -> {
+          return var0.getRecords(PoiType.ALL, PoiManager.Occupancy.IS_OCCUPIED).count() > 0L;
+       }).orElse(false);
+    }
+@@ -158,30 +185,31 @@
     protected void onSectionLoad(long var1) {
        this.distanceTracker.update(var1, this.distanceTracker.getLevelFromSource(var1), false);
     }
@@ -141,7 +160,28 @@
              if (mayHavePoi(var2)) {
                 this.updateFromSection(var2, var3, var3xx);
              }
-@@ -191,11 +217,11 @@
+ 
+          });
+       }, () -> {
+          if (mayHavePoi(var2)) {
+             PoiSection var3x = (PoiSection)this.getOrCreate(var3.asLong());
++            Objects.requireNonNull(var3x);
+             this.updateFromSection(var2, var3, var3x::add);
+          }
+ 
+       });
+    }
+ 
+    private static boolean mayHavePoi(LevelChunkSection var0) {
+       Set var10001 = PoiType.ALL_STATES;
+-      var10001.getClass();
++      Objects.requireNonNull(var10001);
+       return var0.maybeHas(var10001::contains);
+    }
+ 
+    private void updateFromSection(LevelChunkSection var1, SectionPos var2, BiConsumer<BlockPos, PoiType> var3) {
+       var2.blocksInside().forEach((var2x) -> {
+@@ -191,11 +219,11 @@
           });
        });
     }

@@ -1,0 +1,204 @@
+--- net/minecraft/world/entity/monster/Evoker.java
++++ net/minecraft/world/entity/monster/Evoker.java
+@@ -113,99 +113,46 @@
+ 
+    protected SoundEvent getHurtSound(DamageSource var1) {
+       return SoundEvents.EVOKER_HURT;
+    }
+ 
+-   private void setWololoTarget(@Nullable Sheep var1) {
++   void setWololoTarget(@Nullable Sheep var1) {
+       this.wololoTarget = var1;
+    }
+ 
+    @Nullable
+-   private Sheep getWololoTarget() {
++   Sheep getWololoTarget() {
+       return this.wololoTarget;
+    }
+ 
+    protected SoundEvent getCastingSoundEvent() {
+       return SoundEvents.EVOKER_CAST_SPELL;
+    }
+ 
+    public void applyRaidBuffs(int var1, boolean var2) {
+    }
+ 
+-   public class EvokerWololoSpellGoal extends SpellcasterIllager.SpellcasterUseSpellGoal {
+-      private final TargetingConditions wololoTargeting = (new TargetingConditions()).range(16.0D).allowInvulnerable().selector((var0) -> {
+-         return ((Sheep)var0).getColor() == DyeColor.BLUE;
+-      });
+-
+-      public EvokerWololoSpellGoal() {
++   class EvokerCastingSpellGoal extends SpellcasterIllager.SpellcasterCastingSpellGoal {
++      EvokerCastingSpellGoal() {
+          super();
+       }
+ 
+-      public boolean canUse() {
++      public void tick() {
+          if (Evoker.this.getTarget() != null) {
+-            return false;
+-         } else if (Evoker.this.isCastingSpell()) {
+-            return false;
+-         } else if (Evoker.this.tickCount < this.nextAttackTickCount) {
+-            return false;
+-         } else if (!Evoker.this.level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
+-            return false;
+-         } else {
+-            List var1 = Evoker.this.level.getNearbyEntities(Sheep.class, this.wololoTargeting, Evoker.this, Evoker.this.getBoundingBox().inflate(16.0D, 4.0D, 16.0D));
+-            if (var1.isEmpty()) {
+-               return false;
+-            } else {
+-               Evoker.this.setWololoTarget((Sheep)var1.get(Evoker.this.random.nextInt(var1.size())));
+-               return true;
+-            }
++            Evoker.this.getLookControl().setLookAt(Evoker.this.getTarget(), (float)Evoker.this.getMaxHeadYRot(), (float)Evoker.this.getMaxHeadXRot());
++         } else if (Evoker.this.getWololoTarget() != null) {
++            Evoker.this.getLookControl().setLookAt(Evoker.this.getWololoTarget(), (float)Evoker.this.getMaxHeadYRot(), (float)Evoker.this.getMaxHeadXRot());
+          }
+-      }
+ 
+-      public boolean canContinueToUse() {
+-         return Evoker.this.getWololoTarget() != null && this.attackWarmupDelay > 0;
+       }
+-
+-      public void stop() {
+-         super.stop();
+-         Evoker.this.setWololoTarget((Sheep)null);
+-      }
+-
+-      protected void performSpellCasting() {
+-         Sheep var1 = Evoker.this.getWololoTarget();
+-         if (var1 != null && var1.isAlive()) {
+-            var1.setColor(DyeColor.RED);
+-         }
+-
+-      }
+-
+-      protected int getCastWarmupTime() {
+-         return 40;
+-      }
+-
+-      protected int getCastingTime() {
+-         return 60;
+-      }
+-
+-      protected int getCastingInterval() {
+-         return 140;
+-      }
+-
+-      protected SoundEvent getSpellPrepareSound() {
+-         return SoundEvents.EVOKER_PREPARE_WOLOLO;
+-      }
+-
+-      protected SpellcasterIllager.IllagerSpell getSpell() {
+-         return SpellcasterIllager.IllagerSpell.WOLOLO;
+-      }
+    }
+ 
+    class EvokerSummonSpellGoal extends SpellcasterIllager.SpellcasterUseSpellGoal {
+-      private final TargetingConditions vexCountTargeting;
++      private final TargetingConditions vexCountTargeting = TargetingConditions.forNonCombat().range(16.0D).ignoreLineOfSight().ignoreInvisibilityTesting();
+ 
+-      private EvokerSummonSpellGoal() {
++      EvokerSummonSpellGoal() {
+          super();
+-         this.vexCountTargeting = (new TargetingConditions()).range(16.0D).allowUnseeable().ignoreInvisibilityTesting().allowInvulnerable().allowSameTeam();
+       }
+ 
+       public boolean canUse() {
+          if (!super.canUse()) {
+             return false;
+@@ -247,11 +194,11 @@
+          return SpellcasterIllager.IllagerSpell.SUMMON_VEX;
+       }
+    }
+ 
+    class EvokerAttackSpellGoal extends SpellcasterIllager.SpellcasterUseSpellGoal {
+-      private EvokerAttackSpellGoal() {
++      EvokerAttackSpellGoal() {
+          super();
+       }
+ 
+       protected int getCastingTime() {
+          return 40;
+@@ -325,20 +272,72 @@
+       protected SpellcasterIllager.IllagerSpell getSpell() {
+          return SpellcasterIllager.IllagerSpell.FANGS;
+       }
+    }
+ 
+-   class EvokerCastingSpellGoal extends SpellcasterIllager.SpellcasterCastingSpellGoal {
+-      private EvokerCastingSpellGoal() {
++   public class EvokerWololoSpellGoal extends SpellcasterIllager.SpellcasterUseSpellGoal {
++      private final TargetingConditions wololoTargeting = TargetingConditions.forNonCombat().range(16.0D).selector((var0) -> {
++         return ((Sheep)var0).getColor() == DyeColor.BLUE;
++      });
++
++      public EvokerWololoSpellGoal() {
+          super();
+       }
+ 
+-      public void tick() {
++      public boolean canUse() {
+          if (Evoker.this.getTarget() != null) {
+-            Evoker.this.getLookControl().setLookAt(Evoker.this.getTarget(), (float)Evoker.this.getMaxHeadYRot(), (float)Evoker.this.getMaxHeadXRot());
+-         } else if (Evoker.this.getWololoTarget() != null) {
+-            Evoker.this.getLookControl().setLookAt(Evoker.this.getWololoTarget(), (float)Evoker.this.getMaxHeadYRot(), (float)Evoker.this.getMaxHeadXRot());
++            return false;
++         } else if (Evoker.this.isCastingSpell()) {
++            return false;
++         } else if (Evoker.this.tickCount < this.nextAttackTickCount) {
++            return false;
++         } else if (!Evoker.this.level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
++            return false;
++         } else {
++            List var1 = Evoker.this.level.getNearbyEntities(Sheep.class, this.wololoTargeting, Evoker.this, Evoker.this.getBoundingBox().inflate(16.0D, 4.0D, 16.0D));
++            if (var1.isEmpty()) {
++               return false;
++            } else {
++               Evoker.this.setWololoTarget((Sheep)var1.get(Evoker.this.random.nextInt(var1.size())));
++               return true;
++            }
+          }
++      }
+ 
++      public boolean canContinueToUse() {
++         return Evoker.this.getWololoTarget() != null && this.attackWarmupDelay > 0;
+       }
++
++      public void stop() {
++         super.stop();
++         Evoker.this.setWololoTarget((Sheep)null);
++      }
++
++      protected void performSpellCasting() {
++         Sheep var1 = Evoker.this.getWololoTarget();
++         if (var1 != null && var1.isAlive()) {
++            var1.setColor(DyeColor.RED);
++         }
++
++      }
++
++      protected int getCastWarmupTime() {
++         return 40;
++      }
++
++      protected int getCastingTime() {
++         return 60;
++      }
++
++      protected int getCastingInterval() {
++         return 140;
++      }
++
++      protected SoundEvent getSpellPrepareSound() {
++         return SoundEvents.EVOKER_PREPARE_WOLOLO;
++      }
++
++      protected SpellcasterIllager.IllagerSpell getSpell() {
++         return SpellcasterIllager.IllagerSpell.WOLOLO;
++      }
+    }
+ }

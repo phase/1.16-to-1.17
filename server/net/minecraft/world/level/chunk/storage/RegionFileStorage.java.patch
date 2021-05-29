@@ -25,23 +25,79 @@
     private final boolean sync;
  
     RegionFileStorage(File var1, boolean var2) {
-@@ -54,11 +58,11 @@
-          if (var3 == null) {
-             var5 = null;
-             return var5;
+@@ -34,75 +38,83 @@
+ 
+          if (!this.folder.exists()) {
+             this.folder.mkdirs();
           }
  
+-         File var5 = new File(this.folder, "r." + var1.getRegionX() + "." + var1.getRegionZ() + ".mca");
++         File var10002 = this.folder;
++         int var10003 = var1.getRegionX();
++         File var5 = new File(var10002, "r." + var10003 + "." + var1.getRegionZ() + ".mca");
+          RegionFile var6 = new RegionFile(var5, this.folder, this.sync);
+          this.regionCache.putAndMoveToFirst(var2, var6);
+          return var6;
+       }
+    }
+ 
+    @Nullable
+    public CompoundTag read(ChunkPos var1) throws IOException {
+       RegionFile var2 = this.getRegionFile(var1);
+       DataInputStream var3 = var2.getChunkDataInputStream(var1);
+-      Throwable var4 = null;
+ 
+-      CompoundTag var5;
+-      try {
+-         if (var3 == null) {
+-            var5 = null;
+-            return var5;
+-         }
++      CompoundTag var4;
++      label43: {
++         try {
++            if (var3 == null) {
++               var4 = null;
++               break label43;
++            }
+ 
 -         var5 = NbtIo.read(var3);
-+         var5 = NbtIo.read((DataInput)var3);
-       } catch (Throwable var15) {
-          var4 = var15;
-          throw var15;
-       } finally {
-          if (var3 != null) {
-@@ -76,33 +80,37 @@
+-      } catch (Throwable var15) {
+-         var4 = var15;
+-         throw var15;
+-      } finally {
+-         if (var3 != null) {
+-            if (var4 != null) {
++            var4 = NbtIo.read((DataInput)var3);
++         } catch (Throwable var7) {
++            if (var3 != null) {
+                try {
+                   var3.close();
+-               } catch (Throwable var14) {
+-                  var4.addSuppressed(var14);
++               } catch (Throwable var6) {
++                  var7.addSuppressed(var6);
+                }
+-            } else {
+-               var3.close();
+             }
++
++            throw var7;
+          }
+ 
++         if (var3 != null) {
++            var3.close();
++         }
++
++         return var4;
        }
  
-       return var5;
+-      return var5;
++      if (var3 != null) {
++         var3.close();
++      }
++
++      return var4;
     }
  
 -   protected void write(ChunkPos var1, CompoundTag var2) throws IOException {
@@ -53,7 +109,6 @@
 +         var3.clear(var1);
 +      } else {
 +         DataOutputStream var4 = var3.getChunkDataOutputStream(var1);
-+         Throwable var5 = null;
  
 -      try {
 -         NbtIo.write(var2, var4);
@@ -63,30 +118,26 @@
 -      } finally {
 -         if (var4 != null) {
 -            if (var5 != null) {
--               try {
 +         try {
 +            NbtIo.write(var2, (DataOutput)var4);
-+         } catch (Throwable var14) {
-+            var5 = var14;
-+            throw var14;
-+         } finally {
++         } catch (Throwable var8) {
 +            if (var4 != null) {
-+               if (var5 != null) {
-+                  try {
-+                     var4.close();
-+                  } catch (Throwable var13) {
-+                     var5.addSuppressed(var13);
-+                  }
-+               } else {
+                try {
                    var4.close();
 -               } catch (Throwable var13) {
 -                  var5.addSuppressed(var13);
++               } catch (Throwable var7) {
++                  var8.addSuppressed(var7);
                 }
 -            } else {
 -               var4.close();
              }
--         }
++
++            throw var8;
+          }
  
++         if (var4 != null) {
++            var4.close();
 +         }
        }
  

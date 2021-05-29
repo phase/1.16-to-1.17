@@ -1,10 +1,45 @@
 --- net/minecraft/network/chat/HoverEvent.java
 +++ net/minecraft/network/chat/HoverEvent.java
-@@ -100,11 +100,11 @@
-          return ((HoverEvent.ItemStackInfo)var0).serialize();
-       }, (var0) -> {
-          return HoverEvent.ItemStackInfo.create(var0);
-       });
+@@ -23,11 +23,11 @@
+ import net.minecraft.world.item.ItemStack;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class HoverEvent {
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
+    private final HoverEvent.Action<?> action;
+    private final Object value;
+ 
+    public <T> HoverEvent(HoverEvent.Action<T> var1, T var2) {
+       this.action = var1;
+@@ -53,11 +53,11 @@
+          return false;
+       }
+    }
+ 
+    public String toString() {
+-      return "HoverEvent{action=" + this.action + ", value='" + this.value + '\'' + '}';
++      return "HoverEvent{action=" + this.action + ", value='" + this.value + "'}";
+    }
+ 
+    public int hashCode() {
+       int var1 = this.action.hashCode();
+       var1 = 31 * var1 + (this.value != null ? this.value.hashCode() : 0);
+@@ -92,19 +92,13 @@
+       return var1;
+    }
+ 
+    public static class Action<T> {
+       public static final HoverEvent.Action<Component> SHOW_TEXT = new HoverEvent.Action("show_text", true, Component.Serializer::fromJson, Component.Serializer::toJsonTree, Function.identity());
+-      public static final HoverEvent.Action<HoverEvent.ItemStackInfo> SHOW_ITEM = new HoverEvent.Action("show_item", true, (var0) -> {
+-         return HoverEvent.ItemStackInfo.create(var0);
+-      }, (var0) -> {
+-         return ((HoverEvent.ItemStackInfo)var0).serialize();
+-      }, (var0) -> {
+-         return HoverEvent.ItemStackInfo.create(var0);
+-      });
++      public static final HoverEvent.Action<HoverEvent.ItemStackInfo> SHOW_ITEM = new HoverEvent.Action("show_item", true, HoverEvent.ItemStackInfo::create, HoverEvent.ItemStackInfo::serialize, HoverEvent.ItemStackInfo::create);
        public static final HoverEvent.Action<HoverEvent.EntityTooltipInfo> SHOW_ENTITY = new HoverEvent.Action("show_entity", true, HoverEvent.EntityTooltipInfo::create, HoverEvent.EntityTooltipInfo::serialize, HoverEvent.EntityTooltipInfo::create);
 -      private static final Map<String, HoverEvent.Action> LOOKUP;
 +      private static final Map<String, HoverEvent.Action<?>> LOOKUP;
@@ -13,7 +48,7 @@
        private final Function<JsonElement, T> argDeserializer;
        private final Function<T, JsonElement> argSerializer;
        private final Function<Component, T> legacyArgDeserializer;
-@@ -124,11 +124,11 @@
+@@ -124,15 +118,15 @@
        public String getName() {
           return this.name;
        }
@@ -24,5 +59,10 @@
           return (HoverEvent.Action)LOOKUP.get(var0);
        }
  
-       private T cast(Object var1) {
+-      private T cast(Object var1) {
++      T cast(Object var1) {
           return var1;
+       }
+ 
+       @Nullable
+       public HoverEvent deserialize(JsonElement var1) {

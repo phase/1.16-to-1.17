@@ -56,8 +56,135 @@
              var1 = var4.above().getY();
           }
        } else {
-@@ -251,11 +251,11 @@
-             if (var13 == BlockPathTypes.WATER && !this.canFloat()) {
+@@ -121,59 +121,59 @@
+       BlockPathTypes var6 = this.getCachedBlockType(this.mob, var2.x, var2.y, var2.z);
+       if (this.mob.getPathfindingMalus(var5) >= 0.0F && var6 != BlockPathTypes.STICKY_HONEY) {
+          var4 = Mth.floor(Math.max(1.0F, this.mob.maxUpStep));
+       }
+ 
+-      double var7 = getFloorLevel(this.level, new BlockPos(var2.x, var2.y, var2.z));
+-      Node var9 = this.getLandNode(var2.x, var2.y, var2.z + 1, var4, var7, Direction.SOUTH, var6);
++      double var7 = this.getFloorLevel(new BlockPos(var2.x, var2.y, var2.z));
++      Node var9 = this.findAcceptedNode(var2.x, var2.y, var2.z + 1, var4, var7, Direction.SOUTH, var6);
+       if (this.isNeighborValid(var9, var2)) {
+          var1[var3++] = var9;
+       }
+ 
+-      Node var10 = this.getLandNode(var2.x - 1, var2.y, var2.z, var4, var7, Direction.WEST, var6);
++      Node var10 = this.findAcceptedNode(var2.x - 1, var2.y, var2.z, var4, var7, Direction.WEST, var6);
+       if (this.isNeighborValid(var10, var2)) {
+          var1[var3++] = var10;
+       }
+ 
+-      Node var11 = this.getLandNode(var2.x + 1, var2.y, var2.z, var4, var7, Direction.EAST, var6);
++      Node var11 = this.findAcceptedNode(var2.x + 1, var2.y, var2.z, var4, var7, Direction.EAST, var6);
+       if (this.isNeighborValid(var11, var2)) {
+          var1[var3++] = var11;
+       }
+ 
+-      Node var12 = this.getLandNode(var2.x, var2.y, var2.z - 1, var4, var7, Direction.NORTH, var6);
++      Node var12 = this.findAcceptedNode(var2.x, var2.y, var2.z - 1, var4, var7, Direction.NORTH, var6);
+       if (this.isNeighborValid(var12, var2)) {
+          var1[var3++] = var12;
+       }
+ 
+-      Node var13 = this.getLandNode(var2.x - 1, var2.y, var2.z - 1, var4, var7, Direction.NORTH, var6);
++      Node var13 = this.findAcceptedNode(var2.x - 1, var2.y, var2.z - 1, var4, var7, Direction.NORTH, var6);
+       if (this.isDiagonalValid(var2, var10, var12, var13)) {
+          var1[var3++] = var13;
+       }
+ 
+-      Node var14 = this.getLandNode(var2.x + 1, var2.y, var2.z - 1, var4, var7, Direction.NORTH, var6);
++      Node var14 = this.findAcceptedNode(var2.x + 1, var2.y, var2.z - 1, var4, var7, Direction.NORTH, var6);
+       if (this.isDiagonalValid(var2, var11, var12, var14)) {
+          var1[var3++] = var14;
+       }
+ 
+-      Node var15 = this.getLandNode(var2.x - 1, var2.y, var2.z + 1, var4, var7, Direction.SOUTH, var6);
++      Node var15 = this.findAcceptedNode(var2.x - 1, var2.y, var2.z + 1, var4, var7, Direction.SOUTH, var6);
+       if (this.isDiagonalValid(var2, var10, var9, var15)) {
+          var1[var3++] = var15;
+       }
+ 
+-      Node var16 = this.getLandNode(var2.x + 1, var2.y, var2.z + 1, var4, var7, Direction.SOUTH, var6);
++      Node var16 = this.findAcceptedNode(var2.x + 1, var2.y, var2.z + 1, var4, var7, Direction.SOUTH, var6);
+       if (this.isDiagonalValid(var2, var11, var9, var16)) {
+          var1[var3++] = var16;
+       }
+ 
+       return var3;
+    }
+ 
+-   private boolean isNeighborValid(Node var1, Node var2) {
++   protected boolean isNeighborValid(@Nullable Node var1, Node var2) {
+       return var1 != null && !var1.closed && (var1.costMalus >= 0.0F || var2.costMalus < 0.0F);
+    }
+ 
+-   private boolean isDiagonalValid(Node var1, @Nullable Node var2, @Nullable Node var3, @Nullable Node var4) {
++   protected boolean isDiagonalValid(Node var1, @Nullable Node var2, @Nullable Node var3, @Nullable Node var4) {
+       if (var4 != null && var3 != null && var2 != null) {
+          if (var4.closed) {
+             return false;
+          } else if (var3.y <= var1.y && var2.y <= var1.y) {
+             if (var2.type != BlockPathTypes.WALKABLE_DOOR && var3.type != BlockPathTypes.WALKABLE_DOOR && var4.type != BlockPathTypes.WALKABLE_DOOR) {
+@@ -204,21 +204,29 @@
+       }
+ 
+       return true;
+    }
+ 
++   protected double getFloorLevel(BlockPos var1) {
++      return getFloorLevel(this.level, var1);
++   }
++
+    public static double getFloorLevel(BlockGetter var0, BlockPos var1) {
+       BlockPos var2 = var1.below();
+       VoxelShape var3 = var0.getBlockState(var2).getCollisionShape(var0, var2);
+       return (double)var2.getY() + (var3.isEmpty() ? 0.0D : var3.max(Direction.Axis.Y));
+    }
+ 
++   protected boolean isAmphibious() {
++      return false;
++   }
++
+    @Nullable
+-   private Node getLandNode(int var1, int var2, int var3, int var4, double var5, Direction var7, BlockPathTypes var8) {
++   protected Node findAcceptedNode(int var1, int var2, int var3, int var4, double var5, Direction var7, BlockPathTypes var8) {
+       Node var9 = null;
+       BlockPos.MutableBlockPos var10 = new BlockPos.MutableBlockPos();
+-      double var11 = getFloorLevel(this.level, var10.set(var1, var2, var3));
++      double var11 = this.getFloorLevel(var10.set(var1, var2, var3));
+       if (var11 - var5 > 1.125D) {
+          return null;
+       } else {
+          BlockPathTypes var13 = this.getCachedBlockType(this.mob, var1, var2, var3);
+          float var14 = this.mob.getPathfindingMalus(var13);
+@@ -231,31 +239,31 @@
+ 
+          if (var8 == BlockPathTypes.FENCE && var9 != null && var9.costMalus >= 0.0F && !this.canReachWithoutCollision(var9)) {
+             var9 = null;
+          }
+ 
+-         if (var13 == BlockPathTypes.WALKABLE) {
++         if (var13 == BlockPathTypes.WALKABLE || this.isAmphibious() && var13 == BlockPathTypes.WATER) {
+             return var9;
+          } else {
+-            if ((var9 == null || var9.costMalus < 0.0F) && var4 > 0 && var13 != BlockPathTypes.FENCE && var13 != BlockPathTypes.UNPASSABLE_RAIL && var13 != BlockPathTypes.TRAPDOOR) {
+-               var9 = this.getLandNode(var1, var2 + 1, var3, var4 - 1, var5, var7, var8);
++            if ((var9 == null || var9.costMalus < 0.0F) && var4 > 0 && var13 != BlockPathTypes.FENCE && var13 != BlockPathTypes.UNPASSABLE_RAIL && var13 != BlockPathTypes.TRAPDOOR && var13 != BlockPathTypes.POWDER_SNOW) {
++               var9 = this.findAcceptedNode(var1, var2 + 1, var3, var4 - 1, var5, var7, var8);
+                if (var9 != null && (var9.type == BlockPathTypes.OPEN || var9.type == BlockPathTypes.WALKABLE) && this.mob.getBbWidth() < 1.0F) {
+                   double var17 = (double)(var1 - var7.getStepX()) + 0.5D;
+                   double var19 = (double)(var3 - var7.getStepZ()) + 0.5D;
+                   AABB var21 = new AABB(var17 - var15, getFloorLevel(this.level, var10.set(var17, (double)(var2 + 1), var19)) + 0.001D, var19 - var15, var17 + var15, (double)this.mob.getBbHeight() + getFloorLevel(this.level, var10.set((double)var9.x, (double)var9.y, (double)var9.z)) - 0.002D, var19 + var15);
+                   if (this.hasCollisions(var21)) {
+                      var9 = null;
+                   }
+                }
+             }
+ 
+-            if (var13 == BlockPathTypes.WATER && !this.canFloat()) {
++            if (!this.isAmphibious() && var13 == BlockPathTypes.WATER && !this.canFloat()) {
                 if (this.getCachedBlockType(this.mob, var1, var2 - 1, var3) != BlockPathTypes.WATER) {
                    return var9;
                 }
@@ -69,7 +196,7 @@
                    if (var13 != BlockPathTypes.WATER) {
                       return var9;
                    }
-@@ -271,11 +271,11 @@
+@@ -271,11 +279,11 @@
                 int var18 = var2;
  
                 while(var13 == BlockPathTypes.OPEN) {
@@ -82,7 +209,20 @@
                       var23.costMalus = -1.0F;
                       return var23;
                    }
-@@ -413,11 +413,11 @@
+@@ -398,11 +406,11 @@
+ 
+    private BlockPathTypes getBlockPathType(Mob var1, BlockPos var2) {
+       return this.getCachedBlockType(var1, var2.getX(), var2.getY(), var2.getZ());
+    }
+ 
+-   private BlockPathTypes getCachedBlockType(Mob var1, int var2, int var3, int var4) {
++   protected BlockPathTypes getCachedBlockType(Mob var1, int var2, int var3, int var4) {
+       return (BlockPathTypes)this.pathTypesByPosCache.computeIfAbsent(BlockPos.asLong(var2, var3, var4), (var5) -> {
+          return this.getBlockPathType(this.level, var2, var3, var4, var1, this.entityWidth, this.entityHeight, this.entityDepth, this.canOpenDoors(), this.canPassDoors());
+       });
+    }
+ 
+@@ -413,11 +421,11 @@
     public static BlockPathTypes getBlockPathTypeStatic(BlockGetter var0, BlockPos.MutableBlockPos var1) {
        int var2 = var1.getX();
        int var3 = var1.getY();
@@ -95,29 +235,61 @@
           if (var6 == BlockPathTypes.DAMAGE_FIRE) {
              var5 = BlockPathTypes.DAMAGE_FIRE;
           }
-@@ -480,11 +480,11 @@
+@@ -480,24 +488,24 @@
        BlockState var2 = var0.getBlockState(var1);
        Block var3 = var2.getBlock();
        Material var4 = var2.getMaterial();
        if (var2.isAir()) {
           return BlockPathTypes.OPEN;
 -      } else if (!var2.is(BlockTags.TRAPDOORS) && !var2.is(Blocks.LILY_PAD)) {
-+      } else if (!var2.is(BlockTags.TRAPDOORS) && !var2.is(Blocks.LILY_PAD) && !var2.is(Blocks.POWDER_SNOW)) {
-          if (var2.is(Blocks.CACTUS)) {
+-         if (var2.is(Blocks.CACTUS)) {
++      } else if (!var2.is(BlockTags.TRAPDOORS) && !var2.is(Blocks.LILY_PAD) && !var2.is(Blocks.BIG_DRIPLEAF)) {
++         if (var2.is(Blocks.POWDER_SNOW)) {
++            return BlockPathTypes.POWDER_SNOW;
++         } else if (var2.is(Blocks.CACTUS)) {
              return BlockPathTypes.DAMAGE_CACTUS;
           } else if (var2.is(Blocks.SWEET_BERRY_BUSH)) {
              return BlockPathTypes.DAMAGE_OTHER;
           } else if (var2.is(Blocks.HONEY_BLOCK)) {
-@@ -507,11 +507,11 @@
+             return BlockPathTypes.STICKY_HONEY;
+          } else if (var2.is(Blocks.COCOA)) {
+             return BlockPathTypes.COCOA;
+          } else {
+             FluidState var5 = var0.getFluidState(var1);
+-            if (var5.is(FluidTags.WATER)) {
+-               return BlockPathTypes.WATER;
+-            } else if (var5.is(FluidTags.LAVA)) {
++            if (var5.is(FluidTags.LAVA)) {
+                return BlockPathTypes.LAVA;
+             } else if (isBurningBlock(var2)) {
+                return BlockPathTypes.DAMAGE_FIRE;
+             } else if (DoorBlock.isWoodenDoor(var2) && !(Boolean)var2.getValue(DoorBlock.OPEN)) {
+                return BlockPathTypes.DOOR_WOOD_CLOSED;
+@@ -507,20 +515,22 @@
                 return BlockPathTypes.DOOR_OPEN;
              } else if (var3 instanceof BaseRailBlock) {
                 return BlockPathTypes.RAIL;
              } else if (var3 instanceof LeavesBlock) {
                 return BlockPathTypes.LEAVES;
 -            } else if (!var3.is((Tag)BlockTags.FENCES) && !var3.is((Tag)BlockTags.WALLS) && (!(var3 instanceof FenceGateBlock) || (Boolean)var2.getValue(FenceGateBlock.OPEN))) {
-+            } else if (!var2.is(BlockTags.FENCES) && !var2.is(BlockTags.WALLS) && (!(var3 instanceof FenceGateBlock) || (Boolean)var2.getValue(FenceGateBlock.OPEN))) {
-                return !var2.isPathfindable(var0, var1, PathComputationType.LAND) ? BlockPathTypes.BLOCKED : BlockPathTypes.OPEN;
-             } else {
+-               return !var2.isPathfindable(var0, var1, PathComputationType.LAND) ? BlockPathTypes.BLOCKED : BlockPathTypes.OPEN;
+-            } else {
++            } else if (var2.is(BlockTags.FENCES) || var2.is(BlockTags.WALLS) || var3 instanceof FenceGateBlock && !(Boolean)var2.getValue(FenceGateBlock.OPEN)) {
                 return BlockPathTypes.FENCE;
++            } else if (!var2.isPathfindable(var0, var1, PathComputationType.LAND)) {
++               return BlockPathTypes.BLOCKED;
++            } else {
++               return var5.is(FluidTags.WATER) ? BlockPathTypes.WATER : BlockPathTypes.OPEN;
              }
           }
+       } else {
+          return BlockPathTypes.TRAPDOOR;
+       }
+    }
+ 
+-   private static boolean isBurningBlock(BlockState var0) {
+-      return var0.is(BlockTags.FIRE) || var0.is(Blocks.LAVA) || var0.is(Blocks.MAGMA_BLOCK) || CampfireBlock.isLitCampfire(var0);
++   public static boolean isBurningBlock(BlockState var0) {
++      return var0.is(BlockTags.FIRE) || var0.is(Blocks.LAVA) || var0.is(Blocks.MAGMA_BLOCK) || CampfireBlock.isLitCampfire(var0) || var0.is(Blocks.LAVA_CAULDRON);
+    }
+ }

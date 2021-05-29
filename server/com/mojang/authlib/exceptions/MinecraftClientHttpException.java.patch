@@ -1,0 +1,81 @@
+--- com/mojang/authlib/exceptions/MinecraftClientHttpException.java
++++ com/mojang/authlib/exceptions/MinecraftClientHttpException.java
+@@ -1,0 +1,78 @@
++package com.mojang.authlib.exceptions;
++
++import com.mojang.authlib.yggdrasil.response.ErrorResponse;
++import java.util.Optional;
++import java.util.StringJoiner;
++import javax.annotation.Nullable;
++import org.apache.commons.lang3.StringUtils;
++
++public class MinecraftClientHttpException extends MinecraftClientException {
++   public static final int UNAUTHORIZED = 401;
++   public static final int FORBIDDEN = 403;
++   private final int status;
++   @Nullable
++   private final ErrorResponse response;
++
++   public MinecraftClientHttpException(int var1) {
++      super(MinecraftClientException.ErrorType.HTTP_ERROR, getErrorMessage(var1, (ErrorResponse)null));
++      this.status = var1;
++      this.response = null;
++   }
++
++   public MinecraftClientHttpException(int var1, ErrorResponse var2) {
++      super(MinecraftClientException.ErrorType.HTTP_ERROR, getErrorMessage(var1, var2));
++      this.status = var1;
++      this.response = var2;
++   }
++
++   public int getStatus() {
++      return this.status;
++   }
++
++   public Optional<ErrorResponse> getResponse() {
++      return Optional.ofNullable(this.response);
++   }
++
++   public String toString() {
++      return (new StringJoiner(", ", MinecraftClientHttpException.class.getSimpleName() + "[", "]")).add("type=" + this.type).add("status=" + this.status).add("response=" + this.response).toString();
++   }
++
++   public AuthenticationException toAuthenticationException() {
++      if (!this.hasError("InsufficientPrivilegesException") && this.status != 403) {
++         if (this.status == 401) {
++            return new InvalidCredentialsException(this.getMessage(), this);
++         } else {
++            return (AuthenticationException)(this.status >= 500 ? new AuthenticationUnavailableException(this.getMessage(), this) : new AuthenticationException(this.getMessage(), this));
++         }
++      } else {
++         return new InsufficientPrivilegesException(this.getMessage(), this);
++      }
++   }
++
++   private Optional<String> getError() {
++      return this.getResponse().map(ErrorResponse::getError).filter(StringUtils::isNotEmpty);
++   }
++
++   private static String getErrorMessage(int var0, ErrorResponse var1) {
++      String var2;
++      if (var1 != null) {
++         if (StringUtils.isNotEmpty(var1.getErrorMessage())) {
++            var2 = var1.getErrorMessage();
++         } else if (StringUtils.isNotEmpty(var1.getError())) {
++            var2 = var1.getError();
++         } else {
++            var2 = "Status: " + var0;
++         }
++      } else {
++         var2 = "Status: " + var0;
++      }
++
++      return var2;
++   }
++
++   private boolean hasError(String var1) {
++      return this.getError().filter((var1x) -> {
++         return var1x.equalsIgnoreCase(var1);
++      }).isPresent();
++   }
++}

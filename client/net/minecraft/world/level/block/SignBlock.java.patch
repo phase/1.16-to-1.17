@@ -1,17 +1,20 @@
 --- net/minecraft/world/level/block/SignBlock.java
 +++ net/minecraft/world/level/block/SignBlock.java
-@@ -1,14 +1,18 @@
+@@ -1,14 +1,21 @@
  package net.minecraft.world.level.block;
  
++import net.minecraft.advancements.CriteriaTriggers;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
 +import net.minecraft.server.level.ServerPlayer;
 +import net.minecraft.sounds.SoundEvents;
 +import net.minecraft.sounds.SoundSource;
++import net.minecraft.stats.Stats;
  import net.minecraft.world.InteractionHand;
  import net.minecraft.world.InteractionResult;
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.DyeItem;
++import net.minecraft.world.item.Item;
  import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.item.Items;
  import net.minecraft.world.level.BlockGetter;
@@ -19,7 +22,7 @@
  import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.block.entity.BlockEntity;
  import net.minecraft.world.level.block.entity.SignBlockEntity;
-@@ -23,10 +27,11 @@
+@@ -23,10 +30,11 @@
  import net.minecraft.world.phys.shapes.CollisionContext;
  import net.minecraft.world.phys.shapes.VoxelShape;
  
@@ -31,7 +34,7 @@
  
     protected SignBlock(BlockBehaviour.Properties var1, WoodType var2) {
        super(var1);
-@@ -47,33 +52,52 @@
+@@ -47,33 +55,60 @@
  
     public boolean isPossibleToRespawnInThis() {
        return true;
@@ -46,13 +49,14 @@
     public InteractionResult use(BlockState var1, Level var2, BlockPos var3, Player var4, InteractionHand var5, BlockHitResult var6) {
        ItemStack var7 = var4.getItemInHand(var5);
 -      boolean var8 = var7.getItem() instanceof DyeItem && var4.abilities.mayBuild;
-+      boolean var8 = var7.getItem() instanceof DyeItem;
-+      boolean var9 = var7.is(Items.GLOW_INK_SAC);
-+      boolean var10 = var7.is(Items.INK_SAC);
-+      boolean var11 = (var9 || var8 || var10) && var4.getAbilities().mayBuild;
++      Item var8 = var7.getItem();
++      boolean var9 = var8 instanceof DyeItem;
++      boolean var10 = var7.is(Items.GLOW_INK_SAC);
++      boolean var11 = var7.is(Items.INK_SAC);
++      boolean var12 = (var10 || var9 || var11) && var4.getAbilities().mayBuild;
        if (var2.isClientSide) {
 -         return var8 ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
-+         return var11 ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
++         return var12 ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
        } else {
 -         BlockEntity var9 = var2.getBlockEntity(var3);
 -         if (var9 instanceof SignBlockEntity) {
@@ -61,28 +65,37 @@
 -               boolean var11 = var10.setColor(((DyeItem)var7.getItem()).getDyeColor());
 -               if (var11 && !var4.isCreative()) {
 -                  var7.shrink(1);
-+         BlockEntity var12 = var2.getBlockEntity(var3);
-+         if (!(var12 instanceof SignBlockEntity)) {
++         BlockEntity var13 = var2.getBlockEntity(var3);
++         if (!(var13 instanceof SignBlockEntity)) {
 +            return InteractionResult.PASS;
 +         } else {
-+            SignBlockEntity var13 = (SignBlockEntity)var12;
-+            boolean var14 = var13.hasGlowingText();
-+            if ((!var9 || !var14) && (!var10 || var14)) {
-+               if (var11) {
-+                  boolean var15;
-+                  if (var9) {
++            SignBlockEntity var14 = (SignBlockEntity)var13;
++            boolean var15 = var14.hasGlowingText();
++            if (var10 && var15 || var11 && !var15) {
++               return InteractionResult.PASS;
++            } else {
++               if (var12) {
++                  boolean var16;
++                  if (var10) {
 +                     var2.playSound((Player)null, (BlockPos)var3, SoundEvents.GLOW_INK_SAC_USE, SoundSource.BLOCKS, 1.0F, 1.0F);
-+                     var15 = var13.setHasGlowingText(true);
-+                  } else if (var10) {
++                     var16 = var14.setHasGlowingText(true);
++                     if (var4 instanceof ServerPlayer) {
++                        CriteriaTriggers.ITEM_USED_ON_BLOCK.trigger((ServerPlayer)var4, var3, var7);
++                     }
++                  } else if (var11) {
 +                     var2.playSound((Player)null, (BlockPos)var3, SoundEvents.INK_SAC_USE, SoundSource.BLOCKS, 1.0F, 1.0F);
-+                     var15 = var13.setHasGlowingText(false);
++                     var16 = var14.setHasGlowingText(false);
 +                  } else {
 +                     var2.playSound((Player)null, (BlockPos)var3, SoundEvents.DYE_USE, SoundSource.BLOCKS, 1.0F, 1.0F);
-+                     var15 = var13.setColor(((DyeItem)var7.getItem()).getDyeColor());
++                     var16 = var14.setColor(((DyeItem)var8).getDyeColor());
 +                  }
 +
-+                  if (var15 && !var4.isCreative()) {
-+                     var7.shrink(1);
++                  if (var16) {
++                     if (!var4.isCreative()) {
++                        var7.shrink(1);
++                     }
++
++                     var4.awardStat(Stats.ITEM_USED.get(var8));
 +                  }
                 }
 -            }
@@ -90,9 +103,7 @@
 -            return var10.executeClickCommands(var4) ? InteractionResult.SUCCESS : InteractionResult.PASS;
 -         } else {
 -            return InteractionResult.PASS;
-+               return var13.executeClickCommands((ServerPlayer)var4) ? InteractionResult.SUCCESS : InteractionResult.PASS;
-+            } else {
-+               return InteractionResult.PASS;
++               return var14.executeClickCommands((ServerPlayer)var4) ? InteractionResult.SUCCESS : InteractionResult.PASS;
 +            }
           }
        }

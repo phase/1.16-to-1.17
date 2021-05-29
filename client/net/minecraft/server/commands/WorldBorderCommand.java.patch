@@ -1,6 +1,25 @@
 --- net/minecraft/server/commands/WorldBorderCommand.java
 +++ net/minecraft/server/commands/WorldBorderCommand.java
-@@ -24,10 +24,13 @@
+@@ -1,8 +1,9 @@
+ package net.minecraft.server.commands;
+ 
+ import com.mojang.brigadier.CommandDispatcher;
++import com.mojang.brigadier.arguments.DoubleArgumentType;
+ import com.mojang.brigadier.arguments.FloatArgumentType;
+ import com.mojang.brigadier.arguments.IntegerArgumentType;
+ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+@@ -17,28 +18,31 @@
+ import net.minecraft.world.phys.Vec2;
+ 
+ public class WorldBorderCommand {
+    private static final SimpleCommandExceptionType ERROR_SAME_CENTER = new SimpleCommandExceptionType(new TranslatableComponent("commands.worldborder.center.failed"));
+    private static final SimpleCommandExceptionType ERROR_SAME_SIZE = new SimpleCommandExceptionType(new TranslatableComponent("commands.worldborder.set.failed.nochange"));
+-   private static final SimpleCommandExceptionType ERROR_TOO_SMALL = new SimpleCommandExceptionType(new TranslatableComponent("commands.worldborder.set.failed.small."));
+-   private static final SimpleCommandExceptionType ERROR_TOO_BIG = new SimpleCommandExceptionType(new TranslatableComponent("commands.worldborder.set.failed.big."));
++   private static final SimpleCommandExceptionType ERROR_TOO_SMALL = new SimpleCommandExceptionType(new TranslatableComponent("commands.worldborder.set.failed.small"));
++   private static final SimpleCommandExceptionType ERROR_TOO_BIG = new SimpleCommandExceptionType(new TranslatableComponent("commands.worldborder.set.failed.big", new Object[]{5.9999968E7D}));
     private static final SimpleCommandExceptionType ERROR_SAME_WARNING_TIME = new SimpleCommandExceptionType(new TranslatableComponent("commands.worldborder.warning.time.failed"));
     private static final SimpleCommandExceptionType ERROR_SAME_WARNING_DISTANCE = new SimpleCommandExceptionType(new TranslatableComponent("commands.worldborder.warning.distance.failed"));
     private static final SimpleCommandExceptionType ERROR_SAME_DAMAGE_BUFFER = new SimpleCommandExceptionType(new TranslatableComponent("commands.worldborder.damage.buffer.failed"));
@@ -12,5 +31,35 @@
     public static void register(CommandDispatcher<CommandSourceStack> var0) {
        var0.register((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)Commands.literal("worldborder").requires((var0x) -> {
           return var0x.hasPermission(2);
-       })).then(Commands.literal("add").then(((RequiredArgumentBuilder)Commands.argument("distance", FloatArgumentType.floatArg(-6.0E7F, 6.0E7F)).executes((var0x) -> {
-          return setSize((CommandSourceStack)var0x.getSource(), ((CommandSourceStack)var0x.getSource()).getLevel().getWorldBorder().getSize() + (double)FloatArgumentType.getFloat(var0x, "distance"), 0L);
+-      })).then(Commands.literal("add").then(((RequiredArgumentBuilder)Commands.argument("distance", FloatArgumentType.floatArg(-6.0E7F, 6.0E7F)).executes((var0x) -> {
+-         return setSize((CommandSourceStack)var0x.getSource(), ((CommandSourceStack)var0x.getSource()).getLevel().getWorldBorder().getSize() + (double)FloatArgumentType.getFloat(var0x, "distance"), 0L);
++      })).then(Commands.literal("add").then(((RequiredArgumentBuilder)Commands.argument("distance", DoubleArgumentType.doubleArg(-5.9999968E7D, 5.9999968E7D)).executes((var0x) -> {
++         return setSize((CommandSourceStack)var0x.getSource(), ((CommandSourceStack)var0x.getSource()).getLevel().getWorldBorder().getSize() + DoubleArgumentType.getDouble(var0x, "distance"), 0L);
+       })).then(Commands.argument("time", IntegerArgumentType.integer(0)).executes((var0x) -> {
+-         return setSize((CommandSourceStack)var0x.getSource(), ((CommandSourceStack)var0x.getSource()).getLevel().getWorldBorder().getSize() + (double)FloatArgumentType.getFloat(var0x, "distance"), ((CommandSourceStack)var0x.getSource()).getLevel().getWorldBorder().getLerpRemainingTime() + (long)IntegerArgumentType.getInteger(var0x, "time") * 1000L);
+-      }))))).then(Commands.literal("set").then(((RequiredArgumentBuilder)Commands.argument("distance", FloatArgumentType.floatArg(-6.0E7F, 6.0E7F)).executes((var0x) -> {
+-         return setSize((CommandSourceStack)var0x.getSource(), (double)FloatArgumentType.getFloat(var0x, "distance"), 0L);
++         return setSize((CommandSourceStack)var0x.getSource(), ((CommandSourceStack)var0x.getSource()).getLevel().getWorldBorder().getSize() + DoubleArgumentType.getDouble(var0x, "distance"), ((CommandSourceStack)var0x.getSource()).getLevel().getWorldBorder().getLerpRemainingTime() + (long)IntegerArgumentType.getInteger(var0x, "time") * 1000L);
++      }))))).then(Commands.literal("set").then(((RequiredArgumentBuilder)Commands.argument("distance", DoubleArgumentType.doubleArg(-5.9999968E7D, 5.9999968E7D)).executes((var0x) -> {
++         return setSize((CommandSourceStack)var0x.getSource(), DoubleArgumentType.getDouble(var0x, "distance"), 0L);
+       })).then(Commands.argument("time", IntegerArgumentType.integer(0)).executes((var0x) -> {
+-         return setSize((CommandSourceStack)var0x.getSource(), (double)FloatArgumentType.getFloat(var0x, "distance"), (long)IntegerArgumentType.getInteger(var0x, "time") * 1000L);
++         return setSize((CommandSourceStack)var0x.getSource(), DoubleArgumentType.getDouble(var0x, "distance"), (long)IntegerArgumentType.getInteger(var0x, "time") * 1000L);
+       }))))).then(Commands.literal("center").then(Commands.argument("pos", Vec2Argument.vec2()).executes((var0x) -> {
+          return setCenter((CommandSourceStack)var0x.getSource(), Vec2Argument.getVec2(var0x, "pos"));
+       })))).then(((LiteralArgumentBuilder)Commands.literal("damage").then(Commands.literal("amount").then(Commands.argument("damagePerBlock", FloatArgumentType.floatArg(0.0F)).executes((var0x) -> {
+          return setDamageAmount((CommandSourceStack)var0x.getSource(), FloatArgumentType.getFloat(var0x, "damagePerBlock"));
+       })))).then(Commands.literal("buffer").then(Commands.argument("distance", FloatArgumentType.floatArg(0.0F)).executes((var0x) -> {
+@@ -118,11 +122,11 @@
+       double var6 = var5.getSize();
+       if (var6 == var1) {
+          throw ERROR_SAME_SIZE.create();
+       } else if (var1 < 1.0D) {
+          throw ERROR_TOO_SMALL.create();
+-      } else if (var1 > 6.0E7D) {
++      } else if (var1 > 5.9999968E7D) {
+          throw ERROR_TOO_BIG.create();
+       } else {
+          if (var3 > 0L) {
+             var5.lerpSizeBetween(var6, var1, var3);
+             if (var1 > var6) {

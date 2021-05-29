@@ -1,6 +1,6 @@
 --- com/mojang/blaze3d/vertex/VertexMultiConsumer.java
 +++ com/mojang/blaze3d/vertex/VertexMultiConsumer.java
-@@ -1,12 +1,118 @@
+@@ -1,13 +1,30 @@
  package com.mojang.blaze3d.vertex;
  
 +import java.util.function.Consumer;
@@ -21,11 +21,36 @@
        return new VertexMultiConsumer.Double(var0, var1);
     }
  
+-   static class Double implements VertexConsumer {
 +   public static VertexConsumer create(VertexConsumer... var0) {
 +      return new VertexMultiConsumer.Multiple(var0);
 +   }
 +
-+   static class Multiple implements VertexConsumer {
++   private static class Double implements VertexConsumer {
+       private final VertexConsumer first;
+       private final VertexConsumer second;
+ 
+       public Double(VertexConsumer var1, VertexConsumer var2) {
+          if (var1 == var2) {
+@@ -61,7 +78,106 @@
+ 
+       public void endVertex() {
+          this.first.endVertex();
+          this.second.endVertex();
+       }
++
++      public void defaultColor(int var1, int var2, int var3, int var4) {
++         this.first.defaultColor(var1, var2, var3, var4);
++         this.second.defaultColor(var1, var2, var3, var4);
++      }
++
++      public void unsetDefaultColor() {
++         this.first.unsetDefaultColor();
++         this.second.unsetDefaultColor();
++      }
+    }
++
++   private static class Multiple implements VertexConsumer {
 +      private final VertexConsumer[] delegates;
 +
 +      public Multiple(VertexConsumer[] var1) {
@@ -113,27 +138,4 @@
 +         this.forEach(VertexConsumer::unsetDefaultColor);
 +      }
 +   }
-+
-    static class Double implements VertexConsumer {
-       private final VertexConsumer first;
-       private final VertexConsumer second;
- 
-       public Double(VertexConsumer var1, VertexConsumer var2) {
-@@ -61,7 +167,17 @@
- 
-       public void endVertex() {
-          this.first.endVertex();
-          this.second.endVertex();
-       }
-+
-+      public void defaultColor(int var1, int var2, int var3, int var4) {
-+         this.first.defaultColor(var1, var2, var3, var4);
-+         this.second.defaultColor(var1, var2, var3, var4);
-+      }
-+
-+      public void unsetDefaultColor() {
-+         this.first.unsetDefaultColor();
-+         this.second.unsetDefaultColor();
-+      }
-    }
  }

@@ -1,8 +1,12 @@
 --- net/minecraft/world/level/block/CampfireBlock.java
 +++ net/minecraft/world/level/block/CampfireBlock.java
-@@ -26,17 +26,20 @@
+@@ -22,21 +22,23 @@
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.context.BlockPlaceContext;
+ import net.minecraft.world.item.crafting.CampfireCookingRecipe;
+ import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.level.BlockGetter;
- import net.minecraft.world.level.GameRules;
+-import net.minecraft.world.level.GameRules;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.block.entity.BlockEntity;
@@ -21,7 +25,7 @@
  import net.minecraft.world.level.pathfinder.PathComputationType;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.shapes.BooleanOp;
-@@ -49,10 +52,11 @@
+@@ -49,10 +51,11 @@
     public static final BooleanProperty LIT;
     public static final BooleanProperty SIGNAL_FIRE;
     public static final BooleanProperty WATERLOGGED;
@@ -33,7 +37,7 @@
  
     public CampfireBlock(boolean var1, int var2, BlockBehaviour.Properties var3) {
        super(var3);
-@@ -66,11 +70,11 @@
+@@ -66,11 +69,11 @@
        if (var7 instanceof CampfireBlockEntity) {
           CampfireBlockEntity var8 = (CampfireBlockEntity)var7;
           ItemStack var9 = var4.getItemInHand(var5);
@@ -46,7 +50,7 @@
              }
  
              return InteractionResult.CONSUME;
-@@ -125,33 +129,49 @@
+@@ -125,33 +128,49 @@
  
     public RenderShape getRenderShape(BlockState var1) {
        return RenderShape.MODEL;
@@ -104,7 +108,26 @@
           var1.setBlock(var2, (BlockState)((BlockState)var3.setValue(WATERLOGGED, true)).setValue(LIT, false), 3);
           var1.getLiquidTicks().scheduleTick(var2, var4.getType(), var4.getType().getTickDelay(var1));
           return true;
-@@ -175,11 +195,11 @@
+@@ -159,27 +178,23 @@
+          return false;
+       }
+    }
+ 
+    public void onProjectileHit(Level var1, BlockState var2, BlockHitResult var3, Projectile var4) {
+-      if (!var1.isClientSide && var4.isOnFire()) {
+-         Entity var5 = var4.getOwner();
+-         boolean var6 = var5 == null || var5 instanceof Player || var1.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING);
+-         if (var6 && !(Boolean)var2.getValue(LIT) && !(Boolean)var2.getValue(WATERLOGGED)) {
+-            BlockPos var7 = var3.getBlockPos();
+-            var1.setBlock(var7, (BlockState)var2.setValue(BlockStateProperties.LIT, true), 11);
+-         }
++      BlockPos var5 = var3.getBlockPos();
++      if (!var1.isClientSide && var4.isOnFire() && var4.mayInteract(var1, var5) && !(Boolean)var2.getValue(LIT) && !(Boolean)var2.getValue(WATERLOGGED)) {
++         var1.setBlock(var5, (BlockState)var2.setValue(BlockStateProperties.LIT, true), 11);
+       }
+ 
+    }
+ 
     public static void makeParticles(Level var0, BlockPos var1, boolean var2, boolean var3) {
        Random var4 = var0.getRandom();
        SimpleParticleType var5 = var2 ? ParticleTypes.CAMPFIRE_SIGNAL_SMOKE : ParticleTypes.CAMPFIRE_COSY_SMOKE;
@@ -117,7 +140,7 @@
     }
  
     public static boolean isSmokeyPos(Level var0, BlockPos var1) {
-@@ -218,22 +238,31 @@
+@@ -218,22 +233,31 @@
  
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
        var1.add(LIT, SIGNAL_FIRE, WATERLOGGED, FACING);

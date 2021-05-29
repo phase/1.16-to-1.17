@@ -9,13 +9,14 @@
  import com.google.gson.JsonElement;
  import com.google.gson.JsonObject;
  import com.google.gson.JsonParseException;
-@@ -9,66 +10,86 @@
+@@ -9,84 +10,115 @@
  import java.io.InputStream;
  import java.io.InputStreamReader;
  import java.io.Reader;
  import java.nio.charset.StandardCharsets;
  import java.util.Iterator;
 +import java.util.List;
++import java.util.Objects;
 +import java.util.Optional;
  import java.util.Map.Entry;
  import java.util.function.BiConsumer;
@@ -40,6 +41,7 @@
  
     private static Language loadDefault() {
        ImmutableMap.Builder var0 = ImmutableMap.builder();
++      Objects.requireNonNull(var0);
        BiConsumer var1 = var0::put;
 +      String var2 = "/assets/minecraft/lang/en_us.json";
  
@@ -47,54 +49,55 @@
 -         InputStream var2 = Language.class.getResourceAsStream("/assets/minecraft/lang/en_us.json");
 -         Throwable var3 = null;
 +         InputStream var3 = Language.class.getResourceAsStream("/assets/minecraft/lang/en_us.json");
-+         Throwable var4 = null;
  
           try {
 -            loadFromJson(var2, var1);
 -         } catch (Throwable var13) {
 -            var3 = var13;
 -            throw var13;
-+            loadFromJson(var3, var1);
-+         } catch (Throwable var14) {
-+            var4 = var14;
-+            throw var14;
-          } finally {
+-         } finally {
 -            if (var2 != null) {
 -               if (var3 != null) {
-+            if (var3 != null) {
-+               if (var4 != null) {
-                   try {
+-                  try {
 -                     var2.close();
 -                  } catch (Throwable var12) {
 -                     var3.addSuppressed(var12);
-+                     var3.close();
-+                  } catch (Throwable var13) {
-+                     var4.addSuppressed(var13);
-                   }
-                } else {
+-                  }
+-               } else {
 -                  var2.close();
++            loadFromJson(var3, var1);
++         } catch (Throwable var7) {
++            if (var3 != null) {
++               try {
 +                  var3.close();
++               } catch (Throwable var6) {
++                  var7.addSuppressed(var6);
                 }
              }
  
++            throw var7;
           }
 -      } catch (JsonParseException | IOException var15) {
 -         LOGGER.error((String)"Couldn't read strings from /assets/minecraft/lang/en_us.json", (Throwable)var15);
-+      } catch (JsonParseException | IOException var16) {
-+         LOGGER.error((String)"Couldn't read strings from {}", (Object)"/assets/minecraft/lang/en_us.json", (Object)var16);
++
++         if (var3 != null) {
++            var3.close();
++         }
++      } catch (JsonParseException | IOException var8) {
++         LOGGER.error((String)"Couldn't read strings from {}", (Object)"/assets/minecraft/lang/en_us.json", (Object)var8);
        }
  
 -      final ImmutableMap var16 = var0.build();
-+      final ImmutableMap var17 = var0.build();
++      final ImmutableMap var9 = var0.build();
        return new Language() {
           public String getOrDefault(String var1) {
 -            return (String)var16.getOrDefault(var1, var1);
-+            return (String)var17.getOrDefault(var1, var1);
++            return (String)var9.getOrDefault(var1, var1);
           }
  
           public boolean has(String var1) {
 -            return var16.containsKey(var1);
-+            return var17.containsKey(var1);
++            return var9.containsKey(var1);
           }
 +
 +         public boolean isDefaultRightToLeft() {
@@ -113,7 +116,16 @@
  
     public static void loadFromJson(InputStream var0, BiConsumer<String, String> var1) {
        JsonObject var2 = (JsonObject)GSON.fromJson((Reader)(new InputStreamReader(var0, StandardCharsets.UTF_8)), (Class)JsonObject.class);
-@@ -84,9 +105,21 @@
+       Iterator var3 = var2.entrySet().iterator();
+ 
+       while(var3.hasNext()) {
+          Entry var4 = (Entry)var3.next();
+          String var5 = UNSUPPORTED_FORMAT_PATTERN.matcher(GsonHelper.convertToString((JsonElement)var4.getValue(), (String)var4.getKey())).replaceAll("%$1s");
+-         var1.accept(var4.getKey(), var5);
++         var1.accept((String)var4.getKey(), var5);
+       }
+ 
+    }
  
     public static Language getInstance() {
        return instance;

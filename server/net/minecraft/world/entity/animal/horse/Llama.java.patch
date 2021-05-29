@@ -18,7 +18,7 @@
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.MobSpawnType;
  import net.minecraft.world.entity.SpawnGroupData;
-@@ -40,22 +41,25 @@
+@@ -40,36 +41,43 @@
  import net.minecraft.world.entity.animal.Wolf;
  import net.minecraft.world.entity.monster.RangedAttackMob;
  import net.minecraft.world.entity.player.Player;
@@ -44,8 +44,12 @@
     private static final EntityDataAccessor<Integer> DATA_STRENGTH_ID;
     private static final EntityDataAccessor<Integer> DATA_SWAG_ID;
     private static final EntityDataAccessor<Integer> DATA_VARIANT_ID;
-    private boolean didSpit;
-@@ -66,10 +70,14 @@
+-   private boolean didSpit;
++   boolean didSpit;
+    @Nullable
+    private Llama caravanHead;
+    @Nullable
+    private Llama caravanTail;
  
     public Llama(EntityType<? extends Llama> var1, Level var2) {
        super(var1, var2);
@@ -141,9 +145,26 @@
        Llama var4 = (Llama)var2;
        int var5 = this.random.nextInt(Math.max(this.getStrength(), var4.getStrength())) + 1;
        if (this.random.nextFloat() < 0.03F) {
-@@ -365,23 +374,23 @@
+@@ -351,37 +360,37 @@
+    private void spit(LivingEntity var1) {
+       LlamaSpit var2 = new LlamaSpit(this.level, this);
+       double var3 = var1.getX() - this.getX();
+       double var5 = var1.getY(0.3333333333333333D) - var2.getY();
+       double var7 = var1.getZ() - this.getZ();
+-      float var9 = Mth.sqrt(var3 * var3 + var7 * var7) * 0.2F;
+-      var2.shoot(var3, var5 + (double)var9, var7, 1.5F, 10.0F);
++      double var9 = Math.sqrt(var3 * var3 + var7 * var7) * 0.20000000298023224D;
++      var2.shoot(var3, var5 + var9, var7, 1.5F, 10.0F);
+       if (!this.isSilent()) {
+          this.level.playSound((Player)null, this.getX(), this.getY(), this.getZ(), SoundEvents.LLAMA_SPIT, this.getSoundSource(), 1.0F, 1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.2F);
+       }
  
-    private void setDidSpit(boolean var1) {
+       this.level.addFreshEntity(var2);
+       this.didSpit = true;
+    }
+ 
+-   private void setDidSpit(boolean var1) {
++   void setDidSpit(boolean var1) {
        this.didSpit = var1;
     }
  
@@ -173,7 +194,7 @@
           }
  
           this.playBlockFallSound();
-@@ -432,10 +441,14 @@
+@@ -432,29 +441,21 @@
  
     public void performRangedAttack(LivingEntity var1, float var2) {
        this.spit(var1);
@@ -188,16 +209,51 @@
        DATA_STRENGTH_ID = SynchedEntityData.defineId(Llama.class, EntityDataSerializers.INT);
        DATA_SWAG_ID = SynchedEntityData.defineId(Llama.class, EntityDataSerializers.INT);
        DATA_VARIANT_ID = SynchedEntityData.defineId(Llama.class, EntityDataSerializers.INT);
-@@ -469,11 +482,11 @@
+    }
+ 
+-   static class LlamaAttackWolfGoal extends NearestAttackableTargetGoal<Wolf> {
+-      public LlamaAttackWolfGoal(Llama var1) {
+-         super(var1, Wolf.class, 16, false, true, (var0) -> {
+-            return !((Wolf)var0).isTame();
+-         });
+-      }
+-
+-      protected double getFollowDistance() {
+-         return super.getFollowDistance() * 0.25D;
+-      }
+-   }
+-
+    static class LlamaHurtByTargetGoal extends HurtByTargetGoal {
+       public LlamaHurtByTargetGoal(Llama var1) {
+          super(var1);
+       }
+ 
+@@ -469,14 +470,26 @@
  
           return super.canContinueToUse();
        }
     }
  
 -   static class LlamaGroupData extends AgableMob.AgableMobGroupData {
++   static class LlamaAttackWolfGoal extends NearestAttackableTargetGoal<Wolf> {
++      public LlamaAttackWolfGoal(Llama var1) {
++         super(var1, Wolf.class, 16, false, true, (var0) -> {
++            return !((Wolf)var0).isTame();
++         });
++      }
++
++      protected double getFollowDistance() {
++         return super.getFollowDistance() * 0.25D;
++      }
++   }
++
 +   static class LlamaGroupData extends AgeableMob.AgeableMobGroupData {
        public final int variant;
  
-       private LlamaGroupData(int var1) {
+-      private LlamaGroupData(int var1) {
++      LlamaGroupData(int var1) {
           super(true);
           this.variant = var1;
+       }
+    }
+ }

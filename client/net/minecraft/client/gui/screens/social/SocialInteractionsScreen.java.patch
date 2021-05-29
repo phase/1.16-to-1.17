@@ -1,6 +1,6 @@
 --- net/minecraft/client/gui/screens/social/SocialInteractionsScreen.java
 +++ net/minecraft/client/gui/screens/social/SocialInteractionsScreen.java
-@@ -1,8 +1,9 @@
+@@ -1,11 +1,13 @@
  package net.minecraft.client.gui.screens.social;
  
  import com.google.common.collect.ImmutableList;
@@ -8,14 +8,37 @@
  import com.mojang.blaze3d.vertex.PoseStack;
  import java.util.Collection;
  import java.util.Locale;
++import java.util.Objects;
  import java.util.UUID;
  import java.util.stream.Collectors;
-@@ -35,10 +36,21 @@
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+@@ -16,10 +18,11 @@
+ import net.minecraft.client.gui.components.EditBox;
+ import net.minecraft.client.gui.screens.ConfirmLinkScreen;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.multiplayer.PlayerInfo;
+ import net.minecraft.client.multiplayer.ServerData;
++import net.minecraft.network.chat.CommonComponents;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.FormattedText;
+ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.resources.ResourceLocation;
+@@ -31,16 +34,27 @@
+    private static final Component TAB_BLOCKED = new TranslatableComponent("gui.socialInteractions.tab_blocked");
+    private static final Component TAB_ALL_SELECTED;
+    private static final Component TAB_HIDDEN_SELECTED;
+    private static final Component TAB_BLOCKED_SELECTED;
     private static final Component SEARCH_HINT;
-    private static final Component EMPTY_SEARCH;
+-   private static final Component EMPTY_SEARCH;
++   static final Component EMPTY_SEARCH;
     private static final Component EMPTY_HIDDEN;
     private static final Component EMPTY_BLOCKED;
     private static final Component BLOCKING_HINT;
+-   private SocialInteractionsPlayerList socialInteractionsPlayerList;
+-   private EditBox searchBox;
 +   private static final String BLOCK_LINK = "https://aka.ms/javablocking";
 +   private static final int BG_BORDER_SIZE = 8;
 +   private static final int BG_UNITS = 16;
@@ -27,12 +50,100 @@
 +   private static final int IMAGE_WIDTH = 238;
 +   private static final int BUTTON_HEIGHT = 20;
 +   private static final int ITEM_HEIGHT = 36;
-    private SocialInteractionsPlayerList socialInteractionsPlayerList;
-    private EditBox searchBox;
++   SocialInteractionsPlayerList socialInteractionsPlayerList;
++   EditBox searchBox;
     private String lastSearch = "";
     private SocialInteractionsScreen.Page page;
     private Button allButton;
-@@ -178,11 +190,11 @@
+    private Button hiddenButton;
+    private Button blockedButton;
+@@ -72,12 +86,12 @@
+ 
+    private int marginX() {
+       return (this.width - 238) / 2;
+    }
+ 
+-   public String getNarrationMessage() {
+-      return super.getNarrationMessage() + ". " + this.serverLabel.getString();
++   public Component getNarrationMessage() {
++      return (Component)(this.serverLabel != null ? CommonComponents.joinForNarration(super.getNarrationMessage(), this.serverLabel) : super.getNarrationMessage());
+    }
+ 
+    public void tick() {
+       super.tick();
+       this.searchBox.tick();
+@@ -95,20 +109,20 @@
+       int var2 = this.socialInteractionsPlayerList.getRowLeft();
+       int var3 = this.socialInteractionsPlayerList.getRowRight();
+       int var4 = this.font.width((FormattedText)BLOCKING_HINT) + 40;
+       int var5 = 64 + 16 * this.backgroundUnits();
+       int var6 = (this.width - var4) / 2;
+-      this.allButton = (Button)this.addButton(new Button(var2, 45, var1, 20, TAB_ALL, (var1x) -> {
++      this.allButton = (Button)this.addRenderableWidget(new Button(var2, 45, var1, 20, TAB_ALL, (var1x) -> {
+          this.showPage(SocialInteractionsScreen.Page.ALL);
+       }));
+-      this.hiddenButton = (Button)this.addButton(new Button((var2 + var3 - var1) / 2 + 1, 45, var1, 20, TAB_HIDDEN, (var1x) -> {
++      this.hiddenButton = (Button)this.addRenderableWidget(new Button((var2 + var3 - var1) / 2 + 1, 45, var1, 20, TAB_HIDDEN, (var1x) -> {
+          this.showPage(SocialInteractionsScreen.Page.HIDDEN);
+       }));
+-      this.blockedButton = (Button)this.addButton(new Button(var3 - var1 + 1, 45, var1, 20, TAB_BLOCKED, (var1x) -> {
++      this.blockedButton = (Button)this.addRenderableWidget(new Button(var3 - var1 + 1, 45, var1, 20, TAB_BLOCKED, (var1x) -> {
+          this.showPage(SocialInteractionsScreen.Page.BLOCKED);
+       }));
+-      this.blockingHintButton = (Button)this.addButton(new Button(var6, var5, var4, 20, BLOCKING_HINT, (var1x) -> {
++      this.blockingHintButton = (Button)this.addRenderableWidget(new Button(var6, var5, var4, 20, BLOCKING_HINT, (var1x) -> {
+          this.minecraft.setScreen(new ConfirmLinkScreen((var1) -> {
+             if (var1) {
+                Util.getPlatform().openUri("https://aka.ms/javablocking");
+             }
+ 
+@@ -125,12 +139,12 @@
+       this.searchBox.setBordered(false);
+       this.searchBox.setVisible(true);
+       this.searchBox.setTextColor(16777215);
+       this.searchBox.setValue(var7);
+       this.searchBox.setResponder(this::checkSearchStringUpdate);
+-      this.children.add(this.searchBox);
+-      this.children.add(this.socialInteractionsPlayerList);
++      this.addWidget(this.searchBox);
++      this.addWidget(this.socialInteractionsPlayerList);
+       this.initialized = true;
+       this.showPage(this.page);
+    }
+ 
+    private void showPage(SocialInteractionsScreen.Page var1) {
+@@ -150,26 +164,25 @@
+          break;
+       case BLOCKED:
+          this.blockedButton.setMessage(TAB_BLOCKED_SELECTED);
+          PlayerSocialManager var3 = this.minecraft.getPlayerSocialManager();
+          Stream var10000 = this.minecraft.player.connection.getOnlinePlayerIds().stream();
+-         var3.getClass();
++         Objects.requireNonNull(var3);
+          var2 = (Collection)var10000.filter(var3::isBlocked).collect(Collectors.toSet());
+          break;
+       default:
+          var2 = ImmutableList.of();
+       }
+ 
+-      this.page = var1;
+       this.socialInteractionsPlayerList.updatePlayerList((Collection)var2, this.socialInteractionsPlayerList.getScrollAmount());
+       if (!this.searchBox.getValue().isEmpty() && this.socialInteractionsPlayerList.isEmpty() && !this.searchBox.isFocused()) {
+-         NarratorChatListener.INSTANCE.sayNow(EMPTY_SEARCH.getString());
++         NarratorChatListener.INSTANCE.sayNow(EMPTY_SEARCH);
+       } else if (((Collection)var2).isEmpty()) {
+          if (var1 == SocialInteractionsScreen.Page.HIDDEN) {
+-            NarratorChatListener.INSTANCE.sayNow(EMPTY_HIDDEN.getString());
++            NarratorChatListener.INSTANCE.sayNow(EMPTY_HIDDEN);
+          } else if (var1 == SocialInteractionsScreen.Page.BLOCKED) {
+-            NarratorChatListener.INSTANCE.sayNow(EMPTY_BLOCKED.getString());
++            NarratorChatListener.INSTANCE.sayNow(EMPTY_BLOCKED);
+          }
+       }
+ 
+    }
+ 
+@@ -178,11 +191,11 @@
     }
  
     public void renderBackground(PoseStack var1) {
@@ -45,3 +156,26 @@
  
        for(int var4 = 0; var4 < var3; ++var4) {
           this.blit(var1, var2, 72 + 16 * var4, 1, 10, 236, 16);
+@@ -201,18 +214,14 @@
+ 
+       if (!this.socialInteractionsPlayerList.isEmpty()) {
+          this.socialInteractionsPlayerList.render(var1, var2, var3, var4);
+       } else if (!this.searchBox.getValue().isEmpty()) {
+          drawCenteredString(var1, this.minecraft.font, EMPTY_SEARCH, this.width / 2, (78 + this.listEnd()) / 2, -1);
+-      } else {
+-         switch(this.page) {
+-         case HIDDEN:
+-            drawCenteredString(var1, this.minecraft.font, EMPTY_HIDDEN, this.width / 2, (78 + this.listEnd()) / 2, -1);
+-            break;
+-         case BLOCKED:
+-            drawCenteredString(var1, this.minecraft.font, EMPTY_BLOCKED, this.width / 2, (78 + this.listEnd()) / 2, -1);
+-         }
++      } else if (this.page == SocialInteractionsScreen.Page.HIDDEN) {
++         drawCenteredString(var1, this.minecraft.font, EMPTY_HIDDEN, this.width / 2, (78 + this.listEnd()) / 2, -1);
++      } else if (this.page == SocialInteractionsScreen.Page.BLOCKED) {
++         drawCenteredString(var1, this.minecraft.font, EMPTY_BLOCKED, this.width / 2, (78 + this.listEnd()) / 2, -1);
+       }
+ 
+       if (!this.searchBox.isFocused() && this.searchBox.getValue().isEmpty()) {
+          drawString(var1, this.minecraft.font, SEARCH_HINT, this.searchBox.x, this.searchBox.y, -1);
+       } else {

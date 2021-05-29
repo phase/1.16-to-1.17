@@ -1,15 +1,72 @@
 --- net/minecraft/client/gui/screens/DeathScreen.java
 +++ net/minecraft/client/gui/screens/DeathScreen.java
-@@ -1,8 +1,7 @@
+@@ -1,13 +1,14 @@
  package net.minecraft.client.gui.screens;
  
 -import com.mojang.blaze3d.systems.RenderSystem;
++import com.google.common.collect.Lists;
  import com.mojang.blaze3d.vertex.PoseStack;
  import java.util.Iterator;
++import java.util.List;
++import java.util.Objects;
  import javax.annotation.Nullable;
  import net.minecraft.ChatFormatting;
- import net.minecraft.client.gui.components.AbstractWidget;
-@@ -76,14 +75,14 @@
+-import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.network.chat.ClickEvent;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.FormattedText;
+ import net.minecraft.network.chat.Style;
+@@ -17,39 +18,38 @@
+ public class DeathScreen extends Screen {
+    private int delayTicker;
+    private final Component causeOfDeath;
+    private final boolean hardcore;
+    private Component deathScore;
++   private final List<Button> exitButtons = Lists.newArrayList();
+ 
+    public DeathScreen(@Nullable Component var1, boolean var2) {
+       super(new TranslatableComponent(var2 ? "deathScreen.title.hardcore" : "deathScreen.title"));
+       this.causeOfDeath = var1;
+       this.hardcore = var2;
+    }
+ 
+    protected void init() {
+       this.delayTicker = 0;
+-      this.addButton(new Button(this.width / 2 - 100, this.height / 4 + 72, 200, 20, this.hardcore ? new TranslatableComponent("deathScreen.spectate") : new TranslatableComponent("deathScreen.respawn"), (var1x) -> {
++      this.exitButtons.clear();
++      this.exitButtons.add((Button)this.addRenderableWidget(new Button(this.width / 2 - 100, this.height / 4 + 72, 200, 20, this.hardcore ? new TranslatableComponent("deathScreen.spectate") : new TranslatableComponent("deathScreen.respawn"), (var1x) -> {
+          this.minecraft.player.respawn();
+          this.minecraft.setScreen((Screen)null);
+-      }));
+-      Button var1 = (Button)this.addButton(new Button(this.width / 2 - 100, this.height / 4 + 96, 200, 20, new TranslatableComponent("deathScreen.titleScreen"), (var1x) -> {
++      })));
++      this.exitButtons.add((Button)this.addRenderableWidget(new Button(this.width / 2 - 100, this.height / 4 + 96, 200, 20, new TranslatableComponent("deathScreen.titleScreen"), (var1x) -> {
+          if (this.hardcore) {
+             this.exitToTitleScreen();
+          } else {
+             ConfirmScreen var2 = new ConfirmScreen(this::confirmResult, new TranslatableComponent("deathScreen.quit.confirm"), TextComponent.EMPTY, new TranslatableComponent("deathScreen.titleScreen"), new TranslatableComponent("deathScreen.respawn"));
+             this.minecraft.setScreen(var2);
+             var2.setDelay(20);
+          }
+-      }));
+-      if (!this.hardcore && this.minecraft.getUser() == null) {
+-         var1.active = false;
+-      }
++      })));
+ 
+-      AbstractWidget var3;
+-      for(Iterator var2 = this.buttons.iterator(); var2.hasNext(); var3.active = false) {
+-         var3 = (AbstractWidget)var2.next();
++      Button var2;
++      for(Iterator var1 = this.exitButtons.iterator(); var1.hasNext(); var2.active = false) {
++         var2 = (Button)var1.next();
+       }
+ 
+       this.deathScore = (new TranslatableComponent("deathScreen.score")).append(": ").append((Component)(new TextComponent(Integer.toString(this.minecraft.player.getScore()))).withStyle(ChatFormatting.YELLOW));
+    }
+ 
+@@ -76,21 +76,21 @@
        this.minecraft.setScreen(new TitleScreen());
     }
  
@@ -27,3 +84,42 @@
        }
  
        drawCenteredString(var1, this.font, this.deathScore, this.width / 2, 100, 16777215);
+       if (this.causeOfDeath != null && var3 > 85) {
+-         this.font.getClass();
++         Objects.requireNonNull(this.font);
+          if (var3 < 85 + 9) {
+             Style var5 = this.getClickedComponentStyleAt(var2);
+             this.renderComponentHoverEffect(var1, var5, var2, var3);
+          }
+       }
+@@ -110,11 +110,11 @@
+       }
+    }
+ 
+    public boolean mouseClicked(double var1, double var3, int var5) {
+       if (this.causeOfDeath != null && var3 > 85.0D) {
+-         this.font.getClass();
++         Objects.requireNonNull(this.font);
+          if (var3 < (double)(85 + 9)) {
+             Style var6 = this.getClickedComponentStyleAt((int)var1);
+             if (var6 != null && var6.getClickEvent() != null && var6.getClickEvent().getAction() == ClickEvent.Action.OPEN_URL) {
+                this.handleComponentClicked(var6);
+                return false;
+@@ -130,14 +130,14 @@
+    }
+ 
+    public void tick() {
+       super.tick();
+       ++this.delayTicker;
+-      AbstractWidget var2;
++      Button var2;
+       if (this.delayTicker == 20) {
+-         for(Iterator var1 = this.buttons.iterator(); var1.hasNext(); var2.active = true) {
+-            var2 = (AbstractWidget)var1.next();
++         for(Iterator var1 = this.exitButtons.iterator(); var1.hasNext(); var2.active = true) {
++            var2 = (Button)var1.next();
+          }
+       }
+ 
+    }
+ }

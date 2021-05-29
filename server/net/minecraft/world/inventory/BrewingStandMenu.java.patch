@@ -29,12 +29,14 @@
     private final Slot ingredientSlot;
  
     public BrewingStandMenu(int var1, Inventory var2) {
-@@ -104,21 +113,29 @@
+@@ -104,26 +113,43 @@
        }
  
        return var3;
     }
  
+-   static class FuelSlot extends Slot {
+-      public FuelSlot(Container var1, int var2, int var3, int var4) {
 +   public int getFuel() {
 +      return this.brewingStandData.get(1);
 +   }
@@ -43,8 +45,8 @@
 +      return this.brewingStandData.get(0);
 +   }
 +
-    static class FuelSlot extends Slot {
-       public FuelSlot(Container var1, int var2, int var3, int var4) {
++   private static class PotionSlot extends Slot {
++      public PotionSlot(Container var1, int var2, int var3, int var4) {
           super(var1, var2, var3, var4);
        }
  
@@ -52,35 +54,69 @@
           return mayPlaceItem(var1);
        }
  
-       public static boolean mayPlaceItem(ItemStack var0) {
+-      public static boolean mayPlaceItem(ItemStack var0) {
 -         return var0.getItem() == Items.BLAZE_POWDER;
-+         return var0.is(Items.BLAZE_POWDER);
++      public int getMaxStackSize() {
++         return 1;
        }
  
+-      public int getMaxStackSize() {
+-         return 64;
++      public void onTake(Player var1, ItemStack var2) {
++         Potion var3 = PotionUtils.getPotion(var2);
++         if (var1 instanceof ServerPlayer) {
++            CriteriaTriggers.BREWED_POTION.trigger((ServerPlayer)var1, var3);
++         }
++
++         super.onTake(var1, var2);
+       }
++
++      public static boolean mayPlaceItem(ItemStack var0) {
++         return var0.is(Items.POTION) || var0.is(Items.SPLASH_POTION) || var0.is(Items.LINGERING_POTION) || var0.is(Items.GLASS_BOTTLE);
++      }
+    }
+ 
+    static class IngredientsSlot extends Slot {
+       public IngredientsSlot(Container var1, int var2, int var3, int var4) {
+          super(var1, var2, var3, var4);
+@@ -136,34 +162,23 @@
        public int getMaxStackSize() {
           return 64;
        }
-@@ -149,21 +166,19 @@
+    }
  
-       public int getMaxStackSize() {
-          return 1;
+-   static class PotionSlot extends Slot {
+-      public PotionSlot(Container var1, int var2, int var3, int var4) {
++   private static class FuelSlot extends Slot {
++      public FuelSlot(Container var1, int var2, int var3, int var4) {
+          super(var1, var2, var3, var4);
+       }
+ 
+       public boolean mayPlace(ItemStack var1) {
+          return mayPlaceItem(var1);
+       }
+ 
+-      public int getMaxStackSize() {
+-         return 1;
++      public static boolean mayPlaceItem(ItemStack var0) {
++         return var0.is(Items.BLAZE_POWDER);
        }
  
 -      public ItemStack onTake(Player var1, ItemStack var2) {
-+      public void onTake(Player var1, ItemStack var2) {
-          Potion var3 = PotionUtils.getPotion(var2);
-          if (var1 instanceof ServerPlayer) {
-             CriteriaTriggers.BREWED_POTION.trigger((ServerPlayer)var1, var3);
-          }
- 
-          super.onTake(var1, var2);
+-         Potion var3 = PotionUtils.getPotion(var2);
+-         if (var1 instanceof ServerPlayer) {
+-            CriteriaTriggers.BREWED_POTION.trigger((ServerPlayer)var1, var3);
+-         }
+-
+-         super.onTake(var1, var2);
 -         return var2;
++      public int getMaxStackSize() {
++         return 64;
        }
- 
-       public static boolean mayPlaceItem(ItemStack var0) {
+-
+-      public static boolean mayPlaceItem(ItemStack var0) {
 -         Item var1 = var0.getItem();
 -         return var1 == Items.POTION || var1 == Items.SPLASH_POTION || var1 == Items.LINGERING_POTION || var1 == Items.GLASS_BOTTLE;
-+         return var0.is(Items.POTION) || var0.is(Items.SPLASH_POTION) || var0.is(Items.LINGERING_POTION) || var0.is(Items.GLASS_BOTTLE);
-       }
+-      }
     }
  }

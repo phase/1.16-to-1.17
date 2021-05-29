@@ -1,6 +1,15 @@
 --- net/minecraft/world/entity/projectile/ThrownPotion.java
 +++ net/minecraft/world/entity/projectile/ThrownPotion.java
-@@ -21,18 +21,21 @@
+@@ -13,26 +13,30 @@
+ import net.minecraft.world.effect.MobEffectInstance;
+ import net.minecraft.world.entity.AreaEffectCloud;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.LivingEntity;
++import net.minecraft.world.entity.animal.axolotl.Axolotl;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.alchemy.Potion;
  import net.minecraft.world.item.alchemy.PotionUtils;
@@ -23,7 +32,28 @@
     public ThrownPotion(EntityType<? extends ThrownPotion> var1, Level var2) {
        super(var1, var2);
     }
-@@ -94,11 +97,11 @@
+@@ -62,17 +66,17 @@
+          boolean var5 = var3 == Potions.WATER && var4.isEmpty();
+          Direction var6 = var1.getDirection();
+          BlockPos var7 = var1.getBlockPos();
+          BlockPos var8 = var7.relative(var6);
+          if (var5) {
+-            this.dowseFire(var8, var6);
+-            this.dowseFire(var8.relative(var6.getOpposite()), var6);
++            this.dowseFire(var8);
++            this.dowseFire(var8.relative(var6.getOpposite()));
+             Iterator var9 = Direction.Plane.HORIZONTAL.iterator();
+ 
+             while(var9.hasNext()) {
+                Direction var10 = (Direction)var9.next();
+-               this.dowseFire(var8.relative(var10), var10);
++               this.dowseFire(var8.relative(var10));
+             }
+          }
+ 
+       }
+    }
+@@ -94,11 +98,11 @@
              }
           }
  
@@ -36,7 +66,86 @@
  
     private void applyWater() {
        AABB var1 = this.getBoundingBox().inflate(4.0D, 2.0D, 4.0D);
-@@ -187,20 +190,22 @@
+@@ -113,49 +117,58 @@
+                var4.hurt(DamageSource.indirectMagic(var4, this.getOwner()), 1.0F);
+             }
+          }
+       }
+ 
++      List var7 = this.level.getEntitiesOfClass(Axolotl.class, var1);
++      Iterator var8 = var7.iterator();
++
++      while(var8.hasNext()) {
++         Axolotl var9 = (Axolotl)var8.next();
++         var9.rehydrate();
++      }
++
+    }
+ 
+    private void applySplash(List<MobEffectInstance> var1, @Nullable Entity var2) {
+       AABB var3 = this.getBoundingBox().inflate(4.0D, 2.0D, 4.0D);
+       List var4 = this.level.getEntitiesOfClass(LivingEntity.class, var3);
+       if (!var4.isEmpty()) {
+-         Iterator var5 = var4.iterator();
++         Entity var5 = this.getEffectSource();
++         Iterator var6 = var4.iterator();
+ 
+          while(true) {
+-            LivingEntity var6;
+-            double var7;
++            LivingEntity var7;
++            double var8;
+             do {
+                do {
+-                  if (!var5.hasNext()) {
++                  if (!var6.hasNext()) {
+                      return;
+                   }
+ 
+-                  var6 = (LivingEntity)var5.next();
+-               } while(!var6.isAffectedByPotions());
++                  var7 = (LivingEntity)var6.next();
++               } while(!var7.isAffectedByPotions());
+ 
+-               var7 = this.distanceToSqr(var6);
+-            } while(var7 >= 16.0D);
++               var8 = this.distanceToSqr(var7);
++            } while(var8 >= 16.0D);
+ 
+-            double var9 = 1.0D - Math.sqrt(var7) / 4.0D;
+-            if (var6 == var2) {
+-               var9 = 1.0D;
++            double var10 = 1.0D - Math.sqrt(var8) / 4.0D;
++            if (var7 == var2) {
++               var10 = 1.0D;
+             }
+ 
+-            Iterator var11 = var1.iterator();
++            Iterator var12 = var1.iterator();
+ 
+-            while(var11.hasNext()) {
+-               MobEffectInstance var12 = (MobEffectInstance)var11.next();
+-               MobEffect var13 = var12.getEffect();
+-               if (var13.isInstantenous()) {
+-                  var13.applyInstantenousEffect(this, this.getOwner(), var6, var12.getAmplifier(), var9);
++            while(var12.hasNext()) {
++               MobEffectInstance var13 = (MobEffectInstance)var12.next();
++               MobEffect var14 = var13.getEffect();
++               if (var14.isInstantenous()) {
++                  var14.applyInstantenousEffect(this, this.getOwner(), var7, var13.getAmplifier(), var10);
+                } else {
+-                  int var14 = (int)(var9 * (double)var12.getDuration() + 0.5D);
+-                  if (var14 > 20) {
+-                     var6.addEffect(new MobEffectInstance(var13, var14, var12.getAmplifier(), var12.isAmbient(), var12.isVisible()));
++                  int var15 = (int)(var10 * (double)var13.getDuration() + 0.5D);
++                  if (var15 > 20) {
++                     var7.addEffect(new MobEffectInstance(var14, var15, var13.getAmplifier(), var13.isAmbient(), var13.isVisible()), var5);
+                   }
+                }
+             }
+          }
+       }
+@@ -187,20 +200,22 @@
  
        this.level.addFreshEntity(var3);
     }
@@ -46,17 +155,22 @@
 +      return this.getItem().is(Items.LINGERING_POTION);
     }
  
-    private void dowseFire(BlockPos var1, Direction var2) {
-       BlockState var3 = this.level.getBlockState(var1);
-       if (var3.is(BlockTags.FIRE)) {
+-   private void dowseFire(BlockPos var1, Direction var2) {
+-      BlockState var3 = this.level.getBlockState(var1);
+-      if (var3.is(BlockTags.FIRE)) {
++   private void dowseFire(BlockPos var1) {
++      BlockState var2 = this.level.getBlockState(var1);
++      if (var2.is(BlockTags.FIRE)) {
           this.level.removeBlock(var1, false);
-+      } else if (AbstractCandleBlock.isLit(var3)) {
-+         AbstractCandleBlock.extinguish((Player)null, var3, this.level, var1);
-       } else if (CampfireBlock.isLitCampfire(var3)) {
+-      } else if (CampfireBlock.isLitCampfire(var3)) {
++      } else if (AbstractCandleBlock.isLit(var2)) {
++         AbstractCandleBlock.extinguish((Player)null, var2, this.level, var1);
++      } else if (CampfireBlock.isLitCampfire(var2)) {
           this.level.levelEvent((Player)null, 1009, var1, 0);
 -         CampfireBlock.dowse(this.level, var1, var3);
-+         CampfireBlock.dowse(this.getOwner(), this.level, var1, var3);
-          this.level.setBlockAndUpdate(var1, (BlockState)var3.setValue(CampfireBlock.LIT, false));
+-         this.level.setBlockAndUpdate(var1, (BlockState)var3.setValue(CampfireBlock.LIT, false));
++         CampfireBlock.dowse(this.getOwner(), this.level, var1, var2);
++         this.level.setBlockAndUpdate(var1, (BlockState)var2.setValue(CampfireBlock.LIT, false));
        }
  
     }

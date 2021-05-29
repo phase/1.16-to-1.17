@@ -1,6 +1,50 @@
 --- net/minecraft/world/entity/ai/goal/LookAtPlayerGoal.java
 +++ net/minecraft/world/entity/ai/goal/LookAtPlayerGoal.java
-@@ -46,11 +46,13 @@
+@@ -7,34 +7,41 @@
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+ import net.minecraft.world.entity.player.Player;
+ 
+ public class LookAtPlayerGoal extends Goal {
++   public static final float DEFAULT_PROBABILITY = 0.02F;
+    protected final Mob mob;
+    protected Entity lookAt;
+    protected final float lookDistance;
+    private int lookTime;
+    protected final float probability;
++   private final boolean onlyHorizontal;
+    protected final Class<? extends LivingEntity> lookAtType;
+    protected final TargetingConditions lookAtContext;
+ 
+    public LookAtPlayerGoal(Mob var1, Class<? extends LivingEntity> var2, float var3) {
+       this(var1, var2, var3, 0.02F);
+    }
+ 
+    public LookAtPlayerGoal(Mob var1, Class<? extends LivingEntity> var2, float var3, float var4) {
++      this(var1, var2, var3, var4, false);
++   }
++
++   public LookAtPlayerGoal(Mob var1, Class<? extends LivingEntity> var2, float var3, float var4, boolean var5) {
+       this.mob = var1;
+       this.lookAtType = var2;
+       this.lookDistance = var3;
+       this.probability = var4;
++      this.onlyHorizontal = var5;
+       this.setFlags(EnumSet.of(Goal.Flag.LOOK));
+       if (var2 == Player.class) {
+-         this.lookAtContext = (new TargetingConditions()).range((double)var3).allowSameTeam().allowInvulnerable().allowNonAttackable().selector((var1x) -> {
++         this.lookAtContext = TargetingConditions.forNonCombat().range((double)var3).selector((var1x) -> {
+             return EntitySelector.notRiding(var1).test(var1x);
+          });
+       } else {
+-         this.lookAtContext = (new TargetingConditions()).range((double)var3).allowSameTeam().allowInvulnerable().allowNonAttackable();
++         this.lookAtContext = TargetingConditions.forNonCombat().range((double)var3);
+       }
+ 
+    }
+ 
+    public boolean canUse() {
+@@ -46,11 +53,13 @@
           }
  
           if (this.lookAtType == Player.class) {
@@ -15,3 +59,15 @@
           return this.lookAt != null;
        }
     }
+@@ -72,9 +81,10 @@
+    public void stop() {
+       this.lookAt = null;
+    }
+ 
+    public void tick() {
+-      this.mob.getLookControl().setLookAt(this.lookAt.getX(), this.lookAt.getEyeY(), this.lookAt.getZ());
++      double var1 = this.onlyHorizontal ? this.mob.getEyeY() : this.lookAt.getEyeY();
++      this.mob.getLookControl().setLookAt(this.lookAt.getX(), var1, this.lookAt.getZ());
+       --this.lookTime;
+    }
+ }

@@ -1,9 +1,16 @@
 --- net/minecraft/client/gui/screens/LanguageSelectScreen.java
 +++ net/minecraft/client/gui/screens/LanguageSelectScreen.java
-@@ -8,11 +8,10 @@
+@@ -1,54 +1,42 @@
+ package net.minecraft.client.gui.screens;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import java.util.Iterator;
+-import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.client.Minecraft;
  import net.minecraft.client.Option;
  import net.minecraft.client.Options;
- import net.minecraft.client.gui.chat.NarratorChatListener;
+-import net.minecraft.client.gui.chat.NarratorChatListener;
  import net.minecraft.client.gui.components.Button;
  import net.minecraft.client.gui.components.ObjectSelectionList;
 -import net.minecraft.client.gui.components.OptionButton;
@@ -12,14 +19,15 @@
  import net.minecraft.network.chat.CommonComponents;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TextComponent;
-@@ -20,35 +19,26 @@
+ import net.minecraft.network.chat.TranslatableComponent;
  
  public class LanguageSelectScreen extends OptionsSubScreen {
     private static final Component WARNING_LABEL;
     private LanguageSelectScreen.LanguageSelectionList packSelectionList;
-    private final LanguageManager languageManager;
+-   private final LanguageManager languageManager;
 -   private OptionButton forceUnicodeButton;
 -   private Button doneButton;
++   final LanguageManager languageManager;
  
     public LanguageSelectScreen(Screen var1, Options var2, LanguageManager var3) {
        super(var1, var2, new TranslatableComponent("options.language"));
@@ -28,7 +36,7 @@
  
     protected void init() {
        this.packSelectionList = new LanguageSelectScreen.LanguageSelectionList(this.minecraft);
-       this.children.add(this.packSelectionList);
+-      this.children.add(this.packSelectionList);
 -      this.forceUnicodeButton = (OptionButton)this.addButton(new OptionButton(this.width / 2 - 155, this.height - 38, 150, 20, Option.FORCE_UNICODE_FONT, Option.FORCE_UNICODE_FONT.getMessage(this.options), (var1) -> {
 -         Option.FORCE_UNICODE_FONT.toggle(this.options);
 -         this.options.save();
@@ -36,8 +44,9 @@
 -         this.minecraft.resizeDisplay();
 -      }));
 -      this.doneButton = (Button)this.addButton(new Button(this.width / 2 - 155 + 160, this.height - 38, 150, 20, CommonComponents.GUI_DONE, (var1) -> {
-+      this.addButton(Option.FORCE_UNICODE_FONT.createButton(this.options, this.width / 2 - 155, this.height - 38, 150));
-+      this.addButton(new Button(this.width / 2 - 155 + 160, this.height - 38, 150, 20, CommonComponents.GUI_DONE, (var1) -> {
++      this.addWidget(this.packSelectionList);
++      this.addRenderableWidget(Option.FORCE_UNICODE_FONT.createButton(this.options, this.width / 2 - 155, this.height - 38, 150));
++      this.addRenderableWidget(new Button(this.width / 2 - 155 + 160, this.height - 38, 150, 20, CommonComponents.GUI_DONE, (var1) -> {
           LanguageSelectScreen.LanguageSelectionList.Entry var2 = (LanguageSelectScreen.LanguageSelectionList.Entry)this.packSelectionList.getSelected();
           if (var2 != null && !var2.language.getCode().equals(this.languageManager.getSelected().getCode())) {
              this.languageManager.setSelected(var2.language);
@@ -50,3 +59,72 @@
  
           this.minecraft.setScreen(this.lastScreen);
        }));
+@@ -64,11 +52,11 @@
+ 
+    static {
+       WARNING_LABEL = (new TextComponent("(")).append(new TranslatableComponent("options.languageWarning")).append(")").withStyle(ChatFormatting.GRAY);
+    }
+ 
+-   class LanguageSelectionList extends ObjectSelectionList<LanguageSelectScreen.LanguageSelectionList.Entry> {
++   private class LanguageSelectionList extends ObjectSelectionList<LanguageSelectScreen.LanguageSelectionList.Entry> {
+       public LanguageSelectionList(Minecraft var2) {
+          super(var2, LanguageSelectScreen.this.width, LanguageSelectScreen.this.height, 32, LanguageSelectScreen.this.height - 65 + 4, 18);
+          Iterator var3 = LanguageSelectScreen.this.languageManager.getLanguages().iterator();
+ 
+          while(var3.hasNext()) {
+@@ -79,11 +67,11 @@
+                this.setSelected(var5);
+             }
+          }
+ 
+          if (this.getSelected() != null) {
+-            this.centerScrollOn(this.getSelected());
++            this.centerScrollOn((LanguageSelectScreen.LanguageSelectionList.Entry)this.getSelected());
+          }
+ 
+       }
+ 
+       protected int getScrollbarPosition() {
+@@ -92,28 +80,20 @@
+ 
+       public int getRowWidth() {
+          return super.getRowWidth() + 50;
+       }
+ 
+-      public void setSelected(@Nullable LanguageSelectScreen.LanguageSelectionList.Entry var1) {
+-         super.setSelected(var1);
+-         if (var1 != null) {
+-            NarratorChatListener.INSTANCE.sayNow((new TranslatableComponent("narrator.select", new Object[]{var1.language})).getString());
+-         }
+-
+-      }
+-
+       protected void renderBackground(PoseStack var1) {
+          LanguageSelectScreen.this.renderBackground(var1);
+       }
+ 
+       protected boolean isFocused() {
+          return LanguageSelectScreen.this.getFocused() == this;
+       }
+ 
+       public class Entry extends ObjectSelectionList.Entry<LanguageSelectScreen.LanguageSelectionList.Entry> {
+-         private final LanguageInfo language;
++         final LanguageInfo language;
+ 
+          public Entry(LanguageInfo var2) {
+             this.language = var2;
+          }
+ 
+@@ -132,8 +112,12 @@
+          }
+ 
+          private void select() {
+             LanguageSelectionList.this.setSelected(this);
+          }
++
++         public Component getNarration() {
++            return new TranslatableComponent("narrator.select", new Object[]{this.language});
++         }
+       }
+    }
+ }

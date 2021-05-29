@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/storage/loot/functions/EnchantWithLevelsFunction.java
 +++ net/minecraft/world/level/storage/loot/functions/EnchantWithLevelsFunction.java
-@@ -2,63 +2,68 @@
+@@ -2,63 +2,51 @@
  
  import com.google.gson.JsonDeserializationContext;
  import com.google.gson.JsonObject;
@@ -19,11 +19,12 @@
  
  public class EnchantWithLevelsFunction extends LootItemConditionalFunction {
 -   private final RandomIntGenerator levels;
-+   private final NumberProvider levels;
-    private final boolean treasure;
+-   private final boolean treasure;
++   final NumberProvider levels;
++   final boolean treasure;
  
 -   private EnchantWithLevelsFunction(LootItemCondition[] var1, RandomIntGenerator var2, boolean var3) {
-+   private EnchantWithLevelsFunction(LootItemCondition[] var1, NumberProvider var2, boolean var3) {
++   EnchantWithLevelsFunction(LootItemCondition[] var1, NumberProvider var2, boolean var3) {
        super(var1);
        this.levels = var2;
        this.treasure = var3;
@@ -48,25 +49,23 @@
        return new EnchantWithLevelsFunction.Builder(var0);
     }
  
-    public static class Serializer extends LootItemConditionalFunction.Serializer<EnchantWithLevelsFunction> {
-       public Serializer() {
-       }
- 
-       public void serialize(JsonObject var1, EnchantWithLevelsFunction var2, JsonSerializationContext var3) {
-          super.serialize(var1, (LootItemConditionalFunction)var2, var3);
+-   public static class Serializer extends LootItemConditionalFunction.Serializer<EnchantWithLevelsFunction> {
+-      public Serializer() {
+-      }
+-
+-      public void serialize(JsonObject var1, EnchantWithLevelsFunction var2, JsonSerializationContext var3) {
+-         super.serialize(var1, (LootItemConditionalFunction)var2, var3);
 -         var1.add("levels", RandomIntGenerators.serialize(var2.levels, var3));
-+         var1.add("levels", var3.serialize(var2.levels));
-          var1.addProperty("treasure", var2.treasure);
-       }
- 
-       public EnchantWithLevelsFunction deserialize(JsonObject var1, JsonDeserializationContext var2, LootItemCondition[] var3) {
+-         var1.addProperty("treasure", var2.treasure);
+-      }
+-
+-      public EnchantWithLevelsFunction deserialize(JsonObject var1, JsonDeserializationContext var2, LootItemCondition[] var3) {
 -         RandomIntGenerator var4 = RandomIntGenerators.deserialize(var1.get("levels"), var2);
-+         NumberProvider var4 = (NumberProvider)GsonHelper.getAsObject(var1, "levels", var2, NumberProvider.class);
-          boolean var5 = GsonHelper.getAsBoolean(var1, "treasure", false);
-          return new EnchantWithLevelsFunction(var3, var4, var5);
-       }
-    }
- 
+-         boolean var5 = GsonHelper.getAsBoolean(var1, "treasure", false);
+-         return new EnchantWithLevelsFunction(var3, var4, var5);
+-      }
+-   }
+-
     public static class Builder extends LootItemConditionalFunction.Builder<EnchantWithLevelsFunction.Builder> {
 -      private final RandomIntGenerator levels;
 +      private final NumberProvider levels;
@@ -79,3 +78,27 @@
  
        protected EnchantWithLevelsFunction.Builder getThis() {
           return this;
+@@ -71,6 +59,23 @@
+ 
+       public LootItemFunction build() {
+          return new EnchantWithLevelsFunction(this.getConditions(), this.levels, this.treasure);
+       }
+    }
++
++   public static class Serializer extends LootItemConditionalFunction.Serializer<EnchantWithLevelsFunction> {
++      public Serializer() {
++      }
++
++      public void serialize(JsonObject var1, EnchantWithLevelsFunction var2, JsonSerializationContext var3) {
++         super.serialize(var1, (LootItemConditionalFunction)var2, var3);
++         var1.add("levels", var3.serialize(var2.levels));
++         var1.addProperty("treasure", var2.treasure);
++      }
++
++      public EnchantWithLevelsFunction deserialize(JsonObject var1, JsonDeserializationContext var2, LootItemCondition[] var3) {
++         NumberProvider var4 = (NumberProvider)GsonHelper.getAsObject(var1, "levels", var2, NumberProvider.class);
++         boolean var5 = GsonHelper.getAsBoolean(var1, "treasure", false);
++         return new EnchantWithLevelsFunction(var3, var4, var5);
++      }
++   }
+ }

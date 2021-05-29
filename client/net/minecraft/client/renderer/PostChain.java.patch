@@ -1,6 +1,30 @@
 --- net/minecraft/client/renderer/PostChain.java
 +++ net/minecraft/client/renderer/PostChain.java
-@@ -27,10 +27,11 @@
+@@ -5,10 +5,11 @@
+ import com.google.gson.JsonArray;
+ import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
+ import com.google.gson.JsonSyntaxException;
+ import com.mojang.blaze3d.pipeline.RenderTarget;
++import com.mojang.blaze3d.pipeline.TextureTarget;
+ import com.mojang.blaze3d.shaders.Uniform;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.math.Matrix4f;
+ import java.io.FileNotFoundException;
+ import java.io.IOException;
+@@ -16,10 +17,11 @@
+ import java.io.Reader;
+ import java.nio.charset.StandardCharsets;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.renderer.texture.AbstractTexture;
+ import net.minecraft.client.renderer.texture.TextureManager;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.ChainedJsonException;
+@@ -27,10 +29,11 @@
  import net.minecraft.server.packs.resources.ResourceManager;
  import net.minecraft.util.GsonHelper;
  import org.apache.commons.io.IOUtils;
@@ -12,7 +36,21 @@
     private final String name;
     private final List<PostPass> passes = Lists.newArrayList();
     private final Map<String, RenderTarget> customRenderTargets = Maps.newHashMap();
-@@ -180,11 +181,12 @@
+@@ -104,11 +107,12 @@
+          } else {
+             var5 = "";
+          }
+ 
+          ChainedJsonException var6 = ChainedJsonException.forException(var18);
+-         var6.setFilenameAndFlush(var2.getPath() + var5);
++         String var10001 = var2.getPath();
++         var6.setFilenameAndFlush(var10001 + var5);
+          throw var6;
+       } finally {
+          IOUtils.closeQuietly(var3);
+       }
+ 
+@@ -180,11 +184,12 @@
                          throw new ChainedJsonException("Render target or texture '" + var18 + "' does not exist");
                       } finally {
                          IOUtils.closeQuietly(var21);
@@ -26,7 +64,38 @@
                       int var24 = GsonHelper.getAsInt(var14, "height");
                       boolean var25 = GsonHelper.getAsBoolean(var14, "bilinear");
                       if (var25) {
-@@ -309,11 +311,11 @@
+@@ -193,14 +198,17 @@
+                      } else {
+                         RenderSystem.texParameter(3553, 10241, 9728);
+                         RenderSystem.texParameter(3553, 10240, 9728);
+                      }
+ 
++                     Objects.requireNonNull(var22);
+                      var9.addAuxAsset(var38, var22::getId, var23, var24);
+                   } else if (var17) {
++                     Objects.requireNonNull(var19);
+                      var9.addAuxAsset(var38, var19::getDepthTextureId, var19.width, var19.height);
+                   } else {
++                     Objects.requireNonNull(var19);
+                      var9.addAuxAsset(var38, var19::getColorTextureId, var19.width, var19.height);
+                   }
+                } catch (Exception var33) {
+                   ChainedJsonException var15 = ChainedJsonException.forException(var33);
+                   var15.prependJsonKey("auxtargets[" + var11 + "]");
+@@ -275,11 +283,11 @@
+    public RenderTarget getTempTarget(String var1) {
+       return (RenderTarget)this.customRenderTargets.get(var1);
+    }
+ 
+    public void addTempTarget(String var1, int var2, int var3) {
+-      RenderTarget var4 = new RenderTarget(var2, var3, true, Minecraft.ON_OSX);
++      TextureTarget var4 = new TextureTarget(var2, var3, true, Minecraft.ON_OSX);
+       var4.setClearColor(0.0F, 0.0F, 0.0F, 0.0F);
+       this.customRenderTargets.put(var1, var4);
+       if (var2 == this.screenWidth && var3 == this.screenHeight) {
+          this.fullSizedTargets.add(var4);
+       }
+@@ -309,11 +317,11 @@
        this.passes.add(this.passes.size(), var4);
        return var4;
     }

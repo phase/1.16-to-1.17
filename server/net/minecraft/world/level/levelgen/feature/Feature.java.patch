@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/feature/Feature.java
 +++ net/minecraft/world/level/levelgen/feature/Feature.java
-@@ -1,43 +1,52 @@
+@@ -1,63 +1,80 @@
  package net.minecraft.world.level.levelgen.feature;
  
  import com.mojang.serialization.Codec;
@@ -10,12 +10,14 @@
  import net.minecraft.core.BlockPos;
 +import net.minecraft.core.Direction;
  import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.tags.BlockTags;
++import net.minecraft.tags.Tag;
  import net.minecraft.world.level.LevelSimulatedReader;
  import net.minecraft.world.level.LevelWriter;
--import net.minecraft.world.level.WorldGenLevel;
+ import net.minecraft.world.level.WorldGenLevel;
 -import net.minecraft.world.level.block.Block;
- import net.minecraft.world.level.block.Blocks;
+-import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockBehaviour;
  import net.minecraft.world.level.block.state.BlockState;
 -import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -57,10 +59,13 @@
     public static final Feature<NoneFeatureConfiguration> NO_OP;
     public static final Feature<TreeConfiguration> TREE;
     public static final AbstractFlowerFeature<RandomPatchConfiguration> FLOWER;
-@@ -47,17 +56,23 @@
+    public static final AbstractFlowerFeature<RandomPatchConfiguration> NO_BONEMEAL_FLOWER;
+    public static final Feature<RandomPatchConfiguration> RANDOM_PATCH;
+    public static final Feature<BlockPileConfiguration> BLOCK_PILE;
     public static final Feature<SpringConfiguration> SPRING;
     public static final Feature<NoneFeatureConfiguration> CHORUS_PLANT;
-    public static final Feature<ReplaceBlockConfiguration> EMERALD_ORE;
+-   public static final Feature<ReplaceBlockConfiguration> EMERALD_ORE;
++   public static final Feature<ReplaceBlockConfiguration> REPLACE_SINGLE_BLOCK;
     public static final Feature<NoneFeatureConfiguration> VOID_START_PLATFORM;
     public static final Feature<NoneFeatureConfiguration> DESERT_WELL;
 -   public static final Feature<NoneFeatureConfiguration> FOSSIL;
@@ -82,7 +87,7 @@
     public static final Feature<BlockStateConfiguration> ICEBERG;
     public static final Feature<BlockStateConfiguration> FOREST_ROCK;
     public static final Feature<DiskConfiguration> DISK;
-@@ -83,15 +98,19 @@
+@@ -83,15 +100,19 @@
     public static final Feature<DeltaFeatureConfiguration> DELTA_FEATURE;
     public static final Feature<ReplaceSphereConfiguration> REPLACE_BLOBS;
     public static final Feature<LayerConfiguration> FILL_LAYER;
@@ -103,27 +108,43 @@
     private static <C extends FeatureConfiguration, F extends Feature<C>> F register(String var0, F var1) {
        return (Feature)Registry.register(Registry.FEATURE, (String)var0, var1);
     }
-@@ -114,30 +133,48 @@
+@@ -114,49 +135,103 @@
  
     protected void setBlock(LevelWriter var1, BlockPos var2, BlockState var3) {
        var1.setBlock(var2, var3, 3);
     }
  
 -   public abstract boolean place(WorldGenLevel var1, ChunkGenerator var2, Random var3, BlockPos var4, FC var5);
-+   public abstract boolean place(FeaturePlaceContext<FC> var1);
++   public static Predicate<BlockState> isReplaceable(ResourceLocation var0) {
++      Tag var1 = BlockTags.getAllTags().getTag(var0);
++      return var1 == null ? (var0x) -> {
++         return true;
++      } : (var1x) -> {
++         return !var1x.is(var1);
++      };
++   }
  
 -   protected static boolean isStone(Block var0) {
 -      return var0 == Blocks.STONE || var0 == Blocks.GRANITE || var0 == Blocks.DIORITE || var0 == Blocks.ANDESITE;
-+   protected static boolean isStone(BlockState var0) {
-+      return var0.is(BlockTags.BASE_STONE_OVERWORLD);
++   protected void safeSetBlock(WorldGenLevel var1, BlockPos var2, BlockState var3, Predicate<BlockState> var4) {
++      if (var4.test(var1.getBlockState(var2))) {
++         var1.setBlock(var2, var3, 2);
++      }
++
     }
  
 -   public static boolean isDirt(Block var0) {
 -      return var0 == Blocks.DIRT || var0 == Blocks.GRASS_BLOCK || var0 == Blocks.PODZOL || var0 == Blocks.COARSE_DIRT || var0 == Blocks.MYCELIUM;
-+   public static boolean isDirt(BlockState var0) {
-+      return var0.is(Blocks.DIRT) || var0.is(Blocks.GRASS_BLOCK) || var0.is(Blocks.PODZOL) || var0.is(Blocks.COARSE_DIRT) || var0.is(Blocks.MYCELIUM) || var0.is(Blocks.ROOTED_DIRT);
++   public abstract boolean place(FeaturePlaceContext<FC> var1);
++
++   protected static boolean isStone(BlockState var0) {
++      return var0.is(BlockTags.BASE_STONE_OVERWORLD);
     }
  
++   public static boolean isDirt(BlockState var0) {
++      return var0.is(BlockTags.DIRT);
++   }
++
     public static boolean isGrassOrDirt(LevelSimulatedReader var0, BlockPos var1) {
 -      return var0.isStateAtPosition(var1, (var0x) -> {
 -         return isDirt(var0x.getBlock());
@@ -143,7 +164,7 @@
 +      for(int var6 = 0; var6 < var5; ++var6) {
 +         Direction var7 = var4[var6];
 +         var3.setWithOffset(var1, (Direction)var7);
-+         if (var2.test(var0.apply(var3))) {
++         if (var2.test((BlockState)var0.apply(var3))) {
 +            return true;
 +         }
 +      }
@@ -155,15 +176,31 @@
 +      return checkNeighbors(var0, var1, BlockBehaviour.BlockStateBase::isAir);
 +   }
 +
++   protected void markAboveForPostProcessing(WorldGenLevel var1, BlockPos var2) {
++      BlockPos.MutableBlockPos var3 = var2.mutable();
++
++      for(int var4 = 0; var4 < 2; ++var4) {
++         var3.move(Direction.UP);
++         if (var1.getBlockState(var3).isAir()) {
++            return;
++         }
++
++         var1.getChunk(var3).markPosForPostprocessing(var3);
++      }
++
++   }
++
     static {
        NO_OP = register("no_op", new NoOpFeature(NoneFeatureConfiguration.CODEC));
        TREE = register("tree", new TreeFeature(TreeConfiguration.CODEC));
        FLOWER = (AbstractFlowerFeature)register("flower", new DefaultFlowerFeature(RandomPatchConfiguration.CODEC));
        NO_BONEMEAL_FLOWER = (AbstractFlowerFeature)register("no_bonemeal_flower", new DefaultFlowerFeature(RandomPatchConfiguration.CODEC));
-@@ -146,17 +183,23 @@
+       RANDOM_PATCH = register("random_patch", new RandomPatchFeature(RandomPatchConfiguration.CODEC));
+       BLOCK_PILE = register("block_pile", new BlockPileFeature(BlockPileConfiguration.CODEC));
        SPRING = register("spring_feature", new SpringFeature(SpringConfiguration.CODEC));
        CHORUS_PLANT = register("chorus_plant", new ChorusPlantFeature(NoneFeatureConfiguration.CODEC));
-       EMERALD_ORE = register("emerald_ore", new ReplaceBlockFeature(ReplaceBlockConfiguration.CODEC));
+-      EMERALD_ORE = register("emerald_ore", new ReplaceBlockFeature(ReplaceBlockConfiguration.CODEC));
++      REPLACE_SINGLE_BLOCK = register("replace_single_block", new ReplaceBlockFeature(ReplaceBlockConfiguration.CODEC));
        VOID_START_PLATFORM = register("void_start_platform", new VoidStartPlatformFeature(NoneFeatureConfiguration.CODEC));
        DESERT_WELL = register("desert_well", new DesertWellFeature(NoneFeatureConfiguration.CODEC));
 -      FOSSIL = register("fossil", new FossilFeature(NoneFeatureConfiguration.CODEC));
@@ -185,7 +222,7 @@
        ICEBERG = register("iceberg", new IcebergFeature(BlockStateConfiguration.CODEC));
        FOREST_ROCK = register("forest_rock", new BlockBlobFeature(BlockStateConfiguration.CODEC));
        DISK = register("disk", new DiskReplaceFeature(DiskConfiguration.CODEC));
-@@ -182,12 +225,16 @@
+@@ -182,12 +257,16 @@
        DELTA_FEATURE = register("delta_feature", new DeltaFeature(DeltaFeatureConfiguration.CODEC));
        REPLACE_BLOBS = register("netherrack_replace_blobs", new ReplaceBlobsFeature(ReplaceSphereConfiguration.CODEC));
        FILL_LAYER = register("fill_layer", new FillLayerFeature(LayerConfiguration.CODEC));

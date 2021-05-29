@@ -12,3 +12,201 @@
     };
     private final DataFixer dataFixer;
     private final PlayerList playerList;
+@@ -119,12 +120,12 @@
+       Iterator var2 = this.advancements.entrySet().iterator();
+ 
+       while(var2.hasNext()) {
+          Entry var3 = (Entry)var2.next();
+          if (((AdvancementProgress)var3.getValue()).isDone()) {
+-            var1.add(var3.getKey());
+-            this.progressChanged.add(var3.getKey());
++            var1.add((Advancement)var3.getKey());
++            this.progressChanged.add((Advancement)var3.getKey());
+          }
+       }
+ 
+       var2 = var1.iterator();
+ 
+@@ -150,59 +151,52 @@
+ 
+    private void load(ServerAdvancementManager var1) {
+       if (this.file.isFile()) {
+          try {
+             JsonReader var2 = new JsonReader(new StringReader(Files.toString(this.file, StandardCharsets.UTF_8)));
+-            Throwable var3 = null;
+ 
+             try {
+                var2.setLenient(false);
+-               Dynamic var4 = new Dynamic(JsonOps.INSTANCE, Streams.parse(var2));
+-               if (!var4.get("DataVersion").asNumber().result().isPresent()) {
+-                  var4 = var4.set("DataVersion", var4.createInt(1343));
++               Dynamic var3 = new Dynamic(JsonOps.INSTANCE, Streams.parse(var2));
++               if (!var3.get("DataVersion").asNumber().result().isPresent()) {
++                  var3 = var3.set("DataVersion", var3.createInt(1343));
+                }
+ 
+-               var4 = this.dataFixer.update(DataFixTypes.ADVANCEMENTS.getType(), var4, var4.get("DataVersion").asInt(0), SharedConstants.getCurrentVersion().getWorldVersion());
+-               var4 = var4.remove("DataVersion");
+-               Map var5 = (Map)GSON.getAdapter(TYPE_TOKEN).fromJsonTree((JsonElement)var4.getValue());
+-               if (var5 == null) {
++               var3 = this.dataFixer.update(DataFixTypes.ADVANCEMENTS.getType(), var3, var3.get("DataVersion").asInt(0), SharedConstants.getCurrentVersion().getWorldVersion());
++               var3 = var3.remove("DataVersion");
++               Map var4 = (Map)GSON.getAdapter(TYPE_TOKEN).fromJsonTree((JsonElement)var3.getValue());
++               if (var4 == null) {
+                   throw new JsonParseException("Found null for advancements");
+                }
+ 
+-               Stream var6 = var5.entrySet().stream().sorted(Comparator.comparing(Entry::getValue));
+-               Iterator var7 = ((List)var6.collect(Collectors.toList())).iterator();
++               Stream var5 = var4.entrySet().stream().sorted(Comparator.comparing(Entry::getValue));
++               Iterator var6 = ((List)var5.collect(Collectors.toList())).iterator();
+ 
+-               while(var7.hasNext()) {
+-                  Entry var8 = (Entry)var7.next();
+-                  Advancement var9 = var1.getAdvancement((ResourceLocation)var8.getKey());
+-                  if (var9 == null) {
+-                     LOGGER.warn("Ignored advancement '{}' in progress file {} - it doesn't exist anymore?", var8.getKey(), this.file);
++               while(var6.hasNext()) {
++                  Entry var7 = (Entry)var6.next();
++                  Advancement var8 = var1.getAdvancement((ResourceLocation)var7.getKey());
++                  if (var8 == null) {
++                     LOGGER.warn("Ignored advancement '{}' in progress file {} - it doesn't exist anymore?", var7.getKey(), this.file);
+                   } else {
+-                     this.startProgress(var9, (AdvancementProgress)var8.getValue());
++                     this.startProgress(var8, (AdvancementProgress)var7.getValue());
+                   }
+                }
+-            } catch (Throwable var19) {
+-               var3 = var19;
+-               throw var19;
+-            } finally {
+-               if (var2 != null) {
+-                  if (var3 != null) {
+-                     try {
+-                        var2.close();
+-                     } catch (Throwable var18) {
+-                        var3.addSuppressed(var18);
+-                     }
+-                  } else {
+-                     var2.close();
+-                  }
++            } catch (Throwable var10) {
++               try {
++                  var2.close();
++               } catch (Throwable var9) {
++                  var10.addSuppressed(var9);
+                }
+ 
++               throw var10;
+             }
+-         } catch (JsonParseException var21) {
+-            LOGGER.error("Couldn't parse player advancements in {}", this.file, var21);
+-         } catch (IOException var22) {
+-            LOGGER.error("Couldn't access player advancements in {}", this.file, var22);
++
++            var2.close();
++         } catch (JsonParseException var11) {
++            LOGGER.error("Couldn't parse player advancements in {}", this.file, var11);
++         } catch (IOException var12) {
++            LOGGER.error("Couldn't access player advancements in {}", this.file, var12);
+          }
+       }
+ 
+       this.checkForAutomaticTriggers(var1);
+       this.ensureAllVisible();
+@@ -223,59 +217,45 @@
+ 
+       if (this.file.getParentFile() != null) {
+          this.file.getParentFile().mkdirs();
+       }
+ 
+-      JsonElement var36 = GSON.toJsonTree(var1);
+-      var36.getAsJsonObject().addProperty("DataVersion", SharedConstants.getCurrentVersion().getWorldVersion());
++      JsonElement var12 = GSON.toJsonTree(var1);
++      var12.getAsJsonObject().addProperty("DataVersion", SharedConstants.getCurrentVersion().getWorldVersion());
+ 
+       try {
+-         FileOutputStream var37 = new FileOutputStream(this.file);
+-         Throwable var38 = null;
++         FileOutputStream var13 = new FileOutputStream(this.file);
+ 
+          try {
+-            OutputStreamWriter var5 = new OutputStreamWriter(var37, Charsets.UTF_8.newEncoder());
+-            Throwable var6 = null;
++            OutputStreamWriter var14 = new OutputStreamWriter(var13, Charsets.UTF_8.newEncoder());
+ 
+             try {
+-               GSON.toJson(var36, var5);
+-            } catch (Throwable var31) {
+-               var6 = var31;
+-               throw var31;
+-            } finally {
+-               if (var5 != null) {
+-                  if (var6 != null) {
+-                     try {
+-                        var5.close();
+-                     } catch (Throwable var30) {
+-                        var6.addSuppressed(var30);
+-                     }
+-                  } else {
+-                     var5.close();
+-                  }
++               GSON.toJson(var12, var14);
++            } catch (Throwable var9) {
++               try {
++                  var14.close();
++               } catch (Throwable var8) {
++                  var9.addSuppressed(var8);
+                }
+ 
++               throw var9;
+             }
+-         } catch (Throwable var33) {
+-            var38 = var33;
+-            throw var33;
+-         } finally {
+-            if (var37 != null) {
+-               if (var38 != null) {
+-                  try {
+-                     var37.close();
+-                  } catch (Throwable var29) {
+-                     var38.addSuppressed(var29);
+-                  }
+-               } else {
+-                  var37.close();
+-               }
++
++            var14.close();
++         } catch (Throwable var10) {
++            try {
++               var13.close();
++            } catch (Throwable var7) {
++               var10.addSuppressed(var7);
+             }
+ 
++            throw var10;
+          }
+-      } catch (IOException var35) {
+-         LOGGER.error("Couldn't save player advancements to {}", this.file, var35);
++
++         var13.close();
++      } catch (IOException var11) {
++         LOGGER.error("Couldn't save player advancements to {}", this.file, var11);
+       }
+ 
+    }
+ 
+    public boolean award(Advancement var1, String var2) {
+@@ -376,11 +356,11 @@
+ 
+          Advancement var6;
+          while(var5.hasNext()) {
+             var6 = (Advancement)var5.next();
+             if (this.visible.contains(var6)) {
+-               var2.put(var6.getId(), this.advancements.get(var6));
++               var2.put(var6.getId(), (AdvancementProgress)this.advancements.get(var6));
+             }
+          }
+ 
+          var5 = this.visibilityChanged.iterator();
+ 

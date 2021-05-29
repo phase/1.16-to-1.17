@@ -1,0 +1,163 @@
+--- net/minecraft/advancements/critereon/StatePropertiesPredicate.java
++++ net/minecraft/advancements/critereon/StatePropertiesPredicate.java
+@@ -40,11 +40,11 @@
+    @Nullable
+    private static String getStringOrNull(JsonElement var0) {
+       return var0.isJsonNull() ? null : var0.getAsString();
+    }
+ 
+-   private StatePropertiesPredicate(List<StatePropertiesPredicate.PropertyMatcher> var1) {
++   StatePropertiesPredicate(List<StatePropertiesPredicate.PropertyMatcher> var1) {
+       this.properties = ImmutableList.copyOf(var1);
+    }
+ 
+    public <S extends StateHolder<?, S>> boolean matches(StateDefinition<?, S> var1, S var2) {
+       Iterator var3 = this.properties.iterator();
+@@ -105,43 +105,30 @@
+ 
+          return var1;
+       }
+    }
+ 
+-   public static class Builder {
+-      private final List<StatePropertiesPredicate.PropertyMatcher> matchers = Lists.newArrayList();
++   private static class ExactPropertyMatcher extends StatePropertiesPredicate.PropertyMatcher {
++      private final String value;
+ 
+-      private Builder() {
++      public ExactPropertyMatcher(String var1, String var2) {
++         super(var1);
++         this.value = var2;
+       }
+ 
+-      public static StatePropertiesPredicate.Builder properties() {
+-         return new StatePropertiesPredicate.Builder();
++      protected <T extends Comparable<T>> boolean match(StateHolder<?, ?> var1, Property<T> var2) {
++         Comparable var3 = var1.getValue(var2);
++         Optional var4 = var2.getValue(this.value);
++         return var4.isPresent() && var3.compareTo((Comparable)var4.get()) == 0;
+       }
+ 
+-      public StatePropertiesPredicate.Builder hasProperty(Property<?> var1, String var2) {
+-         this.matchers.add(new StatePropertiesPredicate.ExactPropertyMatcher(var1.getName(), var2));
+-         return this;
++      public JsonElement toJson() {
++         return new JsonPrimitive(this.value);
+       }
+-
+-      public StatePropertiesPredicate.Builder hasProperty(Property<Integer> var1, int var2) {
+-         return this.hasProperty(var1, Integer.toString(var2));
+-      }
+-
+-      public StatePropertiesPredicate.Builder hasProperty(Property<Boolean> var1, boolean var2) {
+-         return this.hasProperty(var1, Boolean.toString(var2));
+-      }
+-
+-      public <T extends Comparable<T> & StringRepresentable> StatePropertiesPredicate.Builder hasProperty(Property<T> var1, T var2) {
+-         return this.hasProperty(var1, ((StringRepresentable)var2).getSerializedName());
+-      }
+-
+-      public StatePropertiesPredicate build() {
+-         return new StatePropertiesPredicate(this.matchers);
+-      }
+    }
+ 
+-   static class RangedPropertyMatcher extends StatePropertiesPredicate.PropertyMatcher {
++   private static class RangedPropertyMatcher extends StatePropertiesPredicate.PropertyMatcher {
+       @Nullable
+       private final String minValue;
+       @Nullable
+       private final String maxValue;
+ 
+@@ -154,18 +141,18 @@
+       protected <T extends Comparable<T>> boolean match(StateHolder<?, ?> var1, Property<T> var2) {
+          Comparable var3 = var1.getValue(var2);
+          Optional var4;
+          if (this.minValue != null) {
+             var4 = var2.getValue(this.minValue);
+-            if (!var4.isPresent() || var3.compareTo(var4.get()) < 0) {
++            if (!var4.isPresent() || var3.compareTo((Comparable)var4.get()) < 0) {
+                return false;
+             }
+          }
+ 
+          if (this.maxValue != null) {
+             var4 = var2.getValue(this.maxValue);
+-            if (!var4.isPresent() || var3.compareTo(var4.get()) > 0) {
++            if (!var4.isPresent() || var3.compareTo((Comparable)var4.get()) > 0) {
+                return false;
+             }
+          }
+ 
+          return true;
+@@ -183,30 +170,11 @@
+ 
+          return var1;
+       }
+    }
+ 
+-   static class ExactPropertyMatcher extends StatePropertiesPredicate.PropertyMatcher {
+-      private final String value;
+-
+-      public ExactPropertyMatcher(String var1, String var2) {
+-         super(var1);
+-         this.value = var2;
+-      }
+-
+-      protected <T extends Comparable<T>> boolean match(StateHolder<?, ?> var1, Property<T> var2) {
+-         Comparable var3 = var1.getValue(var2);
+-         Optional var4 = var2.getValue(this.value);
+-         return var4.isPresent() && var3.compareTo(var4.get()) == 0;
+-      }
+-
+-      public JsonElement toJson() {
+-         return new JsonPrimitive(this.value);
+-      }
+-   }
+-
+-   abstract static class PropertyMatcher {
++   private abstract static class PropertyMatcher {
+       private final String name;
+ 
+       public PropertyMatcher(String var1) {
+          this.name = var1;
+       }
+@@ -230,6 +198,38 @@
+             var2.accept(this.name);
+          }
+ 
+       }
+    }
++
++   public static class Builder {
++      private final List<StatePropertiesPredicate.PropertyMatcher> matchers = Lists.newArrayList();
++
++      private Builder() {
++      }
++
++      public static StatePropertiesPredicate.Builder properties() {
++         return new StatePropertiesPredicate.Builder();
++      }
++
++      public StatePropertiesPredicate.Builder hasProperty(Property<?> var1, String var2) {
++         this.matchers.add(new StatePropertiesPredicate.ExactPropertyMatcher(var1.getName(), var2));
++         return this;
++      }
++
++      public StatePropertiesPredicate.Builder hasProperty(Property<Integer> var1, int var2) {
++         return this.hasProperty(var1, Integer.toString(var2));
++      }
++
++      public StatePropertiesPredicate.Builder hasProperty(Property<Boolean> var1, boolean var2) {
++         return this.hasProperty(var1, Boolean.toString(var2));
++      }
++
++      public <T extends Comparable<T> & StringRepresentable> StatePropertiesPredicate.Builder hasProperty(Property<T> var1, T var2) {
++         return this.hasProperty(var1, ((StringRepresentable)var2).getSerializedName());
++      }
++
++      public StatePropertiesPredicate build() {
++         return new StatePropertiesPredicate(this.matchers);
++      }
++   }
+ }

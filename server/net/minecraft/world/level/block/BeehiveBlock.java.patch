@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/BeehiveBlock.java
 +++ net/minecraft/world/level/block/BeehiveBlock.java
-@@ -6,14 +6,17 @@
+@@ -6,14 +6,18 @@
  import javax.annotation.Nullable;
  import net.minecraft.Util;
  import net.minecraft.advancements.CriteriaTriggers;
@@ -11,6 +11,7 @@
  import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.sounds.SoundSource;
++import net.minecraft.stats.Stats;
 +import net.minecraft.tags.BlockTags;
 +import net.minecraft.util.Mth;
  import net.minecraft.world.InteractionHand;
@@ -18,7 +19,13 @@
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.animal.Bee;
-@@ -27,31 +30,36 @@
+@@ -22,36 +26,42 @@
+ import net.minecraft.world.entity.item.PrimedTnt;
+ import net.minecraft.world.entity.monster.Creeper;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.entity.projectile.WitherSkull;
+ import net.minecraft.world.entity.vehicle.MinecartTNT;
++import net.minecraft.world.item.Item;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
  import net.minecraft.world.item.context.BlockPlaceContext;
@@ -56,7 +63,7 @@
        super(var1);
        this.registerDefaultState((BlockState)((BlockState)((BlockState)this.stateDefinition.any()).setValue(HONEY_LEVEL, 0)).setValue(FACING, Direction.NORTH));
     }
-@@ -72,11 +80,11 @@
+@@ -72,11 +82,11 @@
              var7.emptyAllLivingFromHive(var2, var4, BeehiveBlockEntity.BeeReleaseStatus.EMERGENCY);
              var1.updateNeighbourForOutputSignal(var3, this);
              this.angerNearbyBees(var1, var3);
@@ -69,13 +76,14 @@
     }
  
     private void angerNearbyBees(Level var1, BlockPos var2) {
-@@ -103,27 +111,29 @@
+@@ -103,28 +113,35 @@
     public InteractionResult use(BlockState var1, Level var2, BlockPos var3, Player var4, InteractionHand var5, BlockHitResult var6) {
        ItemStack var7 = var4.getItemInHand(var5);
        int var8 = (Integer)var1.getValue(HONEY_LEVEL);
        boolean var9 = false;
        if (var8 >= 5) {
 -         if (var7.getItem() == Items.SHEARS) {
++         Item var10 = var7.getItem();
 +         if (var7.is(Items.SHEARS)) {
              var2.playSound(var4, var4.getX(), var4.getY(), var4.getZ(), SoundEvents.BEEHIVE_SHEAR, SoundSource.NEUTRAL, 1.0F, 1.0F);
              dropHoneycomb(var2, var3);
@@ -98,11 +106,16 @@
              var9 = true;
 +            var2.gameEvent(var4, GameEvent.FLUID_PICKUP, var3);
           }
++
++         if (!var2.isClientSide() && var9) {
++            var4.awardStat(Stats.ITEM_USED.get(var10));
++         }
        }
  
        if (var9) {
           if (!CampfireBlock.isSmokeyPos(var2, var3)) {
-@@ -164,10 +174,49 @@
+             if (this.hiveContainsBees(var2, var3)) {
+@@ -164,10 +181,49 @@
  
     public void resetHoneyLevel(Level var1, BlockState var2, BlockPos var3) {
        var1.setBlock(var3, (BlockState)var2.setValue(HONEY_LEVEL, 0), 3);
@@ -152,7 +165,7 @@
     }
  
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> var1) {
-@@ -177,39 +226,42 @@
+@@ -177,39 +233,42 @@
     public RenderShape getRenderShape(BlockState var1) {
        return RenderShape.MODEL;
     }

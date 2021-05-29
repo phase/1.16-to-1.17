@@ -16,7 +16,19 @@
  import java.io.File;
  import java.io.IOException;
  import java.lang.management.ManagementFactory;
-@@ -39,12 +41,14 @@
+@@ -17,10 +19,11 @@
+ import java.net.URISyntaxException;
+ import java.net.URL;
+ import java.nio.file.Files;
+ import java.nio.file.LinkOption;
+ import java.nio.file.Path;
++import java.nio.file.spi.FileSystemProvider;
+ import java.security.AccessController;
+ import java.security.PrivilegedActionException;
+ import java.time.Instant;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -39,12 +42,14 @@
  import java.util.concurrent.Executors;
  import java.util.concurrent.ForkJoinPool;
  import java.util.concurrent.ForkJoinWorkerThread;
@@ -31,11 +43,19 @@
  import java.util.stream.Collector;
  import java.util.stream.Collectors;
  import java.util.stream.IntStream;
-@@ -66,10 +70,13 @@
+@@ -64,22 +69,30 @@
+    private static final ExecutorService BOOTSTRAP_EXECUTOR = makeExecutor("Bootstrap");
+    private static final ExecutorService BACKGROUND_EXECUTOR = makeExecutor("Main");
     private static final ExecutorService IO_POOL = makeIoExecutor();
     public static LongSupplier timeSource = System::nanoTime;
     public static final UUID NIL_UUID = new UUID(0L, 0L);
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   public static final FileSystemProvider ZIP_FILE_SYSTEM_PROVIDER = (FileSystemProvider)FileSystemProvider.installedProviders().stream().filter((var0) -> {
++      return var0.getScheme().equalsIgnoreCase("jar");
++   }).findFirst().orElseThrow(() -> {
++      return new IllegalStateException("No jar file system provider found");
++   });
++   static final Logger LOGGER = LogManager.getLogger();
  
 +   public Util() {
 +   }
@@ -45,7 +65,18 @@
     }
  
     public static <T extends Comparable<T>> String getPropertyName(Property<T> var0, Object var1) {
-@@ -91,11 +98,11 @@
+       return var0.getName((Comparable)var1);
+    }
+ 
+    public static String makeDescriptionId(String var0, @Nullable ResourceLocation var1) {
+-      return var1 == null ? var0 + ".unregistered_sadface" : var0 + '.' + var1.getNamespace() + '.' + var1.getPath().replace('/', '.');
++      return var1 == null ? var0 + ".unregistered_sadface" : var0 + "." + var1.getNamespace() + "." + var1.getPath().replace('/', '.');
+    }
+ 
+    public static long getMillis() {
+       return getNanos() / 1000000L;
+    }
+@@ -91,11 +104,11 @@
     public static long getEpochMillis() {
        return Instant.now().toEpochMilli();
     }
@@ -58,7 +89,7 @@
           var2 = MoreExecutors.newDirectExecutorService();
        } else {
           var2 = new ForkJoinPool(var1, (var1x) -> {
-@@ -203,10 +210,25 @@
+@@ -203,10 +216,25 @@
        }
  
        return var2;
@@ -84,7 +115,7 @@
        if (var0.contains("win")) {
           return Util.OS.WINDOWS;
        } else if (var0.contains("mac")) {
-@@ -283,10 +305,28 @@
+@@ -283,10 +311,28 @@
     public static <K> Strategy<K> identityStrategy() {
        return Util.IdentityStrategy.INSTANCE;
     }
@@ -113,13 +144,13 @@
        CompletableFuture var3 = new CompletableFuture();
        var0.forEach((var3x) -> {
           int var4 = var1.size();
-@@ -321,24 +361,35 @@
+@@ -321,24 +367,35 @@
  
     public static Runnable name(Runnable var0, Supplier<String> var1) {
        return var0;
     }
  
-+   public static final void logAndPauseIfInIde(String var0) {
++   public static void logAndPauseIfInIde(String var0) {
 +      LOGGER.error(var0);
 +      if (SharedConstants.IS_RUNNING_IN_IDE) {
 +         doPause();
@@ -158,7 +189,7 @@
  
     public static String describeError(Throwable var0) {
        if (var0.getCause() != null) {
-@@ -354,10 +405,14 @@
+@@ -354,10 +411,14 @@
  
     public static int getRandom(int[] var0, Random var1) {
        return var0[var1.nextInt(var0.length)];
@@ -173,7 +204,7 @@
           public boolean getAsBoolean() {
              try {
                 Files.move(var0, var1);
-@@ -495,10 +550,19 @@
+@@ -495,10 +556,19 @@
        } else {
           return DataResult.success(var2);
        }
@@ -193,26 +224,37 @@
           public void run() {
              while(true) {
                 try {
-@@ -525,10 +589,40 @@
+@@ -525,23 +595,40 @@
        return (String)var0.toLowerCase(Locale.ROOT).chars().mapToObj((var1x) -> {
           return var1.test((char)var1x) ? Character.toString((char)var1x) : "_";
        }).collect(Collectors.joining());
     }
  
+-   static enum IdentityStrategy implements Strategy<Object> {
+-      INSTANCE;
 +   public static <T, R> Function<T, R> memoize(final Function<T, R> var0) {
 +      return new Function<T, R>() {
 +         private final Map<T, R> cache = Maps.newHashMap();
-+
+ 
+-      private IdentityStrategy() {
+-      }
 +         public R apply(T var1) {
 +            return this.cache.computeIfAbsent(var1, var0);
 +         }
-+
+ 
+-      public int hashCode(Object var1) {
+-         return System.identityHashCode(var1);
+-      }
 +         public String toString() {
-+            return "memoize/1[function=" + var0 + ", size=" + this.cache.size() + "]";
++            Function var10000 = var0;
++            return "memoize/1[function=" + var10000 + ", size=" + this.cache.size() + "]";
 +         }
 +      };
 +   }
-+
+ 
+-      public boolean equals(Object var1, Object var2) {
+-         return var1 == var2;
+-      }
 +   public static <T, U, R> BiFunction<T, U, R> memoize(final BiFunction<T, U, R> var0) {
 +      return new BiFunction<T, U, R>() {
 +         private final Map<Pair<T, U>, R> cache = Maps.newHashMap();
@@ -224,13 +266,47 @@
 +         }
 +
 +         public String toString() {
-+            return "memoize/2[function=" + var0 + ", size=" + this.cache.size() + "]";
++            BiFunction var10000 = var0;
++            return "memoize/2[function=" + var10000 + ", size=" + this.cache.size() + "]";
 +         }
 +      };
-+   }
-+
-    static enum IdentityStrategy implements Strategy<Object> {
-       INSTANCE;
+    }
  
-       private IdentityStrategy() {
+    public static enum OS {
+       LINUX,
+       SOLARIS,
+@@ -555,11 +642,11 @@
+             return new String[]{"open", var1.toString()};
+          }
+       },
+       UNKNOWN;
+ 
+-      private OS() {
++      OS() {
        }
+ 
+       public void openUrl(URL var1) {
+          try {
+             Process var2 = (Process)AccessController.doPrivileged(() -> {
+@@ -615,6 +702,21 @@
+             Util.LOGGER.error("Couldn't open uri '{}'", var1, var3);
+          }
+ 
+       }
+    }
++
++   static enum IdentityStrategy implements Strategy<Object> {
++      INSTANCE;
++
++      private IdentityStrategy() {
++      }
++
++      public int hashCode(Object var1) {
++         return System.identityHashCode(var1);
++      }
++
++      public boolean equals(Object var1, Object var2) {
++         return var1 == var2;
++      }
++   }
+ }

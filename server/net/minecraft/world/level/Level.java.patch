@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/Level.java
 +++ net/minecraft/world/level/Level.java
-@@ -2,11 +2,10 @@
+@@ -2,13 +2,13 @@
  
  import com.google.common.collect.Lists;
  import com.mojang.serialization.Codec;
@@ -9,10 +9,13 @@
 -import java.util.Collection;
  import java.util.Iterator;
  import java.util.List;
++import java.util.Objects;
  import java.util.Random;
  import java.util.function.Consumer;
  import java.util.function.Predicate;
-@@ -16,11 +15,13 @@
+ import java.util.function.Supplier;
+ import javax.annotation.Nullable;
+@@ -16,11 +16,13 @@
  import net.minecraft.CrashReportCategory;
  import net.minecraft.ReportedException;
  import net.minecraft.core.BlockPos;
@@ -26,7 +29,7 @@
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.server.MinecraftServer;
  import net.minecraft.server.level.ChunkHolder;
-@@ -30,29 +31,32 @@
+@@ -30,29 +32,32 @@
  import net.minecraft.util.Mth;
  import net.minecraft.util.profiling.ProfilerFiller;
  import net.minecraft.world.DifficultyInstance;
@@ -62,7 +65,7 @@
  import net.minecraft.world.level.material.FluidState;
  import net.minecraft.world.level.material.Fluids;
  import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-@@ -67,15 +71,21 @@
+@@ -67,15 +72,21 @@
     protected static final Logger LOGGER = LogManager.getLogger();
     public static final Codec<ResourceKey<Level>> RESOURCE_KEY_CODEC;
     public static final ResourceKey<Level> OVERWORLD;
@@ -88,7 +91,7 @@
     private int skyDarken;
     protected int randValue = (new Random()).nextInt();
     protected final int addend = 1013904223;
-@@ -86,11 +96,10 @@
+@@ -86,11 +97,10 @@
     public final Random random = new Random();
     private final DimensionType dimensionType;
     protected final WritableLevelData levelData;
@@ -100,7 +103,7 @@
     private final ResourceKey<Level> dimension;
  
     protected Level(WritableLevelData var1, ResourceKey<Level> var2, final DimensionType var3, Supplier<ProfilerFiller> var4, boolean var5, boolean var6, long var7) {
-@@ -125,12 +134,12 @@
+@@ -125,12 +135,12 @@
     @Nullable
     public MinecraftServer getServer() {
        return null;
@@ -115,7 +118,7 @@
     public static boolean isInSpawnableBounds(BlockPos var0) {
        return !isOutsideSpawnableHeight(var0.getY()) && isInWorldBoundsHorizontal(var0);
     }
-@@ -141,26 +150,19 @@
+@@ -141,26 +151,19 @@
  
     private static boolean isOutsideSpawnableHeight(int var0) {
        return var0 < -20000000 || var0 >= 20000000;
@@ -144,7 +147,7 @@
        if (var5 == null && var4) {
           throw new IllegalStateException("Should always be able to create a chunk!");
        } else {
-@@ -171,11 +173,11 @@
+@@ -171,11 +174,11 @@
     public boolean setBlock(BlockPos var1, BlockState var2, int var3) {
        return this.setBlock(var1, var2, var3, 512);
     }
@@ -157,7 +160,7 @@
           return false;
        } else {
           LevelChunk var5 = this.getChunkAt(var1);
-@@ -239,18 +241,26 @@
+@@ -239,18 +242,26 @@
           if (!(var5.getBlock() instanceof BaseFireBlock)) {
              this.levelEvent(2001, var1, Block.getId(var5));
           }
@@ -186,7 +189,7 @@
     }
  
     public abstract void sendBlockUpdated(BlockPos var1, BlockState var2, BlockState var3, int var4);
-@@ -308,23 +318,23 @@
+@@ -308,23 +319,23 @@
                    return String.format("ID #%s (%s // %s)", Registry.BLOCK.getKey(var2), var2.getDescriptionId(), var2.getClass().getCanonicalName());
                 } catch (Throwable var2x) {
                    return "ID #" + Registry.BLOCK.getKey(var2);
@@ -214,7 +217,7 @@
           var4 = this.getSeaLevel() + 1;
        }
  
-@@ -334,20 +344,20 @@
+@@ -334,20 +345,20 @@
     public LevelLightEngine getLightEngine() {
        return this.getChunkSource().getLightEngine();
     }
@@ -238,7 +241,7 @@
           LevelChunk var2 = this.getChunkAt(var1);
           return var2.getFluidState(var1);
        }
-@@ -373,10 +383,13 @@
+@@ -373,10 +384,13 @@
     }
  
     public void addParticle(ParticleOptions var1, double var2, double var4, double var6, double var8, double var10, double var12) {
@@ -252,7 +255,7 @@
  
     public void addAlwaysVisibleParticle(ParticleOptions var1, boolean var2, double var3, double var5, double var7, double var9, double var11, double var13) {
     }
-@@ -384,117 +397,39 @@
+@@ -384,117 +398,39 @@
     public float getSunAngle(float var1) {
        float var2 = this.getTimeOfDay(var1);
        return var2 * 6.2831855F;
@@ -383,7 +386,7 @@
        } catch (Throwable var6) {
           CrashReport var4 = CrashReport.forThrowable(var6, "Ticking entity");
           CrashReportCategory var5 = var4.addCategory("Entity being ticked");
-@@ -516,101 +451,43 @@
+@@ -516,101 +452,43 @@
        var13.explode();
        var13.finalizeExplosion(true);
        return var13;
@@ -496,7 +499,7 @@
     }
  
     public boolean loadedAndEntityCanStandOn(BlockPos var1, Entity var2) {
-@@ -645,97 +522,63 @@
+@@ -645,97 +523,63 @@
     @Nullable
     public BlockGetter getChunkForCollisions(int var1, int var2) {
        return this.getChunk(var1, var2, ChunkStatus.FULL, false);
@@ -625,7 +628,7 @@
        }
  
     }
-@@ -819,10 +662,13 @@
+@@ -819,10 +663,13 @@
        }
  
        return var2;
@@ -639,15 +642,16 @@
     }
  
     public long getDayTime() {
-@@ -850,14 +696,24 @@
+@@ -850,14 +697,26 @@
  
     public float getThunderLevel(float var1) {
        return Mth.lerp(var1, this.oThunderLevel, this.thunderLevel) * this.getRainLevel(var1);
     }
  
 +   public void setThunderLevel(float var1) {
-+      this.oThunderLevel = var1;
-+      this.thunderLevel = var1;
++      float var2 = Mth.clamp(var1, 0.0F, 1.0F);
++      this.oThunderLevel = var2;
++      this.thunderLevel = var2;
 +   }
 +
     public float getRainLevel(float var1) {
@@ -655,8 +659,9 @@
     }
  
 +   public void setRainLevel(float var1) {
-+      this.oRainLevel = var1;
-+      this.rainLevel = var1;
++      float var2 = Mth.clamp(var1, 0.0F, 1.0F);
++      this.oRainLevel = var2;
++      this.rainLevel = var2;
 +   }
 +
     public boolean isThundering() {
@@ -664,7 +669,7 @@
           return (double)this.getThunderLevel(1.0F) > 0.9D;
        } else {
           return false;
-@@ -887,11 +743,11 @@
+@@ -887,39 +746,44 @@
     }
  
     @Nullable
@@ -677,7 +682,17 @@
  
     public void globalLevelEvent(int var1, BlockPos var2, int var3) {
     }
-@@ -906,20 +762,23 @@
+ 
+    public CrashReportCategory fillReportDetails(CrashReport var1) {
+       CrashReportCategory var2 = var1.addCategory("Affected level", 1);
+       var2.setDetail("All players", () -> {
+-         return this.players().size() + " total; " + this.players();
++         int var10000 = this.players().size();
++         return var10000 + " total; " + this.players();
+       });
+       ChunkSource var10002 = this.getChunkSource();
++      Objects.requireNonNull(var10002);
+       var2.setDetail("Chunk stats", var10002::gatherStats);
        var2.setDetail("Level dimension", () -> {
           return this.dimension().location().toString();
        });
@@ -702,7 +717,7 @@
     public void updateNeighbourForOutputSignal(BlockPos var1, Block var2) {
        Iterator var3 = Direction.Plane.HORIZONTAL.iterator();
  
-@@ -982,10 +841,14 @@
+@@ -982,10 +846,14 @@
  
     public boolean isStateAtPosition(BlockPos var1, Predicate<BlockState> var2) {
        return var2.test(this.getBlockState(var1));
@@ -717,7 +732,7 @@
     public abstract TagContainer getTagManager();
  
     public BlockPos getBlockRandomPos(int var1, int var2, int var3, int var4) {
-@@ -1012,10 +875,33 @@
+@@ -1012,10 +880,33 @@
  
     public final boolean isDebug() {
        return this.isDebug;

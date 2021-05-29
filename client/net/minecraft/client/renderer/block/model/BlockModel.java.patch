@@ -13,7 +13,7 @@
     private final BlockModel.GuiLight guiLight;
     private final boolean hasAmbientOcclusion;
     private final ItemTransforms transforms;
-@@ -100,10 +102,14 @@
+@@ -100,16 +102,25 @@
        } else {
           return this.parent != null ? this.parent.getGuiLight() : BlockModel.GuiLight.SIDE;
        }
@@ -28,18 +28,36 @@
     }
  
     private ItemOverrides getItemOverrides(ModelBakery var1, BlockModel var2) {
-@@ -314,11 +320,19 @@
-       public boolean lightLikeBlock() {
+-      return this.overrides.isEmpty() ? ItemOverrides.EMPTY : new ItemOverrides(var1, var2, var1::getModel, this.overrides);
++      if (this.overrides.isEmpty()) {
++         return ItemOverrides.EMPTY;
++      } else {
++         Objects.requireNonNull(var1);
++         return new ItemOverrides(var1, var2, var1::getModel, this.overrides);
++      }
+    }
+ 
+    public Collection<ResourceLocation> getDependencies() {
+       HashSet var1 = Sets.newHashSet();
+       Iterator var2 = this.overrides.iterator();
+@@ -257,11 +268,11 @@
+       }
+ 
+       return Either.left(new Material(TextureAtlas.LOCATION_BLOCKS, MissingTextureAtlasSprite.getLocation()));
+    }
+ 
+-   private static boolean isTextureReference(String var0) {
++   static boolean isTextureReference(String var0) {
+       return var0.charAt(0) == '#';
+    }
+ 
+    public BlockModel getRootModel() {
+       return this.parent == null ? this : this.parent.getRootModel();
+@@ -315,10 +326,12 @@
           return this == SIDE;
        }
     }
  
-+   public static class LoopException extends RuntimeException {
-+      public LoopException(String var1) {
-+         super(var1);
-+      }
-+   }
-+
     public static class Deserializer implements JsonDeserializer<BlockModel> {
 +      private static final boolean DEFAULT_AMBIENT_OCCLUSION = true;
 +
@@ -48,3 +66,50 @@
  
        public BlockModel deserialize(JsonElement var1, Type var2, JsonDeserializationContext var3) throws JsonParseException {
           JsonObject var4 = var1.getAsJsonObject();
+@@ -348,11 +361,11 @@
+             JsonArray var4 = GsonHelper.getAsJsonArray(var2, "overrides");
+             Iterator var5 = var4.iterator();
+ 
+             while(var5.hasNext()) {
+                JsonElement var6 = (JsonElement)var5.next();
+-               var3.add(var1.deserialize(var6, ItemOverride.class));
++               var3.add((ItemOverride)var1.deserialize(var6, ItemOverride.class));
+             }
+          }
+ 
+          return var3;
+       }
+@@ -364,11 +377,11 @@
+             JsonObject var4 = GsonHelper.getAsJsonObject(var1, "textures");
+             Iterator var5 = var4.entrySet().iterator();
+ 
+             while(var5.hasNext()) {
+                Entry var6 = (Entry)var5.next();
+-               var3.put(var6.getKey(), parseTextureLocationOrReference(var2, ((JsonElement)var6.getValue()).getAsString()));
++               var3.put((String)var6.getKey(), parseTextureLocationOrReference(var2, ((JsonElement)var6.getValue()).getAsString()));
+             }
+          }
+ 
+          return var3;
+       }
+@@ -399,13 +412,19 @@
+          if (var2.has("elements")) {
+             Iterator var4 = GsonHelper.getAsJsonArray(var2, "elements").iterator();
+ 
+             while(var4.hasNext()) {
+                JsonElement var5 = (JsonElement)var4.next();
+-               var3.add(var1.deserialize(var5, BlockElement.class));
++               var3.add((BlockElement)var1.deserialize(var5, BlockElement.class));
+             }
+          }
+ 
+          return var3;
+       }
+    }
++
++   public static class LoopException extends RuntimeException {
++      public LoopException(String var1) {
++         super(var1);
++      }
++   }
+ }

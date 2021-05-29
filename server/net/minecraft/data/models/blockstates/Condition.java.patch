@@ -1,6 +1,18 @@
 --- net/minecraft/data/models/blockstates/Condition.java
 +++ net/minecraft/data/models/blockstates/Condition.java
-@@ -18,10 +18,14 @@
+@@ -5,10 +5,11 @@
+ import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
+ import java.util.Arrays;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.function.Supplier;
+ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+ import net.minecraft.world.level.block.state.StateDefinition;
+ import net.minecraft.world.level.block.state.properties.Property;
+@@ -18,10 +19,14 @@
  
     static Condition.TerminalCondition condition() {
        return new Condition.TerminalCondition();
@@ -15,20 +27,35 @@
     }
  
     public static class TerminalCondition implements Condition {
-@@ -55,10 +59,21 @@
+@@ -29,11 +34,11 @@
+ 
+       public TerminalCondition() {
+       }
+ 
+       private static <T extends Comparable<T>> String joinValues(Property<T> var0, Stream<T> var1) {
+-         var0.getClass();
++         Objects.requireNonNull(var0);
+          return (String)var1.map(var0::getName).collect(Collectors.joining("|"));
+       }
+ 
+       private static <T extends Comparable<T>> String getTerm(Property<T> var0, T var1, T[] var2) {
+          return joinValues(var0, Stream.concat(Stream.of(var1), Stream.of(var2)));
+@@ -55,10 +60,23 @@
        public final <T extends Comparable<T>> Condition.TerminalCondition term(Property<T> var1, T var2, T... var3) {
           this.putValue(var1, getTerm(var1, var2, var3));
           return this;
        }
  
 +      public final <T extends Comparable<T>> Condition.TerminalCondition negatedTerm(Property<T> var1, T var2) {
-+         this.putValue(var1, "!" + var1.getName(var2));
++         String var10002 = var1.getName(var2);
++         this.putValue(var1, "!" + var10002);
 +         return this;
 +      }
 +
 +      @SafeVarargs
 +      public final <T extends Comparable<T>> Condition.TerminalCondition negatedTerm(Property<T> var1, T var2, T... var3) {
-+         this.putValue(var1, "!" + getTerm(var1, var2, var3));
++         String var10002 = getTerm(var1, var2, var3);
++         this.putValue(var1, "!" + var10002);
 +         return this;
 +      }
 +
@@ -37,3 +64,43 @@
           this.terms.forEach((var1x, var2) -> {
              var1.addProperty(var1x.getName(), var2);
           });
+@@ -77,11 +95,11 @@
+ 
+    public static class CompositeCondition implements Condition {
+       private final Condition.Operation operation;
+       private final List<Condition> subconditions;
+ 
+-      private CompositeCondition(Condition.Operation var1, List<Condition> var2) {
++      CompositeCondition(Condition.Operation var1, List<Condition> var2) {
+          this.operation = var1;
+          this.subconditions = var2;
+       }
+ 
+       public void validate(StateDefinition<?, ?> var1) {
+@@ -90,22 +108,24 @@
+          });
+       }
+ 
+       public JsonElement get() {
+          JsonArray var1 = new JsonArray();
+-         this.subconditions.stream().map(Supplier::get).forEach(var1::add);
++         Stream var10000 = this.subconditions.stream().map(Supplier::get);
++         Objects.requireNonNull(var1);
++         var10000.forEach(var1::add);
+          JsonObject var2 = new JsonObject();
+          var2.add(this.operation.id, var1);
+          return var2;
+       }
+    }
+ 
+    public static enum Operation {
+       AND("AND"),
+       OR("OR");
+ 
+-      private final String id;
++      final String id;
+ 
+       private Operation(String var3) {
+          this.id = var3;
+       }
+    }

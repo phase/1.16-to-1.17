@@ -1,0 +1,104 @@
+--- net/minecraft/client/renderer/GpuWarnlistManager.java
++++ net/minecraft/client/renderer/GpuWarnlistManager.java
+@@ -129,66 +129,56 @@
+       var1.push("parse_json");
+       JsonObject var2 = null;
+ 
+       try {
+          Resource var3 = var0.getResource(GPU_WARNLIST_LOCATION);
+-         Throwable var4 = null;
+ 
+          try {
+-            BufferedReader var5 = new BufferedReader(new InputStreamReader(var3.getInputStream(), StandardCharsets.UTF_8));
+-            Throwable var6 = null;
++            BufferedReader var4 = new BufferedReader(new InputStreamReader(var3.getInputStream(), StandardCharsets.UTF_8));
+ 
+             try {
+-               var2 = (new JsonParser()).parse(var5).getAsJsonObject();
+-            } catch (Throwable var31) {
+-               var6 = var31;
+-               throw var31;
+-            } finally {
+-               if (var5 != null) {
+-                  if (var6 != null) {
+-                     try {
+-                        var5.close();
+-                     } catch (Throwable var30) {
+-                        var6.addSuppressed(var30);
+-                     }
+-                  } else {
+-                     var5.close();
+-                  }
++               var2 = (new JsonParser()).parse(var4).getAsJsonObject();
++            } catch (Throwable var9) {
++               try {
++                  var4.close();
++               } catch (Throwable var8) {
++                  var9.addSuppressed(var8);
+                }
+ 
++               throw var9;
+             }
+-         } catch (Throwable var33) {
+-            var4 = var33;
+-            throw var33;
+-         } finally {
++
++            var4.close();
++         } catch (Throwable var10) {
+             if (var3 != null) {
+-               if (var4 != null) {
+-                  try {
+-                     var3.close();
+-                  } catch (Throwable var29) {
+-                     var4.addSuppressed(var29);
+-                  }
+-               } else {
++               try {
+                   var3.close();
++               } catch (Throwable var7) {
++                  var10.addSuppressed(var7);
+                }
+             }
+ 
++            throw var10;
+          }
+-      } catch (JsonSyntaxException | IOException var35) {
++
++         if (var3 != null) {
++            var3.close();
++         }
++      } catch (JsonSyntaxException | IOException var11) {
+          LOGGER.warn("Failed to load GPU warnlist");
+       }
+ 
+       var1.pop();
+       return var2;
+    }
+ 
+-   public static final class Preparations {
++   protected static final class Preparations {
+       private final List<Pattern> rendererPatterns;
+       private final List<Pattern> versionPatterns;
+       private final List<Pattern> vendorPatterns;
+ 
+-      private Preparations(List<Pattern> var1, List<Pattern> var2, List<Pattern> var3) {
++      Preparations(List<Pattern> var1, List<Pattern> var2, List<Pattern> var3) {
+          this.rendererPatterns = var1;
+          this.versionPatterns = var2;
+          this.vendorPatterns = var3;
+       }
+ 
+@@ -206,11 +196,11 @@
+          }
+ 
+          return String.join(", ", var2);
+       }
+ 
+-      private ImmutableMap<String, String> apply() {
++      ImmutableMap<String, String> apply() {
+          Builder var1 = new Builder();
+          String var2 = matchAny(this.rendererPatterns, GlUtil.getRenderer());
+          if (!var2.isEmpty()) {
+             var1.put("renderer", var2);
+          }

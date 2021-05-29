@@ -1,10 +1,25 @@
 --- net/minecraft/client/gui/screens/recipebook/RecipeBookComponent.java
 +++ net/minecraft/client/gui/screens/recipebook/RecipeBookComponent.java
-@@ -18,10 +18,11 @@
+@@ -6,10 +6,11 @@
+ import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+ import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Locale;
++import java.util.Objects;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.client.ClientRecipeBook;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.RecipeBookCategories;
+@@ -17,11 +18,14 @@
+ import net.minecraft.client.gui.GuiComponent;
  import net.minecraft.client.gui.components.EditBox;
  import net.minecraft.client.gui.components.StateSwitchingButton;
  import net.minecraft.client.gui.components.Widget;
  import net.minecraft.client.gui.components.events.GuiEventListener;
++import net.minecraft.client.gui.narration.NarratableEntry;
++import net.minecraft.client.gui.narration.NarrationElementOutput;
  import net.minecraft.client.gui.screens.Screen;
 +import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.client.resources.language.LanguageInfo;
@@ -12,10 +27,14 @@
  import net.minecraft.client.searchtree.SearchRegistry;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TranslatableComponent;
-@@ -38,10 +39,13 @@
+@@ -35,13 +39,16 @@
+ import net.minecraft.world.inventory.Slot;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.crafting.Ingredient;
  import net.minecraft.world.item.crafting.Recipe;
  
- public class RecipeBookComponent extends GuiComponent implements Widget, GuiEventListener, RecipeShownListener, PlaceRecipe<Ingredient> {
+-public class RecipeBookComponent extends GuiComponent implements Widget, GuiEventListener, RecipeShownListener, PlaceRecipe<Ingredient> {
++public class RecipeBookComponent extends GuiComponent implements Widget, GuiEventListener, NarratableEntry, RecipeShownListener, PlaceRecipe<Ingredient> {
     protected static final ResourceLocation RECIPE_BOOK_LOCATION = new ResourceLocation("textures/gui/recipe_book.png");
     private static final Component SEARCH_HINT;
 +   public static final int IMAGE_WIDTH = 147;
@@ -26,20 +45,35 @@
     private int xOffset;
     private int width;
     private int height;
-@@ -67,11 +71,11 @@
+@@ -56,10 +63,11 @@
+    private ClientRecipeBook book;
+    private final RecipeBookPage recipeBookPage = new RecipeBookPage();
+    private final StackedContents stackedContents = new StackedContents();
+    private int timesInventoryChanged;
+    private boolean ignoreTextInput;
++   private boolean visible;
+ 
+    public RecipeBookComponent() {
+    }
+ 
+    public void init(int var1, int var2, Minecraft var3, boolean var4, RecipeBookMenu<?> var5) {
+@@ -67,12 +75,13 @@
        this.width = var1;
        this.height = var2;
        this.menu = var5;
        var3.player.containerMenu = var5;
        this.book = var3.player.getRecipeBook();
 -      this.timesInventoryChanged = var3.player.inventory.getTimesChanged();
+-      if (this.isVisible()) {
 +      this.timesInventoryChanged = var3.player.getInventory().getTimesChanged();
-       if (this.isVisible()) {
++      this.visible = this.isVisibleAccordingToBookData();
++      if (this.visible) {
           this.initVisuals(var4);
        }
  
        var3.keyboardHandler.setSendRepeatsToGui(true);
-@@ -80,11 +84,11 @@
+    }
+@@ -80,17 +89,17 @@
     public void initVisuals(boolean var1) {
        this.xOffset = var1 ? 0 : 86;
        int var2 = (this.width - 147) / 2 - this.xOffset;
@@ -52,11 +86,44 @@
        Font var10003 = this.minecraft.font;
        int var10004 = var2 + 25;
        int var10005 = var3 + 14;
-@@ -229,32 +233,33 @@
+-      this.minecraft.font.getClass();
++      Objects.requireNonNull(this.minecraft.font);
+       this.searchBox = new EditBox(var10003, var10004, var10005, 80, 9 + 5, new TranslatableComponent("itemGroup.search"));
+       this.searchBox.setMaxLength(50);
+       this.searchBox.setBordered(false);
+       this.searchBox.setVisible(true);
+       this.searchBox.setTextColor(16777215);
+@@ -150,14 +159,19 @@
+    public void toggleVisibility() {
+       this.setVisible(!this.isVisible());
+    }
+ 
+    public boolean isVisible() {
++      return this.visible;
++   }
++
++   private boolean isVisibleAccordingToBookData() {
+       return this.book.isOpen(this.menu.getRecipeBookType());
+    }
+ 
+    protected void setVisible(boolean var1) {
++      this.visible = var1;
+       this.book.setOpen(this.menu.getRecipeBookType(), var1);
+       if (!var1) {
+          this.recipeBookPage.setInvisible();
+       }
+ 
+@@ -228,33 +242,39 @@
+          return;
        }
     }
  
     public void tick() {
++      boolean var1 = this.isVisibleAccordingToBookData();
++      if (this.isVisible() != var1) {
++         this.setVisible(var1);
++      }
++
        if (this.isVisible()) {
 -         if (this.timesInventoryChanged != this.minecraft.player.inventory.getTimesChanged()) {
 +         if (this.timesInventoryChanged != this.minecraft.player.getInventory().getTimesChanged()) {
@@ -93,7 +160,7 @@
           this.blit(var1, var5, var6, 1, 1, 147, 166);
           if (!this.searchBox.isFocused() && this.searchBox.getValue().isEmpty()) {
              drawString(var1, this.minecraft.font, SEARCH_HINT, var5 + 25, var6 + 14, -1);
-@@ -269,11 +274,11 @@
+@@ -269,11 +289,11 @@
              var8.render(var1, var2, var3, var4);
           }
  
@@ -106,3 +173,36 @@
  
     public void renderTooltip(PoseStack var1, int var2, int var3, int var4, int var5) {
        if (this.isVisible()) {
+@@ -507,10 +527,32 @@
+          this.minecraft.getConnection().send((Packet)(new ServerboundRecipeBookChangeSettingsPacket(var1, var2, var3)));
+       }
+ 
+    }
+ 
++   public NarratableEntry.NarrationPriority narrationPriority() {
++      return this.visible ? NarratableEntry.NarrationPriority.HOVERED : NarratableEntry.NarrationPriority.NONE;
++   }
++
++   public void updateNarration(NarrationElementOutput var1) {
++      ArrayList var2 = Lists.newArrayList();
++      this.recipeBookPage.listButtons((var1x) -> {
++         if (var1x.isActive()) {
++            var2.add(var1x);
++         }
++
++      });
++      var2.add(this.searchBox);
++      var2.add(this.filterButton);
++      var2.addAll(this.tabButtons);
++      Screen.NarratableSearchResult var3 = Screen.findNarratableWidget(var2, (NarratableEntry)null);
++      if (var3 != null) {
++         var3.entry.updateNarration(var1.nest());
++      }
++
++   }
++
+    static {
+       SEARCH_HINT = (new TranslatableComponent("gui.recipebook.search_hint")).withStyle(ChatFormatting.ITALIC).withStyle(ChatFormatting.GRAY);
+       ONLY_CRAFTABLES_TOOLTIP = new TranslatableComponent("gui.recipebook.toggleRecipes.craftable");
+       ALL_RECIPES_TOOLTIP = new TranslatableComponent("gui.recipebook.toggleRecipes.all");
+    }

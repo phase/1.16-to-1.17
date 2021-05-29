@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/biome/MobSpawnSettings.java
 +++ net/minecraft/world/level/biome/MobSpawnSettings.java
-@@ -1,66 +1,68 @@
+@@ -1,66 +1,70 @@
  package net.minecraft.world.level.biome;
  
 -import com.google.common.collect.ImmutableList;
@@ -14,12 +14,14 @@
 -import java.util.Collection;
  import java.util.List;
  import java.util.Map;
++import java.util.Objects;
  import java.util.Map.Entry;
  import java.util.function.BiFunction;
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  import net.minecraft.Util;
  import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceLocation;
  import net.minecraft.util.StringRepresentable;
 -import net.minecraft.util.WeighedRandom;
 +import net.minecraft.util.random.Weight;
@@ -49,7 +51,8 @@
 -      Codec var10003 = MobSpawnSettings.SpawnerData.CODEC.listOf();
 +      Codec var10003 = WeightedRandomList.codec(MobSpawnSettings.SpawnerData.CODEC);
        Logger var10005 = LOGGER;
-       var10005.getClass();
+-      var10005.getClass();
++      Objects.requireNonNull(var10005);
        return var0.group(var10001, Codec.simpleMap(var10002, var10003.promotePartial(Util.prefix("Spawn data: ", var10005::error)), StringRepresentable.keys(MobCategory.values())).fieldOf("spawners").forGetter((var0x) -> {
           return var0x.spawners;
        }), Codec.simpleMap(Registry.ENTITY_TYPE, MobSpawnSettings.MobSpawnCost.CODEC, Registry.ENTITY_TYPE).fieldOf("spawn_costs").forGetter((var0x) -> {
@@ -63,7 +66,7 @@
     private final boolean playerSpawnFriendly;
  
 -   private MobSpawnSettings(float var1, Map<MobCategory, List<MobSpawnSettings.SpawnerData>> var2, Map<EntityType<?>, MobSpawnSettings.MobSpawnCost> var3, boolean var4) {
-+   private MobSpawnSettings(float var1, Map<MobCategory, WeightedRandomList<MobSpawnSettings.SpawnerData>> var2, Map<EntityType<?>, MobSpawnSettings.MobSpawnCost> var3, boolean var4) {
++   MobSpawnSettings(float var1, Map<MobCategory, WeightedRandomList<MobSpawnSettings.SpawnerData>> var2, Map<EntityType<?>, MobSpawnSettings.MobSpawnCost> var3, boolean var4) {
        this.creatureGenerationProbability = var1;
 -      this.spawners = var2;
 -      this.mobSpawnCosts = var3;
@@ -81,20 +84,71 @@
     @Nullable
     public MobSpawnSettings.MobSpawnCost getMobSpawnCost(EntityType<?> var1) {
        return (MobSpawnSettings.MobSpawnCost)this.mobSpawnCosts.get(var1);
-@@ -107,11 +109,11 @@
-          return this;
-       }
+@@ -72,50 +76,10 @@
  
-       public MobSpawnSettings build() {
-          return new MobSpawnSettings(this.creatureGenerationProbability, (Map)this.spawners.entrySet().stream().collect(ImmutableMap.toImmutableMap(Entry::getKey, (var0) -> {
--            return ImmutableList.copyOf((Collection)var0.getValue());
-+            return WeightedRandomList.create((List)var0.getValue());
-          })), ImmutableMap.copyOf(this.mobSpawnCosts), this.playerCanSpawn);
-       }
+    public boolean playerSpawnFriendly() {
+       return this.playerSpawnFriendly;
     }
  
+-   public static class Builder {
+-      private final Map<MobCategory, List<MobSpawnSettings.SpawnerData>> spawners = (Map)Stream.of(MobCategory.values()).collect(ImmutableMap.toImmutableMap((var0) -> {
+-         return var0;
+-      }, (var0) -> {
+-         return Lists.newArrayList();
+-      }));
+-      private final Map<EntityType<?>, MobSpawnSettings.MobSpawnCost> mobSpawnCosts = Maps.newLinkedHashMap();
+-      private float creatureGenerationProbability = 0.1F;
+-      private boolean playerCanSpawn;
+-
+-      public Builder() {
+-      }
+-
+-      public MobSpawnSettings.Builder addSpawn(MobCategory var1, MobSpawnSettings.SpawnerData var2) {
+-         ((List)this.spawners.get(var1)).add(var2);
+-         return this;
+-      }
+-
+-      public MobSpawnSettings.Builder addMobCharge(EntityType<?> var1, double var2, double var4) {
+-         this.mobSpawnCosts.put(var1, new MobSpawnSettings.MobSpawnCost(var4, var2));
+-         return this;
+-      }
+-
+-      public MobSpawnSettings.Builder creatureGenerationProbability(float var1) {
+-         this.creatureGenerationProbability = var1;
+-         return this;
+-      }
+-
+-      public MobSpawnSettings.Builder setPlayerCanSpawn() {
+-         this.playerCanSpawn = true;
+-         return this;
+-      }
+-
+-      public MobSpawnSettings build() {
+-         return new MobSpawnSettings(this.creatureGenerationProbability, (Map)this.spawners.entrySet().stream().collect(ImmutableMap.toImmutableMap(Entry::getKey, (var0) -> {
+-            return ImmutableList.copyOf((Collection)var0.getValue());
+-         })), ImmutableMap.copyOf(this.mobSpawnCosts), this.playerCanSpawn);
+-      }
+-   }
+-
     public static class MobSpawnCost {
-@@ -137,33 +139,35 @@
+       public static final Codec<MobSpawnSettings.MobSpawnCost> CODEC = RecordCodecBuilder.create((var0) -> {
+          return var0.group(Codec.DOUBLE.fieldOf("energy_budget").forGetter((var0x) -> {
+             return var0x.energyBudget;
+          }), Codec.DOUBLE.fieldOf("charge").forGetter((var0x) -> {
+@@ -123,11 +87,11 @@
+          })).apply(var0, (BiFunction)(MobSpawnSettings.MobSpawnCost::new));
+       });
+       private final double energyBudget;
+       private final double charge;
+ 
+-      private MobSpawnCost(double var1, double var3) {
++      MobSpawnCost(double var1, double var3) {
+          this.energyBudget = var1;
+          this.charge = var3;
+       }
+ 
+       public double getEnergyBudget() {
+@@ -137,33 +101,76 @@
        public double getCharge() {
           return this.charge;
        }
@@ -131,7 +185,48 @@
  
        public String toString() {
 -         return EntityType.getKey(this.type) + "*(" + this.minCount + "-" + this.maxCount + "):" + this.weight;
-+         return EntityType.getKey(this.type) + "*(" + this.minCount + "-" + this.maxCount + "):" + this.getWeight();
++         ResourceLocation var10000 = EntityType.getKey(this.type);
++         return var10000 + "*(" + this.minCount + "-" + this.maxCount + "):" + this.getWeight();
        }
     }
++
++   public static class Builder {
++      private final Map<MobCategory, List<MobSpawnSettings.SpawnerData>> spawners = (Map)Stream.of(MobCategory.values()).collect(ImmutableMap.toImmutableMap((var0) -> {
++         return var0;
++      }, (var0) -> {
++         return Lists.newArrayList();
++      }));
++      private final Map<EntityType<?>, MobSpawnSettings.MobSpawnCost> mobSpawnCosts = Maps.newLinkedHashMap();
++      private float creatureGenerationProbability = 0.1F;
++      private boolean playerCanSpawn;
++
++      public Builder() {
++      }
++
++      public MobSpawnSettings.Builder addSpawn(MobCategory var1, MobSpawnSettings.SpawnerData var2) {
++         ((List)this.spawners.get(var1)).add(var2);
++         return this;
++      }
++
++      public MobSpawnSettings.Builder addMobCharge(EntityType<?> var1, double var2, double var4) {
++         this.mobSpawnCosts.put(var1, new MobSpawnSettings.MobSpawnCost(var4, var2));
++         return this;
++      }
++
++      public MobSpawnSettings.Builder creatureGenerationProbability(float var1) {
++         this.creatureGenerationProbability = var1;
++         return this;
++      }
++
++      public MobSpawnSettings.Builder setPlayerCanSpawn() {
++         this.playerCanSpawn = true;
++         return this;
++      }
++
++      public MobSpawnSettings build() {
++         return new MobSpawnSettings(this.creatureGenerationProbability, (Map)this.spawners.entrySet().stream().collect(ImmutableMap.toImmutableMap(Entry::getKey, (var0) -> {
++            return WeightedRandomList.create((List)var0.getValue());
++         })), ImmutableMap.copyOf(this.mobSpawnCosts), this.playerCanSpawn);
++      }
++   }
  }

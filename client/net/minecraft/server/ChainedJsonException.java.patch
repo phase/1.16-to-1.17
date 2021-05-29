@@ -1,8 +1,37 @@
 --- net/minecraft/server/ChainedJsonException.java
 +++ net/minecraft/server/ChainedJsonException.java
-@@ -59,10 +59,15 @@
+@@ -30,11 +30,12 @@
+       ((ChainedJsonException.Entry)this.entries.get(0)).filename = var1;
+       this.entries.add(0, new ChainedJsonException.Entry());
+    }
  
-       private void addJsonKey(String var1) {
+    public String getMessage() {
+-      return "Invalid " + this.entries.get(this.entries.size() - 1) + ": " + this.message;
++      Object var10000 = this.entries.get(this.entries.size() - 1);
++      return "Invalid " + var10000 + ": " + this.message;
+    }
+ 
+    public static ChainedJsonException forException(Exception var0) {
+       if (var0 instanceof ChainedJsonException) {
+          return (ChainedJsonException)var0;
+@@ -48,28 +49,37 @@
+       }
+    }
+ 
+    public static class Entry {
+       @Nullable
+-      private String filename;
+-      private final List<String> jsonKeys;
++      String filename;
++      private final List<String> jsonKeys = Lists.newArrayList();
+ 
+-      private Entry() {
+-         this.jsonKeys = Lists.newArrayList();
++      Entry() {
+       }
+ 
+-      private void addJsonKey(String var1) {
++      void addJsonKey(String var1) {
           this.jsonKeys.add(0, var1);
        }
  
@@ -16,3 +45,16 @@
        }
  
        public String toString() {
+          if (this.filename != null) {
+-            return this.jsonKeys.isEmpty() ? this.filename : this.filename + " " + this.getJsonKeys();
++            if (this.jsonKeys.isEmpty()) {
++               return this.filename;
++            } else {
++               String var10000 = this.filename;
++               return var10000 + " " + this.getJsonKeys();
++            }
+          } else {
+             return this.jsonKeys.isEmpty() ? "(Unknown file)" : "(Unknown file) " + this.getJsonKeys();
+          }
+       }
+    }

@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/ai/goal/GoalSelector.java
 +++ net/minecraft/world/entity/ai/goal/GoalSelector.java
-@@ -1,7 +1,8 @@
+@@ -1,11 +1,13 @@
  package net.minecraft.world.entity.ai.goal;
  
 +import com.google.common.annotations.VisibleForTesting;
@@ -8,8 +8,13 @@
  import java.util.EnumMap;
  import java.util.EnumSet;
  import java.util.Map;
++import java.util.Objects;
  import java.util.Set;
-@@ -24,20 +25,26 @@
+ import java.util.function.Supplier;
+ import java.util.stream.Stream;
+ import net.minecraft.util.profiling.ProfilerFiller;
+ import org.apache.logging.log4j.LogManager;
+@@ -24,20 +26,26 @@
     };
     private final Map<Goal.Flag, WrappedGoal> lockedFlags = new EnumMap(Goal.Flag.class);
     private final Set<WrappedGoal> availableGoals = Sets.newLinkedHashSet();
@@ -36,7 +41,33 @@
           return var1x.getGoal() == var1;
        }).filter(WrappedGoal::isRunning).forEach(WrappedGoal::stop);
        this.availableGoals.removeIf((var1x) -> {
-@@ -94,14 +101,22 @@
+@@ -51,11 +59,11 @@
+       this.getRunningGoals().filter((var1x) -> {
+          boolean var2;
+          if (var1x.isRunning()) {
+             Stream var10000 = var1x.getFlags().stream();
+             EnumSet var10001 = this.disabledFlags;
+-            var10001.getClass();
++            Objects.requireNonNull(var10001);
+             if (!var10000.anyMatch(var10001::contains) && var1x.canContinueToUse()) {
+                var2 = false;
+                return var2;
+             }
+          }
+@@ -74,11 +82,11 @@
+       this.availableGoals.stream().filter((var0) -> {
+          return !var0.isRunning();
+       }).filter((var1x) -> {
+          Stream var10000 = var1x.getFlags().stream();
+          EnumSet var10001 = this.disabledFlags;
+-         var10001.getClass();
++         Objects.requireNonNull(var10001);
+          return var10000.noneMatch(var10001::contains);
+       }).filter((var1x) -> {
+          return var1x.getFlags().stream().allMatch((var2) -> {
+             return ((WrappedGoal)this.lockedFlags.getOrDefault(var2, NO_GOAL)).canBeReplacedBy(var1x);
+          });
+@@ -94,14 +102,22 @@
        var1.push("goalTick");
        this.getRunningGoals().forEach(WrappedGoal::tick);
        var1.pop();

@@ -1,45 +1,177 @@
 --- net/minecraft/client/gui/font/FontManager.java
 +++ net/minecraft/client/gui/font/FontManager.java
-@@ -33,10 +33,11 @@
+@@ -17,10 +17,11 @@
+ import java.nio.charset.StandardCharsets;
+ import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
+ import net.minecraft.Util;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.font.providers.GlyphProviderBuilderType;
+ import net.minecraft.client.renderer.texture.TextureManager;
+ import net.minecraft.resources.ResourceLocation;
+@@ -32,15 +33,16 @@
+ import net.minecraft.util.profiling.ProfilerFiller;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class FontManager implements AutoCloseable {
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   private static final String FONTS_PATH = "fonts.json";
     public static final ResourceLocation MISSING_FONT = new ResourceLocation("minecraft", "missing");
     private final FontSet missingFontSet;
-    private final Map<ResourceLocation, FontSet> fontSets = Maps.newHashMap();
-    private final TextureManager textureManager;
+-   private final Map<ResourceLocation, FontSet> fontSets = Maps.newHashMap();
+-   private final TextureManager textureManager;
++   final Map<ResourceLocation, FontSet> fontSets = Maps.newHashMap();
++   final TextureManager textureManager;
     private Map<ResourceLocation, ResourceLocation> renames = ImmutableMap.of();
-@@ -88,11 +89,11 @@
-                                     var9.add(var21);
+    private final PreparableReloadListener reloadListener = new SimplePreparableReloadListener<Map<ResourceLocation, List<GlyphProvider>>>() {
+       protected Map<ResourceLocation, List<GlyphProvider>> prepare(ResourceManager var1, ProfilerFiller var2) {
+          var2.startTick();
+          Gson var3 = (new GsonBuilder()).setPrettyPrinting().disableHtmlEscaping().create();
+@@ -54,101 +56,93 @@
+             String var7 = var6.getPath();
+             ResourceLocation var8 = new ResourceLocation(var6.getNamespace(), var7.substring("font/".length(), var7.length() - ".json".length()));
+             List var9 = (List)var4.computeIfAbsent(var8, (var0) -> {
+                return Lists.newArrayList(new GlyphProvider[]{new AllMissingGlyphProvider()});
+             });
++            Objects.requireNonNull(var8);
+             var2.push(var8::toString);
+ 
+             try {
+                for(Iterator var10 = var1.getResources(var6).iterator(); var10.hasNext(); var2.pop()) {
+                   Resource var11 = (Resource)var10.next();
++                  Objects.requireNonNull(var11);
+                   var2.push(var11::getSourceName);
+ 
+                   try {
+                      InputStream var12 = var11.getInputStream();
+-                     Throwable var13 = null;
+ 
+                      try {
+-                        BufferedReader var14 = new BufferedReader(new InputStreamReader(var12, StandardCharsets.UTF_8));
+-                        Throwable var15 = null;
++                        BufferedReader var13 = new BufferedReader(new InputStreamReader(var12, StandardCharsets.UTF_8));
+ 
+                         try {
+                            var2.push("reading");
+-                           JsonArray var16 = GsonHelper.getAsJsonArray((JsonObject)GsonHelper.fromJson(var3, (Reader)var14, (Class)JsonObject.class), "providers");
++                           JsonArray var14 = GsonHelper.getAsJsonArray((JsonObject)GsonHelper.fromJson(var3, (Reader)var13, (Class)JsonObject.class), "providers");
+                            var2.popPush("parsing");
+ 
+-                           for(int var17 = var16.size() - 1; var17 >= 0; --var17) {
+-                              JsonObject var18 = GsonHelper.convertToJsonObject(var16.get(var17), "providers[" + var17 + "]");
++                           for(int var15 = var14.size() - 1; var15 >= 0; --var15) {
++                              JsonObject var16 = GsonHelper.convertToJsonObject(var14.get(var15), "providers[" + var15 + "]");
+ 
+                               try {
+-                                 String var19 = GsonHelper.getAsString(var18, "type");
+-                                 GlyphProviderBuilderType var20 = GlyphProviderBuilderType.byName(var19);
+-                                 var2.push(var19);
+-                                 GlyphProvider var21 = var20.create(var18).create(var1);
+-                                 if (var21 != null) {
+-                                    var9.add(var21);
++                                 String var17 = GsonHelper.getAsString(var16, "type");
++                                 GlyphProviderBuilderType var18 = GlyphProviderBuilderType.byName(var17);
++                                 var2.push(var17);
++                                 GlyphProvider var19 = var18.create(var16).create(var1);
++                                 if (var19 != null) {
++                                    var9.add(var19);
                                   }
  
                                   var2.pop();
-                               } catch (RuntimeException var49) {
+-                              } catch (RuntimeException var49) {
 -                                 FontManager.LOGGER.warn("Unable to read definition '{}' in fonts.json in resourcepack: '{}': {}", var8, var11.getSourceName(), var49.getMessage());
-+                                 FontManager.LOGGER.warn("Unable to read definition '{}' in {} in resourcepack: '{}': {}", var8, "fonts.json", var11.getSourceName(), var49.getMessage());
++                              } catch (RuntimeException var22) {
++                                 FontManager.LOGGER.warn("Unable to read definition '{}' in {} in resourcepack: '{}': {}", var8, "fonts.json", var11.getSourceName(), var22.getMessage());
                                }
                             }
  
                             var2.pop();
-                         } catch (Throwable var50) {
-@@ -128,15 +129,15 @@
+-                        } catch (Throwable var50) {
+-                           var15 = var50;
+-                           throw var50;
+-                        } finally {
+-                           if (var14 != null) {
+-                              if (var15 != null) {
+-                                 try {
+-                                    var14.close();
+-                                 } catch (Throwable var48) {
+-                                    var15.addSuppressed(var48);
+-                                 }
+-                              } else {
+-                                 var14.close();
+-                              }
++                        } catch (Throwable var23) {
++                           try {
++                              var13.close();
++                           } catch (Throwable var21) {
++                              var23.addSuppressed(var21);
+                            }
+ 
++                           throw var23;
+                         }
+-                     } catch (Throwable var52) {
+-                        var13 = var52;
+-                        throw var52;
+-                     } finally {
++
++                        var13.close();
++                     } catch (Throwable var24) {
+                         if (var12 != null) {
+-                           if (var13 != null) {
+-                              try {
+-                                 var12.close();
+-                              } catch (Throwable var47) {
+-                                 var13.addSuppressed(var47);
+-                              }
+-                           } else {
++                           try {
+                               var12.close();
++                           } catch (Throwable var20) {
++                              var24.addSuppressed(var20);
                             }
                          }
  
++                        throw var24;
                       }
-                   } catch (RuntimeException var54) {
+-                  } catch (RuntimeException var54) {
 -                     FontManager.LOGGER.warn("Unable to load font '{}' in fonts.json in resourcepack: '{}': {}", var8, var11.getSourceName(), var54.getMessage());
-+                     FontManager.LOGGER.warn("Unable to load font '{}' in {} in resourcepack: '{}': {}", var8, "fonts.json", var11.getSourceName(), var54.getMessage());
++
++                     if (var12 != null) {
++                        var12.close();
++                     }
++                  } catch (RuntimeException var25) {
++                     FontManager.LOGGER.warn("Unable to load font '{}' in {} in resourcepack: '{}': {}", var8, "fonts.json", var11.getSourceName(), var25.getMessage());
                    }
                 }
-             } catch (IOException var55) {
+-            } catch (IOException var55) {
 -               FontManager.LOGGER.warn("Unable to load font '{}' in fonts.json: {}", var8, var55.getMessage());
-+               FontManager.LOGGER.warn("Unable to load font '{}' in {}: {}", var8, "fonts.json", var55.getMessage());
++            } catch (IOException var26) {
++               FontManager.LOGGER.warn("Unable to load font '{}' in {}: {}", var8, "fonts.json", var26.getMessage());
              }
  
              var2.push("caching");
-             IntOpenHashSet var56 = new IntOpenHashSet();
-             Iterator var57 = var9.iterator();
+-            IntOpenHashSet var56 = new IntOpenHashSet();
+-            Iterator var57 = var9.iterator();
++            IntOpenHashSet var27 = new IntOpenHashSet();
++            Iterator var28 = var9.iterator();
+ 
+-            while(var57.hasNext()) {
+-               GlyphProvider var58 = (GlyphProvider)var57.next();
+-               var56.addAll(var58.getSupportedGlyphs());
++            while(var28.hasNext()) {
++               GlyphProvider var29 = (GlyphProvider)var28.next();
++               var27.addAll(var29.getSupportedGlyphs());
+             }
+ 
+-            var56.forEach((var1x) -> {
++            var27.forEach((var1x) -> {
+                if (var1x != 32) {
+                   Iterator var2 = Lists.reverse(var9).iterator();
+ 
+                   while(var2.hasNext()) {
+                      GlyphProvider var3 = (GlyphProvider)var2.next();

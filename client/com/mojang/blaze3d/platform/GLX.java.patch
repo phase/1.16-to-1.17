@@ -1,6 +1,6 @@
 --- com/mojang/blaze3d/platform/GLX.java
 +++ com/mojang/blaze3d/platform/GLX.java
-@@ -1,48 +1,35 @@
+@@ -1,55 +1,47 @@
  package com.mojang.blaze3d.platform;
  
  import com.google.common.base.Joiner;
@@ -30,7 +30,8 @@
 -import org.lwjgl.opengl.GL11;
 -import org.lwjgl.opengl.GLCapabilities;
  import oshi.SystemInfo;
- import oshi.hardware.Processor;
+-import oshi.hardware.Processor;
++import oshi.hardware.CentralProcessor;
  
 +@DontObfuscate
  public class GLX {
@@ -53,7 +54,20 @@
     }
  
     public static String getOpenGLVersionString() {
-@@ -104,91 +91,76 @@
+       RenderSystem.assertThread(RenderSystem::isOnRenderThread);
+-      return GLFW.glfwGetCurrentContext() == 0L ? "NO CONTEXT" : GlStateManager._getString(7937) + " GL version " + GlStateManager._getString(7938) + ", " + GlStateManager._getString(7936);
++      if (GLFW.glfwGetCurrentContext() == 0L) {
++         return "NO CONTEXT";
++      } else {
++         String var10000 = GlStateManager._getString(7937);
++         return var10000 + " GL version " + GlStateManager._getString(7938) + ", " + GlStateManager._getString(7936);
++      }
+    }
+ 
+    public static int _getRefreshRate(Window var0) {
+       RenderSystem.assertThread(RenderSystem::isOnRenderThread);
+       long var1 = GLFW.glfwGetWindowMonitor(var0.getWindow());
+@@ -104,91 +96,76 @@
  
     public static boolean _shouldClose(Window var0) {
        return GLFW.glfwWindowShouldClose(var0.getWindow());
@@ -76,8 +90,8 @@
 -         Processor[] var3 = (new SystemInfo()).getHardware().getProcessors();
 -         cpuInfo = String.format("%dx %s", var3.length, var3[0]).replaceAll("\\s+", " ");
 -      } catch (Throwable var4) {
-+         Processor[] var2 = (new SystemInfo()).getHardware().getProcessors();
-+         cpuInfo = String.format("%dx %s", var2.length, var2[0]).replaceAll("\\s+", " ");
++         CentralProcessor var2 = (new SystemInfo()).getHardware().getProcessor();
++         cpuInfo = String.format("%dx %s", var2.getLogicalProcessorCount(), var2.getProcessorIdentifier().getName()).replaceAll("\\s+", " ");
 +      } catch (Throwable var3) {
        }
  

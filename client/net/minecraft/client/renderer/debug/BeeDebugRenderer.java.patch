@@ -1,8 +1,12 @@
 --- net/minecraft/client/renderer/debug/BeeDebugRenderer.java
 +++ net/minecraft/client/renderer/debug/BeeDebugRenderer.java
-@@ -24,10 +24,36 @@
+@@ -20,14 +20,39 @@
+ import net.minecraft.client.player.LocalPlayer;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Position;
  import net.minecraft.network.protocol.game.DebugEntityNameGenerator;
- import net.minecraft.util.Mth;
+-import net.minecraft.util.Mth;
  import net.minecraft.world.level.pathfinder.Path;
  
  public class BeeDebugRenderer implements DebugRenderer.SimpleDebugRenderer {
@@ -37,7 +41,7 @@
     private final Map<UUID, BeeDebugRenderer.BeeInfo> beeInfosPerEntity = Maps.newHashMap();
     private UUID lastLookedAtUuid;
  
-@@ -47,21 +73,25 @@
+@@ -47,21 +72,25 @@
  
     public void addOrUpdateBeeInfo(BeeDebugRenderer.BeeInfo var1) {
        this.beeInfosPerEntity.put(var1.uuid, var1);
@@ -65,7 +69,47 @@
        }
  
     }
-@@ -260,10 +290,14 @@
+@@ -148,11 +177,11 @@
+ 
+    private static String getBeeUuidsAsString(Collection<UUID> var0) {
+       if (var0.isEmpty()) {
+          return "-";
+       } else {
+-         return var0.size() > 3 ? "" + var0.size() + " bees" : ((Set)var0.stream().map(DebugEntityNameGenerator::getEntityName).collect(Collectors.toSet())).toString();
++         return var0.size() > 3 ? var0.size() + " bees" : ((Set)var0.stream().map(DebugEntityNameGenerator::getEntityName).collect(Collectors.toSet())).toString();
+       }
+    }
+ 
+    private static void highlightHive(BlockPos var0) {
+       float var1 = 0.05F;
+@@ -160,11 +189,11 @@
+    }
+ 
+    private void renderGhostHive(BlockPos var1, List<String> var2) {
+       float var3 = 0.05F;
+       renderTransparentFilledBox(var1, 0.05F, 0.2F, 0.2F, 1.0F, 0.3F);
+-      renderTextOverPos("" + var2, var1, 0, -256);
++      renderTextOverPos(var2.makeConcatWithConstants<invokedynamic>(var2), var1, 0, -256);
+       renderTextOverPos("Ghost Hive", var1, 1, -65536);
+    }
+ 
+    private static void renderTransparentFilledBox(BlockPos var0, float var1, float var2, float var3, float var4, float var5) {
+       RenderSystem.enableBlend();
+@@ -185,11 +214,12 @@
+          renderTextOverHive("In: 1 bee", var1, var3++, -256);
+       } else {
+          renderTextOverHive("In: " + var1.occupantCount + " bees", var1, var3++, -256);
+       }
+ 
+-      renderTextOverHive("Honey: " + var1.honeyLevel, var1, var3++, -23296);
++      int var4 = var1.honeyLevel;
++      renderTextOverHive("Honey: " + var4, var1, var3++, -23296);
+       renderTextOverHive(var1.hiveType + (var1.sedated ? " (sedated)" : ""), var1, var3++, -1);
+    }
+ 
+    private void renderPath(BeeDebugRenderer.BeeInfo var1) {
+       if (var1.path != null) {
+@@ -260,14 +290,19 @@
  
     private Camera getCamera() {
        return this.minecraft.gameRenderer.getMainCamera();
@@ -76,7 +120,69 @@
 +   }
 +
     private String getPosDescription(BeeDebugRenderer.BeeInfo var1, BlockPos var2) {
-       float var3 = Mth.sqrt(var2.distSqr(var1.pos.x(), var1.pos.y(), var1.pos.z(), true));
-       double var4 = (double)Math.round(var3 * 10.0F) / 10.0D;
-       return var2.toShortString() + " (dist " + var4 + ")";
+-      float var3 = Mth.sqrt(var2.distSqr(var1.pos.x(), var1.pos.y(), var1.pos.z(), true));
+-      double var4 = (double)Math.round(var3 * 10.0F) / 10.0D;
+-      return var2.toShortString() + " (dist " + var4 + ")";
++      double var3 = Math.sqrt(var2.distSqr(var1.pos.x(), var1.pos.y(), var1.pos.z(), true));
++      double var5 = (double)Math.round(var3 * 10.0D) / 10.0D;
++      String var10000 = var2.toShortString();
++      return var10000 + " (dist " + var5 + ")";
     }
+ 
+    private boolean isBeeSelected(BeeDebugRenderer.BeeInfo var1) {
+       return Objects.equals(this.lastLookedAtUuid, var1.uuid);
+    }
+@@ -305,10 +340,28 @@
+       DebugRenderer.getTargetedEntity(this.minecraft.getCameraEntity(), 8).ifPresent((var1) -> {
+          this.lastLookedAtUuid = var1.getUUID();
+       });
+    }
+ 
++   public static class HiveInfo {
++      public final BlockPos pos;
++      public final String hiveType;
++      public final int occupantCount;
++      public final int honeyLevel;
++      public final boolean sedated;
++      public final long lastSeen;
++
++      public HiveInfo(BlockPos var1, String var2, int var3, int var4, boolean var5, long var6) {
++         this.pos = var1;
++         this.hiveType = var2;
++         this.occupantCount = var3;
++         this.honeyLevel = var4;
++         this.sedated = var5;
++         this.lastSeen = var6;
++      }
++   }
++
+    public static class BeeInfo {
+       public final UUID uuid;
+       public final int id;
+       public final Position pos;
+       @Nullable
+@@ -349,24 +402,6 @@
+ 
+       public boolean hasFlower() {
+          return this.flowerPos != null;
+       }
+    }
+-
+-   public static class HiveInfo {
+-      public final BlockPos pos;
+-      public final String hiveType;
+-      public final int occupantCount;
+-      public final int honeyLevel;
+-      public final boolean sedated;
+-      public final long lastSeen;
+-
+-      public HiveInfo(BlockPos var1, String var2, int var3, int var4, boolean var5, long var6) {
+-         this.pos = var1;
+-         this.hiveType = var2;
+-         this.occupantCount = var3;
+-         this.honeyLevel = var4;
+-         this.sedated = var5;
+-         this.lastSeen = var6;
+-      }
+-   }
+ }

@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/MultifaceBlock.java
 +++ net/minecraft/world/level/block/MultifaceBlock.java
-@@ -1,0 +1,332 @@
+@@ -1,0 +1,347 @@
 +package net.minecraft.world.level.block;
 +
 +import com.google.common.collect.ImmutableMap;
@@ -81,7 +81,11 @@
 +   }
 +
 +   public BlockState updateShape(BlockState var1, Direction var2, BlockState var3, LevelAccessor var4, BlockPos var5, BlockPos var6) {
-+      return hasFace(var1, var2) && !canAttachTo(var4, var2, var6, var3) ? removeFace(var1, getFaceProperty(var2)) : var1;
++      if (!hasAnyFace(var1)) {
++         return Blocks.AIR.defaultBlockState();
++      } else {
++         return hasFace(var1, var2) && !canAttachTo(var4, var2, var6, var3) ? removeFace(var1, getFaceProperty(var2)) : var1;
++      }
 +   }
 +
 +   public VoxelShape getShape(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
@@ -135,9 +139,9 @@
 +
 +            var5 = var1;
 +         } else if (this.isWaterloggable() && var1.getFluidState().isSourceOfType(Fluids.WATER)) {
-+            var5 = (BlockState)this.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, true);
++            var5 = (BlockState)getEmptyState(this).setValue(BlockStateProperties.WATERLOGGED, true);
 +         } else {
-+            var5 = this.defaultBlockState();
++            var5 = getEmptyState(this);
 +         }
 +
 +         BlockPos var6 = var3.relative(var4);
@@ -149,7 +153,7 @@
 +      if (!this.canRotate) {
 +         return var1;
 +      } else {
-+         var2.getClass();
++         Objects.requireNonNull(var2);
 +         return this.mapDirections(var1, var2::rotate);
 +      }
 +   }
@@ -160,7 +164,7 @@
 +      } else if (var2 == Mirror.LEFT_RIGHT && !this.canMirrorZ) {
 +         return var1;
 +      } else {
-+         var2.getClass();
++         Objects.requireNonNull(var2);
 +         return this.mapDirections(var1, var2::mirror);
 +      }
 +   }
@@ -173,7 +177,7 @@
 +      for(int var6 = 0; var6 < var5; ++var6) {
 +         Direction var7 = var4[var6];
 +         if (this.isFaceSupported(var7)) {
-+            var3 = (BlockState)var3.setValue(getFaceProperty((Direction)var2.apply(var7)), var1.getValue(getFaceProperty(var7)));
++            var3 = (BlockState)var3.setValue(getFaceProperty((Direction)var2.apply(var7)), (Boolean)var1.getValue(getFaceProperty(var7)));
 +         }
 +      }
 +
@@ -186,23 +190,23 @@
 +      return var5.stream().filter((var1x) -> {
 +         return hasFace(var1, var1x);
 +      }).anyMatch((var5x) -> {
-+         return this.spreadFromFaceTowardRandomDirection(var1, var2, var3, var5x, var4);
++         return this.spreadFromFaceTowardRandomDirection(var1, var2, var3, var5x, var4, false);
 +      });
 +   }
 +
-+   public boolean spreadFromFaceTowardRandomDirection(BlockState var1, LevelAccessor var2, BlockPos var3, Direction var4, Random var5) {
-+      List var6 = Arrays.asList(DIRECTIONS);
-+      Collections.shuffle(var6, var5);
-+      return var6.stream().anyMatch((var5x) -> {
-+         return this.spreadFromFaceTowardDirection(var1, var2, var3, var4, var5x);
++   public boolean spreadFromFaceTowardRandomDirection(BlockState var1, LevelAccessor var2, BlockPos var3, Direction var4, Random var5, boolean var6) {
++      List var7 = Arrays.asList(DIRECTIONS);
++      Collections.shuffle(var7, var5);
++      return var7.stream().anyMatch((var6x) -> {
++         return this.spreadFromFaceTowardDirection(var1, var2, var3, var4, var6x, var6);
 +      });
 +   }
 +
-+   public boolean spreadFromFaceTowardDirection(BlockState var1, LevelAccessor var2, BlockPos var3, Direction var4, Direction var5) {
-+      Optional var6 = this.getSpreadFromFaceTowardDirection(var1, var2, var3, var4, var5);
-+      if (var6.isPresent()) {
-+         Pair var7 = (Pair)var6.get();
-+         return this.spreadToFace(var2, (BlockPos)var7.getFirst(), (Direction)var7.getSecond());
++   public boolean spreadFromFaceTowardDirection(BlockState var1, LevelAccessor var2, BlockPos var3, Direction var4, Direction var5, boolean var6) {
++      Optional var7 = this.getSpreadFromFaceTowardDirection(var1, var2, var3, var4, var5);
++      if (var7.isPresent()) {
++         Pair var8 = (Pair)var7.get();
++         return this.spreadToFace(var2, (BlockPos)var8.getFirst(), (Direction)var8.getSecond(), var6);
 +      } else {
 +         return false;
 +      }
@@ -243,10 +247,18 @@
 +      }
 +   }
 +
-+   private boolean spreadToFace(LevelAccessor var1, BlockPos var2, Direction var3) {
-+      BlockState var4 = var1.getBlockState(var2);
-+      BlockState var5 = this.getStateForPlacement(var4, var1, var2, var3);
-+      return var5 != null ? var1.setBlock(var2, var5, 2) : false;
++   private boolean spreadToFace(LevelAccessor var1, BlockPos var2, Direction var3, boolean var4) {
++      BlockState var5 = var1.getBlockState(var2);
++      BlockState var6 = this.getStateForPlacement(var5, var1, var2, var3);
++      if (var6 != null) {
++         if (var4) {
++            var1.getChunk(var2).markPosForPostprocessing(var2);
++         }
++
++         return var1.setBlock(var2, var6, 2);
++      } else {
++         return false;
++      }
 +   }
 +
 +   private boolean canSpreadInto(BlockState var1) {
@@ -268,29 +280,32 @@
 +
 +   private static BlockState removeFace(BlockState var0, BooleanProperty var1) {
 +      BlockState var2 = (BlockState)var0.setValue(var1, false);
-+      if (hasAnyFace(var2)) {
-+         return var2;
-+      } else {
-+         return var0.hasProperty(BlockStateProperties.WATERLOGGED) && (Boolean)var0.getValue(BlockStateProperties.WATERLOGGED) ? Blocks.WATER.defaultBlockState() : Blocks.AIR.defaultBlockState();
-+      }
++      return hasAnyFace(var2) ? var2 : Blocks.AIR.defaultBlockState();
 +   }
 +
 +   public static BooleanProperty getFaceProperty(Direction var0) {
 +      return (BooleanProperty)PROPERTY_BY_DIRECTION.get(var0);
 +   }
 +
++   public static BlockState getEmptyState(Block var0) {
++      return getMultifaceStateWithAllFaces(var0.defaultBlockState(), false);
++   }
++
 +   private static BlockState getDefaultMultifaceState(StateDefinition<Block, BlockState> var0) {
-+      BlockState var1 = (BlockState)var0.any();
++      return getMultifaceStateWithAllFaces((BlockState)var0.any(), true);
++   }
++
++   private static BlockState getMultifaceStateWithAllFaces(BlockState var0, boolean var1) {
 +      Iterator var2 = PROPERTY_BY_DIRECTION.values().iterator();
 +
 +      while(var2.hasNext()) {
 +         BooleanProperty var3 = (BooleanProperty)var2.next();
-+         if (var1.hasProperty(var3)) {
-+            var1 = (BlockState)var1.setValue(var3, false);
++         if (var0.hasProperty(var3)) {
++            var0 = (BlockState)var0.setValue(var3, var1);
 +         }
 +      }
 +
-+      return var1;
++      return var0;
 +   }
 +
 +   private static VoxelShape calculateMultifaceShape(BlockState var0) {

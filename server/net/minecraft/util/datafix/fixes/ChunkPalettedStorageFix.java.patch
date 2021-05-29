@@ -1,11 +1,25 @@
 --- net/minecraft/util/datafix/fixes/ChunkPalettedStorageFix.java
 +++ net/minecraft/util/datafix/fixes/ChunkPalettedStorageFix.java
-@@ -31,10 +31,18 @@
+@@ -31,24 +31,32 @@
  import net.minecraft.util.datafix.PackedBitStorage;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class ChunkPalettedStorageFix extends DataFix {
+-   private static final Logger LOGGER = LogManager.getLogger();
+-   private static final BitSet VIRTUAL = new BitSet(256);
+-   private static final BitSet FIX = new BitSet(256);
+-   private static final Dynamic<?> PUMPKIN = BlockStateData.parse("{Name:'minecraft:pumpkin'}");
+-   private static final Dynamic<?> SNOWY_PODZOL = BlockStateData.parse("{Name:'minecraft:podzol',Properties:{snowy:'true'}}");
+-   private static final Dynamic<?> SNOWY_GRASS = BlockStateData.parse("{Name:'minecraft:grass_block',Properties:{snowy:'true'}}");
+-   private static final Dynamic<?> SNOWY_MYCELIUM = BlockStateData.parse("{Name:'minecraft:mycelium',Properties:{snowy:'true'}}");
+-   private static final Dynamic<?> UPPER_SUNFLOWER = BlockStateData.parse("{Name:'minecraft:sunflower',Properties:{half:'upper'}}");
+-   private static final Dynamic<?> UPPER_LILAC = BlockStateData.parse("{Name:'minecraft:lilac',Properties:{half:'upper'}}");
+-   private static final Dynamic<?> UPPER_TALL_GRASS = BlockStateData.parse("{Name:'minecraft:tall_grass',Properties:{half:'upper'}}");
+-   private static final Dynamic<?> UPPER_LARGE_FERN = BlockStateData.parse("{Name:'minecraft:large_fern',Properties:{half:'upper'}}");
+-   private static final Dynamic<?> UPPER_ROSE_BUSH = BlockStateData.parse("{Name:'minecraft:rose_bush',Properties:{half:'upper'}}");
+-   private static final Dynamic<?> UPPER_PEONY = BlockStateData.parse("{Name:'minecraft:peony',Properties:{half:'upper'}}");
+-   private static final Map<String, Dynamic<?>> FLOWER_POT_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
 +   private static final int NORTH_WEST_MASK = 128;
 +   private static final int WEST_MASK = 64;
 +   private static final int SOUTH_WEST_MASK = 32;
@@ -14,33 +28,393 @@
 +   private static final int EAST_MASK = 4;
 +   private static final int NORTH_EAST_MASK = 2;
 +   private static final int NORTH_MASK = 1;
-    private static final Logger LOGGER = LogManager.getLogger();
-    private static final BitSet VIRTUAL = new BitSet(256);
-    private static final BitSet FIX = new BitSet(256);
-    private static final Dynamic<?> PUMPKIN = BlockStateData.parse("{Name:'minecraft:pumpkin'}");
-    private static final Dynamic<?> SNOWY_PODZOL = BlockStateData.parse("{Name:'minecraft:podzol',Properties:{snowy:'true'}}");
-@@ -133,10 +141,11 @@
++   static final Logger LOGGER = LogManager.getLogger();
++   static final BitSet VIRTUAL = new BitSet(256);
++   static final BitSet FIX = new BitSet(256);
++   static final Dynamic<?> PUMPKIN = BlockStateData.parse("{Name:'minecraft:pumpkin'}");
++   static final Dynamic<?> SNOWY_PODZOL = BlockStateData.parse("{Name:'minecraft:podzol',Properties:{snowy:'true'}}");
++   static final Dynamic<?> SNOWY_GRASS = BlockStateData.parse("{Name:'minecraft:grass_block',Properties:{snowy:'true'}}");
++   static final Dynamic<?> SNOWY_MYCELIUM = BlockStateData.parse("{Name:'minecraft:mycelium',Properties:{snowy:'true'}}");
++   static final Dynamic<?> UPPER_SUNFLOWER = BlockStateData.parse("{Name:'minecraft:sunflower',Properties:{half:'upper'}}");
++   static final Dynamic<?> UPPER_LILAC = BlockStateData.parse("{Name:'minecraft:lilac',Properties:{half:'upper'}}");
++   static final Dynamic<?> UPPER_TALL_GRASS = BlockStateData.parse("{Name:'minecraft:tall_grass',Properties:{half:'upper'}}");
++   static final Dynamic<?> UPPER_LARGE_FERN = BlockStateData.parse("{Name:'minecraft:large_fern',Properties:{half:'upper'}}");
++   static final Dynamic<?> UPPER_ROSE_BUSH = BlockStateData.parse("{Name:'minecraft:rose_bush',Properties:{half:'upper'}}");
++   static final Dynamic<?> UPPER_PEONY = BlockStateData.parse("{Name:'minecraft:peony',Properties:{half:'upper'}}");
++   static final Map<String, Dynamic<?>> FLOWER_POT_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
+       var0.put("minecraft:air0", BlockStateData.parse("{Name:'minecraft:flower_pot'}"));
+       var0.put("minecraft:red_flower0", BlockStateData.parse("{Name:'minecraft:potted_poppy'}"));
+       var0.put("minecraft:red_flower1", BlockStateData.parse("{Name:'minecraft:potted_blue_orchid'}"));
+       var0.put("minecraft:red_flower2", BlockStateData.parse("{Name:'minecraft:potted_allium'}"));
+       var0.put("minecraft:red_flower3", BlockStateData.parse("{Name:'minecraft:potted_azure_bluet'}"));
+@@ -68,28 +76,28 @@
+       var0.put("minecraft:brown_mushroom0", BlockStateData.parse("{Name:'minecraft:potted_brown_mushroom'}"));
+       var0.put("minecraft:deadbush0", BlockStateData.parse("{Name:'minecraft:potted_dead_bush'}"));
+       var0.put("minecraft:tallgrass2", BlockStateData.parse("{Name:'minecraft:potted_fern'}"));
+       var0.put("minecraft:cactus0", BlockStateData.getTag(2240));
+    });
+-   private static final Map<String, Dynamic<?>> SKULL_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
++   static final Map<String, Dynamic<?>> SKULL_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
+       mapSkull(var0, 0, "skeleton", "skull");
+       mapSkull(var0, 1, "wither_skeleton", "skull");
+       mapSkull(var0, 2, "zombie", "head");
+       mapSkull(var0, 3, "player", "head");
+       mapSkull(var0, 4, "creeper", "head");
+       mapSkull(var0, 5, "dragon", "head");
+    });
+-   private static final Map<String, Dynamic<?>> DOOR_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
++   static final Map<String, Dynamic<?>> DOOR_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
+       mapDoor(var0, "oak_door", 1024);
+       mapDoor(var0, "iron_door", 1136);
+       mapDoor(var0, "spruce_door", 3088);
+       mapDoor(var0, "birch_door", 3104);
+       mapDoor(var0, "jungle_door", 3120);
+       mapDoor(var0, "acacia_door", 3136);
+       mapDoor(var0, "dark_oak_door", 3152);
+    });
+-   private static final Map<String, Dynamic<?>> NOTE_BLOCK_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
++   static final Map<String, Dynamic<?>> NOTE_BLOCK_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
+       for(int var1 = 0; var1 < 26; ++var1) {
+          var0.put("true" + var1, BlockStateData.parse("{Name:'minecraft:note_block',Properties:{powered:'true',note:'" + var1 + "'}}"));
+          var0.put("false" + var1, BlockStateData.parse("{Name:'minecraft:note_block',Properties:{powered:'false',note:'" + var1 + "'}}"));
+       }
+ 
+@@ -110,33 +118,34 @@
+       var0.put(12, "brown");
+       var0.put(13, "green");
+       var0.put(14, "red");
+       var0.put(15, "black");
+    });
+-   private static final Map<String, Dynamic<?>> BED_BLOCK_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
++   static final Map<String, Dynamic<?>> BED_BLOCK_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
+       ObjectIterator var1 = DYE_COLOR_MAP.int2ObjectEntrySet().iterator();
+ 
+       while(var1.hasNext()) {
+          Int2ObjectMap.Entry var2 = (Int2ObjectMap.Entry)var1.next();
+          if (!Objects.equals(var2.getValue(), "red")) {
+             addBeds(var0, var2.getIntKey(), (String)var2.getValue());
           }
        }
  
     });
-    private static final Dynamic<?> AIR;
+-   private static final Map<String, Dynamic<?>> BANNER_BLOCK_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
++   static final Map<String, Dynamic<?>> BANNER_BLOCK_MAP = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
+       ObjectIterator var1 = DYE_COLOR_MAP.int2ObjectEntrySet().iterator();
+ 
+       while(var1.hasNext()) {
+          Int2ObjectMap.Entry var2 = (Int2ObjectMap.Entry)var1.next();
+          if (!Objects.equals(var2.getValue(), "white")) {
+             addBanners(var0, 15 - var2.getIntKey(), (String)var2.getValue());
+          }
+       }
+ 
+    });
+-   private static final Dynamic<?> AIR;
++   static final Dynamic<?> AIR;
 +   private static final int SIZE = 4096;
  
     public ChunkPalettedStorageFix(Schema var1, boolean var2) {
        super(var1, var2);
     }
  
-@@ -412,10 +421,12 @@
-          }
+@@ -145,11 +154,11 @@
+       var0.put(var1 + "east", BlockStateData.parse("{Name:'minecraft:" + var2 + "_wall_" + var3 + "',Properties:{facing:'east'}}"));
+       var0.put(var1 + "south", BlockStateData.parse("{Name:'minecraft:" + var2 + "_wall_" + var3 + "',Properties:{facing:'south'}}"));
+       var0.put(var1 + "west", BlockStateData.parse("{Name:'minecraft:" + var2 + "_wall_" + var3 + "',Properties:{facing:'west'}}"));
+ 
+       for(int var4 = 0; var4 < 16; ++var4) {
+-         var0.put(var1 + "" + var4, BlockStateData.parse("{Name:'minecraft:" + var2 + "_" + var3 + "',Properties:{rotation:'" + var4 + "'}}"));
++         var0.put(var1 + var4, BlockStateData.parse("{Name:'minecraft:" + var2 + "_" + var3 + "',Properties:{rotation:'" + var4 + "'}}"));
+       }
+ 
+    }
+ 
+    private static void mapDoor(Map<String, Dynamic<?>> var0, String var1, int var2) {
+@@ -234,11 +243,11 @@
+       var0.put("easttruehead" + var1, BlockStateData.parse("{Name:'minecraft:" + var2 + "_bed',Properties:{facing:'east',occupied:'true',part:'head'}}"));
+    }
+ 
+    private static void addBanners(Map<String, Dynamic<?>> var0, int var1, String var2) {
+       for(int var3 = 0; var3 < 16; ++var3) {
+-         var0.put("" + var3 + "_" + var1, BlockStateData.parse("{Name:'minecraft:" + var2 + "_banner',Properties:{rotation:'" + var3 + "'}}"));
++         var0.put(var3 + "_" + var1, BlockStateData.parse("{Name:'minecraft:" + var2 + "_banner',Properties:{rotation:'" + var3 + "'}}"));
+       }
+ 
+       var0.put("north_" + var1, BlockStateData.parse("{Name:'minecraft:" + var2 + "_wall_banner',Properties:{facing:'north'}}"));
+       var0.put("south_" + var1, BlockStateData.parse("{Name:'minecraft:" + var2 + "_wall_banner',Properties:{facing:'south'}}"));
+       var0.put("west_" + var1, BlockStateData.parse("{Name:'minecraft:" + var2 + "_wall_banner',Properties:{facing:'west'}}"));
+@@ -362,88 +371,11 @@
+       VIRTUAL.set(139);
+       VIRTUAL.set(199);
+       AIR = BlockStateData.getTag(0);
+    }
+ 
+-   public static enum Direction {
+-      DOWN(ChunkPalettedStorageFix.Direction.AxisDirection.NEGATIVE, ChunkPalettedStorageFix.Direction.Axis.Y),
+-      UP(ChunkPalettedStorageFix.Direction.AxisDirection.POSITIVE, ChunkPalettedStorageFix.Direction.Axis.Y),
+-      NORTH(ChunkPalettedStorageFix.Direction.AxisDirection.NEGATIVE, ChunkPalettedStorageFix.Direction.Axis.Z),
+-      SOUTH(ChunkPalettedStorageFix.Direction.AxisDirection.POSITIVE, ChunkPalettedStorageFix.Direction.Axis.Z),
+-      WEST(ChunkPalettedStorageFix.Direction.AxisDirection.NEGATIVE, ChunkPalettedStorageFix.Direction.Axis.X),
+-      EAST(ChunkPalettedStorageFix.Direction.AxisDirection.POSITIVE, ChunkPalettedStorageFix.Direction.Axis.X);
+-
+-      private final ChunkPalettedStorageFix.Direction.Axis axis;
+-      private final ChunkPalettedStorageFix.Direction.AxisDirection axisDirection;
+-
+-      private Direction(ChunkPalettedStorageFix.Direction.AxisDirection var3, ChunkPalettedStorageFix.Direction.Axis var4) {
+-         this.axis = var4;
+-         this.axisDirection = var3;
+-      }
+-
+-      public ChunkPalettedStorageFix.Direction.AxisDirection getAxisDirection() {
+-         return this.axisDirection;
+-      }
+-
+-      public ChunkPalettedStorageFix.Direction.Axis getAxis() {
+-         return this.axis;
+-      }
+-
+-      public static enum AxisDirection {
+-         POSITIVE(1),
+-         NEGATIVE(-1);
+-
+-         private final int step;
+-
+-         private AxisDirection(int var3) {
+-            this.step = var3;
+-         }
+-
+-         public int getStep() {
+-            return this.step;
+-         }
+-      }
+-
+-      public static enum Axis {
+-         X,
+-         Y,
+-         Z;
+-
+-         private Axis() {
+-         }
+-      }
+-   }
+-
+-   static class DataLayer {
+-      private final byte[] data;
+-
+-      public DataLayer() {
+-         this.data = new byte[2048];
+-      }
+-
+-      public DataLayer(byte[] var1) {
+-         this.data = var1;
+-         if (var1.length != 2048) {
+-            throw new IllegalArgumentException("ChunkNibbleArrays should be 2048 bytes not: " + var1.length);
+-         }
+-      }
+-
+-      public int get(int var1, int var2, int var3) {
+-         int var4 = this.getPosition(var2 << 8 | var3 << 4 | var1);
+-         return this.isFirst(var2 << 8 | var3 << 4 | var1) ? this.data[var4] & 15 : this.data[var4] >> 4 & 15;
+-      }
+-
+-      private boolean isFirst(int var1) {
+-         return (var1 & 1) == 0;
+-      }
+-
+-      private int getPosition(int var1) {
+-         return var1 >> 1;
+-      }
+-   }
+-
+-   static final class UpgradeChunk {
++   private static final class UpgradeChunk {
+       private int sides;
+       private final ChunkPalettedStorageFix.Section[] sections = new ChunkPalettedStorageFix.Section[16];
+       private final Dynamic<?> level;
+       private final int x;
+       private final int z;
+@@ -495,10 +427,11 @@
+                      int var11;
+                      Dynamic var12;
+                      Dynamic var13;
+                      int var14;
+                      String var15;
++                     String var10000;
+                      String var21;
+                      String var22;
+                      switch((Integer)var8.getKey()) {
+                      case 2:
+                         var10 = ((IntList)var8.getValue()).iterator();
+@@ -550,12 +483,13 @@
+ 
+                            var11 = (Integer)var10.next();
+                            var11 |= var9;
+                            var12 = this.removeBlockEntity(var11);
+                            if (var12 != null) {
+-                              var21 = Boolean.toString(var12.get("powered").asBoolean(false)) + (byte)Math.min(Math.max(var12.get("note").asInt(0), 0), 24);
+-                              this.setBlock(var11, (Dynamic)ChunkPalettedStorageFix.NOTE_BLOCK_MAP.getOrDefault(var21, ChunkPalettedStorageFix.NOTE_BLOCK_MAP.get("false0")));
++                              var10000 = Boolean.toString(var12.get("powered").asBoolean(false));
++                              var21 = var10000 + (byte)Math.min(Math.max(var12.get("note").asInt(0), 0), 24);
++                              this.setBlock(var11, (Dynamic)ChunkPalettedStorageFix.NOTE_BLOCK_MAP.getOrDefault(var21, (Dynamic)ChunkPalettedStorageFix.NOTE_BLOCK_MAP.get("false0")));
+                            }
+                         }
+                      case 26:
+                         var10 = ((IntList)var8.getValue()).iterator();
+ 
+@@ -569,11 +503,12 @@
+                            var12 = this.getBlockEntity(var11);
+                            var13 = this.getBlock(var11);
+                            if (var12 != null) {
+                               var14 = var12.get("color").asInt(0);
+                               if (var14 != 14 && var14 >= 0 && var14 < 16) {
+-                                 var15 = ChunkPalettedStorageFix.getProperty(var13, "facing") + ChunkPalettedStorageFix.getProperty(var13, "occupied") + ChunkPalettedStorageFix.getProperty(var13, "part") + var14;
++                                 var10000 = ChunkPalettedStorageFix.getProperty(var13, "facing");
++                                 var15 = var10000 + ChunkPalettedStorageFix.getProperty(var13, "occupied") + ChunkPalettedStorageFix.getProperty(var13, "part") + var14;
+                                  if (ChunkPalettedStorageFix.BED_BLOCK_MAP.containsKey(var15)) {
+                                     this.setBlock(var11, (Dynamic)ChunkPalettedStorageFix.BED_BLOCK_MAP.get(var15));
+                                  }
+                               }
+                            }
+@@ -662,12 +597,13 @@
+ 
+                            var11 = (Integer)var10.next();
+                            var11 |= var9;
+                            var12 = this.removeBlockEntity(var11);
+                            if (var12 != null) {
+-                              var21 = var12.get("Item").asString("") + var12.get("Data").asInt(0);
+-                              this.setBlock(var11, (Dynamic)ChunkPalettedStorageFix.FLOWER_POT_MAP.getOrDefault(var21, ChunkPalettedStorageFix.FLOWER_POT_MAP.get("minecraft:air0")));
++                              var10000 = var12.get("Item").asString("");
++                              var21 = var10000 + var12.get("Data").asInt(0);
++                              this.setBlock(var11, (Dynamic)ChunkPalettedStorageFix.FLOWER_POT_MAP.getOrDefault(var21, (Dynamic)ChunkPalettedStorageFix.FLOWER_POT_MAP.get("minecraft:air0")));
+                            }
+                         }
+                      case 144:
+                         var10 = ((IntList)var8.getValue()).iterator();
+ 
+@@ -691,11 +627,11 @@
+                            }
+ 
+                            var12.remove("SkullType");
+                            var12.remove("facing");
+                            var12.remove("Rot");
+-                           this.setBlock(var11, (Dynamic)ChunkPalettedStorageFix.SKULL_MAP.getOrDefault(var15, ChunkPalettedStorageFix.SKULL_MAP.get("0north")));
++                           this.setBlock(var11, (Dynamic)ChunkPalettedStorageFix.SKULL_MAP.getOrDefault(var15, (Dynamic)ChunkPalettedStorageFix.SKULL_MAP.get("0north")));
+                         }
+                      case 175:
+                         var10 = ((IntList)var8.getValue()).iterator();
+ 
+                         while(true) {
+@@ -734,11 +670,12 @@
+                            var12 = this.getBlockEntity(var11);
+                            var13 = this.getBlock(var11);
+                            if (var12 != null) {
+                               var14 = var12.get("Base").asInt(0);
+                               if (var14 != 15 && var14 >= 0 && var14 < 16) {
+-                                 var15 = ChunkPalettedStorageFix.getProperty(var13, (Integer)var8.getKey() == 176 ? "rotation" : "facing") + "_" + var14;
++                                 var10000 = ChunkPalettedStorageFix.getProperty(var13, (Integer)var8.getKey() == 176 ? "rotation" : "facing");
++                                 var15 = var10000 + "_" + var14;
+                                  if (ChunkPalettedStorageFix.BANNER_BLOCK_MAP.containsKey(var15)) {
+                                     this.setBlock(var11, (Dynamic)ChunkPalettedStorageFix.BANNER_BLOCK_MAP.get(var15));
+                                  }
+                               }
+                            }
+@@ -827,17 +764,96 @@
+          var8 = var8.set("Indices", var2);
+          return var1.set("UpgradeData", var8).set("Sections", var8.createList(var3.stream()));
        }
     }
  
-    static class DataLayer {
+-   static class Section {
++   public static enum Direction {
++      DOWN(ChunkPalettedStorageFix.Direction.AxisDirection.NEGATIVE, ChunkPalettedStorageFix.Direction.Axis.Y),
++      UP(ChunkPalettedStorageFix.Direction.AxisDirection.POSITIVE, ChunkPalettedStorageFix.Direction.Axis.Y),
++      NORTH(ChunkPalettedStorageFix.Direction.AxisDirection.NEGATIVE, ChunkPalettedStorageFix.Direction.Axis.Z),
++      SOUTH(ChunkPalettedStorageFix.Direction.AxisDirection.POSITIVE, ChunkPalettedStorageFix.Direction.Axis.Z),
++      WEST(ChunkPalettedStorageFix.Direction.AxisDirection.NEGATIVE, ChunkPalettedStorageFix.Direction.Axis.X),
++      EAST(ChunkPalettedStorageFix.Direction.AxisDirection.POSITIVE, ChunkPalettedStorageFix.Direction.Axis.X);
++
++      private final ChunkPalettedStorageFix.Direction.Axis axis;
++      private final ChunkPalettedStorageFix.Direction.AxisDirection axisDirection;
++
++      private Direction(ChunkPalettedStorageFix.Direction.AxisDirection var3, ChunkPalettedStorageFix.Direction.Axis var4) {
++         this.axis = var4;
++         this.axisDirection = var3;
++      }
++
++      public ChunkPalettedStorageFix.Direction.AxisDirection getAxisDirection() {
++         return this.axisDirection;
++      }
++
++      public ChunkPalettedStorageFix.Direction.Axis getAxis() {
++         return this.axis;
++      }
++
++      public static enum Axis {
++         X,
++         Y,
++         Z;
++
++         private Axis() {
++         }
++      }
++
++      public static enum AxisDirection {
++         POSITIVE(1),
++         NEGATIVE(-1);
++
++         private final int step;
++
++         private AxisDirection(int var3) {
++            this.step = var3;
++         }
++
++         public int getStep() {
++            return this.step;
++         }
++      }
++   }
++
++   private static class DataLayer {
 +      private static final int SIZE = 2048;
 +      private static final int NIBBLE_SIZE = 4;
-       private final byte[] data;
++      private final byte[] data;
++
++      public DataLayer() {
++         this.data = new byte[2048];
++      }
++
++      public DataLayer(byte[] var1) {
++         this.data = var1;
++         if (var1.length != 2048) {
++            throw new IllegalArgumentException("ChunkNibbleArrays should be 2048 bytes not: " + var1.length);
++         }
++      }
++
++      public int get(int var1, int var2, int var3) {
++         int var4 = this.getPosition(var2 << 8 | var3 << 4 | var1);
++         return this.isFirst(var2 << 8 | var3 << 4 | var1) ? this.data[var4] & 15 : this.data[var4] >> 4 & 15;
++      }
++
++      private boolean isFirst(int var1) {
++         return (var1 & 1) == 0;
++      }
++
++      private int getPosition(int var1) {
++         return var1 >> 1;
++      }
++   }
++
++   private static class Section {
+       private final CrudeIncrementalIntIdentityHashBiMap<Dynamic<?>> palette = new CrudeIncrementalIntIdentityHashBiMap(32);
+       private final List<Dynamic<?>> listTag = Lists.newArrayList();
+       private final Dynamic<?> section;
+       private final boolean hasData;
+-      private final Int2ObjectMap<IntList> toFix = new Int2ObjectLinkedOpenHashMap();
+-      private final IntList update = new IntArrayList();
++      final Int2ObjectMap<IntList> toFix = new Int2ObjectLinkedOpenHashMap();
++      final IntList update = new IntArrayList();
+       public final int y;
+       private final Set<Dynamic<?>> seen = Sets.newIdentityHashSet();
+       private final int[] buffer = new int[4096];
  
-       public DataLayer() {
-          this.data = new byte[2048];
-       }
+       public Section(Dynamic<?> var1) {

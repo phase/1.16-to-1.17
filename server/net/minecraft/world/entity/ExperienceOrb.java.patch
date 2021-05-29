@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/ExperienceOrb.java
 +++ net/minecraft/world/entity/ExperienceOrb.java
-@@ -1,30 +1,39 @@
+@@ -1,57 +1,62 @@
  package net.minecraft.world.entity;
  
 +import java.util.Iterator;
@@ -10,8 +10,8 @@
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.network.protocol.game.ClientboundAddExperienceOrbPacket;
+-import net.minecraft.sounds.SoundEvents;
 +import net.minecraft.server.level.ServerLevel;
- import net.minecraft.sounds.SoundEvents;
 +import net.minecraft.sounds.SoundSource;
  import net.minecraft.tags.FluidTags;
  import net.minecraft.world.damagesource.DamageSource;
@@ -43,8 +43,10 @@
     public ExperienceOrb(Level var1, double var2, double var4, double var6, int var8) {
        this(EntityType.EXPERIENCE_ORB, var1);
        this.setPos(var2, var4, var6);
-       this.yRot = (float)(this.random.nextDouble() * 360.0D);
-@@ -33,25 +42,22 @@
+-      this.yRot = (float)(this.random.nextDouble() * 360.0D);
++      this.setYRot((float)(this.random.nextDouble() * 360.0D));
+       this.setDeltaMovement((this.random.nextDouble() * 0.20000000298023224D - 0.10000000149011612D) * 2.0D, this.random.nextDouble() * 0.2D * 2.0D, (this.random.nextDouble() * 0.20000000298023224D - 0.10000000149011612D) * 2.0D);
+       this.value = var8;
     }
  
     public ExperienceOrb(EntityType<? extends ExperienceOrb> var1, Level var2) {
@@ -73,7 +75,14 @@
        this.zo = this.getZ();
        if (this.isEyeInFluid(FluidTags.WATER)) {
           this.setUnderwaterMovement();
-@@ -66,51 +72,103 @@
+@@ -59,58 +64,109 @@
+          this.setDeltaMovement(this.getDeltaMovement().add(0.0D, -0.03D, 0.0D));
+       }
+ 
+       if (this.level.getFluidState(this.blockPosition()).is(FluidTags.LAVA)) {
+          this.setDeltaMovement((double)((this.random.nextFloat() - this.random.nextFloat()) * 0.2F), 0.20000000298023224D, (double)((this.random.nextFloat() - this.random.nextFloat()) * 0.2F));
+-         this.playSound(SoundEvents.GENERIC_BURN, 0.4F, 2.0F + this.random.nextFloat() * 0.4F);
+       }
  
        if (!this.level.noCollision(this.getBoundingBox())) {
           this.moveTowardsClosestSpace(this.getX(), (this.getBoundingBox().minY + this.getBoundingBox().maxY) / 2.0D, this.getZ());
@@ -195,7 +204,7 @@
        this.setDeltaMovement(var1.x * 0.9900000095367432D, Math.min(var1.y + 5.000000237487257E-4D, 0.05999999865889549D), var1.z * 0.9900000095367432D);
     }
  
-@@ -122,54 +180,63 @@
+@@ -122,54 +178,63 @@
           return false;
        } else {
           this.markHurt();
@@ -205,7 +214,8 @@
 +            this.discard();
           }
  
-          return false;
+-         return false;
++         return true;
        }
     }
  
@@ -273,7 +283,7 @@
     }
  
     private int xpToDurability(int var1) {
-@@ -178,10 +245,34 @@
+@@ -178,10 +243,34 @@
  
     public int getValue() {
        return this.value;
@@ -308,7 +318,7 @@
           return 2477;
        } else if (var0 >= 1237) {
           return 1237;
-@@ -209,6 +300,10 @@
+@@ -209,6 +298,10 @@
     }
  
     public Packet<?> getAddEntityPacket() {

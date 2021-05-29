@@ -57,7 +57,21 @@
           }
  
           StructureUtils.addCommandBlockAndButtonToStartTest(var7, new BlockPos(1, 0, -1), Rotation.NONE, var5);
-@@ -191,11 +204,11 @@
+@@ -137,11 +150,12 @@
+          var0.sendFailure(new TextComponent("Can't find a structure block that contains the targeted pos " + var3));
+          return 0;
+       } else {
+          StructureBlockEntity var6 = (StructureBlockEntity)var4.getBlockEntity((BlockPos)var5.get());
+          BlockPos var7 = var3.subtract((Vec3i)var5.get());
+-         String var8 = var7.getX() + ", " + var7.getY() + ", " + var7.getZ();
++         int var10000 = var7.getX();
++         String var8 = var10000 + ", " + var7.getY() + ", " + var7.getZ();
+          String var9 = var6.getStructurePath();
+          MutableComponent var10 = (new TextComponent(var8)).setStyle(Style.EMPTY.withBold(true).withColor(ChatFormatting.GREEN).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new TextComponent("Click to copy to clipboard"))).withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, "final BlockPos " + var1 + " = new BlockPos(" + var8 + ");")));
+          var0.sendSuccess((new TextComponent("Position relative to " + var9 + ": ")).append(var10), false);
+          DebugPackets.sendGameTestAddMarker(var4, new BlockPos(var3), var8, -2147418368, 10000);
+          return 1;
+@@ -191,34 +205,34 @@
        }
  
        runTestPreparation(var5, var0);
@@ -67,10 +81,24 @@
 +      GameTestRunner.runTest(var6, var8, GameTestTicker.SINGLETON);
     }
  
-    private static void showTestSummaryIfAllDone(ServerLevel var0, MultipleTestTracker var1) {
+-   private static void showTestSummaryIfAllDone(ServerLevel var0, MultipleTestTracker var1) {
++   static void showTestSummaryIfAllDone(ServerLevel var0, MultipleTestTracker var1) {
        if (var1.isDone()) {
           say(var0, "GameTest done! " + var1.getTotalCount() + " tests were run", ChatFormatting.WHITE);
-@@ -214,11 +227,11 @@
+          if (var1.hasFailedRequired()) {
+-            say(var0, "" + var1.getFailedRequiredCount() + " required tests failed :(", ChatFormatting.RED);
++            say(var0, var1.getFailedRequiredCount() + " required tests failed :(", ChatFormatting.RED);
+          } else {
+             say(var0, "All required tests passed :)", ChatFormatting.GREEN);
+          }
+ 
+          if (var1.hasFailedOptional()) {
+-            say(var0, "" + var1.getFailedOptionalCount() + " optional tests failed", ChatFormatting.GRAY);
++            say(var0, var1.getFailedOptionalCount() + " optional tests failed", ChatFormatting.GRAY);
+          }
+       }
+ 
+    }
  
     private static int clearAllTests(CommandSourceStack var0, int var1) {
        ServerLevel var2 = var0.getLevel();
@@ -83,7 +111,7 @@
  
     private static int runTest(CommandSourceStack var0, TestFunction var1, int var2) {
        ServerLevel var3 = var0.getLevel();
-@@ -227,11 +240,11 @@
+@@ -227,11 +241,11 @@
        BlockPos var6 = new BlockPos(var4.getX(), var5, var4.getZ() + 3);
        GameTestRunner.clearMarkers(var3);
        runTestPreparation(var1, var3);
@@ -96,7 +124,34 @@
  
     private static void runTestPreparation(TestFunction var0, ServerLevel var1) {
        Consumer var2 = GameTestRegistry.getBeforeBatchFunction(var0.getBatchName());
-@@ -281,11 +294,11 @@
+@@ -251,11 +265,12 @@
+    }
+ 
+    private static int runAllTestsInClass(CommandSourceStack var0, String var1, int var2, int var3) {
+       Collection var4 = GameTestRegistry.getTestFunctionsForClassName(var1);
+       GameTestRunner.clearMarkers(var0.getLevel());
+-      say(var0, "Running " + var4.size() + " tests from " + var1 + "...");
++      int var10001 = var4.size();
++      say(var0, "Running " + var10001 + " tests from " + var1 + "...");
+       GameTestRegistry.forgetFailedTests();
+       runTests(var0, var4, var2, var3);
+       return 1;
+    }
+ 
+@@ -270,22 +285,23 @@
+       if (var4.isEmpty()) {
+          say(var0, "No failed tests to rerun");
+          return 0;
+       } else {
+          GameTestRunner.clearMarkers(var0.getLevel());
+-         say(var0, "Rerunning " + var4.size() + " failed tests (" + (var1 ? "only required tests" : "including optional tests") + ")");
++         int var10001 = var4.size();
++         say(var0, "Rerunning " + var10001 + " failed tests (" + (var1 ? "only required tests" : "including optional tests") + ")");
+          runTests(var0, var4, var2, var3);
+          return 1;
+       }
+    }
+ 
     private static void runTests(CommandSourceStack var0, Collection<TestFunction> var1, int var2, int var3) {
        BlockPos var4 = new BlockPos(var0.getPosition());
        BlockPos var5 = new BlockPos(var4.getX(), var0.getLevel().getHeightmapPos(Heightmap.Types.WORLD_SURFACE, var4).getY(), var4.getZ() + 3);
@@ -109,19 +164,69 @@
        var9.addFailureListener((var0x) -> {
           GameTestRegistry.rememberFailedTest(var0x.getTestFunction());
        });
-@@ -342,11 +355,11 @@
+@@ -339,37 +355,34 @@
+       try {
+          BufferedReader var5 = Files.newBufferedReader(var2);
+          String var6 = IOUtils.toString(var5);
           Files.createDirectories(var4.getParent());
           OutputStream var7 = Files.newOutputStream(var4);
-          Throwable var8 = null;
+-         Throwable var8 = null;
  
           try {
 -            NbtIo.writeCompressed(TagParser.parseTag(var6), var7);
+-         } catch (Throwable var18) {
+-            var8 = var18;
+-            throw var18;
+-         } finally {
 +            NbtIo.writeCompressed(NbtUtils.snbtToStructure(var6), var7);
-          } catch (Throwable var18) {
-             var8 = var18;
-             throw var18;
-          } finally {
++         } catch (Throwable var11) {
              if (var7 != null) {
+-               if (var8 != null) {
+-                  try {
+-                     var7.close();
+-                  } catch (Throwable var17) {
+-                     var8.addSuppressed(var17);
+-                  }
+-               } else {
++               try {
+                   var7.close();
++               } catch (Throwable var10) {
++                  var11.addSuppressed(var10);
+                }
+             }
+ 
++            throw var11;
+          }
+ 
++         if (var7 != null) {
++            var7.close();
++         }
++
+          say(var0, "Imported to " + var4.toAbsolutePath());
+          return 0;
+-      } catch (CommandSyntaxException | IOException var20) {
++      } catch (CommandSyntaxException | IOException var12) {
+          System.err.println("Failed to load structure " + var1);
+-         var20.printStackTrace();
++         var12.printStackTrace();
+          return 1;
+       }
+    }
+ 
+    private static void say(ServerLevel var0, String var1, ChatFormatting var2) {
+@@ -378,11 +391,11 @@
+       }).forEach((var2x) -> {
+          var2x.sendMessage(new TextComponent(var2 + var1), Util.NIL_UUID);
+       });
+    }
+ 
+-   static class TestSummaryDisplayer implements GameTestListener {
++   private static class TestSummaryDisplayer implements GameTestListener {
+       private final ServerLevel level;
+       private final MultipleTestTracker tracker;
+ 
+       public TestSummaryDisplayer(ServerLevel var1, MultipleTestTracker var2) {
+          this.level = var1;
 @@ -390,10 +403,14 @@
        }
  

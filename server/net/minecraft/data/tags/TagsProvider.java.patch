@@ -21,7 +21,7 @@
  import org.apache.logging.log4j.Logger;
  
  public abstract class TagsProvider<T> implements DataProvider {
-@@ -41,57 +40,57 @@
+@@ -41,57 +40,55 @@
     protected abstract void addTags();
  
     public void run(HashCache var1) {
@@ -42,9 +42,10 @@
 +         List var4 = (List)var3.getEntries().filter((var1x) -> {
 +            Tag.Entry var10000 = var1x.getEntry();
 +            Registry var10001 = this.registry;
++            Objects.requireNonNull(var10001);
 +            Predicate var2 = var10001::containsKey;
 +            Map var10002 = this.builders;
-+            var10002.getClass();
++            Objects.requireNonNull(var10002);
 +            return !var10000.verifyIfPresent(var2, var10002::containsKey);
 +         }).collect(Collectors.toList());
 +         if (!var4.isEmpty()) {
@@ -67,51 +68,70 @@
 +               if (!Objects.equals(var1.getHash(var6), var8) || !Files.exists(var6, new LinkOption[0])) {
 +                  Files.createDirectories(var6.getParent());
 +                  BufferedWriter var9 = Files.newBufferedWriter(var6);
-+                  Throwable var10 = null;
  
                    try {
 -                     var11.write(var9);
 -                  } catch (Throwable var22) {
 -                     var12 = var22;
 -                     throw var22;
-+                     var9.write(var7);
-+                  } catch (Throwable var20) {
-+                     var10 = var20;
-+                     throw var20;
-                   } finally {
+-                  } finally {
 -                     if (var11 != null) {
 -                        if (var12 != null) {
-+                     if (var9 != null) {
-+                        if (var10 != null) {
-                            try {
+-                           try {
 -                              var11.close();
 -                           } catch (Throwable var21) {
 -                              var12.addSuppressed(var21);
-+                              var9.close();
-+                           } catch (Throwable var19) {
-+                              var10.addSuppressed(var19);
-                            }
-                         } else {
+-                           }
+-                        } else {
 -                           var11.close();
++                     var9.write(var7);
++                  } catch (Throwable var13) {
++                     if (var9 != null) {
++                        try {
 +                           var9.close();
++                        } catch (Throwable var12) {
++                           var13.addSuppressed(var12);
                          }
                       }
  
++                     throw var13;
                    }
++
++                  if (var9 != null) {
++                     var9.close();
++                  }
                 }
  
 -               var1.putNew(var8, var10);
 -            } catch (IOException var24) {
 -               LOGGER.error((String)"Couldn't save tags to {}", (Object)var8, (Object)var24);
 +               var1.putNew(var6, var8);
-+            } catch (IOException var22) {
-+               LOGGER.error((String)"Couldn't save tags to {}", (Object)var6, (Object)var22);
++            } catch (IOException var14) {
++               LOGGER.error((String)"Couldn't save tags to {}", (Object)var6, (Object)var14);
              }
  
           }
        });
     }
-@@ -123,15 +122,25 @@
+@@ -107,36 +104,46 @@
+       return (Tag.Builder)this.builders.computeIfAbsent(var1.getName(), (var0) -> {
+          return new Tag.Builder();
+       });
+    }
+ 
+-   public static class TagAppender<T> {
++   protected static class TagAppender<T> {
+       private final Tag.Builder builder;
+       private final Registry<T> registry;
+       private final String source;
+ 
+-      private TagAppender(Tag.Builder var1, Registry<T> var2, String var3) {
++      TagAppender(Tag.Builder var1, Registry<T> var2, String var3) {
+          this.builder = var1;
+          this.registry = var2;
+          this.source = var3;
+       }
+ 
        public TagsProvider.TagAppender<T> add(T var1) {
           this.builder.addElement(this.registry.getKey(var1), this.source);
           return this;
@@ -136,4 +156,10 @@
        public final TagsProvider.TagAppender<T> add(T... var1) {
           Stream var10000 = Stream.of(var1);
           Registry var10001 = this.registry;
-          var10001.getClass();
+-         var10001.getClass();
++         Objects.requireNonNull(var10001);
+          var10000.map(var10001::getKey).forEach((var1x) -> {
+             this.builder.addElement(var1x, this.source);
+          });
+          return this;
+       }

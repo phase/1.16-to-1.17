@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/animal/Bucketable.java
 +++ net/minecraft/world/entity/animal/Bucketable.java
-@@ -1,0 +1,110 @@
+@@ -1,0 +1,106 @@
 +package net.minecraft.world.entity.animal;
 +
 +import java.util.Optional;
@@ -14,6 +14,7 @@
 +import net.minecraft.world.entity.Mob;
 +import net.minecraft.world.entity.player.Player;
 +import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.ItemUtils;
 +import net.minecraft.world.item.Items;
 +import net.minecraft.world.level.Level;
 +
@@ -48,8 +49,8 @@
 +         var2.putBoolean("NoGravity", var0.isNoGravity());
 +      }
 +
-+      if (var0.isGlowing()) {
-+         var2.putBoolean("Glowing", var0.isGlowing());
++      if (var0.hasGlowingTag()) {
++         var2.putBoolean("Glowing", var0.hasGlowingTag());
 +      }
 +
 +      if (var0.isInvulnerable()) {
@@ -73,7 +74,7 @@
 +      }
 +
 +      if (var1.contains("Glowing")) {
-+         var0.setGlowing(var1.getBoolean("Glowing"));
++         var0.setGlowingTag(var1.getBoolean("Glowing"));
 +      }
 +
 +      if (var1.contains("Invulnerable")) {
@@ -90,22 +91,17 @@
 +      ItemStack var3 = var0.getItemInHand(var1);
 +      if (var3.getItem() == Items.WATER_BUCKET && var2.isAlive()) {
 +         var2.playSound(((Bucketable)var2).getPickupSound(), 1.0F, 1.0F);
-+         var3.shrink(1);
 +         ItemStack var4 = ((Bucketable)var2).getBucketItemStack();
 +         ((Bucketable)var2).saveToBucketTag(var4);
-+         Level var5 = var2.level;
-+         if (!var5.isClientSide) {
++         ItemStack var5 = ItemUtils.createFilledResult(var3, var0, var4, false);
++         var0.setItemInHand(var1, var5);
++         Level var6 = var2.level;
++         if (!var6.isClientSide) {
 +            CriteriaTriggers.FILLED_BUCKET.trigger((ServerPlayer)var0, var4);
 +         }
 +
-+         if (var3.isEmpty()) {
-+            var0.setItemInHand(var1, var4);
-+         } else if (!var0.getInventory().add(var4)) {
-+            var0.drop(var4, false);
-+         }
-+
 +         var2.discard();
-+         return Optional.of(InteractionResult.sidedSuccess(var5.isClientSide));
++         return Optional.of(InteractionResult.sidedSuccess(var6.isClientSide));
 +      } else {
 +         return Optional.empty();
 +      }

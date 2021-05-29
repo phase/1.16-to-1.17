@@ -1,8 +1,9 @@
 --- net/minecraft/client/renderer/GameRenderer.java
 +++ net/minecraft/client/renderer/GameRenderer.java
-@@ -1,21 +1,24 @@
+@@ -1,22 +1,29 @@
  package net.minecraft.client.renderer;
  
++import com.google.common.collect.Lists;
 +import com.google.common.collect.Maps;
  import com.google.gson.JsonSyntaxException;
  import com.mojang.blaze3d.platform.GlStateManager;
@@ -15,17 +16,21 @@
  import com.mojang.blaze3d.vertex.PoseStack;
  import com.mojang.blaze3d.vertex.Tesselator;
 +import com.mojang.blaze3d.vertex.VertexFormat;
++import com.mojang.datafixers.util.Pair;
  import com.mojang.math.Matrix4f;
  import com.mojang.math.Vector3f;
  import java.io.IOException;
++import java.util.ArrayList;
  import java.util.Locale;
 +import java.util.Map;
  import java.util.Random;
++import java.util.function.Consumer;
  import javax.annotation.Nullable;
  import net.minecraft.CrashReport;
  import net.minecraft.CrashReportCategory;
  import net.minecraft.ReportedException;
-@@ -30,10 +33,11 @@
+ import net.minecraft.Util;
+@@ -30,10 +37,11 @@
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.resources.ResourceLocation;
@@ -37,7 +42,7 @@
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.decoration.ItemFrame;
-@@ -44,11 +48,11 @@
+@@ -44,11 +52,11 @@
  import net.minecraft.world.entity.projectile.ProjectileUtil;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.level.GameType;
@@ -50,7 +55,7 @@
  import net.minecraft.world.phys.EntityHitResult;
  import net.minecraft.world.phys.HitResult;
  import net.minecraft.world.phys.Vec3;
-@@ -56,10 +60,12 @@
+@@ -56,10 +64,12 @@
  import org.apache.logging.log4j.Logger;
  
  public class GameRenderer implements ResourceManagerReloadListener, AutoCloseable {
@@ -63,7 +68,7 @@
     private final Random random = new Random();
     private float renderDistance;
     public final ItemInHandRenderer itemInHandRenderer;
-@@ -78,10 +84,11 @@
+@@ -78,10 +88,11 @@
     private final OverlayTexture overlayTexture = new OverlayTexture();
     private boolean panoramicMode;
     private float zoom = 1.0F;
@@ -75,7 +80,7 @@
     private int itemActivationTicks;
     private float itemActivationOffX;
     private float itemActivationOffY;
-@@ -90,14 +97,121 @@
+@@ -90,14 +101,125 @@
     private static final ResourceLocation[] EFFECTS = new ResourceLocation[]{new ResourceLocation("shaders/post/notch.json"), new ResourceLocation("shaders/post/fxaa.json"), new ResourceLocation("shaders/post/art.json"), new ResourceLocation("shaders/post/bumpy.json"), new ResourceLocation("shaders/post/blobs2.json"), new ResourceLocation("shaders/post/pencil.json"), new ResourceLocation("shaders/post/color_convolve.json"), new ResourceLocation("shaders/post/deconverge.json"), new ResourceLocation("shaders/post/flip.json"), new ResourceLocation("shaders/post/invert.json"), new ResourceLocation("shaders/post/ntsc.json"), new ResourceLocation("shaders/post/outline.json"), new ResourceLocation("shaders/post/phosphor.json"), new ResourceLocation("shaders/post/scan_pincushion.json"), new ResourceLocation("shaders/post/sobel.json"), new ResourceLocation("shaders/post/bits.json"), new ResourceLocation("shaders/post/desaturate.json"), new ResourceLocation("shaders/post/green.json"), new ResourceLocation("shaders/post/blur.json"), new ResourceLocation("shaders/post/wobble.json"), new ResourceLocation("shaders/post/blobs.json"), new ResourceLocation("shaders/post/antialias.json"), new ResourceLocation("shaders/post/creeper.json"), new ResourceLocation("shaders/post/spider.json")};
     public static final int EFFECT_NONE;
     private int effectIndex;
@@ -174,7 +179,11 @@
 +   @Nullable
 +   private static ShaderInstance rendertypeTextShader;
 +   @Nullable
++   private static ShaderInstance rendertypeTextIntensityShader;
++   @Nullable
 +   private static ShaderInstance rendertypeTextSeeThroughShader;
++   @Nullable
++   private static ShaderInstance rendertypeTextIntensitySeeThroughShader;
 +   @Nullable
 +   private static ShaderInstance rendertypeLightningShader;
 +   @Nullable
@@ -197,7 +206,7 @@
        this.itemInHandRenderer = var1.getItemInHandRenderer();
        this.mapRenderer = new MapRenderer(var1.getTextureManager());
        this.lightTexture = new LightTexture(this, var1);
-@@ -108,12 +222,33 @@
+@@ -108,12 +230,33 @@
     public void close() {
        this.lightTexture.close();
        this.mapRenderer.close();
@@ -231,7 +240,7 @@
           this.postEffect.close();
        }
  
-@@ -139,10 +274,26 @@
+@@ -139,10 +282,26 @@
           this.loadEffect(new ResourceLocation("shaders/post/invert.json"));
        }
  
@@ -258,7 +267,7 @@
           this.postEffect.close();
        }
  
-@@ -161,10 +312,11 @@
+@@ -161,10 +320,11 @@
        }
  
     }
@@ -270,7 +279,7 @@
        }
  
        this.postEffect = null;
-@@ -174,10 +326,106 @@
+@@ -174,10 +334,232 @@
           this.loadEffect(EFFECTS[this.effectIndex]);
        }
  
@@ -282,83 +291,209 @@
 +      } else {
 +         try {
 +            this.blitShader = new ShaderInstance(var1, "blit_screen", DefaultVertexFormat.BLIT_SCREEN);
-+            positionShader = this.loadShader(var1, "position", DefaultVertexFormat.POSITION);
-+            positionColorShader = this.loadShader(var1, "position_color", DefaultVertexFormat.POSITION_COLOR);
-+            positionColorTexShader = this.loadShader(var1, "position_color_tex", DefaultVertexFormat.POSITION_COLOR_TEX);
-+            positionTexShader = this.loadShader(var1, "position_tex", DefaultVertexFormat.POSITION_TEX);
-+            positionTexColorShader = this.loadShader(var1, "position_tex_color", DefaultVertexFormat.POSITION_TEX_COLOR);
 +         } catch (IOException var3) {
 +            throw new RuntimeException("could not preload blit shader", var3);
 +         }
++
++         positionShader = this.preloadShader(var1, "position", DefaultVertexFormat.POSITION);
++         positionColorShader = this.preloadShader(var1, "position_color", DefaultVertexFormat.POSITION_COLOR);
++         positionColorTexShader = this.preloadShader(var1, "position_color_tex", DefaultVertexFormat.POSITION_COLOR_TEX);
++         positionTexShader = this.preloadShader(var1, "position_tex", DefaultVertexFormat.POSITION_TEX);
++         positionTexColorShader = this.preloadShader(var1, "position_tex_color", DefaultVertexFormat.POSITION_TEX_COLOR);
++         rendertypeTextShader = this.preloadShader(var1, "rendertype_text", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP);
 +      }
 +   }
 +
-+   private ShaderInstance loadShader(ResourceProvider var1, String var2, VertexFormat var3) throws IOException {
-+      ShaderInstance var4 = new ShaderInstance(var1, var2, var3);
-+      this.shaders.put(var2, var4);
-+      return var4;
++   private ShaderInstance preloadShader(ResourceProvider var1, String var2, VertexFormat var3) {
++      try {
++         ShaderInstance var4 = new ShaderInstance(var1, var2, var3);
++         this.shaders.put(var2, var4);
++         return var4;
++      } catch (Exception var5) {
++         throw new IllegalStateException("could not preload shader " + var2, var5);
++      }
 +   }
 +
 +   public void reloadShaders(ResourceManager var1) {
 +      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
-+      this.shutdownShaders();
++      ArrayList var2 = Lists.newArrayListWithCapacity(this.shaders.size());
 +
 +      try {
-+         blockShader = this.loadShader(var1, "block", DefaultVertexFormat.BLOCK);
-+         newEntityShader = this.loadShader(var1, "new_entity", DefaultVertexFormat.NEW_ENTITY);
-+         particleShader = this.loadShader(var1, "particle", DefaultVertexFormat.PARTICLE);
-+         positionShader = this.loadShader(var1, "position", DefaultVertexFormat.POSITION);
-+         positionColorShader = this.loadShader(var1, "position_color", DefaultVertexFormat.POSITION_COLOR);
-+         positionColorLightmapShader = this.loadShader(var1, "position_color_lightmap", DefaultVertexFormat.POSITION_COLOR_LIGHTMAP);
-+         positionColorTexShader = this.loadShader(var1, "position_color_tex", DefaultVertexFormat.POSITION_COLOR_TEX);
-+         positionColorTexLightmapShader = this.loadShader(var1, "position_color_tex_lightmap", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP);
-+         positionTexShader = this.loadShader(var1, "position_tex", DefaultVertexFormat.POSITION_TEX);
-+         positionTexColorShader = this.loadShader(var1, "position_tex_color", DefaultVertexFormat.POSITION_TEX_COLOR);
-+         positionTexColorNormalShader = this.loadShader(var1, "position_tex_color_normal", DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-+         positionTexLightmapColorShader = this.loadShader(var1, "position_tex_lightmap_color", DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR);
-+         rendertypeSolidShader = this.loadShader(var1, "rendertype_solid", DefaultVertexFormat.BLOCK);
-+         rendertypeCutoutMippedShader = this.loadShader(var1, "rendertype_cutout_mipped", DefaultVertexFormat.BLOCK);
-+         rendertypeCutoutShader = this.loadShader(var1, "rendertype_cutout", DefaultVertexFormat.BLOCK);
-+         rendertypeTranslucentShader = this.loadShader(var1, "rendertype_translucent", DefaultVertexFormat.BLOCK);
-+         rendertypeTranslucentMovingBlockShader = this.loadShader(var1, "rendertype_translucent_moving_block", DefaultVertexFormat.BLOCK);
-+         rendertypeTranslucentNoCrumblingShader = this.loadShader(var1, "rendertype_translucent_no_crumbling", DefaultVertexFormat.BLOCK);
-+         rendertypeArmorCutoutNoCullShader = this.loadShader(var1, "rendertype_armor_cutout_no_cull", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntitySolidShader = this.loadShader(var1, "rendertype_entity_solid", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntityCutoutShader = this.loadShader(var1, "rendertype_entity_cutout", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntityCutoutNoCullShader = this.loadShader(var1, "rendertype_entity_cutout_no_cull", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntityCutoutNoCullZOffsetShader = this.loadShader(var1, "rendertype_entity_cutout_no_cull_z_offset", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeItemEntityTranslucentCullShader = this.loadShader(var1, "rendertype_item_entity_translucent_cull", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntityTranslucentCullShader = this.loadShader(var1, "rendertype_entity_translucent_cull", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntityTranslucentShader = this.loadShader(var1, "rendertype_entity_translucent", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntitySmoothCutoutShader = this.loadShader(var1, "rendertype_entity_smooth_cutout", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeBeaconBeamShader = this.loadShader(var1, "rendertype_beacon_beam", DefaultVertexFormat.BLOCK);
-+         rendertypeEntityDecalShader = this.loadShader(var1, "rendertype_entity_decal", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntityNoOutlineShader = this.loadShader(var1, "rendertype_entity_no_outline", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntityShadowShader = this.loadShader(var1, "rendertype_entity_shadow", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEntityAlphaShader = this.loadShader(var1, "rendertype_entity_alpha", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEyesShader = this.loadShader(var1, "rendertype_eyes", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeEnergySwirlShader = this.loadShader(var1, "rendertype_energy_swirl", DefaultVertexFormat.NEW_ENTITY);
-+         rendertypeLeashShader = this.loadShader(var1, "rendertype_leash", DefaultVertexFormat.POSITION_COLOR_LIGHTMAP);
-+         rendertypeWaterMaskShader = this.loadShader(var1, "rendertype_water_mask", DefaultVertexFormat.POSITION);
-+         rendertypeOutlineShader = this.loadShader(var1, "rendertype_outline", DefaultVertexFormat.POSITION_COLOR_TEX);
-+         rendertypeArmorGlintShader = this.loadShader(var1, "rendertype_armor_glint", DefaultVertexFormat.POSITION_TEX);
-+         rendertypeArmorEntityGlintShader = this.loadShader(var1, "rendertype_armor_entity_glint", DefaultVertexFormat.POSITION_TEX);
-+         rendertypeGlintTranslucentShader = this.loadShader(var1, "rendertype_glint_translucent", DefaultVertexFormat.POSITION_TEX);
-+         rendertypeGlintShader = this.loadShader(var1, "rendertype_glint", DefaultVertexFormat.POSITION_TEX);
-+         rendertypeGlintDirectShader = this.loadShader(var1, "rendertype_glint_direct", DefaultVertexFormat.POSITION_TEX);
-+         rendertypeEntityGlintShader = this.loadShader(var1, "rendertype_entity_glint", DefaultVertexFormat.POSITION_TEX);
-+         rendertypeEntityGlintDirectShader = this.loadShader(var1, "rendertype_entity_glint_direct", DefaultVertexFormat.POSITION_TEX);
-+         rendertypeTextShader = this.loadShader(var1, "rendertype_text", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP);
-+         rendertypeTextSeeThroughShader = this.loadShader(var1, "rendertype_text_see_through", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP);
-+         rendertypeLightningShader = this.loadShader(var1, "rendertype_lightning", DefaultVertexFormat.POSITION_COLOR);
-+         rendertypeTripwireShader = this.loadShader(var1, "rendertype_tripwire", DefaultVertexFormat.BLOCK);
-+         rendertypeEndPortalShader = this.loadShader(var1, "rendertype_end_portal", DefaultVertexFormat.POSITION);
-+         rendertypeEndGatewayShader = this.loadShader(var1, "rendertype_end_gateway", DefaultVertexFormat.POSITION);
-+         rendertypeLinesShader = this.loadShader(var1, "rendertype_lines", DefaultVertexFormat.POSITION_COLOR_NORMAL);
-+         rendertypeCrumblingShader = this.loadShader(var1, "rendertype_crumbling", DefaultVertexFormat.BLOCK);
-+      } catch (IOException var3) {
-+         throw new RuntimeException("could not reload shaders", var3);
++         var2.add(Pair.of(new ShaderInstance(var1, "block", DefaultVertexFormat.BLOCK), (var0) -> {
++            blockShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "new_entity", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            newEntityShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "particle", DefaultVertexFormat.PARTICLE), (var0) -> {
++            particleShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "position", DefaultVertexFormat.POSITION), (var0) -> {
++            positionShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "position_color", DefaultVertexFormat.POSITION_COLOR), (var0) -> {
++            positionColorShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "position_color_lightmap", DefaultVertexFormat.POSITION_COLOR_LIGHTMAP), (var0) -> {
++            positionColorLightmapShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "position_color_tex", DefaultVertexFormat.POSITION_COLOR_TEX), (var0) -> {
++            positionColorTexShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "position_color_tex_lightmap", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP), (var0) -> {
++            positionColorTexLightmapShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "position_tex", DefaultVertexFormat.POSITION_TEX), (var0) -> {
++            positionTexShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "position_tex_color", DefaultVertexFormat.POSITION_TEX_COLOR), (var0) -> {
++            positionTexColorShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "position_tex_color_normal", DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL), (var0) -> {
++            positionTexColorNormalShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "position_tex_lightmap_color", DefaultVertexFormat.POSITION_TEX_LIGHTMAP_COLOR), (var0) -> {
++            positionTexLightmapColorShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_solid", DefaultVertexFormat.BLOCK), (var0) -> {
++            rendertypeSolidShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_cutout_mipped", DefaultVertexFormat.BLOCK), (var0) -> {
++            rendertypeCutoutMippedShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_cutout", DefaultVertexFormat.BLOCK), (var0) -> {
++            rendertypeCutoutShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_translucent", DefaultVertexFormat.BLOCK), (var0) -> {
++            rendertypeTranslucentShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_translucent_moving_block", DefaultVertexFormat.BLOCK), (var0) -> {
++            rendertypeTranslucentMovingBlockShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_translucent_no_crumbling", DefaultVertexFormat.BLOCK), (var0) -> {
++            rendertypeTranslucentNoCrumblingShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_armor_cutout_no_cull", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeArmorCutoutNoCullShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_solid", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntitySolidShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_cutout", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntityCutoutShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_cutout_no_cull", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntityCutoutNoCullShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_cutout_no_cull_z_offset", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntityCutoutNoCullZOffsetShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_item_entity_translucent_cull", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeItemEntityTranslucentCullShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_translucent_cull", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntityTranslucentCullShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_translucent", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntityTranslucentShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_smooth_cutout", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntitySmoothCutoutShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_beacon_beam", DefaultVertexFormat.BLOCK), (var0) -> {
++            rendertypeBeaconBeamShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_decal", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntityDecalShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_no_outline", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntityNoOutlineShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_shadow", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntityShadowShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_alpha", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEntityAlphaShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_eyes", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEyesShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_energy_swirl", DefaultVertexFormat.NEW_ENTITY), (var0) -> {
++            rendertypeEnergySwirlShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_leash", DefaultVertexFormat.POSITION_COLOR_LIGHTMAP), (var0) -> {
++            rendertypeLeashShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_water_mask", DefaultVertexFormat.POSITION), (var0) -> {
++            rendertypeWaterMaskShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_outline", DefaultVertexFormat.POSITION_COLOR_TEX), (var0) -> {
++            rendertypeOutlineShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_armor_glint", DefaultVertexFormat.POSITION_TEX), (var0) -> {
++            rendertypeArmorGlintShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_armor_entity_glint", DefaultVertexFormat.POSITION_TEX), (var0) -> {
++            rendertypeArmorEntityGlintShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_glint_translucent", DefaultVertexFormat.POSITION_TEX), (var0) -> {
++            rendertypeGlintTranslucentShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_glint", DefaultVertexFormat.POSITION_TEX), (var0) -> {
++            rendertypeGlintShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_glint_direct", DefaultVertexFormat.POSITION_TEX), (var0) -> {
++            rendertypeGlintDirectShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_glint", DefaultVertexFormat.POSITION_TEX), (var0) -> {
++            rendertypeEntityGlintShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_entity_glint_direct", DefaultVertexFormat.POSITION_TEX), (var0) -> {
++            rendertypeEntityGlintDirectShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_text", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP), (var0) -> {
++            rendertypeTextShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_text_intensity", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP), (var0) -> {
++            rendertypeTextIntensityShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_text_see_through", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP), (var0) -> {
++            rendertypeTextSeeThroughShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_text_intensity_see_through", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP), (var0) -> {
++            rendertypeTextIntensitySeeThroughShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_lightning", DefaultVertexFormat.POSITION_COLOR), (var0) -> {
++            rendertypeLightningShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_tripwire", DefaultVertexFormat.BLOCK), (var0) -> {
++            rendertypeTripwireShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_end_portal", DefaultVertexFormat.POSITION), (var0) -> {
++            rendertypeEndPortalShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_end_gateway", DefaultVertexFormat.POSITION), (var0) -> {
++            rendertypeEndGatewayShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_lines", DefaultVertexFormat.POSITION_COLOR_NORMAL), (var0) -> {
++            rendertypeLinesShader = var0;
++         }));
++         var2.add(Pair.of(new ShaderInstance(var1, "rendertype_crumbling", DefaultVertexFormat.BLOCK), (var0) -> {
++            rendertypeCrumblingShader = var0;
++         }));
++      } catch (IOException var4) {
++         var2.forEach((var0) -> {
++            ((ShaderInstance)var0.getFirst()).close();
++         });
++         throw new RuntimeException("could not reload shaders", var4);
 +      }
++
++      this.shutdownShaders();
++      var2.forEach((var1x) -> {
++         ShaderInstance var2 = (ShaderInstance)var1x.getFirst();
++         this.shaders.put(var2.getName(), var2);
++         ((Consumer)var1x.getSecond()).accept(var2);
++      });
 +   }
 +
 +   private void shutdownShaders() {
@@ -377,7 +512,7 @@
        this.lightTexture.tick();
        if (this.minecraft.getCameraEntity() == null) {
           this.minecraft.setCameraEntity(this.minecraft.player);
-@@ -305,13 +553,13 @@
+@@ -305,13 +687,13 @@
           if (var1.getEntity() instanceof LivingEntity && ((LivingEntity)var1.getEntity()).isDeadOrDying()) {
              float var6 = Math.min((float)((LivingEntity)var1.getEntity()).deathTime + var2, 20.0F);
              var4 /= (double)((1.0F - 500.0F / (var6 + 500.0F)) * 2.0F + 1.0F);
@@ -394,7 +529,7 @@
           return var4;
        }
     }
-@@ -350,13 +598,23 @@
+@@ -350,13 +732,23 @@
           var1.mulPose(Vector3f.ZP.rotationDegrees(Mth.sin(var5 * 3.1415927F) * var6 * 3.0F));
           var1.mulPose(Vector3f.XP.rotationDegrees(Math.abs(Mth.cos(var5 * 3.1415927F - 0.2F) * var6) * 5.0F));
        }
@@ -419,7 +554,7 @@
           var4.normal().setIdentity();
           var1.pushPose();
           this.bobHurt(var1, var3);
-@@ -383,28 +641,29 @@
+@@ -383,38 +775,41 @@
  
        }
     }
@@ -460,7 +595,22 @@
        return var2 > 200 ? 1.0F : 0.7F + Mth.sin(((float)var2 - var1) * 3.1415927F * 0.2F) * 0.3F;
     }
  
-@@ -431,80 +690,75 @@
+    public void render(float var1, long var2, boolean var4) {
+-      if (this.minecraft.isWindowActive() || !this.minecraft.options.pauseOnLostFocus || this.minecraft.options.touchscreen && this.minecraft.mouseHandler.isRightPressed()) {
++      if (!this.minecraft.isWindowActive() && this.minecraft.options.pauseOnLostFocus && (!this.minecraft.options.touchscreen || !this.minecraft.mouseHandler.isRightPressed())) {
++         if (Util.getMillis() - this.lastActiveTime > 500L) {
++            this.minecraft.pauseGame(false);
++         }
++      } else {
+          this.lastActiveTime = Util.getMillis();
+-      } else if (Util.getMillis() - this.lastActiveTime > 500L) {
+-         this.minecraft.pauseGame(false);
+       }
+ 
+       if (!this.minecraft.noRender) {
+          int var5 = (int)(this.minecraft.mouseHandler.xpos() * (double)this.minecraft.getWindow().getGuiScaledWidth() / (double)this.minecraft.getWindow().getScreenWidth());
+          int var6 = (int)(this.minecraft.mouseHandler.ypos() * (double)this.minecraft.getWindow().getGuiScaledHeight() / (double)this.minecraft.getWindow().getScreenHeight());
+@@ -431,81 +826,89 @@
  
              this.minecraft.levelRenderer.doEntityOutline();
              if (this.postEffect != null && this.effectActive) {
@@ -533,8 +683,8 @@
 -               var11.setDetail("Overlay name", () -> {
 -                  return this.minecraft.overlay.getClass().getCanonicalName();
 +               this.minecraft.getOverlay().render(var10, var5, var6, this.minecraft.getDeltaFrameTime());
-+            } catch (Throwable var15) {
-+               var12 = CrashReport.forThrowable(var15, "Rendering overlay");
++            } catch (Throwable var16) {
++               var12 = CrashReport.forThrowable(var16, "Rendering overlay");
 +               var13 = var12.addCategory("Overlay render details");
 +               var13.setDetail("Overlay name", () -> {
 +                  return this.minecraft.getOverlay().getClass().getCanonicalName();
@@ -550,8 +700,8 @@
 -               var11 = var10.addCategory("Screen render details");
 -               var11.setDetail("Screen name", () -> {
 +               this.minecraft.screen.render(var10, var5, var6, this.minecraft.getDeltaFrameTime());
-+            } catch (Throwable var14) {
-+               var12 = CrashReport.forThrowable(var14, "Rendering screen");
++            } catch (Throwable var15) {
++               var12 = CrashReport.forThrowable(var15, "Rendering screen");
 +               var13 = var12.addCategory("Screen render details");
 +               var13.setDetail("Screen name", () -> {
                    return this.minecraft.screen.getClass().getCanonicalName();
@@ -567,11 +717,70 @@
 -               throw new ReportedException(var10);
 +               throw new ReportedException(var12);
              }
++
++            try {
++               if (this.minecraft.screen != null) {
++                  this.minecraft.screen.handleDelayedNarration();
++               }
++            } catch (Throwable var14) {
++               var12 = CrashReport.forThrowable(var14, "Narrating screen");
++               var13 = var12.addCategory("Screen details");
++               var13.setDetail("Screen name", () -> {
++                  return this.minecraft.screen.getClass().getCanonicalName();
++               });
++               throw new ReportedException(var12);
++            }
           }
  
        }
     }
-@@ -564,11 +818,11 @@
+ 
+@@ -525,34 +928,27 @@
+                var3 = var2;
+             }
+ 
+             try {
+                NativeImage var6 = new NativeImage(64, 64, false);
+-               Throwable var7 = null;
+ 
+                try {
+                   var1.resizeSubRectTo(var4, var5, var2, var3, var6);
+                   var6.writeToFile(this.minecraft.getSingleplayerServer().getWorldScreenshotFile());
+-               } catch (Throwable var25) {
+-                  var7 = var25;
+-                  throw var25;
+-               } finally {
+-                  if (var6 != null) {
+-                     if (var7 != null) {
+-                        try {
+-                           var6.close();
+-                        } catch (Throwable var24) {
+-                           var7.addSuppressed(var24);
+-                        }
+-                     } else {
+-                        var6.close();
+-                     }
++               } catch (Throwable var15) {
++                  try {
++                     var6.close();
++                  } catch (Throwable var14) {
++                     var15.addSuppressed(var14);
+                   }
+ 
++                  throw var15;
+                }
+-            } catch (IOException var27) {
+-               LOGGER.warn("Couldn't save auto screenshot", var27);
++
++               var6.close();
++            } catch (IOException var16) {
++               LOGGER.warn("Couldn't save auto screenshot", var16);
+             } finally {
+                var1.close();
+             }
+ 
+          });
+@@ -564,11 +960,11 @@
        if (!this.renderBlockOutline) {
           return false;
        } else {
@@ -584,7 +793,7 @@
              if (var4 != null && var4.getType() == HitResult.Type.BLOCK) {
                 BlockPos var5 = ((BlockHitResult)var4).getBlockPos();
                 BlockState var6 = this.minecraft.level.getBlockState(var5);
-@@ -596,34 +850,36 @@
+@@ -596,34 +992,36 @@
        boolean var5 = this.shouldRenderBlockOutline();
        this.minecraft.getProfiler().popPush("camera");
        Camera var6 = this.mainCamera;
@@ -635,7 +844,7 @@
           RenderSystem.clear(256, Minecraft.ON_OSX);
           this.renderItemInHand(var4, var6, var1);
        }
-@@ -656,13 +912,10 @@
+@@ -656,13 +1054,10 @@
           float var7 = var5 * var6;
           float var8 = 10.25F * var7 * var6 - 24.95F * var6 * var6 + 25.5F * var7 - 13.8F * var6 + 4.0F * var5;
           float var9 = var8 * 3.1415927F;
@@ -649,7 +858,7 @@
           PoseStack var12 = new PoseStack();
           var12.pushPose();
           var12.translate((double)((float)(var1 / 2) + var10 * Mth.abs(Mth.sin(var9 * 2.0F))), (double)((float)(var2 / 2) + var11 * Mth.abs(Mth.sin(var9 * 2.0F))), -50.0D);
-@@ -670,15 +923,13 @@
+@@ -670,15 +1065,13 @@
           var12.scale(var13, -var13, var13);
           var12.mulPose(Vector3f.YP.rotationDegrees(900.0F * Mth.abs(Mth.sin(var9))));
           var12.mulPose(Vector3f.XP.rotationDegrees(6.0F * Mth.cos(var5 * 8.0F)));
@@ -666,7 +875,7 @@
        }
     }
  
-@@ -695,27 +946,32 @@
+@@ -695,27 +1088,32 @@
        double var15 = ((double)var3 - var11) / 2.0D;
        RenderSystem.disableDepthTest();
        RenderSystem.depthMask(false);
@@ -703,7 +912,7 @@
     }
  
     public float getRenderDistance() {
-@@ -732,9 +988,269 @@
+@@ -732,9 +1130,279 @@
  
     public OverlayTexture overlayTexture() {
        return this.overlayTexture;
@@ -935,8 +1144,18 @@
 +   }
 +
 +   @Nullable
++   public static ShaderInstance getRendertypeTextIntensityShader() {
++      return rendertypeTextIntensityShader;
++   }
++
++   @Nullable
 +   public static ShaderInstance getRendertypeTextSeeThroughShader() {
 +      return rendertypeTextSeeThroughShader;
++   }
++
++   @Nullable
++   public static ShaderInstance getRendertypeTextIntensitySeeThroughShader() {
++      return rendertypeTextIntensitySeeThroughShader;
 +   }
 +
 +   @Nullable

@@ -132,7 +132,7 @@
     private static Pair<Vec3i, Vec3i> exits(RailShape var0) {
        return (Pair)EXITS.get(var0);
     }
-@@ -246,49 +258,48 @@
+@@ -246,73 +258,72 @@
  
        if (this.getDamage() > 0.0F) {
           this.setDamage(this.getDamage() - 1.0F);
@@ -151,16 +151,21 @@
 +            var1 = this.getX() + (this.lx - this.getX()) / (double)this.lSteps;
              double var16 = this.getY() + (this.ly - this.getY()) / (double)this.lSteps;
              double var17 = this.getZ() + (this.lz - this.getZ()) / (double)this.lSteps;
-             double var7 = Mth.wrapDegrees(this.lyr - (double)this.yRot);
-             this.yRot = (float)((double)this.yRot + var7 / (double)this.lSteps);
-             this.xRot = (float)((double)this.xRot + (this.lxr - (double)this.xRot) / (double)this.lSteps);
+-            double var7 = Mth.wrapDegrees(this.lyr - (double)this.yRot);
+-            this.yRot = (float)((double)this.yRot + var7 / (double)this.lSteps);
+-            this.xRot = (float)((double)this.xRot + (this.lxr - (double)this.xRot) / (double)this.lSteps);
++            double var7 = Mth.wrapDegrees(this.lyr - (double)this.getYRot());
++            this.setYRot(this.getYRot() + (float)var7 / (float)this.lSteps);
++            this.setXRot(this.getXRot() + (float)(this.lxr - (double)this.getXRot()) / (float)this.lSteps);
              --this.lSteps;
 -            this.setPos(var15, var16, var17);
+-            this.setRot(this.yRot, this.xRot);
 +            this.setPos(var1, var16, var17);
-             this.setRot(this.yRot, this.xRot);
++            this.setRot(this.getYRot(), this.getXRot());
           } else {
              this.reapplyPosition();
-             this.setRot(this.yRot, this.xRot);
+-            this.setRot(this.yRot, this.xRot);
++            this.setRot(this.getYRot(), this.getXRot());
           }
  
        } else {
@@ -192,6 +197,37 @@
              this.comeOffTrack();
           }
  
+          this.checkInsideBlocks();
+-         this.xRot = 0.0F;
++         this.setXRot(0.0F);
+          double var6 = this.xo - this.getX();
+          double var8 = this.zo - this.getZ();
+          if (var6 * var6 + var8 * var8 > 0.001D) {
+-            this.yRot = (float)(Mth.atan2(var8, var6) * 180.0D / 3.141592653589793D);
++            this.setYRot((float)(Mth.atan2(var8, var6) * 180.0D / 3.141592653589793D));
+             if (this.flipped) {
+-               this.yRot += 180.0F;
++               this.setYRot(this.getYRot() + 180.0F);
+             }
+          }
+ 
+-         double var10 = (double)Mth.wrapDegrees(this.yRot - this.yRotO);
++         double var10 = (double)Mth.wrapDegrees(this.getYRot() - this.yRotO);
+          if (var10 < -170.0D || var10 >= 170.0D) {
+-            this.yRot += 180.0F;
++            this.setYRot(this.getYRot() + 180.0F);
+             this.flipped = !this.flipped;
+          }
+ 
+-         this.setRot(this.yRot, this.xRot);
+-         if (this.getMinecartType() == AbstractMinecart.Type.RIDEABLE && getHorizontalDistanceSqr(this.getDeltaMovement()) > 0.01D) {
++         this.setRot(this.getYRot(), this.getXRot());
++         if (this.getMinecartType() == AbstractMinecart.Type.RIDEABLE && this.getDeltaMovement().horizontalDistanceSqr() > 0.01D) {
+             List var18 = this.level.getEntities((Entity)this, this.getBoundingBox().inflate(0.20000000298023224D, 0.0D, 0.20000000298023224D), EntitySelector.pushableBy(this));
+             if (!var18.isEmpty()) {
+                for(int var19 = 0; var19 < var18.size(); ++var19) {
+                   Entity var14 = (Entity)var18.get(var19);
+                   if (!(var14 instanceof Player) && !(var14 instanceof IronGolem) && !(var14 instanceof AbstractMinecart) && !this.isVehicle() && !var14.isPassenger()) {
 @@ -342,11 +353,11 @@
           this.firstTick = false;
        }
@@ -285,14 +321,14 @@
 -         double var34 = getHorizontalDistanceSqr(this.getDeltaMovement());
 -         if (var32 > 1.0E-4D && var34 < 0.01D) {
 -            this.setDeltaMovement(this.getDeltaMovement().add(var31.x * 0.1D, 0.0D, var31.z * 0.1D));
-+      double var27 = Math.min(2.0D, Math.sqrt(getHorizontalDistanceSqr(var14)));
++      double var27 = Math.min(2.0D, var14.horizontalDistance());
 +      var14 = new Vec3(var27 * var19 / var23, var14.y, var27 * var21 / var23);
 +      this.setDeltaMovement(var14);
 +      Entity var29 = this.getFirstPassenger();
 +      if (var29 instanceof Player) {
 +         Vec3 var30 = var29.getDeltaMovement();
-+         double var31 = getHorizontalDistanceSqr(var30);
-+         double var33 = getHorizontalDistanceSqr(this.getDeltaMovement());
++         double var31 = var30.horizontalDistanceSqr();
++         double var33 = this.getDeltaMovement().horizontalDistanceSqr();
 +         if (var31 > 1.0E-4D && var33 < 0.01D) {
 +            this.setDeltaMovement(this.getDeltaMovement().add(var30.x * 0.1D, 0.0D, var30.z * 0.1D));
              var11 = false;
@@ -304,7 +340,7 @@
        if (var11) {
 -         var58 = Math.sqrt(getHorizontalDistanceSqr(this.getDeltaMovement()));
 -         if (var58 < 0.03D) {
-+         var57 = Math.sqrt(getHorizontalDistanceSqr(this.getDeltaMovement()));
++         var57 = this.getDeltaMovement().horizontalDistance();
 +         if (var57 < 0.03D) {
              this.setDeltaMovement(Vec3.ZERO);
           } else {
@@ -385,7 +421,7 @@
 +      if (var44 != null && var9 != null) {
 +         double var45 = (var9.y - var44.y) * 0.05D;
 +         var47 = this.getDeltaMovement();
-+         var48 = Math.sqrt(getHorizontalDistanceSqr(var47));
++         var48 = var47.horizontalDistance();
 +         if (var48 > 0.0D) {
 +            this.setDeltaMovement(var47.multiply((var48 + var45) / var48, 1.0D, (var48 + var45) / var48));
           }
@@ -404,7 +440,7 @@
 +      int var46 = Mth.floor(this.getZ());
 +      if (var55 != var1.getX() || var46 != var1.getZ()) {
 +         var47 = this.getDeltaMovement();
-+         var48 = Math.sqrt(getHorizontalDistanceSqr(var47));
++         var48 = var47.horizontalDistance();
 +         this.setDeltaMovement(var48 * (double)(var55 - var1.getX()), var47.y, var48 * (double)(var46 - var1.getZ()));
        }
  
@@ -415,7 +451,7 @@
 -            double var51 = 0.06D;
 -            this.setDeltaMovement(var48.add(var48.x / var49 * 0.06D, 0.0D, var48.z / var49 * 0.06D));
 +         var47 = this.getDeltaMovement();
-+         var48 = Math.sqrt(getHorizontalDistanceSqr(var47));
++         var48 = var47.horizontalDistance();
 +         if (var48 > 0.01D) {
 +            double var50 = 0.06D;
 +            this.setDeltaMovement(var47.add(var47.x / var48 * 0.06D, 0.0D, var47.z / var48 * 0.06D));
@@ -534,7 +570,20 @@
           this.setDisplayBlockState(NbtUtils.readBlockState(var1.getCompound("DisplayState")));
           this.setDisplayOffset(var1.getInt("DisplayOffset"));
        }
-@@ -621,12 +685,10 @@
+@@ -609,11 +673,11 @@
+             if (!this.hasPassenger(var1)) {
+                double var2 = var1.getX() - this.getX();
+                double var4 = var1.getZ() - this.getZ();
+                double var6 = var2 * var2 + var4 * var4;
+                if (var6 >= 9.999999747378752E-5D) {
+-                  var6 = (double)Mth.sqrt(var6);
++                  var6 = Math.sqrt(var6);
+                   var2 /= var6;
+                   var4 /= var6;
+                   double var8 = 1.0D / var6;
+                   if (var8 > 1.0D) {
+                      var8 = 1.0D;
+@@ -621,19 +685,17 @@
  
                    var2 *= var8;
                    var4 *= var8;
@@ -547,6 +596,14 @@
                    if (var1 instanceof AbstractMinecart) {
                       double var10 = var1.getX() - this.getX();
                       double var12 = var1.getZ() - this.getZ();
+                      Vec3 var14 = (new Vec3(var10, 0.0D, var12)).normalize();
+-                     Vec3 var15 = (new Vec3((double)Mth.cos(this.yRot * 0.017453292F), 0.0D, (double)Mth.sin(this.yRot * 0.017453292F))).normalize();
++                     Vec3 var15 = (new Vec3((double)Mth.cos(this.getYRot() * 0.017453292F), 0.0D, (double)Mth.sin(this.getYRot() * 0.017453292F))).normalize();
+                      double var16 = Math.abs(var14.dot(var15));
+                      if (var16 < 0.800000011920929D) {
+                         return;
+                      }
+ 
 @@ -664,10 +726,27 @@
              }
           }

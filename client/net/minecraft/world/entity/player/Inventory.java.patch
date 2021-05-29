@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/player/Inventory.java
 +++ net/minecraft/world/entity/player/Inventory.java
-@@ -21,29 +21,31 @@
+@@ -21,29 +21,33 @@
  import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.item.ArmorItem;
@@ -15,6 +15,8 @@
 +   private static final int SELECTION_SIZE = 9;
 +   public static final int SLOT_OFFHAND = 40;
 +   public static final int NOT_FOUND_INDEX = -1;
++   public static final int[] ALL_ARMOR_SLOTS = new int[]{0, 1, 2, 3};
++   public static final int[] HELMET_SLOT_ONLY = new int[]{3};
     public final NonNullList<ItemStack> items;
     public final NonNullList<ItemStack> armor;
     public final NonNullList<ItemStack> offhand;
@@ -35,7 +37,7 @@
  
     public ItemStack getSelected() {
        return isHotbarSlot(this.selected) ? (ItemStack)this.items.get(this.selected) : ItemStack.EMPTY;
-@@ -52,17 +54,13 @@
+@@ -52,17 +56,13 @@
     public static int getSelectionSize() {
        return 9;
     }
@@ -54,7 +56,31 @@
           if (((ItemStack)this.items.get(var1)).isEmpty()) {
              return var1;
           }
-@@ -104,22 +102,22 @@
+@@ -79,11 +79,11 @@
+          if (var2 == -1) {
+             this.selected = this.getSuitableHotbarSlot();
+             if (!((ItemStack)this.items.get(this.selected)).isEmpty()) {
+                int var3 = this.getFreeSlot();
+                if (var3 != -1) {
+-                  this.items.set(var3, this.items.get(this.selected));
++                  this.items.set(var3, (ItemStack)this.items.get(this.selected));
+                }
+             }
+ 
+             this.items.set(this.selected, var1);
+          } else {
+@@ -94,32 +94,32 @@
+    }
+ 
+    public void pickSlot(int var1) {
+       this.selected = this.getSuitableHotbarSlot();
+       ItemStack var2 = (ItemStack)this.items.get(this.selected);
+-      this.items.set(this.selected, this.items.get(var1));
++      this.items.set(this.selected, (ItemStack)this.items.get(var1));
+       this.items.set(var1, var2);
+    }
+ 
+    public static boolean isHotbarSlot(int var0) {
        return var0 >= 0 && var0 < 9;
     }
  
@@ -79,7 +105,7 @@
        }
  
        return -1;
-@@ -164,18 +162,19 @@
+@@ -164,18 +164,19 @@
     }
  
     public int clearOrCountMatchingItems(Predicate<ItemStack> var1, int var2, Container var3) {
@@ -105,7 +131,7 @@
     private int addResource(ItemStack var1) {
        int var2 = this.getSlotWithRemainingSpace(var1);
        if (var2 == -1) {
-@@ -265,11 +264,11 @@
+@@ -265,11 +266,11 @@
                 if (var1 >= 0) {
                    this.items.set(var1, var2.copy());
                    ((ItemStack)this.items.get(var1)).setPopTime(5);
@@ -118,7 +144,7 @@
                 } else {
                    return false;
                 }
-@@ -282,11 +281,11 @@
+@@ -282,11 +283,11 @@
                    } else {
                       var2.setCount(this.addResource(var1, var2));
                    }
@@ -131,7 +157,7 @@
                 } else {
                    return var2.getCount() < var3;
                 }
-@@ -302,29 +301,34 @@
+@@ -302,29 +303,34 @@
              throw new ReportedException(var4);
           }
        }
@@ -177,7 +203,40 @@
  
     public ItemStack removeItem(int var1, int var2) {
        NonNullList var3 = null;
-@@ -562,20 +566,12 @@
+@@ -518,22 +524,26 @@
+ 
+    public ItemStack getArmor(int var1) {
+       return (ItemStack)this.armor.get(var1);
+    }
+ 
+-   public void hurtArmor(DamageSource var1, float var2) {
++   public void hurtArmor(DamageSource var1, float var2, int[] var3) {
+       if (var2 > 0.0F) {
+          var2 /= 4.0F;
+          if (var2 < 1.0F) {
+             var2 = 1.0F;
+          }
+ 
+-         for(int var3 = 0; var3 < this.armor.size(); ++var3) {
+-            ItemStack var4 = (ItemStack)this.armor.get(var3);
+-            if ((!var1.isFire() || !var4.getItem().isFireResistant()) && var4.getItem() instanceof ArmorItem) {
+-               var4.hurtAndBreak((int)var2, this.player, (var1x) -> {
+-                  var1x.broadcastBreakEvent(EquipmentSlot.byTypeAndIndex(EquipmentSlot.Type.ARMOR, var3));
++         int[] var4 = var3;
++         int var5 = var3.length;
++
++         for(int var6 = 0; var6 < var5; ++var6) {
++            int var7 = var4[var6];
++            ItemStack var8 = (ItemStack)this.armor.get(var7);
++            if ((!var1.isFire() || !var8.getItem().isFireResistant()) && var8.getItem() instanceof ArmorItem) {
++               var8.hurtAndBreak((int)var2, this.player, (var1x) -> {
++                  var1x.broadcastBreakEvent(EquipmentSlot.byTypeAndIndex(EquipmentSlot.Type.ARMOR, var7));
+                });
+             }
+          }
+ 
+       }
+@@ -562,20 +572,12 @@
  
     public int getTimesChanged() {
        return this.timesChanged;
@@ -199,7 +258,7 @@
           return var1.distanceToSqr(this.player) <= 64.0D;
        }
     }
-@@ -605,11 +601,11 @@
+@@ -605,11 +607,11 @@
           List var3 = (List)var2.next();
           Iterator var4 = var3.iterator();
  

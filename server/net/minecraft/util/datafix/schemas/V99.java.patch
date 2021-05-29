@@ -1,6 +1,6 @@
 --- net/minecraft/util/datafix/schemas/V99.java
 +++ net/minecraft/util/datafix/schemas/V99.java
-@@ -8,11 +8,10 @@
+@@ -8,20 +8,19 @@
  import com.mojang.datafixers.types.templates.TypeTemplate;
  import com.mojang.serialization.Dynamic;
  import com.mojang.serialization.DynamicOps;
@@ -12,6 +12,29 @@
  import net.minecraft.util.datafix.fixes.References;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
+ 
+ public class V99 extends Schema {
+    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Map<String, String> ITEM_TO_BLOCKENTITY = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
++   static final Map<String, String> ITEM_TO_BLOCKENTITY = (Map)DataFixUtils.make(Maps.newHashMap(), (var0) -> {
+       var0.put("minecraft:furnace", "Furnace");
+       var0.put("minecraft:lit_furnace", "Furnace");
+       var0.put("minecraft:chest", "Chest");
+       var0.put("minecraft:trapped_chest", "Chest");
+       var0.put("minecraft:ender_chest", "EnderChest");
+@@ -247,11 +246,11 @@
+       });
+       var1.registerType(true, References.ENTITY, () -> {
+          return DSL.taggedChoiceLazy("id", DSL.string(), var2);
+       });
+       var1.registerType(true, References.ITEM_STACK, () -> {
+-         return DSL.hook(DSL.optionalFields("id", DSL.or(DSL.constType(DSL.intType()), References.ITEM_NAME.in(var1)), "tag", DSL.optionalFields("EntityTag", References.ENTITY_TREE.in(var1), "BlockEntityTag", References.BLOCK_ENTITY.in(var1), "CanDestroy", DSL.list(References.BLOCK_NAME.in(var1)), "CanPlaceOn", DSL.list(References.BLOCK_NAME.in(var1)))), ADD_NAMES, Hook.HookFunction.IDENTITY);
++         return DSL.hook(DSL.optionalFields("id", DSL.or(DSL.constType(DSL.intType()), References.ITEM_NAME.in(var1)), "tag", DSL.optionalFields("EntityTag", References.ENTITY_TREE.in(var1), "BlockEntityTag", References.BLOCK_ENTITY.in(var1), "CanDestroy", DSL.list(References.BLOCK_NAME.in(var1)), "CanPlaceOn", DSL.list(References.BLOCK_NAME.in(var1)), "Items", DSL.list(References.ITEM_STACK.in(var1)))), ADD_NAMES, Hook.HookFunction.IDENTITY);
+       });
+       var1.registerType(false, References.OPTIONS, DSL::remainder);
+       var1.registerType(false, References.BLOCK_NAME, () -> {
+          return DSL.or(DSL.constType(DSL.intType()), DSL.constType(NamespacedSchema.namespacedString()));
+       });
 @@ -266,25 +265,31 @@
        var1.registerType(false, References.OBJECTIVE, DSL::remainder);
        var1.registerType(false, References.TEAM, DSL::remainder);

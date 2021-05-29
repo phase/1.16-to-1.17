@@ -24,11 +24,14 @@
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
-@@ -35,52 +36,59 @@
+@@ -33,54 +34,62 @@
+ import org.apache.commons.lang3.mutable.MutableObject;
+ import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class JigsawPlacement {
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
  
 -   public static void addPieces(RegistryAccess var0, JigsawConfiguration var1, JigsawPlacement.PieceFactory var2, ChunkGenerator var3, StructureManager var4, BlockPos var5, List<? super PoolElementStructurePiece> var6, Random var7, boolean var8, boolean var9) {
 +   public JigsawPlacement() {
@@ -93,6 +96,7 @@
 +               var24.tryPlacingChildren(var25.piece, var25.free, var25.boundsTop, var25.depth, var8, var10);
 +            }
  
++            Objects.requireNonNull(var6);
 +            var11.forEach(var6::addPiece);
 +         }
        }
@@ -118,7 +122,22 @@
     }
  
     public interface PieceFactory {
-@@ -106,77 +114,77 @@
+@@ -93,90 +102,89 @@
+       private final JigsawPlacement.PieceFactory factory;
+       private final ChunkGenerator chunkGenerator;
+       private final StructureManager structureManager;
+       private final List<? super PoolElementStructurePiece> pieces;
+       private final Random random;
+-      private final Deque<JigsawPlacement.PieceState> placing;
++      final Deque<JigsawPlacement.PieceState> placing = Queues.newArrayDeque();
+ 
+-      private Placer(Registry<StructureTemplatePool> var1, int var2, JigsawPlacement.PieceFactory var3, ChunkGenerator var4, StructureManager var5, List<? super PoolElementStructurePiece> var6, Random var7) {
+-         this.placing = Queues.newArrayDeque();
++      Placer(Registry<StructureTemplatePool> var1, int var2, JigsawPlacement.PieceFactory var3, ChunkGenerator var4, StructureManager var5, List<? super PoolElementStructurePiece> var6, Random var7) {
+          this.pools = var1;
+          this.maxDepth = var2;
+          this.factory = var3;
+          this.chunkGenerator = var4;
           this.structureManager = var5;
           this.pieces = var6;
           this.random = var7;
@@ -134,7 +153,7 @@
 -         BoundingBox var12 = var1.getBoundingBox();
 -         int var13 = var12.y0;
 -         Iterator var14 = var6.getShuffledJigsawBlocks(this.structureManager, var7, var8, this.random).iterator();
-+      private void tryPlacingChildren(PoolElementStructurePiece var1, MutableObject<VoxelShape> var2, int var3, int var4, boolean var5, LevelHeightAccessor var6) {
++      void tryPlacingChildren(PoolElementStructurePiece var1, MutableObject<VoxelShape> var2, int var3, int var4, boolean var5, LevelHeightAccessor var6) {
 +         StructurePoolElement var7 = var1.getElement();
 +         BlockPos var8 = var1.getPosition();
 +         Rotation var9 = var1.getRotation();
@@ -245,7 +264,7 @@
                                            ResourceLocation var3 = new ResourceLocation(var2x.nbt.getString("pool"));
                                            Optional var4 = this.pools.getOptional(var3);
                                            Optional var5 = var4.flatMap((var1) -> {
-@@ -190,97 +198,97 @@
+@@ -190,114 +198,114 @@
                                            }).orElse(0);
                                            return Math.max(var6, var7);
                                         }
@@ -386,13 +405,36 @@
                             }
                          } else {
 -                           JigsawPlacement.LOGGER.warn("Empty or none existent fallback pool: {}", var23);
-+                           JigsawPlacement.LOGGER.warn("Empty or none existent fallback pool: {}", var24);
++                           JigsawPlacement.LOGGER.warn("Empty or non-existent fallback pool: {}", var24);
                          }
                       } else {
 -                        JigsawPlacement.LOGGER.warn("Empty or none existent pool: {}", var21);
-+                        JigsawPlacement.LOGGER.warn("Empty or none existent pool: {}", var22);
++                        JigsawPlacement.LOGGER.warn("Empty or non-existent pool: {}", var22);
                       }
                    }
  
                    return;
                 }
+             }
+          }
+       }
+    }
+ 
+-   static final class PieceState {
+-      private final PoolElementStructurePiece piece;
+-      private final MutableObject<VoxelShape> free;
+-      private final int boundsTop;
+-      private final int depth;
++   private static final class PieceState {
++      final PoolElementStructurePiece piece;
++      final MutableObject<VoxelShape> free;
++      final int boundsTop;
++      final int depth;
+ 
+-      private PieceState(PoolElementStructurePiece var1, MutableObject<VoxelShape> var2, int var3, int var4) {
++      PieceState(PoolElementStructurePiece var1, MutableObject<VoxelShape> var2, int var3, int var4) {
+          this.piece = var1;
+          this.free = var2;
+          this.boundsTop = var3;
+          this.depth = var4;
+       }

@@ -1,0 +1,160 @@
+--- net/minecraft/client/gui/screens/controls/ControlList.java
++++ net/minecraft/client/gui/screens/controls/ControlList.java
+@@ -3,27 +3,31 @@
+ import com.google.common.collect.ImmutableList;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import java.util.Arrays;
+ import java.util.Collections;
+ import java.util.List;
++import java.util.Objects;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.client.KeyMapping;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.ContainerObjectSelectionList;
+ import net.minecraft.client.gui.components.events.GuiEventListener;
++import net.minecraft.client.gui.narration.NarratableEntry;
++import net.minecraft.client.gui.narration.NarratedElementType;
++import net.minecraft.client.gui.narration.NarrationElementOutput;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.FormattedText;
+ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.network.chat.TextComponent;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import org.apache.commons.lang3.ArrayUtils;
+ 
+ public class ControlList extends ContainerObjectSelectionList<ControlList.Entry> {
+-   private final ControlsScreen controlsScreen;
+-   private int maxNameWidth;
++   final ControlsScreen controlsScreen;
++   int maxNameWidth;
+ 
+    public ControlList(ControlsScreen var1, Minecraft var2) {
+       super(var2, var1.width + 45, var1.height, 43, var1.height - 32, 20);
+       this.controlsScreen = var1;
+       KeyMapping[] var3 = (KeyMapping[])ArrayUtils.clone(var2.options.keyMappings);
+@@ -57,17 +61,56 @@
+ 
+    public int getRowWidth() {
+       return super.getRowWidth() + 32;
+    }
+ 
++   public class CategoryEntry extends ControlList.Entry {
++      final Component name;
++      private final int width;
++
++      public CategoryEntry(Component var2) {
++         this.name = var2;
++         this.width = ControlList.this.minecraft.font.width((FormattedText)this.name);
++      }
++
++      public void render(PoseStack var1, int var2, int var3, int var4, int var5, int var6, int var7, int var8, boolean var9, float var10) {
++         Font var10000 = ControlList.this.minecraft.font;
++         Component var10002 = this.name;
++         float var10003 = (float)(ControlList.this.minecraft.screen.width / 2 - this.width / 2);
++         int var10004 = var3 + var6;
++         Objects.requireNonNull(ControlList.this.minecraft.font);
++         var10000.draw(var1, var10002, var10003, (float)(var10004 - 9 - 1), 16777215);
++      }
++
++      public boolean changeFocus(boolean var1) {
++         return false;
++      }
++
++      public List<? extends GuiEventListener> children() {
++         return Collections.emptyList();
++      }
++
++      public List<? extends NarratableEntry> narratables() {
++         return ImmutableList.of(new NarratableEntry() {
++            public NarratableEntry.NarrationPriority narrationPriority() {
++               return NarratableEntry.NarrationPriority.HOVERED;
++            }
++
++            public void updateNarration(NarrationElementOutput var1) {
++               var1.add(NarratedElementType.TITLE, CategoryEntry.this.name);
++            }
++         });
++      }
++   }
++
+    public class KeyEntry extends ControlList.Entry {
+       private final KeyMapping key;
+       private final Component name;
+       private final Button changeButton;
+       private final Button resetButton;
+ 
+-      private KeyEntry(final KeyMapping var2, final Component var3) {
++      KeyEntry(final KeyMapping var2, final Component var3) {
+          this.key = var2;
+          this.name = var3;
+          this.changeButton = new Button(0, 0, 75, 20, var3, (var2x) -> {
+             ControlList.this.controlsScreen.selectedKey = var2;
+          }) {
+@@ -89,11 +132,11 @@
+          boolean var11 = ControlList.this.controlsScreen.selectedKey == this.key;
+          Font var10000 = ControlList.this.minecraft.font;
+          Component var10002 = this.name;
+          float var10003 = (float)(var4 + 90 - ControlList.this.maxNameWidth);
+          int var10004 = var3 + var6 / 2;
+-         ControlList.this.minecraft.font.getClass();
++         Objects.requireNonNull(ControlList.this.minecraft.font);
+          var10000.draw(var1, var10002, var10003, (float)(var10004 - 9 / 2), 16777215);
+          this.resetButton.x = var4 + 190;
+          this.resetButton.y = var3;
+          this.resetButton.active = !this.key.isDefault();
+          this.resetButton.render(var1, var7, var8, var10);
+@@ -125,10 +168,14 @@
+ 
+       public List<? extends GuiEventListener> children() {
+          return ImmutableList.of(this.changeButton, this.resetButton);
+       }
+ 
++      public List<? extends NarratableEntry> narratables() {
++         return ImmutableList.of(this.changeButton, this.resetButton);
++      }
++
+       public boolean mouseClicked(double var1, double var3, int var5) {
+          if (this.changeButton.mouseClicked(var1, var3, var5)) {
+             return true;
+          } else {
+             return this.resetButton.mouseClicked(var1, var3, var5);
+@@ -138,37 +185,10 @@
+       public boolean mouseReleased(double var1, double var3, int var5) {
+          return this.changeButton.mouseReleased(var1, var3, var5) || this.resetButton.mouseReleased(var1, var3, var5);
+       }
+    }
+ 
+-   public class CategoryEntry extends ControlList.Entry {
+-      private final Component name;
+-      private final int width;
+-
+-      public CategoryEntry(Component var2) {
+-         this.name = var2;
+-         this.width = ControlList.this.minecraft.font.width((FormattedText)this.name);
+-      }
+-
+-      public void render(PoseStack var1, int var2, int var3, int var4, int var5, int var6, int var7, int var8, boolean var9, float var10) {
+-         Font var10000 = ControlList.this.minecraft.font;
+-         Component var10002 = this.name;
+-         float var10003 = (float)(ControlList.this.minecraft.screen.width / 2 - this.width / 2);
+-         int var10004 = var3 + var6;
+-         ControlList.this.minecraft.font.getClass();
+-         var10000.draw(var1, var10002, var10003, (float)(var10004 - 9 - 1), 16777215);
+-      }
+-
+-      public boolean changeFocus(boolean var1) {
+-         return false;
+-      }
+-
+-      public List<? extends GuiEventListener> children() {
+-         return Collections.emptyList();
+-      }
+-   }
+-
+    public abstract static class Entry extends ContainerObjectSelectionList.Entry<ControlList.Entry> {
+       public Entry() {
+       }
+    }
+ }

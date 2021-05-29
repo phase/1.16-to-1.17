@@ -1,12 +1,13 @@
 --- net/minecraft/CrashReportCategory.java
 +++ net/minecraft/CrashReportCategory.java
-@@ -1,12 +1,15 @@
+@@ -1,83 +1,97 @@
  package net.minecraft;
  
  import com.google.common.collect.Lists;
  import java.util.Iterator;
  import java.util.List;
 +import java.util.Locale;
++import java.util.Objects;
  import javax.annotation.Nullable;
  import net.minecraft.core.BlockPos;
 +import net.minecraft.core.SectionPos;
@@ -14,12 +15,16 @@
  import net.minecraft.world.level.block.state.BlockState;
  
  public class CrashReportCategory {
-    private final CrashReport report;
+-   private final CrashReport report;
     private final String title;
-@@ -16,68 +19,80 @@
-    public CrashReportCategory(CrashReport var1, String var2) {
-       this.report = var1;
-       this.title = var2;
+    private final List<CrashReportCategory.Entry> entries = Lists.newArrayList();
+    private StackTraceElement[] stackTrace = new StackTraceElement[0];
+ 
+-   public CrashReportCategory(CrashReport var1, String var2) {
+-      this.report = var1;
+-      this.title = var2;
++   public CrashReportCategory(String var1) {
++      this.title = var1;
     }
  
 -   public static String formatLocation(BlockPos var0) {
@@ -130,7 +135,7 @@
     public CrashReportCategory setDetail(String var1, CrashReportDetail<String> var2) {
        try {
           this.setDetail(var1, var2.call());
-@@ -163,17 +178,17 @@
+@@ -163,31 +177,33 @@
  
     public StackTraceElement[] getStacktrace() {
        return this.stackTrace;
@@ -141,6 +146,7 @@
 -         var0.setDetail("Block", var2::toString);
 +   public static void populateBlockDetails(CrashReportCategory var0, LevelHeightAccessor var1, BlockPos var2, @Nullable BlockState var3) {
 +      if (var3 != null) {
++         Objects.requireNonNull(var3);
 +         var0.setDetail("Block", var3::toString);
        }
  
@@ -150,5 +156,22 @@
        });
     }
  
-    static class Entry {
+-   static class Entry {
++   private static class Entry {
        private final String key;
+       private final String value;
+ 
+       public Entry(String var1, @Nullable Object var2) {
+          this.key = var1;
+          if (var2 == null) {
+             this.value = "~~NULL~~";
+          } else if (var2 instanceof Throwable) {
+             Throwable var3 = (Throwable)var2;
+-            this.value = "~~ERROR~~ " + var3.getClass().getSimpleName() + ": " + var3.getMessage();
++            String var10001 = var3.getClass().getSimpleName();
++            this.value = "~~ERROR~~ " + var10001 + ": " + var3.getMessage();
+          } else {
+             this.value = var2.toString();
+          }
+ 
+       }

@@ -34,6 +34,23 @@
  import net.minecraft.ReportedException;
  import net.minecraft.network.Connection;
  import net.minecraft.network.PacketDecoder;
+@@ -44,14 +53,14 @@
+       return new NioEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Server IO #%d").setDaemon(true).build());
+    });
+    public static final LazyLoadedValue<EpollEventLoopGroup> SERVER_EPOLL_EVENT_GROUP = new LazyLoadedValue(() -> {
+       return new EpollEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Epoll Server IO #%d").setDaemon(true).build());
+    });
+-   private final MinecraftServer server;
++   final MinecraftServer server;
+    public volatile boolean running;
+    private final List<ChannelFuture> channels = Collections.synchronizedList(Lists.newArrayList());
+-   private final List<Connection> connections = Collections.synchronizedList(Lists.newArrayList());
++   final List<Connection> connections = Collections.synchronizedList(Lists.newArrayList());
+ 
+    public ServerConnectionListener(MinecraftServer var1) {
+       this.server = var1;
+       this.running = true;
+    }
 @@ -69,11 +78,11 @@
              var5 = SERVER_EVENT_GROUP;
              LOGGER.info("Using default channel type");
@@ -82,7 +99,7 @@
        return this.server;
     }
 +
-+   static class LatencySimulator extends ChannelInboundHandlerAdapter {
++   private static class LatencySimulator extends ChannelInboundHandlerAdapter {
 +      private static final Timer TIMER = new HashedWheelTimer();
 +      private final int delay;
 +      private final int jitter;
@@ -108,7 +125,7 @@
 +         var2.ctx.fireChannelRead(var2.msg);
 +      }
 +
-+      static class DelayedMessage {
++      private static class DelayedMessage {
 +         public final ChannelHandlerContext ctx;
 +         public final Object msg;
 +

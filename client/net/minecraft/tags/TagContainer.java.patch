@@ -27,12 +27,12 @@
 -public interface TagContainer {
 -   TagContainer EMPTY = of(TagCollection.empty(), TagCollection.empty(), TagCollection.empty(), TagCollection.empty());
 +public class TagContainer {
-+   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   public static final TagContainer EMPTY = new TagContainer(ImmutableMap.of());
 +   private final Map<ResourceKey<? extends Registry<?>>, TagCollection<?>> collections;
  
 -   TagCollection<Block> getBlocks();
-+   private TagContainer(Map<ResourceKey<? extends Registry<?>>, TagCollection<?>> var1) {
++   TagContainer(Map<ResourceKey<? extends Registry<?>>, TagCollection<?>> var1) {
 +      this.collections = var1;
 +   }
  
@@ -148,13 +148,18 @@
 -         public TagCollection<Fluid> getFluids() {
 -            return var2;
 -         }
-+   public static class Builder {
-+      private final com.google.common.collect.ImmutableMap.Builder<ResourceKey<? extends Registry<?>>, TagCollection<?>> result = ImmutableMap.builder();
++   @FunctionalInterface
++   interface CollectionConsumer {
++      <T> void accept(ResourceKey<? extends Registry<T>> var1, TagCollection<T> var2);
++   }
  
 -         public TagCollection<EntityType<?>> getEntityTypes() {
 -            return var3;
 -         }
 -      };
++   public static class Builder {
++      private final com.google.common.collect.ImmutableMap.Builder<ResourceKey<? extends Registry<?>>, TagCollection<?>> result = ImmutableMap.builder();
++
 +      public Builder() {
 +      }
 +
@@ -167,9 +172,4 @@
 +         return new TagContainer(this.result.build());
 +      }
     }
-+
-+   @FunctionalInterface
-+   interface CollectionConsumer {
-+      <T> void accept(ResourceKey<? extends Registry<T>> var1, TagCollection<T> var2);
-+   }
  }

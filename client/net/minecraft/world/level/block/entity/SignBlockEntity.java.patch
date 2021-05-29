@@ -1,7 +1,10 @@
 --- net/minecraft/world/level/block/entity/SignBlockEntity.java
 +++ net/minecraft/world/level/block/entity/SignBlockEntity.java
-@@ -3,10 +3,11 @@
+@@ -1,12 +1,14 @@
+ package net.minecraft.world.level.block.entity;
+ 
  import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import java.util.UUID;
  import java.util.function.Function;
  import javax.annotation.Nullable;
  import net.minecraft.commands.CommandSource;
@@ -12,7 +15,14 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.ComponentUtils;
  import net.minecraft.network.chat.MutableComponent;
-@@ -22,77 +23,125 @@
+@@ -15,84 +17,132 @@
+ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.util.FormattedCharSequence;
+ import net.minecraft.world.entity.Entity;
+-import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.DyeColor;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.Vec2;
  import net.minecraft.world.phys.Vec3;
@@ -24,8 +34,10 @@
     private final Component[] messages;
 +   private final Component[] filteredMessages;
     private boolean isEditable;
-    private Player playerWhoMayEdit;
+-   private Player playerWhoMayEdit;
 -   private final FormattedCharSequence[] renderMessages;
++   @Nullable
++   private UUID playerWhoMayEdit;
 +   @Nullable
 +   private FormattedCharSequence[] renderMessages;
 +   private boolean renderMessagedFiltered;
@@ -102,7 +114,7 @@
 +      Component var2 = this.deserializeTextSafe(var1);
 +      if (this.level instanceof ServerLevel) {
 +         try {
-+            return ComponentUtils.updateForEntity(this.createCommandSourceStack((ServerPlayer)null), var2, (Entity)null, 0);
++            return ComponentUtils.updateForEntity(this.createCommandSourceStack((ServerPlayer)null), (Component)var2, (Entity)null, 0);
 +         } catch (CommandSyntaxException var4) {
 +         }
        }
@@ -166,9 +178,20 @@
        return new ClientboundBlockEntityDataPacket(this.worldPosition, 9, this.getUpdateTag());
     }
  
-@@ -122,22 +171,20 @@
+@@ -114,30 +164,29 @@
+          this.playerWhoMayEdit = null;
+       }
  
-    public Player getPlayerWhoMayEdit() {
+    }
+ 
+-   public void setAllowedPlayerEditor(Player var1) {
++   public void setAllowedPlayerEditor(UUID var1) {
+       this.playerWhoMayEdit = var1;
+    }
+ 
+-   public Player getPlayerWhoMayEdit() {
++   @Nullable
++   public UUID getPlayerWhoMayEdit() {
        return this.playerWhoMayEdit;
     }
  
@@ -195,7 +218,7 @@
  
        return true;
     }
-@@ -153,13 +200,31 @@
+@@ -153,13 +202,31 @@
     }
  
     public boolean setColor(DyeColor var1) {

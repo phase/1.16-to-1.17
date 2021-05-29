@@ -1,0 +1,93 @@
+--- net/minecraft/client/renderer/texture/SimpleTexture.java
++++ net/minecraft/client/renderer/texture/SimpleTexture.java
+@@ -12,11 +12,11 @@
+ import net.minecraft.server.packs.resources.ResourceManager;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class SimpleTexture extends AbstractTexture {
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
+    protected final ResourceLocation location;
+ 
+    public SimpleTexture(ResourceLocation var1) {
+       this.location = var1;
+    }
+@@ -53,11 +53,11 @@
+ 
+    protected SimpleTexture.TextureImage getTextureImage(ResourceManager var1) {
+       return SimpleTexture.TextureImage.load(var1, this.location);
+    }
+ 
+-   public static class TextureImage implements Closeable {
++   protected static class TextureImage implements Closeable {
+       @Nullable
+       private final TextureMetadataSection metadata;
+       @Nullable
+       private final NativeImage image;
+       @Nullable
+@@ -76,45 +76,42 @@
+       }
+ 
+       public static SimpleTexture.TextureImage load(ResourceManager var0, ResourceLocation var1) {
+          try {
+             Resource var2 = var0.getResource(var1);
+-            Throwable var3 = null;
+ 
+-            SimpleTexture.TextureImage var6;
++            SimpleTexture.TextureImage var5;
+             try {
+-               NativeImage var4 = NativeImage.read(var2.getInputStream());
+-               TextureMetadataSection var5 = null;
++               NativeImage var3 = NativeImage.read(var2.getInputStream());
++               TextureMetadataSection var4 = null;
+ 
+                try {
+-                  var5 = (TextureMetadataSection)var2.getMetadata(TextureMetadataSection.SERIALIZER);
+-               } catch (RuntimeException var17) {
+-                  SimpleTexture.LOGGER.warn("Failed reading metadata of: {}", var1, var17);
++                  var4 = (TextureMetadataSection)var2.getMetadata(TextureMetadataSection.SERIALIZER);
++               } catch (RuntimeException var7) {
++                  SimpleTexture.LOGGER.warn("Failed reading metadata of: {}", var1, var7);
+                }
+ 
+-               var6 = new SimpleTexture.TextureImage(var5, var4);
+-            } catch (Throwable var18) {
+-               var3 = var18;
+-               throw var18;
+-            } finally {
++               var5 = new SimpleTexture.TextureImage(var4, var3);
++            } catch (Throwable var8) {
+                if (var2 != null) {
+-                  if (var3 != null) {
+-                     try {
+-                        var2.close();
+-                     } catch (Throwable var16) {
+-                        var3.addSuppressed(var16);
+-                     }
+-                  } else {
++                  try {
+                      var2.close();
++                  } catch (Throwable var6) {
++                     var8.addSuppressed(var6);
+                   }
+                }
+ 
++               throw var8;
+             }
+ 
+-            return var6;
+-         } catch (IOException var20) {
+-            return new SimpleTexture.TextureImage(var20);
++            if (var2 != null) {
++               var2.close();
++            }
++
++            return var5;
++         } catch (IOException var9) {
++            return new SimpleTexture.TextureImage(var9);
+          }
+       }
+ 
+       @Nullable
+       public TextureMetadataSection getTextureMetadata() {

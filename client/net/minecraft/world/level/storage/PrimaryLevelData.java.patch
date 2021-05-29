@@ -1,18 +1,23 @@
 --- net/minecraft/world/level/storage/PrimaryLevelData.java
 +++ net/minecraft/world/level/storage/PrimaryLevelData.java
-@@ -4,11 +4,10 @@
+@@ -4,14 +4,15 @@
  import com.google.common.collect.Sets;
  import com.mojang.datafixers.DataFixer;
  import com.mojang.serialization.DataResult;
  import com.mojang.serialization.Dynamic;
  import com.mojang.serialization.Lifecycle;
 -import java.util.LinkedHashSet;
++import java.util.Objects;
  import java.util.Set;
  import java.util.UUID;
  import java.util.stream.Collectors;
++import java.util.stream.Stream;
  import javax.annotation.Nullable;
  import net.minecraft.CrashReportCategory;
-@@ -28,20 +27,22 @@
+ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+@@ -28,20 +29,22 @@
  import net.minecraft.util.datafix.DataFixTypes;
  import net.minecraft.world.Difficulty;
  import net.minecraft.world.level.DataPackConfig;
@@ -35,7 +40,7 @@
     private final Lifecycle worldGenSettingsLifecycle;
     private int xSpawn;
     private int ySpawn;
-@@ -73,11 +74,11 @@
+@@ -73,11 +76,11 @@
     private UUID wanderingTraderId;
     private final Set<String> knownServerBrands;
     private boolean wasModded;
@@ -48,7 +53,7 @@
        this.xSpawn = var5;
        this.ySpawn = var6;
        this.zSpawn = var7;
-@@ -114,11 +115,11 @@
+@@ -114,11 +117,11 @@
     public static PrimaryLevelData parse(Dynamic<Tag> var0, DataFixer var1, int var2, @Nullable CompoundTag var3, LevelSettings var4, LevelVersion var5, WorldGenSettings var6, Lifecycle var7) {
        long var8 = var0.get("Time").asLong(0L);
        CompoundTag var10 = (CompoundTag)var0.get("DragonFight").result().map(Dynamic::getValue).orElseGet(() -> {
@@ -61,7 +66,38 @@
     }
  
     public CompoundTag createTag(RegistryAccess var1, @Nullable CompoundTag var2) {
-@@ -369,12 +370,12 @@
+@@ -132,24 +135,26 @@
+       return var3;
+    }
+ 
+    private void setTagData(RegistryAccess var1, CompoundTag var2, @Nullable CompoundTag var3) {
+       ListTag var4 = new ListTag();
+-      this.knownServerBrands.stream().map(StringTag::valueOf).forEach(var4::add);
++      Stream var10000 = this.knownServerBrands.stream().map(StringTag::valueOf);
++      Objects.requireNonNull(var4);
++      var10000.forEach(var4::add);
+       var2.put("ServerBrands", var4);
+       var2.putBoolean("WasModded", this.wasModded);
+       CompoundTag var5 = new CompoundTag();
+       var5.putString("Name", SharedConstants.getCurrentVersion().getName());
+       var5.putInt("Id", SharedConstants.getCurrentVersion().getWorldVersion());
+       var5.putBoolean("Snapshot", !SharedConstants.getCurrentVersion().isStable());
+       var2.put("Version", var5);
+       var2.putInt("DataVersion", SharedConstants.getCurrentVersion().getWorldVersion());
+       RegistryWriteOps var6 = RegistryWriteOps.create(NbtOps.INSTANCE, var1);
+-      DataResult var10000 = WorldGenSettings.CODEC.encodeStart(var6, this.worldGenSettings);
++      DataResult var7 = WorldGenSettings.CODEC.encodeStart(var6, this.worldGenSettings);
+       Logger var10002 = LOGGER;
+-      var10002.getClass();
+-      var10000.resultOrPartial(Util.prefix("WorldGenSettings: ", var10002::error)).ifPresent((var1x) -> {
++      Objects.requireNonNull(var10002);
++      var7.resultOrPartial(Util.prefix("WorldGenSettings: ", var10002::error)).ifPresent((var1x) -> {
+          var2.put("WorldGenSettings", var1x);
+       });
+       var2.putInt("GameType", this.settings.gameType().getId());
+       var2.putInt("SpawnX", this.xSpawn);
+       var2.putInt("SpawnY", this.ySpawn);
+@@ -369,12 +374,12 @@
  
     public TimerQueue<MinecraftServer> getScheduledEvents() {
        return this.scheduledEvents;
@@ -76,7 +112,7 @@
  
     public WorldGenSettings worldGenSettings() {
        return this.worldGenSettings;
-@@ -423,10 +424,15 @@
+@@ -423,10 +428,15 @@
  
     public void setWanderingTraderSpawnChance(int var1) {
        this.wanderingTraderSpawnChance = var1;

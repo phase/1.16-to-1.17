@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/storage/loot/entries/LootPoolSingletonContainer.java
 +++ net/minecraft/world/level/storage/loot/entries/LootPoolSingletonContainer.java
-@@ -17,10 +17,12 @@
+@@ -17,14 +17,16 @@
  import net.minecraft.world.level.storage.loot.functions.LootItemFunctions;
  import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
  import org.apache.commons.lang3.ArrayUtils;
@@ -11,5 +11,87 @@
     protected final int weight;
     protected final int quality;
     protected final LootItemFunction[] functions;
-    private final BiFunction<ItemStack, LootContext, ItemStack> compositeFunction;
+-   private final BiFunction<ItemStack, LootContext, ItemStack> compositeFunction;
++   final BiFunction<ItemStack, LootContext, ItemStack> compositeFunction;
     private final LootPoolEntry entry = new LootPoolSingletonContainer.EntryBase() {
+       public void createItemStack(Consumer<ItemStack> var1, LootContext var2) {
+          LootPoolSingletonContainer.this.createItemStack(LootItemFunction.decorate(LootPoolSingletonContainer.this.compositeFunction, var1, var2), var2);
+       }
+    };
+@@ -59,10 +61,31 @@
+ 
+    public static LootPoolSingletonContainer.Builder<?> simpleBuilder(LootPoolSingletonContainer.EntryConstructor var0) {
+       return new LootPoolSingletonContainer.DummyBuilder(var0);
+    }
+ 
++   static class DummyBuilder extends LootPoolSingletonContainer.Builder<LootPoolSingletonContainer.DummyBuilder> {
++      private final LootPoolSingletonContainer.EntryConstructor constructor;
++
++      public DummyBuilder(LootPoolSingletonContainer.EntryConstructor var1) {
++         this.constructor = var1;
++      }
++
++      protected LootPoolSingletonContainer.DummyBuilder getThis() {
++         return this;
++      }
++
++      public LootPoolEntryContainer build() {
++         return this.constructor.build(this.weight, this.quality, this.getConditions(), this.getFunctions());
++      }
++   }
++
++   @FunctionalInterface
++   protected interface EntryConstructor {
++      LootPoolSingletonContainer build(int var1, int var2, LootItemCondition[] var3, LootItemFunction[] var4);
++   }
++
+    public abstract static class Serializer<T extends LootPoolSingletonContainer> extends LootPoolEntryContainer.Serializer<T> {
+       public Serializer() {
+       }
+ 
+       public void serializeCustom(JsonObject var1, T var2, JsonSerializationContext var3) {
+@@ -88,31 +111,10 @@
+       }
+ 
+       protected abstract T deserialize(JsonObject var1, JsonDeserializationContext var2, int var3, int var4, LootItemCondition[] var5, LootItemFunction[] var6);
+    }
+ 
+-   static class DummyBuilder extends LootPoolSingletonContainer.Builder<LootPoolSingletonContainer.DummyBuilder> {
+-      private final LootPoolSingletonContainer.EntryConstructor constructor;
+-
+-      public DummyBuilder(LootPoolSingletonContainer.EntryConstructor var1) {
+-         this.constructor = var1;
+-      }
+-
+-      protected LootPoolSingletonContainer.DummyBuilder getThis() {
+-         return this;
+-      }
+-
+-      public LootPoolEntryContainer build() {
+-         return this.constructor.build(this.weight, this.quality, this.getConditions(), this.getFunctions());
+-      }
+-   }
+-
+-   @FunctionalInterface
+-   public interface EntryConstructor {
+-      LootPoolSingletonContainer build(int var1, int var2, LootItemCondition[] var3, LootItemFunction[] var4);
+-   }
+-
+    public abstract static class Builder<T extends LootPoolSingletonContainer.Builder<T>> extends LootPoolEntryContainer.Builder<T> implements FunctionUserBuilder<T> {
+       protected int weight = 1;
+       protected int quality = 0;
+       private final List<LootItemFunction> functions = Lists.newArrayList();
+ 
+@@ -137,11 +139,11 @@
+          this.quality = var1;
+          return (LootPoolSingletonContainer.Builder)this.getThis();
+       }
+    }
+ 
+-   public abstract class EntryBase implements LootPoolEntry {
++   protected abstract class EntryBase implements LootPoolEntry {
+       protected EntryBase() {
+       }
+ 
+       public int getWeight(float var1) {
+          return Math.max(Mth.floor((float)LootPoolSingletonContainer.this.weight + (float)LootPoolSingletonContainer.this.quality * var1), 0);

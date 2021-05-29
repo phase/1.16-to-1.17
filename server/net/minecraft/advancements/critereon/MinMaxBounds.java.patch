@@ -1,33 +1,135 @@
 --- net/minecraft/advancements/critereon/MinMaxBounds.java
 +++ net/minecraft/advancements/critereon/MinMaxBounds.java
-@@ -177,14 +177,26 @@
+@@ -3,13 +3,15 @@
+ import com.google.gson.JsonElement;
+ import com.google.gson.JsonNull;
+ import com.google.gson.JsonObject;
+ import com.google.gson.JsonPrimitive;
+ import com.mojang.brigadier.StringReader;
++import com.mojang.brigadier.exceptions.BuiltInExceptionProvider;
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
++import java.util.Objects;
+ import java.util.function.BiFunction;
+ import java.util.function.Function;
+ import java.util.function.Supplier;
+ import javax.annotation.Nullable;
+ import net.minecraft.network.chat.TranslatableComponent;
+@@ -144,52 +146,64 @@
+    private static <T> T optionallyFormat(@Nullable T var0, Function<T, T> var1) {
+       return var0 == null ? null : var1.apply(var0);
+    }
+ 
+    @FunctionalInterface
+-   public interface BoundsFromReaderFactory<T extends Number, R extends MinMaxBounds<T>> {
+-      R create(StringReader var1, @Nullable T var2, @Nullable T var3) throws CommandSyntaxException;
++   protected interface BoundsFactory<T extends Number, R extends MinMaxBounds<T>> {
++      R create(@Nullable T var1, @Nullable T var2);
+    }
+ 
+    @FunctionalInterface
+-   public interface BoundsFactory<T extends Number, R extends MinMaxBounds<T>> {
+-      R create(@Nullable T var1, @Nullable T var2);
++   protected interface BoundsFromReaderFactory<T extends Number, R extends MinMaxBounds<T>> {
++      R create(StringReader var1, @Nullable T var2, @Nullable T var3) throws CommandSyntaxException;
+    }
+ 
+-   public static class Floats extends MinMaxBounds<Float> {
+-      public static final MinMaxBounds.Floats ANY = new MinMaxBounds.Floats((Float)null, (Float)null);
++   public static class Doubles extends MinMaxBounds<Double> {
++      public static final MinMaxBounds.Doubles ANY = new MinMaxBounds.Doubles((Double)null, (Double)null);
+       private final Double minSq;
+       private final Double maxSq;
+ 
+-      private static MinMaxBounds.Floats create(StringReader var0, @Nullable Float var1, @Nullable Float var2) throws CommandSyntaxException {
++      private static MinMaxBounds.Doubles create(StringReader var0, @Nullable Double var1, @Nullable Double var2) throws CommandSyntaxException {
+          if (var1 != null && var2 != null && var1 > var2) {
+             throw ERROR_SWAPPED.createWithContext(var0);
+          } else {
+-            return new MinMaxBounds.Floats(var1, var2);
++            return new MinMaxBounds.Doubles(var1, var2);
+          }
+       }
+ 
+       @Nullable
+-      private static Double squareOpt(@Nullable Float var0) {
+-         return var0 == null ? null : var0.doubleValue() * var0.doubleValue();
++      private static Double squareOpt(@Nullable Double var0) {
++         return var0 == null ? null : var0 * var0;
+       }
+ 
+-      private Floats(@Nullable Float var1, @Nullable Float var2) {
++      private Doubles(@Nullable Double var1, @Nullable Double var2) {
           super(var1, var2);
           this.minSq = squareOpt(var1);
           this.maxSq = squareOpt(var2);
        }
  
-+      public static MinMaxBounds.Floats exactly(float var0) {
-+         return new MinMaxBounds.Floats(var0, var0);
-+      }
-+
-+      public static MinMaxBounds.Floats between(float var0, float var1) {
-+         return new MinMaxBounds.Floats(var0, var1);
-+      }
-+
-       public static MinMaxBounds.Floats atLeast(float var0) {
-          return new MinMaxBounds.Floats(var0, (Float)null);
+-      public static MinMaxBounds.Floats atLeast(float var0) {
+-         return new MinMaxBounds.Floats(var0, (Float)null);
++      public static MinMaxBounds.Doubles exactly(double var0) {
++         return new MinMaxBounds.Doubles(var0, var0);
        }
  
-+      public static MinMaxBounds.Floats atMost(float var0) {
-+         return new MinMaxBounds.Floats((Float)null, var0);
+-      public boolean matches(float var1) {
+-         if (this.min != null && (Float)this.min > var1) {
++      public static MinMaxBounds.Doubles between(double var0, double var2) {
++         return new MinMaxBounds.Doubles(var0, var2);
 +      }
 +
-       public boolean matches(float var1) {
-          if (this.min != null && (Float)this.min > var1) {
++      public static MinMaxBounds.Doubles atLeast(double var0) {
++         return new MinMaxBounds.Doubles(var0, (Double)null);
++      }
++
++      public static MinMaxBounds.Doubles atMost(double var0) {
++         return new MinMaxBounds.Doubles((Double)null, var0);
++      }
++
++      public boolean matches(double var1) {
++         if (this.min != null && (Double)this.min > var1) {
              return false;
           } else {
-             return this.max == null || (Float)this.max >= var1;
-@@ -240,22 +252,38 @@
+-            return this.max == null || (Float)this.max >= var1;
++            return this.max == null || (Double)this.max >= var1;
+          }
+       }
+ 
+       public boolean matchesSqr(double var1) {
+          if (this.minSq != null && this.minSq > var1) {
+@@ -197,22 +211,26 @@
+          } else {
+             return this.maxSq == null || this.maxSq >= var1;
+          }
+       }
+ 
+-      public static MinMaxBounds.Floats fromJson(@Nullable JsonElement var0) {
+-         return (MinMaxBounds.Floats)fromJson(var0, ANY, GsonHelper::convertToFloat, MinMaxBounds.Floats::new);
++      public static MinMaxBounds.Doubles fromJson(@Nullable JsonElement var0) {
++         return (MinMaxBounds.Doubles)fromJson(var0, ANY, GsonHelper::convertToDouble, MinMaxBounds.Doubles::new);
+       }
+ 
+-      public static MinMaxBounds.Floats fromReader(StringReader var0) throws CommandSyntaxException {
++      public static MinMaxBounds.Doubles fromReader(StringReader var0) throws CommandSyntaxException {
+          return fromReader(var0, (var0x) -> {
+             return var0x;
+          });
+       }
+ 
+-      public static MinMaxBounds.Floats fromReader(StringReader var0, Function<Float, Float> var1) throws CommandSyntaxException {
+-         return (MinMaxBounds.Floats)fromReader(var0, MinMaxBounds.Floats::create, Float::parseFloat, CommandSyntaxException.BUILT_IN_EXCEPTIONS::readerInvalidFloat, var1);
++      public static MinMaxBounds.Doubles fromReader(StringReader var0, Function<Double, Double> var1) throws CommandSyntaxException {
++         MinMaxBounds.BoundsFromReaderFactory var10001 = MinMaxBounds.Doubles::create;
++         Function var10002 = Double::parseDouble;
++         BuiltInExceptionProvider var10003 = CommandSyntaxException.BUILT_IN_EXCEPTIONS;
++         Objects.requireNonNull(var10003);
++         return (MinMaxBounds.Doubles)fromReader(var0, var10001, var10002, var10003::readerInvalidDouble, var1);
+       }
+    }
+ 
+    public static class Ints extends MinMaxBounds<Integer> {
+       public static final MinMaxBounds.Ints ANY = new MinMaxBounds.Ints((Integer)null, (Integer)null);
+@@ -240,22 +258,38 @@
  
        public static MinMaxBounds.Ints exactly(int var0) {
           return new MinMaxBounds.Ints(var0, var0);
@@ -66,3 +168,18 @@
        }
  
        public static MinMaxBounds.Ints fromReader(StringReader var0) throws CommandSyntaxException {
+@@ -263,9 +297,13 @@
+             return var0x;
+          });
+       }
+ 
+       public static MinMaxBounds.Ints fromReader(StringReader var0, Function<Integer, Integer> var1) throws CommandSyntaxException {
+-         return (MinMaxBounds.Ints)fromReader(var0, MinMaxBounds.Ints::create, Integer::parseInt, CommandSyntaxException.BUILT_IN_EXCEPTIONS::readerInvalidInt, var1);
++         MinMaxBounds.BoundsFromReaderFactory var10001 = MinMaxBounds.Ints::create;
++         Function var10002 = Integer::parseInt;
++         BuiltInExceptionProvider var10003 = CommandSyntaxException.BUILT_IN_EXCEPTIONS;
++         Objects.requireNonNull(var10003);
++         return (MinMaxBounds.Ints)fromReader(var0, var10001, var10002, var10003::readerInvalidInt, var1);
+       }
+    }
+ }

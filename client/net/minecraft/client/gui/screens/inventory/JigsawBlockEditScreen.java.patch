@@ -12,7 +12,7 @@
  import net.minecraft.network.chat.CommonComponents;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.FormattedText;
-@@ -19,10 +20,11 @@
+@@ -19,24 +20,26 @@
  import net.minecraft.util.Mth;
  import net.minecraft.world.level.block.JigsawBlock;
  import net.minecraft.world.level.block.entity.JigsawBlockEntity;
@@ -24,23 +24,52 @@
     private static final Component NAME_LABEL = new TranslatableComponent("jigsaw_block.name");
     private static final Component TARGET_LABEL = new TranslatableComponent("jigsaw_block.target");
     private static final Component FINAL_STATE_LABEL = new TranslatableComponent("jigsaw_block.final_state");
-@@ -31,11 +33,11 @@
+    private final JigsawBlockEntity jigsawEntity;
+    private EditBox nameEdit;
     private EditBox targetEdit;
     private EditBox poolEdit;
     private EditBox finalStateEdit;
-    private int levels;
+-   private int levels;
++   int levels;
     private boolean keepJigsaws = true;
 -   private Button jointButton;
 +   private CycleButton<JigsawBlockEntity.JointType> jointButton;
     private Button doneButton;
++   private Button generateButton;
     private JigsawBlockEntity.JointType joint;
  
     public JigsawBlockEditScreen(JigsawBlockEntity var1) {
        super(NarratorChatListener.NO_TITLE);
-@@ -97,15 +99,12 @@
+       this.jigsawEntity = var1;
+@@ -76,41 +79,38 @@
+       this.poolEdit.setMaxLength(128);
+       this.poolEdit.setValue(this.jigsawEntity.getPool().toString());
+       this.poolEdit.setResponder((var1x) -> {
+          this.updateValidity();
+       });
+-      this.children.add(this.poolEdit);
++      this.addWidget(this.poolEdit);
+       this.nameEdit = new EditBox(this.font, this.width / 2 - 152, 55, 300, 20, new TranslatableComponent("jigsaw_block.name"));
+       this.nameEdit.setMaxLength(128);
+       this.nameEdit.setValue(this.jigsawEntity.getName().toString());
+       this.nameEdit.setResponder((var1x) -> {
+          this.updateValidity();
+       });
+-      this.children.add(this.nameEdit);
++      this.addWidget(this.nameEdit);
+       this.targetEdit = new EditBox(this.font, this.width / 2 - 152, 90, 300, 20, new TranslatableComponent("jigsaw_block.target"));
+       this.targetEdit.setMaxLength(128);
+       this.targetEdit.setValue(this.jigsawEntity.getTarget().toString());
+       this.targetEdit.setResponder((var1x) -> {
+          this.updateValidity();
+       });
+-      this.children.add(this.targetEdit);
++      this.addWidget(this.targetEdit);
+       this.finalStateEdit = new EditBox(this.font, this.width / 2 - 152, 125, 300, 20, new TranslatableComponent("jigsaw_block.final_state"));
        this.finalStateEdit.setMaxLength(256);
        this.finalStateEdit.setValue(this.jigsawEntity.getFinalState());
-       this.children.add(this.finalStateEdit);
+-      this.children.add(this.finalStateEdit);
++      this.addWidget(this.finalStateEdit);
        this.joint = this.jigsawEntity.getJoint();
        int var1 = this.font.width((FormattedText)JOINT_LABEL) + 10;
 -      this.jointButton = (Button)this.addButton(new Button(this.width / 2 - 152 + var1, 150, 300 - var1, 20, this.getJointText(), (var1x) -> {
@@ -48,14 +77,20 @@
 -         int var3 = (this.joint.ordinal() + 1) % var2.length;
 -         this.joint = var2[var3];
 -         var1x.setMessage(this.getJointText());
-+      this.jointButton = (CycleButton)this.addButton(CycleButton.builder(JigsawBlockEntity.JointType::getTranslatedName).withValues((Object[])JigsawBlockEntity.JointType.values()).withInitialValue(this.joint).displayOnlyValue().create(this.width / 2 - 152 + var1, 150, 300 - var1, 20, JOINT_LABEL, (var1x, var2x) -> {
++      this.jointButton = (CycleButton)this.addRenderableWidget(CycleButton.builder(JigsawBlockEntity.JointType::getTranslatedName).withValues((Object[])JigsawBlockEntity.JointType.values()).withInitialValue(this.joint).displayOnlyValue().create(this.width / 2 - 152 + var1, 150, 300 - var1, 20, JOINT_LABEL, (var1x, var2x) -> {
 +         this.joint = var2x;
        }));
        boolean var2 = JigsawBlock.getFrontFacing(this.jigsawEntity.getBlockState()).getAxis().isVertical();
        this.jointButton.active = var2;
        this.jointButton.visible = var2;
-       this.addButton(new AbstractSliderButton(this.width / 2 - 154, 180, 100, 20, TextComponent.EMPTY, 0.0D) {
-@@ -119,18 +118,13 @@
+-      this.addButton(new AbstractSliderButton(this.width / 2 - 154, 180, 100, 20, TextComponent.EMPTY, 0.0D) {
++      this.addRenderableWidget(new AbstractSliderButton(this.width / 2 - 154, 180, 100, 20, TextComponent.EMPTY, 0.0D) {
+          {
+             this.updateMessage();
+          }
+ 
+          protected void updateMessage() {
+@@ -119,34 +119,31 @@
  
           protected void applyValue() {
              JigsawBlockEditScreen.this.levels = Mth.floor(Mth.clampedLerp(0.0D, 7.0D, this.value));
@@ -69,15 +104,37 @@
 -            return CommonComponents.optionStatus(super.getMessage(), JigsawBlockEditScreen.this.keepJigsaws);
 -         }
 -      });
-+      this.addButton(CycleButton.onOffBuilder(this.keepJigsaws).create(this.width / 2 - 50, 180, 100, 20, new TranslatableComponent("jigsaw_block.keep_jigsaws"), (var1x, var2x) -> {
+-      this.addButton(new Button(this.width / 2 + 54, 180, 100, 20, new TranslatableComponent("jigsaw_block.generate"), (var1x) -> {
++      this.addRenderableWidget(CycleButton.onOffBuilder(this.keepJigsaws).create(this.width / 2 - 50, 180, 100, 20, new TranslatableComponent("jigsaw_block.keep_jigsaws"), (var1x, var2x) -> {
 +         this.keepJigsaws = var2x;
 +      }));
-       this.addButton(new Button(this.width / 2 + 54, 180, 100, 20, new TranslatableComponent("jigsaw_block.generate"), (var1x) -> {
++      this.generateButton = (Button)this.addRenderableWidget(new Button(this.width / 2 + 54, 180, 100, 20, new TranslatableComponent("jigsaw_block.generate"), (var1x) -> {
           this.onDone();
           this.sendGenerate();
        }));
-       this.doneButton = (Button)this.addButton(new Button(this.width / 2 - 4 - 150, 210, 150, 20, CommonComponents.GUI_DONE, (var1x) -> {
-@@ -159,17 +153,13 @@
+-      this.doneButton = (Button)this.addButton(new Button(this.width / 2 - 4 - 150, 210, 150, 20, CommonComponents.GUI_DONE, (var1x) -> {
++      this.doneButton = (Button)this.addRenderableWidget(new Button(this.width / 2 - 4 - 150, 210, 150, 20, CommonComponents.GUI_DONE, (var1x) -> {
+          this.onDone();
+       }));
+-      this.addButton(new Button(this.width / 2 + 4, 210, 150, 20, CommonComponents.GUI_CANCEL, (var1x) -> {
++      this.addRenderableWidget(new Button(this.width / 2 + 4, 210, 150, 20, CommonComponents.GUI_CANCEL, (var1x) -> {
+          this.onCancel();
+       }));
+       this.setInitialFocus(this.poolEdit);
+       this.updateValidity();
+    }
+ 
+    private void updateValidity() {
+-      this.doneButton.active = ResourceLocation.isValidResourceLocation(this.nameEdit.getValue()) && ResourceLocation.isValidResourceLocation(this.targetEdit.getValue()) && ResourceLocation.isValidResourceLocation(this.poolEdit.getValue());
++      boolean var1 = ResourceLocation.isValidResourceLocation(this.nameEdit.getValue()) && ResourceLocation.isValidResourceLocation(this.targetEdit.getValue()) && ResourceLocation.isValidResourceLocation(this.poolEdit.getValue());
++      this.doneButton.active = var1;
++      this.generateButton.active = var1;
+    }
+ 
+    public void resize(Minecraft var1, int var2, int var3) {
+       String var4 = this.nameEdit.getValue();
+       String var5 = this.targetEdit.getValue();
+@@ -159,17 +156,13 @@
        this.targetEdit.setValue(var5);
        this.poolEdit.setValue(var6);
        this.finalStateEdit.setValue(var7);

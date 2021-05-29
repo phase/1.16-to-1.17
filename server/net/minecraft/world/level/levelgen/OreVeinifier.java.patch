@@ -1,0 +1,142 @@
+--- net/minecraft/world/level/levelgen/OreVeinifier.java
++++ net/minecraft/world/level/levelgen/OreVeinifier.java
+@@ -1,0 +1,139 @@
++package net.minecraft.world.level.levelgen;
++
++import java.util.Random;
++import java.util.stream.Stream;
++import javax.annotation.Nullable;
++import net.minecraft.util.Mth;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.levelgen.synth.NormalNoise;
++
++public class OreVeinifier {
++   private static final float RARITY = 1.0F;
++   private static final float RIDGE_NOISE_FREQUENCY = 4.0F;
++   private static final float THICKNESS = 0.08F;
++   private static final float VEININESS_THRESHOLD = 0.5F;
++   private static final double VEININESS_FREQUENCY = 1.5D;
++   private static final int EDGE_ROUNDOFF_BEGIN = 20;
++   private static final double MAX_EDGE_ROUNDOFF = 0.2D;
++   private static final float VEIN_SOLIDNESS = 0.7F;
++   private static final float MIN_RICHNESS = 0.1F;
++   private static final float MAX_RICHNESS = 0.3F;
++   private static final float MAX_RICHNESS_THRESHOLD = 0.6F;
++   private static final float CHANCE_OF_RAW_ORE_BLOCK = 0.02F;
++   private static final float SKIP_ORE_IF_GAP_NOISE_IS_BELOW = -0.3F;
++   private final int veinMaxY;
++   private final int veinMinY;
++   private final BlockState normalBlock;
++   private final NormalNoise veininessNoiseSource;
++   private final NormalNoise veinANoiseSource;
++   private final NormalNoise veinBNoiseSource;
++   private final NormalNoise gapNoise;
++   private final int cellWidth;
++   private final int cellHeight;
++
++   public OreVeinifier(long var1, BlockState var3, int var4, int var5, int var6) {
++      Random var7 = new Random(var1);
++      this.normalBlock = var3;
++      this.veininessNoiseSource = NormalNoise.create(new SimpleRandomSource(var7.nextLong()), -8, (double[])(1.0D));
++      this.veinANoiseSource = NormalNoise.create(new SimpleRandomSource(var7.nextLong()), -7, (double[])(1.0D));
++      this.veinBNoiseSource = NormalNoise.create(new SimpleRandomSource(var7.nextLong()), -7, (double[])(1.0D));
++      this.gapNoise = NormalNoise.create(new SimpleRandomSource(0L), -5, (double[])(1.0D));
++      this.cellWidth = var4;
++      this.cellHeight = var5;
++      this.veinMaxY = Stream.of(OreVeinifier.VeinType.values()).mapToInt((var0) -> {
++         return var0.maxY;
++      }).max().orElse(var6);
++      this.veinMinY = Stream.of(OreVeinifier.VeinType.values()).mapToInt((var0) -> {
++         return var0.minY;
++      }).min().orElse(var6);
++   }
++
++   public void fillVeininessNoiseColumn(double[] var1, int var2, int var3, int var4, int var5) {
++      this.fillNoiseColumn(var1, var2, var3, this.veininessNoiseSource, 1.5D, var4, var5);
++   }
++
++   public void fillNoiseColumnA(double[] var1, int var2, int var3, int var4, int var5) {
++      this.fillNoiseColumn(var1, var2, var3, this.veinANoiseSource, 4.0D, var4, var5);
++   }
++
++   public void fillNoiseColumnB(double[] var1, int var2, int var3, int var4, int var5) {
++      this.fillNoiseColumn(var1, var2, var3, this.veinBNoiseSource, 4.0D, var4, var5);
++   }
++
++   public void fillNoiseColumn(double[] var1, int var2, int var3, NormalNoise var4, double var5, int var7, int var8) {
++      for(int var9 = 0; var9 < var8; ++var9) {
++         int var10 = var9 + var7;
++         int var11 = var2 * this.cellWidth;
++         int var12 = var10 * this.cellHeight;
++         int var13 = var3 * this.cellWidth;
++         double var14;
++         if (var12 >= this.veinMinY && var12 <= this.veinMaxY) {
++            var14 = var4.getValue((double)var11 * var5, (double)var12 * var5, (double)var13 * var5);
++         } else {
++            var14 = 0.0D;
++         }
++
++         var1[var9] = var14;
++      }
++
++   }
++
++   public BlockState oreVeinify(RandomSource var1, int var2, int var3, int var4, double var5, double var7, double var9) {
++      BlockState var11 = this.normalBlock;
++      OreVeinifier.VeinType var12 = this.getVeinType(var5, var3);
++      if (var12 == null) {
++         return var11;
++      } else if (var1.nextFloat() > 0.7F) {
++         return var11;
++      } else if (this.isVein(var7, var9)) {
++         double var13 = Mth.clampedMap(Math.abs(var5), 0.5D, 0.6000000238418579D, 0.10000000149011612D, 0.30000001192092896D);
++         if ((double)var1.nextFloat() < var13 && this.gapNoise.getValue((double)var2, (double)var3, (double)var4) > -0.30000001192092896D) {
++            return var1.nextFloat() < 0.02F ? var12.rawOreBlock : var12.ore;
++         } else {
++            return var12.filler;
++         }
++      } else {
++         return var11;
++      }
++   }
++
++   private boolean isVein(double var1, double var3) {
++      double var5 = Math.abs(1.0D * var1) - 0.07999999821186066D;
++      double var7 = Math.abs(1.0D * var3) - 0.07999999821186066D;
++      return Math.max(var5, var7) < 0.0D;
++   }
++
++   @Nullable
++   private OreVeinifier.VeinType getVeinType(double var1, int var3) {
++      OreVeinifier.VeinType var4 = var1 > 0.0D ? OreVeinifier.VeinType.COPPER : OreVeinifier.VeinType.IRON;
++      int var5 = var4.maxY - var3;
++      int var6 = var3 - var4.minY;
++      if (var6 >= 0 && var5 >= 0) {
++         int var7 = Math.min(var5, var6);
++         double var8 = Mth.clampedMap((double)var7, 0.0D, 20.0D, -0.2D, 0.0D);
++         return Math.abs(var1) + var8 < 0.5D ? null : var4;
++      } else {
++         return null;
++      }
++   }
++
++   private static enum VeinType {
++      COPPER(Blocks.COPPER_ORE.defaultBlockState(), Blocks.RAW_COPPER_BLOCK.defaultBlockState(), Blocks.GRANITE.defaultBlockState(), 0, 50),
++      IRON(Blocks.DEEPSLATE_IRON_ORE.defaultBlockState(), Blocks.RAW_IRON_BLOCK.defaultBlockState(), Blocks.TUFF.defaultBlockState(), -60, -8);
++
++      final BlockState ore;
++      final BlockState rawOreBlock;
++      final BlockState filler;
++      final int minY;
++      final int maxY;
++
++      private VeinType(BlockState var3, BlockState var4, BlockState var5, int var6, int var7) {
++         this.ore = var3;
++         this.rawOreBlock = var4;
++         this.filler = var5;
++         this.minY = var6;
++         this.maxY = var7;
++      }
++   }
++}

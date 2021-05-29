@@ -1,6 +1,15 @@
 --- net/minecraft/world/entity/animal/Ocelot.java
 +++ net/minecraft/world/entity/animal/Ocelot.java
-@@ -16,11 +16,11 @@
+@@ -1,7 +1,8 @@
+ package net.minecraft.world.entity.animal;
+ 
++import java.util.Objects;
+ import java.util.Random;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.particles.ParticleTypes;
+@@ -16,11 +17,11 @@
  import net.minecraft.tags.BlockTags;
  import net.minecraft.world.DifficultyInstance;
  import net.minecraft.world.InteractionHand;
@@ -13,7 +22,7 @@
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.Mob;
-@@ -49,10 +49,13 @@
+@@ -49,21 +50,24 @@
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.Vec3;
@@ -27,7 +36,19 @@
     private Ocelot.OcelotAvoidEntityGoal<Player> ocelotAvoidPlayersGoal;
     private Ocelot.OcelotTemptGoal temptGoal;
  
-@@ -124,11 +127,11 @@
+    public Ocelot(EntityType<? extends Ocelot> var1, Level var2) {
+       super(var1, var2);
+       this.reassessTrustingGoals();
+    }
+ 
+-   private boolean isTrusting() {
++   boolean isTrusting() {
+       return (Boolean)this.entityData.get(DATA_TRUSTING);
+    }
+ 
+    private void setTrusting(boolean var1) {
+       this.entityData.set(DATA_TRUSTING, var1);
+@@ -124,11 +128,11 @@
  
     public static AttributeSupplier.Builder createAttributes() {
        return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 10.0D).add(Attributes.MOVEMENT_SPEED, 0.30000001192092896D).add(Attributes.ATTACK_DAMAGE, 3.0D);
@@ -40,7 +61,7 @@
  
     @Nullable
     protected SoundEvent getAmbientSound() {
-@@ -153,18 +156,14 @@
+@@ -153,18 +157,14 @@
  
     public boolean doHurtTarget(Entity var1) {
        return var1.hurt(DamageSource.mobAttack(this), this.getAttackDamage());
@@ -60,7 +81,7 @@
                 this.setTrusting(true);
                 this.spawnTrustingParticles(true);
                 this.level.broadcastEntityEvent(this, (byte)41);
-@@ -216,11 +215,11 @@
+@@ -216,11 +216,11 @@
           this.goalSelector.addGoal(4, this.ocelotAvoidPlayersGoal);
        }
  
@@ -73,7 +94,7 @@
  
     public boolean isFood(ItemStack var1) {
        return TEMPT_INGREDIENT.test(var1);
-@@ -247,20 +246,24 @@
+@@ -247,20 +247,24 @@
     }
  
     @Nullable
@@ -99,3 +120,15 @@
        DATA_TRUSTING = SynchedEntityData.defineId(Ocelot.class, EntityDataSerializers.BOOLEAN);
     }
  
+@@ -280,10 +284,11 @@
+    static class OcelotAvoidEntityGoal<T extends LivingEntity> extends AvoidEntityGoal<T> {
+       private final Ocelot ocelot;
+ 
+       public OcelotAvoidEntityGoal(Ocelot var1, Class<T> var2, float var3, double var4, double var6) {
+          Predicate var10006 = EntitySelector.NO_CREATIVE_OR_SPECTATOR;
++         Objects.requireNonNull(var10006);
+          super(var1, var2, var3, var4, var6, var10006::test);
+          this.ocelot = var1;
+       }
+ 
+       public boolean canUse() {

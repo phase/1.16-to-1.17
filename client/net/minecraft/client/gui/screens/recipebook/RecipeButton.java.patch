@@ -1,10 +1,13 @@
 --- net/minecraft/client/gui/screens/recipebook/RecipeButton.java
 +++ net/minecraft/client/gui/screens/recipebook/RecipeButton.java
-@@ -7,10 +7,11 @@
+@@ -6,11 +6,14 @@
+ import java.util.ArrayList;
  import java.util.Iterator;
  import java.util.List;
  import net.minecraft.client.Minecraft;
  import net.minecraft.client.gui.components.AbstractWidget;
++import net.minecraft.client.gui.narration.NarratedElementType;
++import net.minecraft.client.gui.narration.NarrationElementOutput;
  import net.minecraft.client.gui.screens.Screen;
 +import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.network.chat.Component;
@@ -12,7 +15,7 @@
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.stats.RecipeBook;
-@@ -19,10 +20,13 @@
+@@ -19,10 +22,13 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.crafting.Recipe;
  
@@ -26,7 +29,7 @@
     private RecipeBook book;
     private RecipeCollection collection;
     private float time;
-@@ -64,11 +68,12 @@
+@@ -64,11 +70,12 @@
        if (!Screen.hasControlDown()) {
           this.time += var4;
        }
@@ -40,7 +43,7 @@
           var6 += 25;
        }
  
-@@ -76,32 +81,35 @@
+@@ -76,32 +83,35 @@
        if (this.collection.getRecipes(this.book.isFiltering(this.menu)).size() > 1) {
           var7 += 25;
        }
@@ -74,7 +77,7 @@
        if (this.collection.hasSingleResultItem() && this.getOrderedRecipes().size() > 1) {
 -         var5.getItemRenderer().renderAndDecorateItem(var10, this.x + var11 + 1, this.y + var11 + 1);
 -         --var11;
-+         var5.getItemRenderer().renderAndDecorateItem(var11, this.x + var12 + 1, this.y + var12 + 1);
++         var5.getItemRenderer().renderAndDecorateItem(var11, this.x + var12 + 1, this.y + var12 + 1, 0, 10);
 +         --var12;
        }
  
@@ -89,3 +92,25 @@
     }
  
     private List<Recipe<?>> getOrderedRecipes() {
+@@ -130,10 +140,21 @@
+       }
+ 
+       return var3;
+    }
+ 
++   public void updateNarration(NarrationElementOutput var1) {
++      ItemStack var2 = ((Recipe)this.getOrderedRecipes().get(this.currentIndex)).getResultItem();
++      var1.add(NarratedElementType.TITLE, (Component)(new TranslatableComponent("narration.recipe", new Object[]{var2.getHoverName()})));
++      if (this.collection.getRecipes(this.book.isFiltering(this.menu)).size() > 1) {
++         var1.add(NarratedElementType.USAGE, new TranslatableComponent("narration.button.usage.hovered"), new TranslatableComponent("narration.recipe.usage.more"));
++      } else {
++         var1.add(NarratedElementType.USAGE, (Component)(new TranslatableComponent("narration.button.usage.hovered")));
++      }
++
++   }
++
+    public int getWidth() {
+       return 25;
+    }
+ 
+    protected boolean isValidClickButton(int var1) {

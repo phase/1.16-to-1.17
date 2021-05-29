@@ -13,6 +13,19 @@
  import net.minecraft.world.entity.animal.Wolf;
  import net.minecraft.world.entity.item.ItemEntity;
  import net.minecraft.world.entity.monster.AbstractIllager;
+@@ -43,11 +43,11 @@
+ import net.minecraft.world.level.ServerLevelAccessor;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public abstract class Raider extends PatrollingMonster {
+    protected static final EntityDataAccessor<Boolean> IS_CELEBRATING;
+-   private static final Predicate<ItemEntity> ALLOWED_ITEMS;
++   static final Predicate<ItemEntity> ALLOWED_ITEMS;
+    @Nullable
+    protected Raid raid;
+    private int wave;
+    private boolean canJoinRaid;
+    private int ticksOutsideRaid;
 @@ -144,11 +144,11 @@
                    var5.removeEffectNoUpdate(MobEffects.BAD_OMEN);
                 } else {
@@ -54,7 +67,56 @@
        } else {
           super.pickUpItem(var1);
        }
-@@ -339,13 +343,13 @@
+@@ -276,11 +280,47 @@
+       ALLOWED_ITEMS = (var0) -> {
+          return !var0.hasPickUpDelay() && var0.isAlive() && ItemStack.matches(var0.getItem(), Raid.getLeaderBannerInstance());
+       };
+    }
+ 
+-   static class RaiderMoveThroughVillageGoal extends Goal {
++   public class ObtainRaidLeaderBannerGoal<T extends Raider> extends Goal {
++      private final T mob;
++
++      public ObtainRaidLeaderBannerGoal(T var2) {
++         this.mob = var2;
++         this.setFlags(EnumSet.of(Goal.Flag.MOVE));
++      }
++
++      public boolean canUse() {
++         Raid var1 = this.mob.getCurrentRaid();
++         if (this.mob.hasActiveRaid() && !this.mob.getCurrentRaid().isOver() && this.mob.canBeLeader() && !ItemStack.matches(this.mob.getItemBySlot(EquipmentSlot.HEAD), Raid.getLeaderBannerInstance())) {
++            Raider var2 = var1.getLeader(this.mob.getWave());
++            if (var2 == null || !var2.isAlive()) {
++               List var3 = this.mob.level.getEntitiesOfClass(ItemEntity.class, this.mob.getBoundingBox().inflate(16.0D, 8.0D, 16.0D), Raider.ALLOWED_ITEMS);
++               if (!var3.isEmpty()) {
++                  return this.mob.getNavigation().moveTo((Entity)var3.get(0), 1.149999976158142D);
++               }
++            }
++
++            return false;
++         } else {
++            return false;
++         }
++      }
++
++      public void tick() {
++         if (this.mob.getNavigation().getTargetPos().closerThan(this.mob.position(), 1.414D)) {
++            List var1 = this.mob.level.getEntitiesOfClass(ItemEntity.class, this.mob.getBoundingBox().inflate(4.0D, 4.0D, 4.0D), Raider.ALLOWED_ITEMS);
++            if (!var1.isEmpty()) {
++               this.mob.pickUpItem((ItemEntity)var1.get(0));
++            }
++         }
++
++      }
++   }
++
++   private static class RaiderMoveThroughVillageGoal extends Goal {
+       private final Raider raider;
+       private final double speedModifier;
+       private BlockPos poiPos;
+       private final List<BlockPos> visited = Lists.newArrayList();
+       private final int distanceToPoi;
+@@ -339,13 +379,13 @@
        }
  
        public void tick() {
@@ -70,3 +132,135 @@
              if (var2 == null) {
                 this.stuck = true;
                 return;
+@@ -377,14 +417,50 @@
+          }
+ 
+       }
+    }
+ 
+-   public class HoldGroundAttackGoal extends Goal {
++   public class RaiderCelebration extends Goal {
+       private final Raider mob;
++
++      RaiderCelebration(Raider var2) {
++         this.mob = var2;
++         this.setFlags(EnumSet.of(Goal.Flag.MOVE));
++      }
++
++      public boolean canUse() {
++         Raid var1 = this.mob.getCurrentRaid();
++         return this.mob.isAlive() && this.mob.getTarget() == null && var1 != null && var1.isLoss();
++      }
++
++      public void start() {
++         this.mob.setCelebrating(true);
++         super.start();
++      }
++
++      public void stop() {
++         this.mob.setCelebrating(false);
++         super.stop();
++      }
++
++      public void tick() {
++         if (!this.mob.isSilent() && this.mob.random.nextInt(100) == 0) {
++            Raider.this.playSound(Raider.this.getCelebrateSound(), Raider.this.getSoundVolume(), Raider.this.getVoicePitch());
++         }
++
++         if (!this.mob.isPassenger() && this.mob.random.nextInt(50) == 0) {
++            this.mob.getJumpControl().jump();
++         }
++
++         super.tick();
++      }
++   }
++
++   protected class HoldGroundAttackGoal extends Goal {
++      private final Raider mob;
+       private final float hostileRadiusSqr;
+-      public final TargetingConditions shoutTargeting = (new TargetingConditions()).range(8.0D).allowNonAttackable().allowInvulnerable().allowSameTeam().allowUnseeable().ignoreInvisibilityTesting();
++      public final TargetingConditions shoutTargeting = TargetingConditions.forNonCombat().range(8.0D).ignoreLineOfSight().ignoreInvisibilityTesting();
+ 
+       public HoldGroundAttackGoal(AbstractIllager var2, float var3) {
+          this.mob = var2;
+          this.hostileRadiusSqr = var3 * var3;
+          this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+@@ -440,78 +516,6 @@
+ 
+             super.tick();
+          }
+       }
+    }
+-
+-   public class RaiderCelebration extends Goal {
+-      private final Raider mob;
+-
+-      RaiderCelebration(Raider var2) {
+-         this.mob = var2;
+-         this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+-      }
+-
+-      public boolean canUse() {
+-         Raid var1 = this.mob.getCurrentRaid();
+-         return this.mob.isAlive() && this.mob.getTarget() == null && var1 != null && var1.isLoss();
+-      }
+-
+-      public void start() {
+-         this.mob.setCelebrating(true);
+-         super.start();
+-      }
+-
+-      public void stop() {
+-         this.mob.setCelebrating(false);
+-         super.stop();
+-      }
+-
+-      public void tick() {
+-         if (!this.mob.isSilent() && this.mob.random.nextInt(100) == 0) {
+-            Raider.this.playSound(Raider.this.getCelebrateSound(), Raider.this.getSoundVolume(), Raider.this.getVoicePitch());
+-         }
+-
+-         if (!this.mob.isPassenger() && this.mob.random.nextInt(50) == 0) {
+-            this.mob.getJumpControl().jump();
+-         }
+-
+-         super.tick();
+-      }
+-   }
+-
+-   public class ObtainRaidLeaderBannerGoal<T extends Raider> extends Goal {
+-      private final T mob;
+-
+-      public ObtainRaidLeaderBannerGoal(T var2) {
+-         this.mob = var2;
+-         this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+-      }
+-
+-      public boolean canUse() {
+-         Raid var1 = this.mob.getCurrentRaid();
+-         if (this.mob.hasActiveRaid() && !this.mob.getCurrentRaid().isOver() && this.mob.canBeLeader() && !ItemStack.matches(this.mob.getItemBySlot(EquipmentSlot.HEAD), Raid.getLeaderBannerInstance())) {
+-            Raider var2 = var1.getLeader(this.mob.getWave());
+-            if (var2 == null || !var2.isAlive()) {
+-               List var3 = this.mob.level.getEntitiesOfClass(ItemEntity.class, this.mob.getBoundingBox().inflate(16.0D, 8.0D, 16.0D), Raider.ALLOWED_ITEMS);
+-               if (!var3.isEmpty()) {
+-                  return this.mob.getNavigation().moveTo((Entity)var3.get(0), 1.149999976158142D);
+-               }
+-            }
+-
+-            return false;
+-         } else {
+-            return false;
+-         }
+-      }
+-
+-      public void tick() {
+-         if (this.mob.getNavigation().getTargetPos().closerThan(this.mob.position(), 1.414D)) {
+-            List var1 = this.mob.level.getEntitiesOfClass(ItemEntity.class, this.mob.getBoundingBox().inflate(4.0D, 4.0D, 4.0D), Raider.ALLOWED_ITEMS);
+-            if (!var1.isEmpty()) {
+-               this.mob.pickUpItem((ItemEntity)var1.get(0));
+-            }
+-         }
+-
+-      }
+-   }
+ }

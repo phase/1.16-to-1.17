@@ -1,18 +1,33 @@
 --- net/minecraft/world/level/GameRules.java
 +++ net/minecraft/world/level/GameRules.java
-@@ -25,10 +25,11 @@
+@@ -9,10 +9,12 @@
+ import com.mojang.brigadier.context.CommandContext;
+ import com.mojang.serialization.DynamicLike;
+ import java.util.Comparator;
+ import java.util.Iterator;
+ import java.util.Map;
++import java.util.Objects;
++import java.util.Optional;
+ import java.util.Map.Entry;
+ import java.util.function.BiConsumer;
+ import java.util.function.Function;
+ import java.util.function.Supplier;
+ import javax.annotation.Nullable;
+@@ -25,11 +27,12 @@
  import net.minecraft.server.level.ServerPlayer;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class GameRules {
+-   private static final Logger LOGGER = LogManager.getLogger();
 +   public static final int DEFAULT_RANDOM_TICK_SPEED = 3;
-    private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
     private static final Map<GameRules.Key<?>, GameRules.Type<?>> GAME_RULE_TYPES = Maps.newTreeMap(Comparator.comparing((var0) -> {
        return var0.id;
     }));
     public static final GameRules.Key<GameRules.BooleanValue> RULE_DOFIRETICK;
-@@ -58,14 +59,16 @@
+    public static final GameRules.Key<GameRules.BooleanValue> RULE_MOBGRIEFING;
+@@ -58,14 +61,16 @@
     public static final GameRules.Key<GameRules.BooleanValue> RULE_DOINSOMNIA;
     public static final GameRules.Key<GameRules.BooleanValue> RULE_DO_IMMEDIATE_RESPAWN;
     public static final GameRules.Key<GameRules.BooleanValue> RULE_DROWNING_DAMAGE;
@@ -29,7 +44,22 @@
     private static <T extends GameRules.Value<T>> GameRules.Key<T> register(String var0, GameRules.Category var1, GameRules.Type<T> var2) {
        GameRules.Key var3 = new GameRules.Key(var0, var1);
        GameRules.Type var4 = (GameRules.Type)GAME_RULE_TYPES.put(var3, var2);
-@@ -190,14 +193,16 @@
+@@ -103,11 +108,13 @@
+       return var1;
+    }
+ 
+    private void loadFromTag(DynamicLike<?> var1) {
+       this.rules.forEach((var1x, var2) -> {
+-         var1.get(var1x.id).asString().result().ifPresent(var2::deserialize);
++         Optional var10000 = var1.get(var1x.id).asString().result();
++         Objects.requireNonNull(var2);
++         var10000.ifPresent(var2::deserialize);
+       });
+    }
+ 
+    public GameRules copy() {
+       return new GameRules((Map)this.rules.entrySet().stream().collect(ImmutableMap.toImmutableMap(Entry::getKey, (var0) -> {
+@@ -190,26 +197,161 @@
  
        }));
        RULE_DROWNING_DAMAGE = register("drowningDamage", GameRules.Category.PLAYER, GameRules.BooleanValue.create(true));
@@ -43,10 +73,170 @@
 +      RULE_PLAYERS_SLEEPING_PERCENTAGE = register("playersSleepingPercentage", GameRules.Category.PLAYER, GameRules.IntegerValue.create(100));
     }
  
++   public static final class Key<T extends GameRules.Value<T>> {
++      final String id;
++      private final GameRules.Category category;
++
++      public Key(String var1, GameRules.Category var2) {
++         this.id = var1;
++         this.category = var2;
++      }
++
++      public String toString() {
++         return this.id;
++      }
++
++      public boolean equals(Object var1) {
++         if (this == var1) {
++            return true;
++         } else {
++            return var1 instanceof GameRules.Key && ((GameRules.Key)var1).id.equals(this.id);
++         }
++      }
++
++      public int hashCode() {
++         return this.id.hashCode();
++      }
++
++      public String getId() {
++         return this.id;
++      }
++
++      public String getDescriptionId() {
++         return "gamerule." + this.id;
++      }
++
++      public GameRules.Category getCategory() {
++         return this.category;
++      }
++   }
++
++   public static enum Category {
++      PLAYER("gamerule.category.player"),
++      MOBS("gamerule.category.mobs"),
++      SPAWNING("gamerule.category.spawning"),
++      DROPS("gamerule.category.drops"),
++      UPDATES("gamerule.category.updates"),
++      CHAT("gamerule.category.chat"),
++      MISC("gamerule.category.misc");
++
++      private final String descriptionId;
++
++      private Category(String var3) {
++         this.descriptionId = var3;
++      }
++
++      public String getDescriptionId() {
++         return this.descriptionId;
++      }
++   }
++
++   public static class Type<T extends GameRules.Value<T>> {
++      private final Supplier<ArgumentType<?>> argument;
++      private final Function<GameRules.Type<T>, T> constructor;
++      final BiConsumer<MinecraftServer, T> callback;
++      private final GameRules.VisitorCaller<T> visitorCaller;
++
++      Type(Supplier<ArgumentType<?>> var1, Function<GameRules.Type<T>, T> var2, BiConsumer<MinecraftServer, T> var3, GameRules.VisitorCaller<T> var4) {
++         this.argument = var1;
++         this.constructor = var2;
++         this.callback = var3;
++         this.visitorCaller = var4;
++      }
++
++      public RequiredArgumentBuilder<CommandSourceStack, ?> createArgument(String var1) {
++         return Commands.argument(var1, (ArgumentType)this.argument.get());
++      }
++
++      public T createRule() {
++         return (GameRules.Value)this.constructor.apply(this);
++      }
++
++      public void callVisitor(GameRules.GameRuleTypeVisitor var1, GameRules.Key<T> var2) {
++         this.visitorCaller.call(var1, var2, this);
++      }
++   }
++
++   public abstract static class Value<T extends GameRules.Value<T>> {
++      protected final GameRules.Type<T> type;
++
++      public Value(GameRules.Type<T> var1) {
++         this.type = var1;
++      }
++
++      protected abstract void updateFromArgument(CommandContext<CommandSourceStack> var1, String var2);
++
++      public void setFromArgument(CommandContext<CommandSourceStack> var1, String var2) {
++         this.updateFromArgument(var1, var2);
++         this.onChanged(((CommandSourceStack)var1.getSource()).getServer());
++      }
++
++      protected void onChanged(@Nullable MinecraftServer var1) {
++         if (var1 != null) {
++            this.type.callback.accept(var1, this.getSelf());
++         }
++
++      }
++
++      protected abstract void deserialize(String var1);
++
++      public abstract String serialize();
++
++      public String toString() {
++         return this.serialize();
++      }
++
++      public abstract int getCommandResult();
++
++      protected abstract T getSelf();
++
++      protected abstract T copy();
++
++      public abstract void setFrom(T var1, @Nullable MinecraftServer var2);
++   }
++
++   public interface GameRuleTypeVisitor {
++      default <T extends GameRules.Value<T>> void visit(GameRules.Key<T> var1, GameRules.Type<T> var2) {
++      }
++
++      default void visitBoolean(GameRules.Key<GameRules.BooleanValue> var1, GameRules.Type<GameRules.BooleanValue> var2) {
++      }
++
++      default void visitInteger(GameRules.Key<GameRules.IntegerValue> var1, GameRules.Type<GameRules.IntegerValue> var2) {
++      }
++   }
++
     public static class BooleanValue extends GameRules.Value<GameRules.BooleanValue> {
        private boolean value;
  
-@@ -281,10 +286,15 @@
+-      private static GameRules.Type<GameRules.BooleanValue> create(boolean var0, BiConsumer<MinecraftServer, GameRules.BooleanValue> var1) {
++      static GameRules.Type<GameRules.BooleanValue> create(boolean var0, BiConsumer<MinecraftServer, GameRules.BooleanValue> var1) {
+          return new GameRules.Type(BoolArgumentType::bool, (var1x) -> {
+             return new GameRules.BooleanValue(var1x, var0);
+          }, var1, GameRules.GameRuleTypeVisitor::visitBoolean);
+       }
+ 
+-      private static GameRules.Type<GameRules.BooleanValue> create(boolean var0) {
++      static GameRules.Type<GameRules.BooleanValue> create(boolean var0) {
+          return create(var0, (var0x, var1) -> {
+          });
+       }
+ 
+       public BooleanValue(GameRules.Type<GameRules.BooleanValue> var1, boolean var2) {
+@@ -263,11 +405,11 @@
+          return new GameRules.Type(IntegerArgumentType::integer, (var1x) -> {
+             return new GameRules.IntegerValue(var1x, var0);
+          }, var1, GameRules.GameRuleTypeVisitor::visitInteger);
+       }
+ 
+-      private static GameRules.Type<GameRules.IntegerValue> create(int var0) {
++      static GameRules.Type<GameRules.IntegerValue> create(int var0) {
+          return create(var0, (var0x, var1) -> {
+          });
+       }
+ 
+       public IntegerValue(GameRules.Type<GameRules.IntegerValue> var1, int var2) {
+@@ -281,10 +423,15 @@
  
        public int get() {
           return this.value;
@@ -62,3 +252,147 @@
        }
  
        protected void deserialize(String var1) {
+@@ -328,142 +475,9 @@
+          this.value = var1.value;
+          this.onChanged(var2);
+       }
+    }
+ 
+-   public abstract static class Value<T extends GameRules.Value<T>> {
+-      protected final GameRules.Type<T> type;
+-
+-      public Value(GameRules.Type<T> var1) {
+-         this.type = var1;
+-      }
+-
+-      protected abstract void updateFromArgument(CommandContext<CommandSourceStack> var1, String var2);
+-
+-      public void setFromArgument(CommandContext<CommandSourceStack> var1, String var2) {
+-         this.updateFromArgument(var1, var2);
+-         this.onChanged(((CommandSourceStack)var1.getSource()).getServer());
+-      }
+-
+-      protected void onChanged(@Nullable MinecraftServer var1) {
+-         if (var1 != null) {
+-            this.type.callback.accept(var1, this.getSelf());
+-         }
+-
+-      }
+-
+-      protected abstract void deserialize(String var1);
+-
+-      public abstract String serialize();
+-
+-      public String toString() {
+-         return this.serialize();
+-      }
+-
+-      public abstract int getCommandResult();
+-
+-      protected abstract T getSelf();
+-
+-      protected abstract T copy();
+-
+-      public abstract void setFrom(T var1, @Nullable MinecraftServer var2);
+-   }
+-
+-   public static class Type<T extends GameRules.Value<T>> {
+-      private final Supplier<ArgumentType<?>> argument;
+-      private final Function<GameRules.Type<T>, T> constructor;
+-      private final BiConsumer<MinecraftServer, T> callback;
+-      private final GameRules.VisitorCaller<T> visitorCaller;
+-
+-      private Type(Supplier<ArgumentType<?>> var1, Function<GameRules.Type<T>, T> var2, BiConsumer<MinecraftServer, T> var3, GameRules.VisitorCaller<T> var4) {
+-         this.argument = var1;
+-         this.constructor = var2;
+-         this.callback = var3;
+-         this.visitorCaller = var4;
+-      }
+-
+-      public RequiredArgumentBuilder<CommandSourceStack, ?> createArgument(String var1) {
+-         return Commands.argument(var1, (ArgumentType)this.argument.get());
+-      }
+-
+-      public T createRule() {
+-         return (GameRules.Value)this.constructor.apply(this);
+-      }
+-
+-      public void callVisitor(GameRules.GameRuleTypeVisitor var1, GameRules.Key<T> var2) {
+-         this.visitorCaller.call(var1, var2, this);
+-      }
+-   }
+-
+-   public static final class Key<T extends GameRules.Value<T>> {
+-      private final String id;
+-      private final GameRules.Category category;
+-
+-      public Key(String var1, GameRules.Category var2) {
+-         this.id = var1;
+-         this.category = var2;
+-      }
+-
+-      public String toString() {
+-         return this.id;
+-      }
+-
+-      public boolean equals(Object var1) {
+-         if (this == var1) {
+-            return true;
+-         } else {
+-            return var1 instanceof GameRules.Key && ((GameRules.Key)var1).id.equals(this.id);
+-         }
+-      }
+-
+-      public int hashCode() {
+-         return this.id.hashCode();
+-      }
+-
+-      public String getId() {
+-         return this.id;
+-      }
+-
+-      public String getDescriptionId() {
+-         return "gamerule." + this.id;
+-      }
+-
+-      public GameRules.Category getCategory() {
+-         return this.category;
+-      }
+-   }
+-
+-   public interface GameRuleTypeVisitor {
+-      default <T extends GameRules.Value<T>> void visit(GameRules.Key<T> var1, GameRules.Type<T> var2) {
+-      }
+-
+-      default void visitBoolean(GameRules.Key<GameRules.BooleanValue> var1, GameRules.Type<GameRules.BooleanValue> var2) {
+-      }
+-
+-      default void visitInteger(GameRules.Key<GameRules.IntegerValue> var1, GameRules.Type<GameRules.IntegerValue> var2) {
+-      }
+-   }
+-
+-   interface VisitorCaller<T extends GameRules.Value<T>> {
++   private interface VisitorCaller<T extends GameRules.Value<T>> {
+       void call(GameRules.GameRuleTypeVisitor var1, GameRules.Key<T> var2, GameRules.Type<T> var3);
+    }
+-
+-   public static enum Category {
+-      PLAYER("gamerule.category.player"),
+-      MOBS("gamerule.category.mobs"),
+-      SPAWNING("gamerule.category.spawning"),
+-      DROPS("gamerule.category.drops"),
+-      UPDATES("gamerule.category.updates"),
+-      CHAT("gamerule.category.chat"),
+-      MISC("gamerule.category.misc");
+-
+-      private final String descriptionId;
+-
+-      private Category(String var3) {
+-         this.descriptionId = var3;
+-      }
+-
+-      public String getDescriptionId() {
+-         return this.descriptionId;
+-      }
+-   }
+ }

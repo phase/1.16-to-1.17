@@ -15,9 +15,13 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeSource;
  import net.minecraft.world.level.biome.MobSpawnSettings;
-@@ -35,11 +38,10 @@
+@@ -32,14 +35,14 @@
+ import net.minecraft.world.level.levelgen.feature.configurations.JigsawConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.MineshaftConfiguration;
+ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.OceanRuinConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.ProbabilityFeatureConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.RangeDecoratorConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.RuinedPortalConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.ShipwreckConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.StructureFeatureConfiguration;
@@ -27,8 +31,14 @@
  import net.minecraft.world.level.levelgen.structure.StructurePiece;
  import net.minecraft.world.level.levelgen.structure.StructureStart;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
-@@ -69,10 +71,11 @@
-    public static final StructureFeature<NoneFeatureConfiguration> NETHER_FOSSIL;
+@@ -64,15 +67,16 @@
+    public static final StructureFeature<OceanRuinConfiguration> OCEAN_RUIN;
+    public static final StructureFeature<NoneFeatureConfiguration> NETHER_BRIDGE;
+    public static final StructureFeature<NoneFeatureConfiguration> END_CITY;
+    public static final StructureFeature<ProbabilityFeatureConfiguration> BURIED_TREASURE;
+    public static final StructureFeature<JigsawConfiguration> VILLAGE;
+-   public static final StructureFeature<NoneFeatureConfiguration> NETHER_FOSSIL;
++   public static final StructureFeature<RangeDecoratorConfiguration> NETHER_FOSSIL;
     public static final StructureFeature<JigsawConfiguration> BASTION_REMNANT;
     public static final List<StructureFeature<?>> NOISE_AFFECTING_FEATURES;
     private static final ResourceLocation JIGSAW_RENAME;
@@ -39,7 +49,7 @@
     private static <F extends StructureFeature<?>> F register(String var0, F var1, GenerationStep.Decoration var2) {
        STRUCTURES_REGISTRY.put(var0.toLowerCase(Locale.ROOT), var1);
        STEP.put(var1, var2);
-@@ -93,50 +96,48 @@
+@@ -93,50 +97,48 @@
  
     public static void bootstrap() {
     }
@@ -110,7 +120,7 @@
           }
        }
     }
-@@ -150,12 +151,12 @@
+@@ -150,12 +152,12 @@
     }
  
     @Nullable
@@ -125,7 +135,7 @@
        for(WorldgenRandom var13 = new WorldgenRandom(); var12 <= var4; ++var12) {
           for(int var14 = -var12; var14 <= var12; ++var14) {
              boolean var15 = var14 == -var12 || var14 == var12;
-@@ -164,20 +165,23 @@
+@@ -164,20 +166,23 @@
                 boolean var17 = var16 == -var12 || var16 == var12;
                 if (var15 || var17) {
                    int var18 = var10 + var9 * var14;
@@ -158,7 +168,7 @@
  
                    if (var12 == 0) {
                       break;
-@@ -215,25 +219,25 @@
+@@ -215,25 +220,25 @@
        }
  
        return new ChunkPos(var9 * var7 + var11, var10 * var7 + var12);
@@ -194,7 +204,7 @@
  
        return StructureStart.INVALID_START;
     }
-@@ -242,16 +246,16 @@
+@@ -242,18 +247,22 @@
  
     public String getFeatureName() {
        return (String)STRUCTURES_REGISTRY.inverse().get(this);
@@ -212,14 +222,23 @@
 +      return MobSpawnSettings.EMPTY_MOB_LIST;
     }
  
++   public WeightedRandomList<MobSpawnSettings.SpawnerData> getSpecialUndergroundWaterAnimals() {
++      return MobSpawnSettings.EMPTY_MOB_LIST;
++   }
++
     static {
        PILLAGER_OUTPOST = register("Pillager_Outpost", new PillagerOutpostFeature(JigsawConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
        MINESHAFT = register("Mineshaft", new MineshaftFeature(MineshaftConfiguration.CODEC), GenerationStep.Decoration.UNDERGROUND_STRUCTURES);
-@@ -269,14 +273,14 @@
+       WOODLAND_MANSION = register("Mansion", new WoodlandMansionFeature(NoneFeatureConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
+       JUNGLE_TEMPLE = register("Jungle_Pyramid", new JunglePyramidFeature(NoneFeatureConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
+@@ -267,16 +276,16 @@
+       OCEAN_RUIN = register("Ocean_Ruin", new OceanRuinFeature(OceanRuinConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
+       NETHER_BRIDGE = register("Fortress", new NetherFortressFeature(NoneFeatureConfiguration.CODEC), GenerationStep.Decoration.UNDERGROUND_DECORATION);
        END_CITY = register("EndCity", new EndCityFeature(NoneFeatureConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
        BURIED_TREASURE = register("Buried_Treasure", new BuriedTreasureFeature(ProbabilityFeatureConfiguration.CODEC), GenerationStep.Decoration.UNDERGROUND_STRUCTURES);
        VILLAGE = register("Village", new VillageFeature(JigsawConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
-       NETHER_FOSSIL = register("Nether_Fossil", new NetherFossilFeature(NoneFeatureConfiguration.CODEC), GenerationStep.Decoration.UNDERGROUND_DECORATION);
+-      NETHER_FOSSIL = register("Nether_Fossil", new NetherFossilFeature(NoneFeatureConfiguration.CODEC), GenerationStep.Decoration.UNDERGROUND_DECORATION);
++      NETHER_FOSSIL = register("Nether_Fossil", new NetherFossilFeature(RangeDecoratorConfiguration.CODEC), GenerationStep.Decoration.UNDERGROUND_DECORATION);
        BASTION_REMNANT = register("Bastion_Remnant", new BastionFeature(JigsawConfiguration.CODEC), GenerationStep.Decoration.SURFACE_STRUCTURES);
 -      NOISE_AFFECTING_FEATURES = ImmutableList.of(PILLAGER_OUTPOST, VILLAGE, NETHER_FOSSIL);
 +      NOISE_AFFECTING_FEATURES = ImmutableList.of(PILLAGER_OUTPOST, VILLAGE, NETHER_FOSSIL, STRONGHOLD);

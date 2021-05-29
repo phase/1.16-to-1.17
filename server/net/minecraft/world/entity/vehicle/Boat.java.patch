@@ -184,7 +184,25 @@
  
              this.isAboveBubbleColumn = false;
           }
-@@ -368,10 +398,14 @@
+@@ -354,24 +384,28 @@
+ 
+       if (this.lerpSteps > 0) {
+          double var1 = this.getX() + (this.lerpX - this.getX()) / (double)this.lerpSteps;
+          double var3 = this.getY() + (this.lerpY - this.getY()) / (double)this.lerpSteps;
+          double var5 = this.getZ() + (this.lerpZ - this.getZ()) / (double)this.lerpSteps;
+-         double var7 = Mth.wrapDegrees(this.lerpYRot - (double)this.yRot);
+-         this.yRot = (float)((double)this.yRot + var7 / (double)this.lerpSteps);
+-         this.xRot = (float)((double)this.xRot + (this.lerpXRot - (double)this.xRot) / (double)this.lerpSteps);
++         double var7 = Mth.wrapDegrees(this.lerpYRot - (double)this.getYRot());
++         this.setYRot(this.getYRot() + (float)var7 / (float)this.lerpSteps);
++         this.setXRot(this.getXRot() + (float)(this.lerpXRot - (double)this.getXRot()) / (float)this.lerpSteps);
+          --this.lerpSteps;
+          this.setPos(var1, var3, var5);
+-         this.setRot(this.yRot, this.xRot);
++         this.setRot(this.getYRot(), this.getXRot());
+       }
+    }
+ 
     public void setPaddleState(boolean var1, boolean var2) {
        this.entityData.set(DATA_ID_PADDLE_LEFT, var1);
        this.entityData.set(DATA_ID_PADDLE_RIGHT, var2);
@@ -212,7 +230,26 @@
        for(int var10 = var2; var10 < var3; ++var10) {
           for(int var11 = var4; var11 < var5; ++var11) {
              for(int var12 = var6; var12 < var7; ++var12) {
-@@ -591,11 +625,11 @@
+@@ -574,28 +608,28 @@
+ 
+          if (this.inputRight != this.inputLeft && !this.inputUp && !this.inputDown) {
+             var1 += 0.005F;
+          }
+ 
+-         this.yRot += this.deltaRotation;
++         this.setYRot(this.getYRot() + this.deltaRotation);
+          if (this.inputUp) {
+             var1 += 0.04F;
+          }
+ 
+          if (this.inputDown) {
+             var1 -= 0.005F;
+          }
+ 
+-         this.setDeltaMovement(this.getDeltaMovement().add((double)(Mth.sin(-this.yRot * 0.017453292F) * var1), 0.0D, (double)(Mth.cos(this.yRot * 0.017453292F) * var1)));
++         this.setDeltaMovement(this.getDeltaMovement().add((double)(Mth.sin(-this.getYRot() * 0.017453292F) * var1), 0.0D, (double)(Mth.cos(this.getYRot() * 0.017453292F) * var1)));
+          this.setPaddleState(this.inputRight && !this.inputLeft || this.inputUp, this.inputLeft && !this.inputRight || this.inputUp);
+       }
     }
  
     public void positionRider(Entity var1) {
@@ -225,14 +262,30 @@
              if (var4 == 0) {
                 var2 = 0.2F;
              } else {
-@@ -620,32 +654,39 @@
+@@ -605,13 +639,13 @@
+             if (var1 instanceof Animal) {
+                var2 = (float)((double)var2 + 0.2D);
+             }
+          }
+ 
+-         Vec3 var6 = (new Vec3((double)var2, 0.0D, 0.0D)).yRot(-this.yRot * 0.017453292F - 1.5707964F);
++         Vec3 var6 = (new Vec3((double)var2, 0.0D, 0.0D)).yRot(-this.getYRot() * 0.017453292F - 1.5707964F);
+          var1.setPos(this.getX() + var6.x, this.getY() + (double)var3, this.getZ() + var6.z);
+-         var1.yRot += this.deltaRotation;
++         var1.setYRot(var1.getYRot() + this.deltaRotation);
+          var1.setYHeadRot(var1.getYHeadRot() + this.deltaRotation);
+          this.clampRotation(var1);
+          if (var1 instanceof Animal && this.getPassengers().size() > 1) {
+             int var5 = var1.getId() % 2 == 0 ? 90 : 270;
+             var1.setYBodyRot(((Animal)var1).yBodyRot + (float)var5);
+@@ -620,48 +654,59 @@
  
        }
     }
  
     public Vec3 getDismountLocationForPassenger(LivingEntity var1) {
 -      Vec3 var2 = getCollisionHorizontalEscapeVector((double)(this.getBbWidth() * Mth.SQRT_OF_TWO), (double)var1.getBbWidth(), this.yRot);
-+      Vec3 var2 = getCollisionHorizontalEscapeVector((double)(this.getBbWidth() * Mth.SQRT_OF_TWO), (double)var1.getBbWidth(), var1.yRot);
++      Vec3 var2 = getCollisionHorizontalEscapeVector((double)(this.getBbWidth() * Mth.SQRT_OF_TWO), (double)var1.getBbWidth(), var1.getYRot());
        double var3 = this.getX() + var2.x;
        double var5 = this.getZ() + var2.z;
        BlockPos var7 = new BlockPos(var3, this.getBoundingBox().maxY, var5);
@@ -280,10 +333,19 @@
        }
  
        return super.getDismountLocationForPassenger(var1);
-@@ -658,10 +699,14 @@
+    }
+ 
+    protected void clampRotation(Entity var1) {
+-      var1.setYBodyRot(this.yRot);
+-      float var2 = Mth.wrapDegrees(var1.yRot - this.yRot);
++      var1.setYBodyRot(this.getYRot());
++      float var2 = Mth.wrapDegrees(var1.getYRot() - this.getYRot());
+       float var3 = Mth.clamp(var2, -105.0F, 105.0F);
        var1.yRotO += var3 - var2;
-       var1.yRot += var3 - var2;
-       var1.setYHeadRot(var1.yRot);
+-      var1.yRot += var3 - var2;
+-      var1.setYHeadRot(var1.yRot);
++      var1.setYRot(var1.getYRot() + var3 - var2);
++      var1.setYHeadRot(var1.getYRot());
     }
  
 +   public void onPassengerTurned(Entity var1) {

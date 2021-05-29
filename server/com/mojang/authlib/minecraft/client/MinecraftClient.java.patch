@@ -1,0 +1,115 @@
+--- com/mojang/authlib/minecraft/client/MinecraftClient.java
++++ com/mojang/authlib/minecraft/client/MinecraftClient.java
+@@ -1,0 +1,112 @@
++package com.mojang.authlib.minecraft.client;
++
++import com.mojang.authlib.exceptions.MinecraftClientException;
++import com.mojang.authlib.exceptions.MinecraftClientHttpException;
++import com.mojang.authlib.yggdrasil.response.ErrorResponse;
++import java.io.IOException;
++import java.io.InputStream;
++import java.io.OutputStream;
++import java.net.HttpURLConnection;
++import java.net.Proxy;
++import java.net.URL;
++import org.apache.commons.io.Charsets;
++import org.apache.commons.io.IOUtils;
++import org.apache.commons.lang3.Validate;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++
++public class MinecraftClient {
++   private static final Logger LOGGER = LogManager.getLogger();
++   public static final int CONNECT_TIMEOUT_MS = 5000;
++   public static final int READ_TIMEOUT_MS = 5000;
++   private final String accessToken;
++   private final Proxy proxy;
++   private final ObjectMapper objectMapper = ObjectMapper.create();
++
++   public MinecraftClient(String var1, Proxy var2) {
++      this.accessToken = (String)Validate.notNull(var1);
++      this.proxy = (Proxy)Validate.notNull(var2);
++   }
++
++   public <T> T get(URL var1, Class<T> var2) {
++      Validate.notNull(var1);
++      Validate.notNull(var2);
++      HttpURLConnection var3 = this.createUrlConnection(var1);
++      var3.setRequestProperty("Authorization", "Bearer " + this.accessToken);
++      return this.readInputStream(var1, var2, var3);
++   }
++
++   public <T> T post(URL var1, Object var2, Class<T> var3) {
++      Validate.notNull(var1);
++      Validate.notNull(var2);
++      Validate.notNull(var3);
++      String var4 = this.objectMapper.writeValueAsString(var2);
++      byte[] var5 = var4.getBytes(Charsets.UTF_8);
++      HttpURLConnection var6 = this.postInternal(var1, var5);
++      return this.readInputStream(var1, var3, var6);
++   }
++
++   private <T> T readInputStream(URL var1, Class<T> var2, HttpURLConnection var3) {
++      InputStream var4 = null;
++
++      Object var7;
++      try {
++         int var5 = var3.getResponseCode();
++         String var6;
++         if (var5 >= 400) {
++            var4 = var3.getErrorStream();
++            if (var4 != null) {
++               var6 = IOUtils.toString(var4, Charsets.UTF_8);
++               ErrorResponse var13 = (ErrorResponse)this.objectMapper.readValue(var6, ErrorResponse.class);
++               throw new MinecraftClientHttpException(var5, var13);
++            }
++
++            throw new MinecraftClientHttpException(var5);
++         }
++
++         var4 = var3.getInputStream();
++         var6 = IOUtils.toString(var4, Charsets.UTF_8);
++         var7 = this.objectMapper.readValue(var6, var2);
++      } catch (IOException var11) {
++         throw new MinecraftClientException(MinecraftClientException.ErrorType.SERVICE_UNAVAILABLE, "Failed to read from " + var1 + " due to " + var11.getMessage(), var11);
++      } finally {
++         IOUtils.closeQuietly(var4);
++      }
++
++      return var7;
++   }
++
++   private HttpURLConnection postInternal(URL var1, byte[] var2) {
++      HttpURLConnection var3 = this.createUrlConnection(var1);
++      OutputStream var4 = null;
++
++      try {
++         var3.setRequestProperty("Content-Type", "application/json; charset=utf-8");
++         var3.setRequestProperty("Content-Length", "" + var2.length);
++         var3.setRequestProperty("Authorization", "Bearer " + this.accessToken);
++         var3.setRequestMethod("POST");
++         var3.setDoOutput(true);
++         var4 = var3.getOutputStream();
++         IOUtils.write(var2, var4);
++      } catch (IOException var9) {
++         throw new MinecraftClientException(MinecraftClientException.ErrorType.SERVICE_UNAVAILABLE, "Failed to POST " + var1, var9);
++      } finally {
++         IOUtils.closeQuietly(var4);
++      }
++
++      return var3;
++   }
++
++   private HttpURLConnection createUrlConnection(URL var1) {
++      try {
++         LOGGER.debug((String)"Connecting to {}", (Object)var1);
++         HttpURLConnection var2 = (HttpURLConnection)var1.openConnection(this.proxy);
++         var2.setConnectTimeout(5000);
++         var2.setReadTimeout(5000);
++         var2.setUseCaches(false);
++         return var2;
++      } catch (IOException var3) {
++         throw new MinecraftClientException(MinecraftClientException.ErrorType.SERVICE_UNAVAILABLE, "Failed connecting to " + var1, var3);
++      }
++   }
++}

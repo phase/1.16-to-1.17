@@ -96,7 +96,21 @@
     public float experienceProgress;
     protected int enchantmentSeed;
     protected final float defaultFlySpeed = 0.02F;
-@@ -278,11 +292,11 @@
+@@ -223,11 +237,12 @@
+       }
+ 
+       this.moveCloak();
+       if (!this.level.isClientSide) {
+          this.foodData.tick(this);
+-         this.awardStat(Stats.PLAY_ONE_MINUTE);
++         this.awardStat(Stats.PLAY_TIME);
++         this.awardStat(Stats.TOTAL_WORLD_TIME);
+          if (this.isAlive()) {
+             this.awardStat(Stats.TIME_SINCE_DEATH);
+          }
+ 
+          if (this.isDiscrete()) {
+@@ -278,11 +293,11 @@
        return this.wasUnderwater;
     }
  
@@ -109,7 +123,7 @@
  
     }
  
-@@ -428,11 +442,11 @@
+@@ -428,11 +443,11 @@
     protected void closeContainer() {
        this.containerMenu = this.inventoryMenu;
     }
@@ -122,7 +136,7 @@
        } else {
           double var1 = this.getX();
           double var3 = this.getY();
-@@ -442,17 +456,10 @@
+@@ -442,21 +457,14 @@
           this.bob = 0.0F;
           this.checkRidingStatistics(this.getX() - var1, this.getY() - var3, this.getZ() - var5);
        }
@@ -138,9 +152,23 @@
     protected void serverAiStep() {
        super.serverAiStep();
        this.updateSwingTime();
-       this.yHeadRot = this.yRot;
+-      this.yHeadRot = this.yRot;
++      this.yHeadRot = this.getYRot();
     }
-@@ -489,24 +496,31 @@
+ 
+    public void aiStep() {
+       if (this.jumpTriggerTime > 0) {
+          --this.jumpTriggerTime;
+@@ -481,37 +489,44 @@
+       }
+ 
+       this.setSpeed((float)this.getAttributeValue(Attributes.MOVEMENT_SPEED));
+       float var1;
+       if (this.onGround && !this.isDeadOrDying() && !this.isSwimming()) {
+-         var1 = Math.min(0.1F, Mth.sqrt(getHorizontalDistanceSqr(this.getDeltaMovement())));
++         var1 = Math.min(0.1F, (float)this.getDeltaMovement().horizontalDistance());
+       } else {
+          var1 = 0.0F;
        }
  
        this.bob += (var1 - this.bob) * 0.4F;
@@ -176,8 +204,24 @@
  
        this.playShoulderEntityAmbientSound(this.getShoulderEntityLeft());
        this.playShoulderEntityAmbientSound(this.getShoulderEntityRight());
-       if (!this.level.isClientSide && (this.fallDistance > 0.5F || this.isInWater()) || this.abilities.flying || this.isSleeping()) {
-@@ -562,11 +576,11 @@
+-      if (!this.level.isClientSide && (this.fallDistance > 0.5F || this.isInWater()) || this.abilities.flying || this.isSleeping()) {
++      if (!this.level.isClientSide && (this.fallDistance > 0.5F || this.isInWater()) || this.abilities.flying || this.isSleeping() || this.isInPowderSnow) {
+          this.removeEntitiesOnShoulder();
+       }
+ 
+    }
+ 
+@@ -553,20 +568,20 @@
+       if (!this.isSpectator()) {
+          this.dropAllDeathLoot(var1);
+       }
+ 
+       if (var1 != null) {
+-         this.setDeltaMovement((double)(-Mth.cos((this.hurtDir + this.yRot) * 0.017453292F) * 0.1F), 0.10000000149011612D, (double)(-Mth.sin((this.hurtDir + this.yRot) * 0.017453292F) * 0.1F));
++         this.setDeltaMovement((double)(-Mth.cos((this.hurtDir + this.getYRot()) * 0.017453292F) * 0.1F), 0.10000000149011612D, (double)(-Mth.sin((this.hurtDir + this.getYRot()) * 0.017453292F) * 0.1F));
+       } else {
+          this.setDeltaMovement(0.0D, 0.1D, 0.0D);
+       }
  
        this.awardStat(Stats.DEATHS);
        this.resetStat(Stats.CUSTOM.get(Stats.TIME_SINCE_DEATH));
@@ -190,7 +234,7 @@
     protected void dropEquipment() {
        super.dropEquipment();
        if (!this.level.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY)) {
-@@ -589,12 +603,14 @@
+@@ -589,12 +604,14 @@
     protected SoundEvent getHurtSound(DamageSource var1) {
        if (var1 == DamageSource.ON_FIRE) {
           return SoundEvents.PLAYER_HURT_ON_FIRE;
@@ -206,7 +250,26 @@
  
     protected SoundEvent getDeathSound() {
        return SoundEvents.PLAYER_DEATH;
-@@ -755,14 +771,16 @@
+@@ -631,14 +648,14 @@
+             var7 = this.random.nextFloat() * 0.5F;
+             var8 = this.random.nextFloat() * 6.2831855F;
+             var6.setDeltaMovement((double)(-Mth.sin(var8) * var7), 0.20000000298023224D, (double)(Mth.cos(var8) * var7));
+          } else {
+             var7 = 0.3F;
+-            var8 = Mth.sin(this.xRot * 0.017453292F);
+-            float var9 = Mth.cos(this.xRot * 0.017453292F);
+-            float var10 = Mth.sin(this.yRot * 0.017453292F);
+-            float var11 = Mth.cos(this.yRot * 0.017453292F);
++            var8 = Mth.sin(this.getXRot() * 0.017453292F);
++            float var9 = Mth.cos(this.getXRot() * 0.017453292F);
++            float var10 = Mth.sin(this.getYRot() * 0.017453292F);
++            float var11 = Mth.cos(this.getYRot() * 0.017453292F);
+             float var12 = this.random.nextFloat() * 6.2831855F;
+             float var13 = 0.02F * this.random.nextFloat();
+             var6.setDeltaMovement((double)(-var10 * var9 * 0.3F) + Math.cos((double)var12) * (double)var13, (double)(-var8 * 0.3F + 0.1F + (this.random.nextFloat() - this.random.nextFloat()) * 0.1F), (double)(var11 * var9 * 0.3F) + Math.sin((double)var12) * (double)var13);
+          }
+ 
+@@ -755,14 +772,16 @@
     public boolean isInvulnerableTo(DamageSource var1) {
        if (super.isInvulnerableTo(var1)) {
           return true;
@@ -224,14 +287,14 @@
        }
     }
  
-@@ -802,10 +820,14 @@
+@@ -802,10 +821,14 @@
           this.disableShield(true);
        }
  
     }
  
-+   public boolean canBeTargeted() {
-+      return !this.getAbilities().invulnerable && super.canBeTargeted();
++   public boolean canBeSeenAsEnemy() {
++      return !this.getAbilities().invulnerable && super.canBeSeenAsEnemy();
 +   }
 +
     public boolean canHarmPlayer(Player var1) {
@@ -239,11 +302,20 @@
        Team var3 = var1.getTeam();
        if (var2 == null) {
           return true;
-@@ -817,11 +839,11 @@
-    protected void hurtArmor(DamageSource var1, float var2) {
-       this.inventory.hurtArmor(var1, var2);
+@@ -813,15 +836,19 @@
+          return !var2.isAlliedTo(var3) ? true : var2.isAllowFriendlyFire();
+       }
     }
  
+    protected void hurtArmor(DamageSource var1, float var2) {
+-      this.inventory.hurtArmor(var1, var2);
++      this.inventory.hurtArmor(var1, var2, Inventory.ALL_ARMOR_SLOTS);
+    }
+ 
++   protected void hurtHelmet(DamageSource var1, float var2) {
++      this.inventory.hurtArmor(var1, var2, Inventory.HELMET_SLOT_ONLY);
++   }
++
     protected void hurtCurrentlyUsedShield(float var1) {
 -      if (this.useItem.getItem() == Items.SHIELD) {
 +      if (this.useItem.is(Items.SHIELD)) {
@@ -252,7 +324,49 @@
           }
  
           if (var1 >= 3.0F) {
-@@ -1218,12 +1240,12 @@
+@@ -1074,13 +1101,13 @@
+                Vec3 var15 = var1.getDeltaMovement();
+                boolean var16 = var1.hurt(DamageSource.playerAttack(this), var2);
+                if (var16) {
+                   if (var21 > 0) {
+                      if (var1 instanceof LivingEntity) {
+-                        ((LivingEntity)var1).knockback((float)var21 * 0.5F, (double)Mth.sin(this.yRot * 0.017453292F), (double)(-Mth.cos(this.yRot * 0.017453292F)));
++                        ((LivingEntity)var1).knockback((double)((float)var21 * 0.5F), (double)Mth.sin(this.getYRot() * 0.017453292F), (double)(-Mth.cos(this.getYRot() * 0.017453292F)));
+                      } else {
+-                        var1.push((double)(-Mth.sin(this.yRot * 0.017453292F) * (float)var21 * 0.5F), 0.1D, (double)(Mth.cos(this.yRot * 0.017453292F) * (float)var21 * 0.5F));
++                        var1.push((double)(-Mth.sin(this.getYRot() * 0.017453292F) * (float)var21 * 0.5F), 0.1D, (double)(Mth.cos(this.getYRot() * 0.017453292F) * (float)var21 * 0.5F));
+                      }
+ 
+                      this.setDeltaMovement(this.getDeltaMovement().multiply(0.6D, 1.0D, 0.6D));
+                      this.setSprinting(false);
+                   }
+@@ -1108,11 +1135,11 @@
+                               } while(var20 == var1);
+                            } while(this.isAlliedTo(var20));
+                         } while(var20 instanceof ArmorStand && ((ArmorStand)var20).isMarker());
+ 
+                         if (this.distanceToSqr(var20) < 9.0D) {
+-                           var20.knockback(0.4F, (double)Mth.sin(this.yRot * 0.017453292F), (double)(-Mth.cos(this.yRot * 0.017453292F)));
++                           var20.knockback(0.4000000059604645D, (double)Mth.sin(this.getYRot() * 0.017453292F), (double)(-Mth.cos(this.getYRot() * 0.017453292F)));
+                            var20.hurt(DamageSource.playerAttack(this), var17);
+                         }
+                      }
+                   }
+ 
+@@ -1207,23 +1234,23 @@
+ 
+    public void magicCrit(Entity var1) {
+    }
+ 
+    public void sweepAttack() {
+-      double var1 = (double)(-Mth.sin(this.yRot * 0.017453292F));
+-      double var3 = (double)Mth.cos(this.yRot * 0.017453292F);
++      double var1 = (double)(-Mth.sin(this.getYRot() * 0.017453292F));
++      double var3 = (double)Mth.cos(this.getYRot() * 0.017453292F);
+       if (this.level instanceof ServerLevel) {
+          ((ServerLevel)this.level).sendParticles(ParticleTypes.SWEEP_ATTACK, this.getX() + var1, this.getY(0.5D), this.getZ() + var3, 0, var1, 0.0D, var3, 0.0D);
+       }
+ 
     }
  
     public void respawn() {
@@ -267,7 +381,7 @@
           this.containerMenu.removed(this);
        }
  
-@@ -1235,10 +1257,21 @@
+@@ -1235,10 +1262,21 @@
  
     public GameProfile getGameProfile() {
        return this.gameProfile;
@@ -289,7 +403,74 @@
        this.sleepCounter = 0;
        return Either.right(Unit.INSTANCE);
     }
-@@ -1447,26 +1480,26 @@
+@@ -1378,33 +1416,33 @@
+ 
+    public void checkMovementStatistics(double var1, double var3, double var5) {
+       if (!this.isPassenger()) {
+          int var7;
+          if (this.isSwimming()) {
+-            var7 = Math.round(Mth.sqrt(var1 * var1 + var3 * var3 + var5 * var5) * 100.0F);
++            var7 = Math.round((float)Math.sqrt(var1 * var1 + var3 * var3 + var5 * var5) * 100.0F);
+             if (var7 > 0) {
+                this.awardStat(Stats.SWIM_ONE_CM, var7);
+                this.causeFoodExhaustion(0.01F * (float)var7 * 0.01F);
+             }
+          } else if (this.isEyeInFluid(FluidTags.WATER)) {
+-            var7 = Math.round(Mth.sqrt(var1 * var1 + var3 * var3 + var5 * var5) * 100.0F);
++            var7 = Math.round((float)Math.sqrt(var1 * var1 + var3 * var3 + var5 * var5) * 100.0F);
+             if (var7 > 0) {
+                this.awardStat(Stats.WALK_UNDER_WATER_ONE_CM, var7);
+                this.causeFoodExhaustion(0.01F * (float)var7 * 0.01F);
+             }
+          } else if (this.isInWater()) {
+-            var7 = Math.round(Mth.sqrt(var1 * var1 + var5 * var5) * 100.0F);
++            var7 = Math.round((float)Math.sqrt(var1 * var1 + var5 * var5) * 100.0F);
+             if (var7 > 0) {
+                this.awardStat(Stats.WALK_ON_WATER_ONE_CM, var7);
+                this.causeFoodExhaustion(0.01F * (float)var7 * 0.01F);
+             }
+          } else if (this.onClimbable()) {
+             if (var3 > 0.0D) {
+                this.awardStat(Stats.CLIMB_ONE_CM, (int)Math.round(var3 * 100.0D));
+             }
+          } else if (this.onGround) {
+-            var7 = Math.round(Mth.sqrt(var1 * var1 + var5 * var5) * 100.0F);
++            var7 = Math.round((float)Math.sqrt(var1 * var1 + var5 * var5) * 100.0F);
+             if (var7 > 0) {
+                if (this.isSprinting()) {
+                   this.awardStat(Stats.SPRINT_ONE_CM, var7);
+                   this.causeFoodExhaustion(0.1F * (float)var7 * 0.01F);
+                } else if (this.isCrouching()) {
+@@ -1414,25 +1452,25 @@
+                   this.awardStat(Stats.WALK_ONE_CM, var7);
+                   this.causeFoodExhaustion(0.0F * (float)var7 * 0.01F);
+                }
+             }
+          } else if (this.isFallFlying()) {
+-            var7 = Math.round(Mth.sqrt(var1 * var1 + var3 * var3 + var5 * var5) * 100.0F);
++            var7 = Math.round((float)Math.sqrt(var1 * var1 + var3 * var3 + var5 * var5) * 100.0F);
+             this.awardStat(Stats.AVIATE_ONE_CM, var7);
+          } else {
+-            var7 = Math.round(Mth.sqrt(var1 * var1 + var5 * var5) * 100.0F);
++            var7 = Math.round((float)Math.sqrt(var1 * var1 + var5 * var5) * 100.0F);
+             if (var7 > 25) {
+                this.awardStat(Stats.FLY_ONE_CM, var7);
+             }
+          }
+ 
+       }
+    }
+ 
+    private void checkRidingStatistics(double var1, double var3, double var5) {
+       if (this.isPassenger()) {
+-         int var7 = Math.round(Mth.sqrt(var1 * var1 + var3 * var3 + var5 * var5) * 100.0F);
++         int var7 = Math.round((float)Math.sqrt(var1 * var1 + var3 * var3 + var5 * var5) * 100.0F);
+          if (var7 > 0) {
+             Entity var8 = this.getVehicle();
+             if (var8 instanceof AbstractMinecart) {
+                this.awardStat(Stats.MINECART_ONE_CM, var7);
+             } else if (var8 instanceof Boat) {
+@@ -1447,26 +1485,26 @@
           }
        }
  
@@ -319,7 +500,7 @@
           }
        }
  
-@@ -1505,11 +1538,11 @@
+@@ -1505,11 +1543,11 @@
     }
  
     public void giveExperiencePoints(int var1) {
@@ -332,7 +513,7 @@
           float var2 = this.experienceProgress * (float)this.getXpNeededForNextLevel();
           if (this.experienceLevel > 0) {
              this.giveExperienceLevels(-1);
-@@ -1617,20 +1650,17 @@
+@@ -1617,20 +1655,17 @@
  
     public boolean shouldShowName() {
        return true;
@@ -355,7 +536,7 @@
     }
  
     public PlayerEnderChestContainer getEnderChestInventory() {
-@@ -1647,24 +1677,24 @@
+@@ -1647,24 +1682,24 @@
        }
     }
  
@@ -384,7 +565,20 @@
  
     public Iterable<ItemStack> getHandSlots() {
        return Lists.newArrayList(new ItemStack[]{this.getMainHandItem(), this.getOffhandItem()});
-@@ -1788,56 +1818,16 @@
+@@ -1673,11 +1708,11 @@
+    public Iterable<ItemStack> getArmorSlots() {
+       return this.inventory.armor;
+    }
+ 
+    public boolean setEntityOnShoulder(CompoundTag var1) {
+-      if (!this.isPassenger() && this.onGround && !this.isInWater()) {
++      if (!this.isPassenger() && this.onGround && !this.isInWater() && !this.isInPowderSnow) {
+          if (this.getShoulderEntityLeft().isEmpty()) {
+             this.setShoulderEntityLeft(var1);
+             this.timeEntitySatOnShoulder = this.level.getGameTime();
+             return true;
+          } else if (this.getShoulderEntityRight().isEmpty()) {
+@@ -1788,56 +1823,16 @@
  
     public boolean isModelPartShown(PlayerModelPart var1) {
        return ((Byte)this.getEntityData().get(DATA_PLAYER_MODE_CUSTOMISATION) & var1.getMask()) == var1.getMask();
@@ -445,7 +639,35 @@
  
     public boolean isReducedDebugInfo() {
        return this.reducedDebugInfo;
-@@ -1983,10 +1973,22 @@
+@@ -1954,11 +1949,11 @@
+       return this.abilities.flying || super.shouldRemoveSoulSpeed(var1);
+    }
+ 
+    public Vec3 getRopeHoldPosition(float var1) {
+       double var2 = 0.22D * (this.getMainArm() == HumanoidArm.RIGHT ? -1.0D : 1.0D);
+-      float var4 = Mth.lerp(var1 * 0.5F, this.xRot, this.xRotO) * 0.017453292F;
++      float var4 = Mth.lerp(var1 * 0.5F, this.getXRot(), this.xRotO) * 0.017453292F;
+       float var5 = Mth.lerp(var1, this.yBodyRotO, this.yBodyRot) * 0.017453292F;
+       double var8;
+       if (!this.isFallFlying() && !this.isAutoSpinAttack()) {
+          if (this.isVisuallySwimming()) {
+             return this.getPosition(var1).add((new Vec3(var2, 0.2D, -0.15D)).xRot(-var4).yRot(-var5));
+@@ -1968,12 +1963,12 @@
+             return this.getPosition(var1).add((new Vec3(var2, var17, var8)).yRot(-var5));
+          }
+       } else {
+          Vec3 var6 = this.getViewVector(var1);
+          Vec3 var7 = this.getDeltaMovement();
+-         var8 = Entity.getHorizontalDistanceSqr(var7);
+-         double var10 = Entity.getHorizontalDistanceSqr(var6);
++         var8 = var7.horizontalDistanceSqr();
++         double var10 = var6.horizontalDistanceSqr();
+          float var12;
+          if (var8 > 0.0D && var10 > 0.0D) {
+             double var13 = (var7.x * var6.x + var7.z * var6.z) / Math.sqrt(var8 * var10);
+             double var15 = var7.x * var6.z - var7.z * var6.x;
+             var12 = (float)(Math.signum(var15) * Math.acos(var13));
+@@ -1983,10 +1978,22 @@
  
           return this.getPosition(var1).add((new Vec3(var2, -0.11D, 0.85D)).zRot(-var12).xRot(-var4).yRot(-var5));
        }

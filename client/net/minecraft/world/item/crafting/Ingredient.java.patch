@@ -46,7 +46,18 @@
     }
  
     public static Ingredient of(ItemStack... var0) {
-@@ -153,14 +152,13 @@
+@@ -143,24 +142,19 @@
+    }
+ 
+    public static Ingredient of(Stream<ItemStack> var0) {
+       return fromValues(var0.filter((var0x) -> {
+          return !var0x.isEmpty();
+-      }).map((var0x) -> {
+-         return new Ingredient.ItemValue(var0x);
+-      }));
++      }).map(Ingredient.ItemValue::new));
+    }
+ 
     public static Ingredient of(Tag<Item> var0) {
        return fromValues(Stream.of(new Ingredient.TagValue(var0)));
     }
@@ -56,15 +67,13 @@
 -      return fromValues(Stream.generate(() -> {
 -         return new Ingredient.ItemValue(var0.readItem());
 -      }).limit((long)var1));
-+      return fromValues(var0.readList(FriendlyByteBuf::readItem).stream().map((var0x) -> {
-+         return new Ingredient.ItemValue(var0x);
-+      }));
++      return fromValues(var0.readList(FriendlyByteBuf::readItem).stream().map(Ingredient.ItemValue::new));
     }
  
     public static Ingredient fromJson(@Nullable JsonElement var0) {
        if (var0 != null && !var0.isJsonNull()) {
           if (var0.isJsonObject()) {
-@@ -183,29 +181,21 @@
+@@ -183,36 +177,34 @@
     }
  
     private static Ingredient.Value valueFromJson(JsonObject var0) {
@@ -102,9 +111,23 @@
        }
     }
  
++   private interface Value {
++      Collection<ItemStack> getItems();
++
++      JsonObject serialize();
++   }
++
     static class TagValue implements Ingredient.Value {
        private final Tag<Item> tag;
-@@ -226,11 +216,13 @@
+ 
+-      private TagValue(Tag<Item> var1) {
++      TagValue(Tag<Item> var1) {
+          this.tag = var1;
+       }
+ 
+       public Collection<ItemStack> getItems() {
+          ArrayList var1 = Lists.newArrayList();
+@@ -226,19 +218,21 @@
           return var1;
        }
  
@@ -119,3 +142,25 @@
     }
  
     static class ItemValue implements Ingredient.Value {
+       private final ItemStack item;
+ 
+-      private ItemValue(ItemStack var1) {
++      ItemValue(ItemStack var1) {
+          this.item = var1;
+       }
+ 
+       public Collection<ItemStack> getItems() {
+          return Collections.singleton(this.item);
+@@ -248,12 +242,6 @@
+          JsonObject var1 = new JsonObject();
+          var1.addProperty("item", Registry.ITEM.getKey(this.item.getItem()).toString());
+          return var1;
+       }
+    }
+-
+-   interface Value {
+-      Collection<ItemStack> getItems();
+-
+-      JsonObject serialize();
+-   }
+ }

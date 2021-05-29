@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/ItemSteerable.java
 +++ net/minecraft/world/entity/ItemSteerable.java
-@@ -13,11 +13,11 @@
+@@ -13,18 +13,18 @@
  
     default boolean travel(Mob var1, ItemBasedSteering var2, Vec3 var3) {
        if (!var1.isAlive()) {
@@ -9,7 +9,32 @@
 -         Entity var4 = var1.getPassengers().isEmpty() ? null : (Entity)var1.getPassengers().get(0);
 +         Entity var4 = var1.getFirstPassenger();
           if (var1.isVehicle() && var1.canBeControlledByRider() && var4 instanceof Player) {
-             var1.yRot = var4.yRot;
-             var1.yRotO = var1.yRot;
-             var1.xRot = var4.xRot * 0.5F;
-             var1.setRot(var1.yRot, var1.xRot);
+-            var1.yRot = var4.yRot;
+-            var1.yRotO = var1.yRot;
+-            var1.xRot = var4.xRot * 0.5F;
+-            var1.setRot(var1.yRot, var1.xRot);
+-            var1.yBodyRot = var1.yRot;
+-            var1.yHeadRot = var1.yRot;
++            var1.setYRot(var4.getYRot());
++            var1.yRotO = var1.getYRot();
++            var1.setXRot(var4.getXRot() * 0.5F);
++            var1.setRot(var1.getYRot(), var1.getXRot());
++            var1.yBodyRot = var1.getYRot();
++            var1.yHeadRot = var1.getYRot();
+             var1.maxUpStep = 1.0F;
+             var1.flyingSpeed = var1.getSpeed() * 0.1F;
+             if (var2.boosting && var2.boostTime++ > var2.boostTimeTotal) {
+                var2.boosting = false;
+             }
+@@ -41,10 +41,11 @@
+             } else {
+                var1.calculateEntityAnimation(var1, false);
+                var1.setDeltaMovement(Vec3.ZERO);
+             }
+ 
++            var1.tryCheckInsideBlocks();
+             return true;
+          } else {
+             var1.maxUpStep = 0.5F;
+             var1.flyingSpeed = 0.02F;
+             this.travelWithInput(var3);

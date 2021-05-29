@@ -1,8 +1,24 @@
 --- net/minecraft/world/entity/monster/piglin/PiglinBruteAi.java
 +++ net/minecraft/world/entity/monster/piglin/PiglinBruteAi.java
-@@ -28,10 +28,24 @@
+@@ -3,11 +3,10 @@
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableSet;
+ import com.mojang.datafixers.util.Pair;
+ import java.util.Optional;
+ import net.minecraft.core.GlobalPos;
+-import net.minecraft.world.entity.EntitySelector;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.ai.Brain;
+ import net.minecraft.world.entity.ai.behavior.BehaviorUtils;
+ import net.minecraft.world.entity.ai.behavior.DoNothing;
+@@ -25,13 +24,28 @@
+ import net.minecraft.world.entity.ai.behavior.StopAttackingIfTargetInvalid;
+ import net.minecraft.world.entity.ai.behavior.StopBeingAngryIfTargetDead;
+ import net.minecraft.world.entity.ai.behavior.StrollAroundPoi;
  import net.minecraft.world.entity.ai.behavior.StrollToPoi;
  import net.minecraft.world.entity.ai.memory.MemoryModuleType;
++import net.minecraft.world.entity.ai.sensing.Sensor;
  import net.minecraft.world.entity.schedule.Activity;
  
  public class PiglinBruteAi {
@@ -25,7 +41,32 @@
        initIdleActivity(var0, var1);
        initFightActivity(var0, var1);
        var1.setCoreActivities(ImmutableSet.of(Activity.CORE));
-@@ -109,10 +123,15 @@
+@@ -85,22 +99,18 @@
+       }).isPresent();
+    }
+ 
+    private static Optional<? extends LivingEntity> findNearestValidAttackTarget(AbstractPiglin var0) {
+       Optional var1 = BehaviorUtils.getLivingEntityFromUUIDMemory(var0, MemoryModuleType.ANGRY_AT);
+-      if (var1.isPresent() && isAttackAllowed((LivingEntity)var1.get())) {
++      if (var1.isPresent() && Sensor.isEntityAttackable(var0, (LivingEntity)var1.get())) {
+          return var1;
+       } else {
+-         Optional var2 = getTargetIfWithinRange(var0, MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER);
++         Optional var2 = getTargetIfWithinRange(var0, MemoryModuleType.NEAREST_VISIBLE_ATTACKABLE_PLAYER);
+          return var2.isPresent() ? var2 : var0.getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_NEMESIS);
+       }
+    }
+ 
+-   private static boolean isAttackAllowed(LivingEntity var0) {
+-      return EntitySelector.ATTACK_ALLOWED.test(var0);
+-   }
+-
+    private static Optional<? extends LivingEntity> getTargetIfWithinRange(AbstractPiglin var0, MemoryModuleType<? extends LivingEntity> var1) {
+       return var0.getBrain().getMemory(var1).filter((var1x) -> {
+          return var1x.closerThan(var0, 12.0D);
+       });
+    }
+@@ -109,10 +119,15 @@
        if (!(var1 instanceof AbstractPiglin)) {
           PiglinAi.maybeRetaliate(var0, var1);
        }

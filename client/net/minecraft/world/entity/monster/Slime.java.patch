@@ -59,6 +59,19 @@
     }
  
     public boolean isTiny() {
+@@ -162,11 +160,11 @@
+    }
+ 
+    public void onSyncedDataUpdated(EntityDataAccessor<?> var1) {
+       if (ID_SIZE.equals(var1)) {
+          this.refreshDimensions();
+-         this.yRot = this.yHeadRot;
++         this.setYRot(this.yHeadRot);
+          this.yBodyRot = this.yHeadRot;
+          if (this.isInWater() && this.random.nextInt(20) == 0) {
+             this.doWaterSplashEffect();
+          }
+       }
 @@ -176,37 +174,37 @@
  
     public EntityType<? extends Slime> getType() {
@@ -117,29 +130,262 @@
     public void push(Entity var1) {
        super.push(var1);
        if (var1 instanceof IronGolem && this.isDealsDamage()) {
-@@ -405,11 +403,11 @@
+@@ -223,11 +221,11 @@
+    }
+ 
+    protected void dealDamage(LivingEntity var1) {
+       if (this.isAlive()) {
+          int var2 = this.getSize();
+-         if (this.distanceToSqr(var1) < 0.6D * (double)var2 * 0.6D * (double)var2 && this.canSee(var1) && var1.hurt(DamageSource.mobAttack(this), this.getAttackDamage())) {
++         if (this.distanceToSqr(var1) < 0.6D * (double)var2 * 0.6D * (double)var2 && this.hasLineOfSight(var1) && var1.hurt(DamageSource.mobAttack(this), this.getAttackDamage())) {
+             this.playSound(SoundEvents.SLIME_ATTACK, 1.0F, (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F);
+             this.doEnchantDamageEffects(this, var1);
+          }
+       }
+ 
+@@ -309,11 +307,11 @@
+       int var7 = 1 << var6;
+       this.setSize(var7, true);
+       return super.finalizeSpawn(var1, var2, var3, var4, var5);
+    }
+ 
+-   private float getSoundPitch() {
++   float getSoundPitch() {
+       float var1 = this.isTiny() ? 1.4F : 0.8F;
+       return ((this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F) * var1;
+    }
+ 
+    protected SoundEvent getJumpSound() {
+@@ -326,28 +324,66 @@
+ 
+    static {
+       ID_SIZE = SynchedEntityData.defineId(Slime.class, EntityDataSerializers.INT);
+    }
+ 
+-   static class SlimeKeepOnJumpingGoal extends Goal {
++   private static class SlimeMoveControl extends MoveControl {
++      private float yRot;
++      private int jumpDelay;
+       private final Slime slime;
++      private boolean isAggressive;
+ 
+-      public SlimeKeepOnJumpingGoal(Slime var1) {
++      public SlimeMoveControl(Slime var1) {
++         super(var1);
+          this.slime = var1;
+-         this.setFlags(EnumSet.of(Goal.Flag.JUMP, Goal.Flag.MOVE));
++         this.yRot = 180.0F * var1.getYRot() / 3.1415927F;
+       }
+ 
+-      public boolean canUse() {
+-         return !this.slime.isPassenger();
++      public void setDirection(float var1, boolean var2) {
++         this.yRot = var1;
++         this.isAggressive = var2;
+       }
+ 
++      public void setWantedMovement(double var1) {
++         this.speedModifier = var1;
++         this.operation = MoveControl.Operation.MOVE_TO;
++      }
++
+       public void tick() {
+-         ((Slime.SlimeMoveControl)this.slime.getMoveControl()).setWantedMovement(1.0D);
++         this.mob.setYRot(this.rotlerp(this.mob.getYRot(), this.yRot, 90.0F));
++         this.mob.yHeadRot = this.mob.getYRot();
++         this.mob.yBodyRot = this.mob.getYRot();
++         if (this.operation != MoveControl.Operation.MOVE_TO) {
++            this.mob.setZza(0.0F);
++         } else {
++            this.operation = MoveControl.Operation.WAIT;
++            if (this.mob.isOnGround()) {
++               this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
++               if (this.jumpDelay-- <= 0) {
++                  this.jumpDelay = this.slime.getJumpDelay();
++                  if (this.isAggressive) {
++                     this.jumpDelay /= 3;
++                  }
++
++                  this.slime.getJumpControl().jump();
++                  if (this.slime.doPlayJumpSound()) {
++                     this.slime.playSound(this.slime.getJumpSound(), this.slime.getSoundVolume(), this.slime.getSoundPitch());
++                  }
++               } else {
++                  this.slime.xxa = 0.0F;
++                  this.slime.zza = 0.0F;
++                  this.mob.setSpeed(0.0F);
++               }
++            } else {
++               this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
++            }
++
++         }
+       }
+    }
+ 
+-   static class SlimeFloatGoal extends Goal {
++   private static class SlimeFloatGoal extends Goal {
+       private final Slime slime;
+ 
+       public SlimeFloatGoal(Slime var1) {
+          this.slime = var1;
+          this.setFlags(EnumSet.of(Goal.Flag.JUMP, Goal.Flag.MOVE));
+@@ -365,36 +401,12 @@
+ 
+          ((Slime.SlimeMoveControl)this.slime.getMoveControl()).setWantedMovement(1.2D);
+       }
+    }
+ 
+-   static class SlimeRandomDirectionGoal extends Goal {
++   private static class SlimeAttackGoal extends Goal {
+       private final Slime slime;
+-      private float chosenDegrees;
+-      private int nextRandomizeTime;
+-
+-      public SlimeRandomDirectionGoal(Slime var1) {
+-         this.slime = var1;
+-         this.setFlags(EnumSet.of(Goal.Flag.LOOK));
+-      }
+-
+-      public boolean canUse() {
+-         return this.slime.getTarget() == null && (this.slime.onGround || this.slime.isInWater() || this.slime.isInLava() || this.slime.hasEffect(MobEffects.LEVITATION)) && this.slime.getMoveControl() instanceof Slime.SlimeMoveControl;
+-      }
+-
+-      public void tick() {
+-         if (--this.nextRandomizeTime <= 0) {
+-            this.nextRandomizeTime = 40 + this.slime.getRandom().nextInt(60);
+-            this.chosenDegrees = (float)this.slime.getRandom().nextInt(360);
+-         }
+-
+-         ((Slime.SlimeMoveControl)this.slime.getMoveControl()).setDirection(this.chosenDegrees, false);
+-      }
+-   }
+-
+-   static class SlimeAttackGoal extends Goal {
+-      private final Slime slime;
+       private int growTiredTimer;
+ 
+       public SlimeAttackGoal(Slime var1) {
+          this.slime = var1;
+          this.setFlags(EnumSet.of(Goal.Flag.LOOK));
+@@ -402,14 +414,12 @@
+ 
+       public boolean canUse() {
+          LivingEntity var1 = this.slime.getTarget();
           if (var1 == null) {
              return false;
-          } else if (!var1.isAlive()) {
-             return false;
+-         } else if (!var1.isAlive()) {
+-            return false;
           } else {
 -            return var1 instanceof Player && ((Player)var1).abilities.invulnerable ? false : this.slime.getMoveControl() instanceof Slime.SlimeMoveControl;
-+            return var1 instanceof Player && ((Player)var1).getAbilities().invulnerable ? false : this.slime.getMoveControl() instanceof Slime.SlimeMoveControl;
++            return this.slime.canAttack(var1) ? false : this.slime.getMoveControl() instanceof Slime.SlimeMoveControl;
           }
        }
  
        public void start() {
           this.growTiredTimer = 300;
-@@ -420,11 +418,11 @@
+@@ -418,75 +428,59 @@
+ 
+       public boolean canContinueToUse() {
           LivingEntity var1 = this.slime.getTarget();
           if (var1 == null) {
              return false;
-          } else if (!var1.isAlive()) {
+-         } else if (!var1.isAlive()) {
++         } else if (this.slime.canAttack(var1)) {
              return false;
 -         } else if (var1 instanceof Player && ((Player)var1).abilities.invulnerable) {
-+         } else if (var1 instanceof Player && ((Player)var1).getAbilities().invulnerable) {
-             return false;
+-            return false;
           } else {
              return --this.growTiredTimer > 0;
           }
        }
+ 
+       public void tick() {
+          this.slime.lookAt(this.slime.getTarget(), 10.0F, 10.0F);
+-         ((Slime.SlimeMoveControl)this.slime.getMoveControl()).setDirection(this.slime.yRot, this.slime.isDealsDamage());
++         ((Slime.SlimeMoveControl)this.slime.getMoveControl()).setDirection(this.slime.getYRot(), this.slime.isDealsDamage());
+       }
+    }
+ 
+-   static class SlimeMoveControl extends MoveControl {
+-      private float yRot;
+-      private int jumpDelay;
++   private static class SlimeRandomDirectionGoal extends Goal {
+       private final Slime slime;
+-      private boolean isAggressive;
++      private float chosenDegrees;
++      private int nextRandomizeTime;
+ 
+-      public SlimeMoveControl(Slime var1) {
+-         super(var1);
++      public SlimeRandomDirectionGoal(Slime var1) {
+          this.slime = var1;
+-         this.yRot = 180.0F * var1.yRot / 3.1415927F;
++         this.setFlags(EnumSet.of(Goal.Flag.LOOK));
+       }
+ 
+-      public void setDirection(float var1, boolean var2) {
+-         this.yRot = var1;
+-         this.isAggressive = var2;
++      public boolean canUse() {
++         return this.slime.getTarget() == null && (this.slime.onGround || this.slime.isInWater() || this.slime.isInLava() || this.slime.hasEffect(MobEffects.LEVITATION)) && this.slime.getMoveControl() instanceof Slime.SlimeMoveControl;
+       }
+ 
+-      public void setWantedMovement(double var1) {
+-         this.speedModifier = var1;
+-         this.operation = MoveControl.Operation.MOVE_TO;
++      public void tick() {
++         if (--this.nextRandomizeTime <= 0) {
++            this.nextRandomizeTime = 40 + this.slime.getRandom().nextInt(60);
++            this.chosenDegrees = (float)this.slime.getRandom().nextInt(360);
++         }
++
++         ((Slime.SlimeMoveControl)this.slime.getMoveControl()).setDirection(this.chosenDegrees, false);
+       }
++   }
+ 
+-      public void tick() {
+-         this.mob.yRot = this.rotlerp(this.mob.yRot, this.yRot, 90.0F);
+-         this.mob.yHeadRot = this.mob.yRot;
+-         this.mob.yBodyRot = this.mob.yRot;
+-         if (this.operation != MoveControl.Operation.MOVE_TO) {
+-            this.mob.setZza(0.0F);
+-         } else {
+-            this.operation = MoveControl.Operation.WAIT;
+-            if (this.mob.isOnGround()) {
+-               this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
+-               if (this.jumpDelay-- <= 0) {
+-                  this.jumpDelay = this.slime.getJumpDelay();
+-                  if (this.isAggressive) {
+-                     this.jumpDelay /= 3;
+-                  }
++   private static class SlimeKeepOnJumpingGoal extends Goal {
++      private final Slime slime;
+ 
+-                  this.slime.getJumpControl().jump();
+-                  if (this.slime.doPlayJumpSound()) {
+-                     this.slime.playSound(this.slime.getJumpSound(), this.slime.getSoundVolume(), this.slime.getSoundPitch());
+-                  }
+-               } else {
+-                  this.slime.xxa = 0.0F;
+-                  this.slime.zza = 0.0F;
+-                  this.mob.setSpeed(0.0F);
+-               }
+-            } else {
+-               this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
+-            }
++      public SlimeKeepOnJumpingGoal(Slime var1) {
++         this.slime = var1;
++         this.setFlags(EnumSet.of(Goal.Flag.JUMP, Goal.Flag.MOVE));
++      }
+ 
+-         }
++      public boolean canUse() {
++         return !this.slime.isPassenger();
+       }
++
++      public void tick() {
++         ((Slime.SlimeMoveControl)this.slime.getMoveControl()).setWantedMovement(1.0D);
++      }
+    }
+ }

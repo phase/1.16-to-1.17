@@ -43,6 +43,21 @@
     public void aiStep() {
        super.aiStep();
        if (this.isAlive()) {
+@@ -196,12 +205,12 @@
+ 
+    protected boolean isImmobile() {
+       return super.isImmobile() || this.attackTick > 0 || this.stunnedTick > 0 || this.roarTick > 0;
+    }
+ 
+-   public boolean canSee(Entity var1) {
+-      return this.stunnedTick <= 0 && this.roarTick <= 0 ? super.canSee(var1) : false;
++   public boolean hasLineOfSight(Entity var1) {
++      return this.stunnedTick <= 0 && this.roarTick <= 0 ? super.hasLineOfSight(var1) : false;
+    }
+ 
+    protected void blockedByShield(LivingEntity var1) {
+       if (this.roarTick == 0) {
+          if (this.random.nextDouble() < 0.5D) {
 @@ -220,13 +229,13 @@
  
     private void roar() {
@@ -72,3 +87,51 @@
     }
  
     private void strongKnockback(Entity var1) {
+@@ -305,36 +316,36 @@
+ 
+    public boolean canBeLeader() {
+       return false;
+    }
+ 
+-   static class RavagerNodeEvaluator extends WalkNodeEvaluator {
+-      private RavagerNodeEvaluator() {
++   private class RavagerMeleeAttackGoal extends MeleeAttackGoal {
++      public RavagerMeleeAttackGoal() {
++         super(Ravager.this, 1.0D, true);
+       }
+ 
+-      protected BlockPathTypes evaluateBlockPathType(BlockGetter var1, boolean var2, boolean var3, BlockPos var4, BlockPathTypes var5) {
+-         return var5 == BlockPathTypes.LEAVES ? BlockPathTypes.OPEN : super.evaluateBlockPathType(var1, var2, var3, var4, var5);
++      protected double getAttackReachSqr(LivingEntity var1) {
++         float var2 = Ravager.this.getBbWidth() - 0.1F;
++         return (double)(var2 * 2.0F * var2 * 2.0F + var1.getBbWidth());
+       }
+    }
+ 
+-   static class RavagerNavigation extends GroundPathNavigation {
++   private static class RavagerNavigation extends GroundPathNavigation {
+       public RavagerNavigation(Mob var1, Level var2) {
+          super(var1, var2);
+       }
+ 
+       protected PathFinder createPathFinder(int var1) {
+          this.nodeEvaluator = new Ravager.RavagerNodeEvaluator();
+          return new PathFinder(this.nodeEvaluator, var1);
+       }
+    }
+ 
+-   class RavagerMeleeAttackGoal extends MeleeAttackGoal {
+-      public RavagerMeleeAttackGoal() {
+-         super(Ravager.this, 1.0D, true);
++   private static class RavagerNodeEvaluator extends WalkNodeEvaluator {
++      RavagerNodeEvaluator() {
+       }
+ 
+-      protected double getAttackReachSqr(LivingEntity var1) {
+-         float var2 = Ravager.this.getBbWidth() - 0.1F;
+-         return (double)(var2 * 2.0F * var2 * 2.0F + var1.getBbWidth());
++      protected BlockPathTypes evaluateBlockPathType(BlockGetter var1, boolean var2, boolean var3, BlockPos var4, BlockPathTypes var5) {
++         return var5 == BlockPathTypes.LEAVES ? BlockPathTypes.OPEN : super.evaluateBlockPathType(var1, var2, var3, var4, var5);
+       }
+    }
+ }

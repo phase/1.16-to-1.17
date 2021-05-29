@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/EntityType.java
 +++ net/minecraft/world/entity/EntityType.java
-@@ -1,26 +1,30 @@
+@@ -1,26 +1,29 @@
  package net.minecraft.world.entity;
  
  import com.google.common.collect.ImmutableSet;
@@ -25,14 +25,14 @@
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.server.MinecraftServer;
  import net.minecraft.server.level.ServerLevel;
- import net.minecraft.tags.BlockTags;
+-import net.minecraft.tags.BlockTags;
 -import net.minecraft.tags.Tag;
  import net.minecraft.util.Mth;
  import net.minecraft.util.datafix.fixes.References;
  import net.minecraft.world.entity.ambient.Bat;
  import net.minecraft.world.entity.animal.Bee;
  import net.minecraft.world.entity.animal.Cat;
-@@ -43,10 +47,12 @@
+@@ -43,10 +46,12 @@
  import net.minecraft.world.entity.animal.SnowGolem;
  import net.minecraft.world.entity.animal.Squid;
  import net.minecraft.world.entity.animal.TropicalFish;
@@ -45,7 +45,7 @@
  import net.minecraft.world.entity.animal.horse.Llama;
  import net.minecraft.world.entity.animal.horse.Mule;
  import net.minecraft.world.entity.animal.horse.SkeletonHorse;
-@@ -54,10 +60,11 @@
+@@ -54,10 +59,11 @@
  import net.minecraft.world.entity.animal.horse.ZombieHorse;
  import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
  import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
@@ -57,13 +57,16 @@
  import net.minecraft.world.entity.decoration.Painting;
  import net.minecraft.world.entity.item.FallingBlockEntity;
  import net.minecraft.world.entity.item.ItemEntity;
-@@ -131,20 +138,24 @@
+@@ -129,22 +135,26 @@
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelReader;
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.Blocks;
- import net.minecraft.world.level.block.CampfireBlock;
+-import net.minecraft.world.level.block.CampfireBlock;
  import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.entity.EntityTypeTest;
++import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.shapes.Shapes;
  import org.apache.logging.log4j.LogManager;
@@ -83,7 +86,7 @@
     public static final EntityType<Blaze> BLAZE;
     public static final EntityType<Boat> BOAT;
     public static final EntityType<Cat> CAT;
-@@ -169,10 +180,13 @@
+@@ -169,10 +179,13 @@
     public static final EntityType<FallingBlockEntity> FALLING_BLOCK;
     public static final EntityType<FireworkRocketEntity> FIREWORK_ROCKET;
     public static final EntityType<Fox> FOX;
@@ -97,6 +100,33 @@
     public static final EntityType<Horse> HORSE;
     public static final EntityType<Husk> HUSK;
     public static final EntityType<Illusioner> ILLUSIONER;
+@@ -183,10 +196,11 @@
+    public static final EntityType<LeashFenceKnotEntity> LEASH_KNOT;
+    public static final EntityType<LightningBolt> LIGHTNING_BOLT;
+    public static final EntityType<Llama> LLAMA;
+    public static final EntityType<LlamaSpit> LLAMA_SPIT;
+    public static final EntityType<MagmaCube> MAGMA_CUBE;
++   public static final EntityType<Marker> MARKER;
+    public static final EntityType<Minecart> MINECART;
+    public static final EntityType<MinecartChest> CHEST_MINECART;
+    public static final EntityType<MinecartCommandBlock> COMMAND_BLOCK_MINECART;
+    public static final EntityType<MinecartFurnace> FURNACE_MINECART;
+    public static final EntityType<MinecartHopper> HOPPER_MINECART;
+@@ -320,12 +334,12 @@
+          }
+ 
+          var9.moveTo((double)var5.getX() + 0.5D, (double)var5.getY() + var10, (double)var5.getZ() + 0.5D, Mth.wrapDegrees(var1.random.nextFloat() * 360.0F), 0.0F);
+          if (var9 instanceof Mob) {
+             Mob var12 = (Mob)var9;
+-            var12.yHeadRot = var12.yRot;
+-            var12.yBodyRot = var12.yRot;
++            var12.yHeadRot = var12.getYRot();
++            var12.yBodyRot = var12.getYRot();
+             var12.finalizeSpawn(var1, var1.getCurrentDifficultyAt(var12.blockPosition()), var6, (SpawnGroupData)null, var2);
+             var12.playAmbientSound();
+          }
+ 
+          if (var3 != null && var9 instanceof LivingEntity) {
 @@ -402,10 +416,15 @@
  
     public String toString() {
@@ -148,12 +178,11 @@
        if (this.immuneTo.contains(var1.getBlock())) {
           return false;
 -      } else if (!this.fireImmune && (var1.is(BlockTags.FIRE) || var1.is(Blocks.MAGMA_BLOCK) || CampfireBlock.isLitCampfire(var1) || var1.is(Blocks.LAVA))) {
--         return true;
-+      } else if (this.fireImmune || !var1.is(BlockTags.FIRE) && !var1.is(Blocks.MAGMA_BLOCK) && !CampfireBlock.isLitCampfire(var1) && !var1.is(Blocks.LAVA)) {
-+         return var1.is(Blocks.WITHER_ROSE) || var1.is(Blocks.SWEET_BERRY_BUSH) || var1.is(Blocks.CACTUS) || var1.is(Blocks.POWDER_SNOW);
++      } else if (!this.fireImmune && WalkNodeEvaluator.isBurningBlock(var1)) {
+          return true;
        } else {
 -         return var1.is(Blocks.WITHER_ROSE) || var1.is(Blocks.SWEET_BERRY_BUSH) || var1.is(Blocks.CACTUS);
-+         return true;
++         return var1.is(Blocks.WITHER_ROSE) || var1.is(Blocks.SWEET_BERRY_BUSH) || var1.is(Blocks.CACTUS) || var1.is(Blocks.POWDER_SNOW);
        }
     }
  
@@ -230,7 +259,7 @@
        BLAZE = register("blaze", EntityType.Builder.of(Blaze::new, MobCategory.MONSTER).fireImmune().sized(0.6F, 1.8F).clientTrackingRange(8));
        BOAT = register("boat", EntityType.Builder.of(Boat::new, MobCategory.MISC).sized(1.375F, 0.5625F).clientTrackingRange(10));
        CAT = register("cat", EntityType.Builder.of(Cat::new, MobCategory.CREATURE).sized(0.6F, 0.7F).clientTrackingRange(8));
-@@ -532,20 +597,23 @@
+@@ -532,24 +597,28 @@
        FALLING_BLOCK = register("falling_block", EntityType.Builder.of(FallingBlockEntity::new, MobCategory.MISC).sized(0.98F, 0.98F).clientTrackingRange(10).updateInterval(20));
        FIREWORK_ROCKET = register("firework_rocket", EntityType.Builder.of(FireworkRocketEntity::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10));
        FOX = register("fox", EntityType.Builder.of(Fox::new, MobCategory.CREATURE).sized(0.6F, 0.7F).clientTrackingRange(8).immuneTo(Blocks.SWEET_BERRY_BUSH));
@@ -254,8 +283,13 @@
        LLAMA = register("llama", EntityType.Builder.of(Llama::new, MobCategory.CREATURE).sized(0.9F, 1.87F).clientTrackingRange(10));
        LLAMA_SPIT = register("llama_spit", EntityType.Builder.of(LlamaSpit::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10));
        MAGMA_CUBE = register("magma_cube", EntityType.Builder.of(MagmaCube::new, MobCategory.MONSTER).fireImmune().sized(2.04F, 2.04F).clientTrackingRange(8));
++      MARKER = register("marker", EntityType.Builder.of(Marker::new, MobCategory.MISC).sized(0.0F, 0.0F).clientTrackingRange(0));
        MINECART = register("minecart", EntityType.Builder.of(Minecart::new, MobCategory.MISC).sized(0.98F, 0.7F).clientTrackingRange(8));
-@@ -564,11 +632,11 @@
+       CHEST_MINECART = register("chest_minecart", EntityType.Builder.of(MinecartChest::new, MobCategory.MISC).sized(0.98F, 0.7F).clientTrackingRange(8));
+       COMMAND_BLOCK_MINECART = register("command_block_minecart", EntityType.Builder.of(MinecartCommandBlock::new, MobCategory.MISC).sized(0.98F, 0.7F).clientTrackingRange(8));
+       FURNACE_MINECART = register("furnace_minecart", EntityType.Builder.of(MinecartFurnace::new, MobCategory.MISC).sized(0.98F, 0.7F).clientTrackingRange(8));
+       HOPPER_MINECART = register("hopper_minecart", EntityType.Builder.of(MinecartHopper::new, MobCategory.MISC).sized(0.98F, 0.7F).clientTrackingRange(8));
+@@ -564,11 +633,11 @@
        PHANTOM = register("phantom", EntityType.Builder.of(Phantom::new, MobCategory.MONSTER).sized(0.9F, 0.5F).clientTrackingRange(8));
        PIG = register("pig", EntityType.Builder.of(Pig::new, MobCategory.CREATURE).sized(0.9F, 0.9F).clientTrackingRange(10));
        PIGLIN = register("piglin", EntityType.Builder.of(Piglin::new, MobCategory.MONSTER).sized(0.6F, 1.95F).clientTrackingRange(8));
@@ -268,7 +302,7 @@
        RABBIT = register("rabbit", EntityType.Builder.of(Rabbit::new, MobCategory.CREATURE).sized(0.4F, 0.5F).clientTrackingRange(8));
        RAVAGER = register("ravager", EntityType.Builder.of(Ravager::new, MobCategory.MONSTER).sized(1.95F, 2.2F).clientTrackingRange(10));
        SALMON = register("salmon", EntityType.Builder.of(Salmon::new, MobCategory.WATER_AMBIENT).sized(0.7F, 0.4F).clientTrackingRange(4));
-@@ -578,16 +646,16 @@
+@@ -578,16 +647,16 @@
        SILVERFISH = register("silverfish", EntityType.Builder.of(Silverfish::new, MobCategory.MONSTER).sized(0.4F, 0.3F).clientTrackingRange(8));
        SKELETON = register("skeleton", EntityType.Builder.of(Skeleton::new, MobCategory.MONSTER).sized(0.6F, 1.99F).clientTrackingRange(8));
        SKELETON_HORSE = register("skeleton_horse", EntityType.Builder.of(SkeletonHorse::new, MobCategory.CREATURE).sized(1.3964844F, 1.6F).clientTrackingRange(10));
@@ -287,7 +321,7 @@
        ENDER_PEARL = register("ender_pearl", EntityType.Builder.of(ThrownEnderpearl::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10));
        EXPERIENCE_BOTTLE = register("experience_bottle", EntityType.Builder.of(ThrownExperienceBottle::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10));
        POTION = register("potion", EntityType.Builder.of(ThrownPotion::new, MobCategory.MISC).sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10));
-@@ -608,11 +676,11 @@
+@@ -608,17 +677,13 @@
        ZOMBIE = register("zombie", EntityType.Builder.of(Zombie::new, MobCategory.MONSTER).sized(0.6F, 1.95F).clientTrackingRange(8));
        ZOMBIE_HORSE = register("zombie_horse", EntityType.Builder.of(ZombieHorse::new, MobCategory.CREATURE).sized(1.3964844F, 1.6F).clientTrackingRange(10));
        ZOMBIE_VILLAGER = register("zombie_villager", EntityType.Builder.of(ZombieVillager::new, MobCategory.MONSTER).sized(0.6F, 1.95F).clientTrackingRange(8));
@@ -297,6 +331,23 @@
 +      FISHING_BOBBER = register("fishing_bobber", EntityType.Builder.of(FishingHook::new, MobCategory.MISC).noSave().noSummon().sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(5));
     }
  
-    public interface EntityFactory<T extends Entity> {
-       T create(EntityType<T> var1, Level var2);
+-   public interface EntityFactory<T extends Entity> {
+-      T create(EntityType<T> var1, Level var2);
+-   }
+-
+    public static class Builder<T extends Entity> {
+       private final EntityType.EntityFactory<T> factory;
+       private final MobCategory category;
+       private ImmutableSet<Block> immuneTo = ImmutableSet.of();
+       private boolean serialize = true;
+@@ -691,6 +756,10 @@
+          }
+ 
+          return new EntityType(this.factory, this.category, this.serialize, this.summon, this.fireImmune, this.canSpawnFarFromPlayer, this.immuneTo, this.dimensions, this.clientTrackingRange, this.updateInterval);
+       }
     }
++
++   public interface EntityFactory<T extends Entity> {
++      T create(EntityType<T> var1, Level var2);
++   }
+ }

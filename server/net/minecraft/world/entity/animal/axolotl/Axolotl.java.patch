@@ -1,16 +1,18 @@
 --- net/minecraft/world/entity/animal/axolotl/Axolotl.java
 +++ net/minecraft/world/entity/animal/axolotl/Axolotl.java
-@@ -1,0 +1,535 @@
+@@ -1,0 +1,556 @@
 +package net.minecraft.world.entity.animal.axolotl;
 +
 +import com.google.common.collect.ImmutableList;
++import com.google.common.collect.Maps;
++import com.mojang.math.Vector3f;
 +import com.mojang.serialization.Dynamic;
 +import java.util.Arrays;
 +import java.util.Comparator;
 +import java.util.List;
++import java.util.Map;
 +import java.util.Optional;
 +import java.util.Random;
-+import java.util.function.Predicate;
 +import javax.annotation.Nullable;
 +import net.minecraft.Util;
 +import net.minecraft.core.BlockPos;
@@ -33,6 +35,7 @@
 +import net.minecraft.world.entity.Entity;
 +import net.minecraft.world.entity.EntityDimensions;
 +import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.LerpingModel;
 +import net.minecraft.world.entity.LivingEntity;
 +import net.minecraft.world.entity.Mob;
 +import net.minecraft.world.entity.MobSpawnType;
@@ -53,7 +56,6 @@
 +import net.minecraft.world.entity.animal.Animal;
 +import net.minecraft.world.entity.animal.Bucketable;
 +import net.minecraft.world.entity.player.Player;
-+import net.minecraft.world.item.BucketItem;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.item.Items;
 +import net.minecraft.world.level.Level;
@@ -64,11 +66,8 @@
 +import net.minecraft.world.level.pathfinder.PathFinder;
 +import net.minecraft.world.phys.Vec3;
 +
-+public class Axolotl extends Animal implements Bucketable {
++public class Axolotl extends Animal implements LerpingModel, Bucketable {
 +   public static final int TOTAL_PLAYDEAD_TIME = 200;
-+   public static final Predicate<LivingEntity> NOT_PLAYING_DEAD_SELECTOR = (var0) -> {
-+      return var0.getType() == EntityType.AXOLOTL && !((Axolotl)var0).isPlayingDead();
-+   };
 +   protected static final ImmutableList<? extends SensorType<? extends Sensor<? super Axolotl>>> SENSOR_TYPES;
 +   protected static final ImmutableList<? extends MemoryModuleType<?>> MEMORY_TYPES;
 +   private static final EntityDataAccessor<Integer> DATA_VARIANT;
@@ -78,6 +77,8 @@
 +   public static final int RARE_VARIANT_CHANCE = 1200;
 +   private static final int AXOLOTL_TOTAL_AIR_SUPPLY = 6000;
 +   public static final String VARIANT_TAG = "Variant";
++   private static final int REHYDRATE_AIR_SUPPLY = 1800;
++   private final Map<String, Vector3f> modelRotationValues = Maps.newHashMap();
 +   private static final int REGEN_BUFF_BASE_DURATION = 100;
 +
 +   public Axolotl(EntityType<? extends Axolotl> var1, Level var2) {
@@ -86,6 +87,10 @@
 +      this.moveControl = new Axolotl.AxolotlMoveControl(this);
 +      this.lookControl = new Axolotl.AxolotlLookControl(this, 20);
 +      this.maxUpStep = 1.0F;
++   }
++
++   public Map<String, Vector3f> getModelRotationValues() {
++      return this.modelRotationValues;
 +   }
 +
 +   public float getWalkTargetValue(BlockPos var1, LevelReader var2) {
@@ -109,6 +114,12 @@
 +      super.readAdditionalSaveData(var1);
 +      this.setVariant(Axolotl.Variant.BY_ID[var1.getInt("Variant")]);
 +      this.setFromBucket(var1.getBoolean("FromBucket"));
++   }
++
++   public void playAmbientSound() {
++      if (!this.isPlayingDead()) {
++         super.playAmbientSound();
++      }
 +   }
 +
 +   public SpawnGroupData finalizeSpawn(ServerLevelAccessor var1, DifficultyInstance var2, MobSpawnType var3, @Nullable SpawnGroupData var4, @Nullable CompoundTag var5) {
@@ -155,6 +166,11 @@
 +
 +   }
 +
++   public void rehydrate() {
++      int var1 = this.getAirSupply() + 1800;
++      this.setAirSupply(Math.min(var1, this.getMaxAirSupply()));
++   }
++
 +   public boolean isDryingOut() {
 +      return this.getAirSupply() < this.getMaxAirSupply();
 +   }
@@ -171,7 +187,7 @@
 +      this.entityData.set(DATA_VARIANT, var1.getId());
 +   }
 +
-+   private static boolean useRareVariant(Random var0) {
++   static boolean useRareVariant(Random var0) {
 +      return var0.nextInt(1200) == 0;
 +   }
 +
@@ -205,10 +221,6 @@
 +
 +   public void setFromBucket(boolean var1) {
 +      this.entityData.set(FROM_BUCKET, var1);
-+   }
-+
-+   public double getVisibilityPercent(@Nullable Entity var1) {
-+      return this.isPlayingDead() ? 0.0D : super.getVisibilityPercent(var1);
 +   }
 +
 +   @Nullable
@@ -274,7 +286,7 @@
 +
 +   public boolean hurt(DamageSource var1, float var2) {
 +      float var3 = this.getHealth();
-+      if (!this.level.isClientSide && !this.isNoAi() && this.level.random.nextInt(3) == 0 && ((float)this.level.random.nextInt(3) < var2 || var3 / this.getMaxHealth() < 0.5F) && var2 < var3 && var1 != DamageSource.DRY_OUT && !this.isPlayingDead()) {
++      if (!this.level.isClientSide && !this.isNoAi() && this.level.random.nextInt(3) == 0 && ((float)this.level.random.nextInt(3) < var2 || var3 / this.getMaxHealth() < 0.5F) && var2 < var3 && this.isInWater() && (var1.getEntity() != null || var1.getDirectEntity() != null) && !this.isPlayingDead()) {
 +         this.brain.setMemory(MemoryModuleType.PLAY_DEAD_TICKS, (int)200);
 +      }
 +
@@ -282,7 +294,7 @@
 +   }
 +
 +   protected float getStandingEyeHeight(Pose var1, EntityDimensions var2) {
-+      return 0.275F;
++      return var2.height * 0.655F;
 +   }
 +
 +   public int getMaxHeadXRot() {
@@ -302,6 +314,11 @@
 +      CompoundTag var2 = var1.getOrCreateTag();
 +      var2.putInt("Variant", this.getVariant().getId());
 +      var2.putInt("Age", this.getAge());
++      Brain var3 = this.getBrain();
++      if (var3.hasMemoryValue(MemoryModuleType.HAS_HUNTING_COOLDOWN)) {
++         var2.putLong("HuntingCooldown", var3.getTimeUntilExpiry(MemoryModuleType.HAS_HUNTING_COOLDOWN));
++      }
++
 +   }
 +
 +   public void loadFromBucketTag(CompoundTag var1) {
@@ -309,6 +326,10 @@
 +      this.setVariant(Axolotl.Variant.BY_ID[var1.getInt("Variant")]);
 +      if (var1.contains("Age")) {
 +         this.setAge(var1.getInt("Age"));
++      }
++
++      if (var1.contains("HuntingCooldown")) {
++         this.getBrain().setMemoryWithExpiry(MemoryModuleType.HAS_HUNTING_COOLDOWN, true, var1.getLong("HuntingCooldown"));
 +      }
 +
 +   }
@@ -321,8 +342,8 @@
 +      return SoundEvents.BUCKET_FILL_AXOLOTL;
 +   }
 +
-+   public boolean canBeTargeted() {
-+      return !this.isPlayingDead() && super.canBeTargeted();
++   public boolean canBeSeenAsEnemy() {
++      return !this.isPlayingDead() && super.canBeSeenAsEnemy();
 +   }
 +
 +   public static void onStopAttacking(Axolotl var0) {
@@ -338,7 +359,7 @@
 +                  Player var6 = (Player)var5;
 +                  List var7 = var2.getEntitiesOfClass(Player.class, var0.getBoundingBox().inflate(20.0D));
 +                  if (var7.contains(var6)) {
-+                     applySupportingEffects(var6);
++                     var0.applySupportingEffects(var6);
 +                  }
 +               }
 +            }
@@ -347,11 +368,11 @@
 +      }
 +   }
 +
-+   public static void applySupportingEffects(Player var0) {
-+      MobEffectInstance var1 = var0.getEffect(MobEffects.REGENERATION);
-+      int var2 = 100 + (var1 != null ? var1.getDuration() : 0);
-+      var0.addEffect(new MobEffectInstance(MobEffects.REGENERATION, var2, 0));
-+      var0.removeEffect(MobEffects.DIG_SLOWDOWN);
++   public void applySupportingEffects(Player var1) {
++      MobEffectInstance var2 = var1.getEffect(MobEffects.REGENERATION);
++      int var3 = 100 + (var2 != null ? var2.getDuration() : 0);
++      var1.addEffect(new MobEffectInstance(MobEffects.REGENERATION, var3, 0), this);
++      var1.removeEffect(MobEffects.DIG_SLOWDOWN);
 +   }
 +
 +   public boolean requiresCustomPersistence() {
@@ -410,7 +431,7 @@
 +
 +   protected void usePlayerItem(Player var1, InteractionHand var2, ItemStack var3) {
 +      if (var3.is(Items.TROPICAL_FISH_BUCKET)) {
-+         var1.setItemInHand(var2, BucketItem.getEmptySuccessItem(var3, var1));
++         var1.setItemInHand(var2, new ItemStack(Items.WATER_BUCKET));
 +      } else {
 +         super.usePlayerItem(var1, var2, var3);
 +      }
@@ -423,58 +444,13 @@
 +
 +   static {
 +      SENSOR_TYPES = ImmutableList.of(SensorType.NEAREST_LIVING_ENTITIES, SensorType.NEAREST_ADULT, SensorType.HURT_BY, SensorType.AXOLOTL_ATTACKABLES, SensorType.AXOLOTL_TEMPTATIONS);
-+      MEMORY_TYPES = ImmutableList.of(MemoryModuleType.BREED_TARGET, MemoryModuleType.LIVING_ENTITIES, MemoryModuleType.VISIBLE_LIVING_ENTITIES, MemoryModuleType.NEAREST_VISIBLE_PLAYER, MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER, MemoryModuleType.LOOK_TARGET, MemoryModuleType.WALK_TARGET, MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE, MemoryModuleType.PATH, MemoryModuleType.ATTACK_TARGET, MemoryModuleType.ATTACK_COOLING_DOWN, MemoryModuleType.NEAREST_VISIBLE_ADULT, MemoryModuleType.HURT_BY_ENTITY, MemoryModuleType.PLAY_DEAD_TICKS, MemoryModuleType.NEAREST_ATTACKABLE, MemoryModuleType.TEMPTING_PLAYER, MemoryModuleType.TEMPTATION_COOLDOWN_TICKS, MemoryModuleType.IS_TEMPTED, MemoryModuleType.HAS_HUNTING_COOLDOWN);
++      MEMORY_TYPES = ImmutableList.of(MemoryModuleType.BREED_TARGET, MemoryModuleType.NEAREST_LIVING_ENTITIES, MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES, MemoryModuleType.NEAREST_VISIBLE_PLAYER, MemoryModuleType.NEAREST_VISIBLE_ATTACKABLE_PLAYER, MemoryModuleType.LOOK_TARGET, MemoryModuleType.WALK_TARGET, MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE, MemoryModuleType.PATH, MemoryModuleType.ATTACK_TARGET, MemoryModuleType.ATTACK_COOLING_DOWN, MemoryModuleType.NEAREST_VISIBLE_ADULT, MemoryModuleType.HURT_BY_ENTITY, MemoryModuleType.PLAY_DEAD_TICKS, MemoryModuleType.NEAREST_ATTACKABLE, MemoryModuleType.TEMPTING_PLAYER, MemoryModuleType.TEMPTATION_COOLDOWN_TICKS, MemoryModuleType.IS_TEMPTED, MemoryModuleType.HAS_HUNTING_COOLDOWN);
 +      DATA_VARIANT = SynchedEntityData.defineId(Axolotl.class, EntityDataSerializers.INT);
 +      DATA_PLAYING_DEAD = SynchedEntityData.defineId(Axolotl.class, EntityDataSerializers.BOOLEAN);
 +      FROM_BUCKET = SynchedEntityData.defineId(Axolotl.class, EntityDataSerializers.BOOLEAN);
 +   }
 +
-+   static class AxolotlPathNavigation extends WaterBoundPathNavigation {
-+      AxolotlPathNavigation(Axolotl var1, Level var2) {
-+         super(var1, var2);
-+      }
-+
-+      protected boolean canUpdatePath() {
-+         return true;
-+      }
-+
-+      protected PathFinder createPathFinder(int var1) {
-+         this.nodeEvaluator = new AmphibiousNodeEvaluator(false);
-+         return new PathFinder(this.nodeEvaluator, var1);
-+      }
-+
-+      public boolean isStableDestination(BlockPos var1) {
-+         return !this.level.getBlockState(var1.below()).isAir();
-+      }
-+   }
-+
-+   public static class AxolotlGroupData extends AgeableMob.AgeableMobGroupData {
-+      public final Axolotl.Variant[] types;
-+
-+      public AxolotlGroupData(Axolotl.Variant... var1) {
-+         super(false);
-+         this.types = var1;
-+      }
-+
-+      public Axolotl.Variant getVariant(Random var1) {
-+         return Axolotl.useRareVariant(var1) ? Axolotl.Variant.getRareSpawnVariant(var1) : this.types[var1.nextInt(this.types.length)];
-+      }
-+   }
-+
-+   class AxolotlLookControl extends SmoothSwimmingLookControl {
-+      public AxolotlLookControl(Axolotl var2, int var3) {
-+         super(var2, var3);
-+      }
-+
-+      public void tick() {
-+         if (!Axolotl.this.isPlayingDead()) {
-+            super.tick();
-+         }
-+
-+      }
-+   }
-+
-+   static class AxolotlMoveControl extends SmoothSwimmingMoveControl {
++   private static class AxolotlMoveControl extends SmoothSwimmingMoveControl {
 +      private final Axolotl axolotl;
 +
 +      public AxolotlMoveControl(Axolotl var1) {
@@ -484,6 +460,19 @@
 +
 +      public void tick() {
 +         if (!this.axolotl.isPlayingDead()) {
++            super.tick();
++         }
++
++      }
++   }
++
++   private class AxolotlLookControl extends SmoothSwimmingLookControl {
++      public AxolotlLookControl(Axolotl var2, int var3) {
++         super(var2, var3);
++      }
++
++      public void tick() {
++         if (!Axolotl.this.isPlayingDead()) {
 +            super.tick();
 +         }
 +
@@ -533,6 +522,38 @@
 +            return new Axolotl.Variant[var0x];
 +         });
 +         return (Axolotl.Variant)Util.getRandom((Object[])var2, var0);
++      }
++   }
++
++   public static class AxolotlGroupData extends AgeableMob.AgeableMobGroupData {
++      public final Axolotl.Variant[] types;
++
++      public AxolotlGroupData(Axolotl.Variant... var1) {
++         super(false);
++         this.types = var1;
++      }
++
++      public Axolotl.Variant getVariant(Random var1) {
++         return Axolotl.useRareVariant(var1) ? Axolotl.Variant.getRareSpawnVariant(var1) : this.types[var1.nextInt(this.types.length)];
++      }
++   }
++
++   private static class AxolotlPathNavigation extends WaterBoundPathNavigation {
++      AxolotlPathNavigation(Axolotl var1, Level var2) {
++         super(var1, var2);
++      }
++
++      protected boolean canUpdatePath() {
++         return true;
++      }
++
++      protected PathFinder createPathFinder(int var1) {
++         this.nodeEvaluator = new AmphibiousNodeEvaluator(false);
++         return new PathFinder(this.nodeEvaluator, var1);
++      }
++
++      public boolean isStableDestination(BlockPos var1) {
++         return !this.level.getBlockState(var1.below()).isAir();
 +      }
 +   }
 +}

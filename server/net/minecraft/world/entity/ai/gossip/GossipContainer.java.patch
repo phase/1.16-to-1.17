@@ -43,6 +43,19 @@
  
        while(var1.hasNext()) {
           GossipContainer.EntityGossips var2 = (GossipContainer.EntityGossips)var1.next();
+@@ -67,11 +81,11 @@
+          Set var10 = Sets.newIdentityHashSet();
+ 
+          for(int var11 = 0; var11 < var2; ++var11) {
+             int var8 = var1.nextInt(var5);
+             int var9 = Arrays.binarySearch(var4, var8);
+-            var10.add(var3.get(var9 < 0 ? -var9 - 1 : var9));
++            var10.add((GossipContainer.GossipEntry)var3.get(var9 < 0 ? -var9 - 1 : var9));
+          }
+ 
+          return var10;
+       }
+    }
 @@ -96,10 +110,16 @@
     public int getReputation(UUID var1, Predicate<GossipType> var2) {
        GossipContainer.EntityGossips var3 = (GossipContainer.EntityGossips)this.gossips.get(var1);
@@ -99,12 +112,39 @@
           return var1x.store(var1);
        }).map(Dynamic::getValue)));
     }
-@@ -189,10 +237,13 @@
+@@ -131,20 +179,19 @@
+    private int mergeValuesForAddition(GossipType var1, int var2, int var3) {
+       int var4 = var2 + var3;
+       return var4 > var1.max ? Math.max(var1.max, var2) : var4;
+    }
+ 
+-   static class EntityGossips {
+-      private final Object2IntMap<GossipType> entries;
++   private static class EntityGossips {
++      final Object2IntMap<GossipType> entries = new Object2IntOpenHashMap();
+ 
+-      private EntityGossips() {
+-         this.entries = new Object2IntOpenHashMap();
++      EntityGossips() {
+       }
+ 
+       public int weightedValue(Predicate<GossipType> var1) {
+          return this.entries.object2IntEntrySet().stream().filter((var1x) -> {
+-            return var1.test(var1x.getKey());
++            return var1.test((GossipType)var1x.getKey());
+          }).mapToInt((var0) -> {
+             return var0.getIntValue() * ((GossipType)var0.getKey()).weight;
+          }).sum();
+       }
+ 
+@@ -188,11 +235,14 @@
+       public void remove(GossipType var1) {
           this.entries.removeInt(var1);
        }
     }
  
-    static class GossipEntry {
+-   static class GossipEntry {
++   private static class GossipEntry {
 +      public static final String TAG_TARGET = "Target";
 +      public static final String TAG_TYPE = "Type";
 +      public static final String TAG_VALUE = "Value";
@@ -113,3 +153,16 @@
        public final int value;
  
        public GossipEntry(UUID var1, GossipType var2, int var3) {
+@@ -204,11 +254,11 @@
+       public int weightedValue() {
+          return this.value * this.type.weight;
+       }
+ 
+       public String toString() {
+-         return "GossipEntry{target=" + this.target + ", type=" + this.type + ", value=" + this.value + '}';
++         return "GossipEntry{target=" + this.target + ", type=" + this.type + ", value=" + this.value + "}";
+       }
+ 
+       public <T> Dynamic<T> store(DynamicOps<T> var1) {
+          return new Dynamic(var1, var1.createMap((Map)ImmutableMap.of(var1.createString("Target"), SerializableUUID.CODEC.encodeStart(var1, this.target).result().orElseThrow(RuntimeException::new), var1.createString("Type"), var1.createString(this.type.id), var1.createString("Value"), var1.createInt(this.value))));
+       }

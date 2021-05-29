@@ -1,6 +1,18 @@
 --- net/minecraft/server/ServerFunctionLibrary.java
 +++ net/minecraft/server/ServerFunctionLibrary.java
-@@ -35,14 +35,15 @@
+@@ -9,10 +9,11 @@
+ import java.nio.charset.StandardCharsets;
+ import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.Optional;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.CompletionException;
+ import java.util.concurrent.Executor;
+ import net.minecraft.commands.CommandFunction;
+@@ -35,20 +36,21 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -17,7 +29,14 @@
     private final CommandDispatcher<CommandSourceStack> dispatcher;
  
     public Optional<CommandFunction> getFunction(ResourceLocation var1) {
-@@ -65,11 +66,13 @@
+-      return Optional.ofNullable(this.functions.get(var1));
++      return Optional.ofNullable((CommandFunction)this.functions.get(var1));
+    }
+ 
+    public Map<ResourceLocation, CommandFunction> getFunctions() {
+       return this.functions;
+    }
+@@ -65,11 +67,13 @@
        this.functionCompilationLevel = var1;
        this.dispatcher = var2;
     }
@@ -32,7 +51,20 @@
              return var0.endsWith(".mcfunction");
           });
        }, var5).thenCompose((var3x) -> {
-@@ -107,11 +110,11 @@
+@@ -91,11 +95,11 @@
+          return CompletableFuture.allOf(var10).handle((var1, var2x) -> {
+             return var4;
+          });
+       });
+       CompletableFuture var10000 = var7.thenCombine(var8, Pair::of);
+-      var1.getClass();
++      Objects.requireNonNull(var1);
+       return var10000.thenCompose(var1::wait).thenAcceptAsync((var1x) -> {
+          Map var2 = (Map)var1x.getSecond();
+          Builder var3 = ImmutableMap.builder();
+          var2.forEach((var1, var2x) -> {
+             var2x.handle((var2, var3x) -> {
+@@ -107,41 +111,38 @@
  
                 return null;
              }).join();
@@ -45,3 +77,47 @@
  
     private static List<String> readLines(ResourceManager var0, ResourceLocation var1) {
        try {
+          Resource var2 = var0.getResource(var1);
+-         Throwable var3 = null;
+ 
+-         List var4;
++         List var3;
+          try {
+-            var4 = IOUtils.readLines(var2.getInputStream(), StandardCharsets.UTF_8);
+-         } catch (Throwable var14) {
+-            var3 = var14;
+-            throw var14;
+-         } finally {
++            var3 = IOUtils.readLines(var2.getInputStream(), StandardCharsets.UTF_8);
++         } catch (Throwable var6) {
+             if (var2 != null) {
+-               if (var3 != null) {
+-                  try {
+-                     var2.close();
+-                  } catch (Throwable var13) {
+-                     var3.addSuppressed(var13);
+-                  }
+-               } else {
++               try {
+                   var2.close();
++               } catch (Throwable var5) {
++                  var6.addSuppressed(var5);
+                }
+             }
+ 
++            throw var6;
+          }
+ 
+-         return var4;
+-      } catch (IOException var16) {
+-         throw new CompletionException(var16);
++         if (var2 != null) {
++            var2.close();
++         }
++
++         return var3;
++      } catch (IOException var7) {
++         throw new CompletionException(var7);
+       }
+    }
+ }

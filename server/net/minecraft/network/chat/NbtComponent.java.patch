@@ -1,27 +1,249 @@
 --- net/minecraft/network/chat/NbtComponent.java
 +++ net/minecraft/network/chat/NbtComponent.java
-@@ -24,10 +24,11 @@
- import org.apache.logging.log4j.LogManager;
+@@ -1,12 +1,14 @@
+ package net.minecraft.network.chat;
+ 
+-import com.google.common.base.Joiner;
+ import com.mojang.brigadier.StringReader;
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
++import com.mojang.datafixers.DataFixUtils;
+ import java.util.List;
+ import java.util.Objects;
++import java.util.Optional;
++import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.advancements.critereon.NbtPredicate;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.commands.arguments.NbtPathArgument;
+@@ -25,10 +27,11 @@
  import org.apache.logging.log4j.Logger;
  
  public abstract class NbtComponent extends BaseComponent implements ContextAwareComponent {
     private static final Logger LOGGER = LogManager.getLogger();
-+   private static final String SEPARATOR = ", ";
     protected final boolean interpreting;
++   protected final Optional<Component> separator;
     protected final String nbtPathPattern;
     @Nullable
     protected final NbtPathArgument.NbtPath compiledNbtPath;
  
-@@ -72,11 +73,11 @@
-          return (MutableComponent)(this.interpreting ? (MutableComponent)var4.flatMap((var3x) -> {
-             try {
-                MutableComponent var4 = Component.Serializer.fromJson(var3x);
-                return Stream.of(ComponentUtils.updateForEntity(var1, var4, var2, var3));
-             } catch (Exception var5) {
--               LOGGER.warn((String)("Failed to parse component: " + var3x), (Throwable)var5);
-+               LOGGER.warn((String)"Failed to parse component: {}", (Object)var3x, (Object)var5);
-                return Stream.of();
+    @Nullable
+@@ -38,18 +41,19 @@
+       } catch (CommandSyntaxException var2) {
+          return null;
+       }
+    }
+ 
+-   public NbtComponent(String var1, boolean var2) {
+-      this(var1, compileNbtPath(var1), var2);
++   public NbtComponent(String var1, boolean var2, Optional<Component> var3) {
++      this(var1, compileNbtPath(var1), var2, var3);
+    }
+ 
+-   protected NbtComponent(String var1, @Nullable NbtPathArgument.NbtPath var2, boolean var3) {
++   protected NbtComponent(String var1, @Nullable NbtPathArgument.NbtPath var2, boolean var3, Optional<Component> var4) {
+       this.nbtPathPattern = var1;
+       this.compiledNbtPath = var2;
+       this.interpreting = var3;
++      this.separator = var4;
+    }
+ 
+    protected abstract Stream<CompoundTag> getData(CommandSourceStack var1) throws CommandSyntaxException;
+ 
+    public String getNbtPath() {
+@@ -67,45 +71,62 @@
+                return this.compiledNbtPath.get(var1x).stream();
+             } catch (CommandSyntaxException var3) {
+                return Stream.empty();
              }
-          }).reduce((var0, var1x) -> {
-             return var0.append(", ").append((Component)var1x);
-          }).orElse(new TextComponent("")) : new TextComponent(Joiner.on(", ").join(var4.iterator())));
+          }).map(Tag::getAsString);
+-         return (MutableComponent)(this.interpreting ? (MutableComponent)var4.flatMap((var3x) -> {
+-            try {
+-               MutableComponent var4 = Component.Serializer.fromJson(var3x);
+-               return Stream.of(ComponentUtils.updateForEntity(var1, var4, var2, var3));
+-            } catch (Exception var5) {
+-               LOGGER.warn((String)("Failed to parse component: " + var3x), (Throwable)var5);
+-               return Stream.of();
+-            }
+-         }).reduce((var0, var1x) -> {
+-            return var0.append(", ").append((Component)var1x);
+-         }).orElse(new TextComponent("")) : new TextComponent(Joiner.on(", ").join(var4.iterator())));
++         if (this.interpreting) {
++            Component var5 = (Component)DataFixUtils.orElse(ComponentUtils.updateForEntity(var1, this.separator, var2, var3), ComponentUtils.DEFAULT_NO_STYLE_SEPARATOR);
++            return (MutableComponent)var4.flatMap((var3x) -> {
++               try {
++                  MutableComponent var4 = Component.Serializer.fromJson(var3x);
++                  return Stream.of(ComponentUtils.updateForEntity(var1, (Component)var4, var2, var3));
++               } catch (Exception var5) {
++                  LOGGER.warn((String)"Failed to parse component: {}", (Object)var3x, (Object)var5);
++                  return Stream.of();
++               }
++            }).reduce((var1x, var2x) -> {
++               return var1x.append(var5).append((Component)var2x);
++            }).orElseGet(() -> {
++               return new TextComponent("");
++            });
++         } else {
++            return (MutableComponent)ComponentUtils.updateForEntity(var1, this.separator, var2, var3).map((var1x) -> {
++               return (MutableComponent)var4.map((var0) -> {
++                  return new TextComponent(var0);
++               }).reduce((var1, var2) -> {
++                  return var1.append((Component)var1x).append((Component)var2);
++               }).orElseGet(() -> {
++                  return new TextComponent("");
++               });
++            }).orElseGet(() -> {
++               return new TextComponent((String)var4.collect(Collectors.joining(", ")));
++            });
++         }
+       } else {
+          return new TextComponent("");
+       }
+    }
+ 
+    public static class StorageNbtComponent extends NbtComponent {
+       private final ResourceLocation id;
+ 
+-      public StorageNbtComponent(String var1, boolean var2, ResourceLocation var3) {
+-         super(var1, var2);
++      public StorageNbtComponent(String var1, boolean var2, ResourceLocation var3, Optional<Component> var4) {
++         super(var1, var2, var4);
+          this.id = var3;
+       }
+ 
+-      public StorageNbtComponent(String var1, @Nullable NbtPathArgument.NbtPath var2, boolean var3, ResourceLocation var4) {
+-         super(var1, var2, var3);
++      public StorageNbtComponent(String var1, @Nullable NbtPathArgument.NbtPath var2, boolean var3, ResourceLocation var4, Optional<Component> var5) {
++         super(var1, var2, var3, var5);
+          this.id = var4;
+       }
+ 
+       public ResourceLocation getId() {
+          return this.id;
+       }
+ 
+       public NbtComponent.StorageNbtComponent plainCopy() {
+-         return new NbtComponent.StorageNbtComponent(this.nbtPathPattern, this.compiledNbtPath, this.interpreting, this.id);
++         return new NbtComponent.StorageNbtComponent(this.nbtPathPattern, this.compiledNbtPath, this.interpreting, this.id, this.separator);
+       }
+ 
+       protected Stream<CompoundTag> getData(CommandSourceStack var1) {
+          CompoundTag var2 = var1.getServer().getCommandStorage().get(this.id);
+          return Stream.of(var2);
+@@ -121,21 +142,22 @@
+             return Objects.equals(this.id, var2.id) && Objects.equals(this.nbtPathPattern, var2.nbtPathPattern) && super.equals(var1);
+          }
+       }
+ 
+       public String toString() {
+-         return "StorageNbtComponent{id='" + this.id + '\'' + "path='" + this.nbtPathPattern + '\'' + ", siblings=" + this.siblings + ", style=" + this.getStyle() + '}';
++         ResourceLocation var10000 = this.id;
++         return "StorageNbtComponent{id='" + var10000 + "'path='" + this.nbtPathPattern + "', siblings=" + this.siblings + ", style=" + this.getStyle() + "}";
+       }
+    }
+ 
+    public static class BlockNbtComponent extends NbtComponent {
+       private final String posPattern;
+       @Nullable
+       private final Coordinates compiledPos;
+ 
+-      public BlockNbtComponent(String var1, boolean var2, String var3) {
+-         super(var1, var2);
++      public BlockNbtComponent(String var1, boolean var2, String var3, Optional<Component> var4) {
++         super(var1, var2, var4);
+          this.posPattern = var3;
+          this.compiledPos = this.compilePos(this.posPattern);
+       }
+ 
+       @Nullable
+@@ -145,23 +167,23 @@
+          } catch (CommandSyntaxException var3) {
+             return null;
+          }
+       }
+ 
+-      private BlockNbtComponent(String var1, @Nullable NbtPathArgument.NbtPath var2, boolean var3, String var4, @Nullable Coordinates var5) {
+-         super(var1, var2, var3);
++      private BlockNbtComponent(String var1, @Nullable NbtPathArgument.NbtPath var2, boolean var3, String var4, @Nullable Coordinates var5, Optional<Component> var6) {
++         super(var1, var2, var3, var6);
+          this.posPattern = var4;
+          this.compiledPos = var5;
+       }
+ 
+       @Nullable
+       public String getPos() {
+          return this.posPattern;
+       }
+ 
+       public NbtComponent.BlockNbtComponent plainCopy() {
+-         return new NbtComponent.BlockNbtComponent(this.nbtPathPattern, this.compiledNbtPath, this.interpreting, this.posPattern, this.compiledPos);
++         return new NbtComponent.BlockNbtComponent(this.nbtPathPattern, this.compiledNbtPath, this.interpreting, this.posPattern, this.compiledPos, this.separator);
+       }
+ 
+       protected Stream<CompoundTag> getData(CommandSourceStack var1) {
+          if (this.compiledPos != null) {
+             ServerLevel var2 = var1.getLevel();
+@@ -187,21 +209,22 @@
+             return Objects.equals(this.posPattern, var2.posPattern) && Objects.equals(this.nbtPathPattern, var2.nbtPathPattern) && super.equals(var1);
+          }
+       }
+ 
+       public String toString() {
+-         return "BlockPosArgument{pos='" + this.posPattern + '\'' + "path='" + this.nbtPathPattern + '\'' + ", siblings=" + this.siblings + ", style=" + this.getStyle() + '}';
++         String var10000 = this.posPattern;
++         return "BlockPosArgument{pos='" + var10000 + "'path='" + this.nbtPathPattern + "', siblings=" + this.siblings + ", style=" + this.getStyle() + "}";
+       }
+    }
+ 
+    public static class EntityNbtComponent extends NbtComponent {
+       private final String selectorPattern;
+       @Nullable
+       private final EntitySelector compiledSelector;
+ 
+-      public EntityNbtComponent(String var1, boolean var2, String var3) {
+-         super(var1, var2);
++      public EntityNbtComponent(String var1, boolean var2, String var3, Optional<Component> var4) {
++         super(var1, var2, var4);
+          this.selectorPattern = var3;
+          this.compiledSelector = compileSelector(var3);
+       }
+ 
+       @Nullable
+@@ -212,22 +235,22 @@
+          } catch (CommandSyntaxException var2) {
+             return null;
+          }
+       }
+ 
+-      private EntityNbtComponent(String var1, @Nullable NbtPathArgument.NbtPath var2, boolean var3, String var4, @Nullable EntitySelector var5) {
+-         super(var1, var2, var3);
++      private EntityNbtComponent(String var1, @Nullable NbtPathArgument.NbtPath var2, boolean var3, String var4, @Nullable EntitySelector var5, Optional<Component> var6) {
++         super(var1, var2, var3, var6);
+          this.selectorPattern = var4;
+          this.compiledSelector = var5;
+       }
+ 
+       public String getSelector() {
+          return this.selectorPattern;
+       }
+ 
+       public NbtComponent.EntityNbtComponent plainCopy() {
+-         return new NbtComponent.EntityNbtComponent(this.nbtPathPattern, this.compiledNbtPath, this.interpreting, this.selectorPattern, this.compiledSelector);
++         return new NbtComponent.EntityNbtComponent(this.nbtPathPattern, this.compiledNbtPath, this.interpreting, this.selectorPattern, this.compiledSelector, this.separator);
+       }
+ 
+       protected Stream<CompoundTag> getData(CommandSourceStack var1) throws CommandSyntaxException {
+          if (this.compiledSelector != null) {
+             List var2 = this.compiledSelector.findEntities(var1);
+@@ -247,9 +270,10 @@
+             return Objects.equals(this.selectorPattern, var2.selectorPattern) && Objects.equals(this.nbtPathPattern, var2.nbtPathPattern) && super.equals(var1);
+          }
+       }
+ 
+       public String toString() {
+-         return "EntityNbtComponent{selector='" + this.selectorPattern + '\'' + "path='" + this.nbtPathPattern + '\'' + ", siblings=" + this.siblings + ", style=" + this.getStyle() + '}';
++         String var10000 = this.selectorPattern;
++         return "EntityNbtComponent{selector='" + var10000 + "'path='" + this.nbtPathPattern + "', siblings=" + this.siblings + ", style=" + this.getStyle() + "}";
+       }
+    }
+ }

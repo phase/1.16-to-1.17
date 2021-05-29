@@ -1,9 +1,17 @@
 --- com/mojang/realmsclient/util/RealmsTextureManager.java
 +++ com/mojang/realmsclient/util/RealmsTextureManager.java
-@@ -33,45 +33,43 @@
-    private static final Map<String, Boolean> SKIN_FETCH_STATUS = Maps.newHashMap();
-    private static final Map<String, String> FETCHED_SKINS = Maps.newHashMap();
-    private static final Logger LOGGER = LogManager.getLogger();
+@@ -28,50 +28,48 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class RealmsTextureManager {
+    private static final Map<String, RealmsTextureManager.RealmsTexture> TEXTURES = Maps.newHashMap();
+-   private static final Map<String, Boolean> SKIN_FETCH_STATUS = Maps.newHashMap();
+-   private static final Map<String, String> FETCHED_SKINS = Maps.newHashMap();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Map<String, Boolean> SKIN_FETCH_STATUS = Maps.newHashMap();
++   static final Map<String, String> FETCHED_SKINS = Maps.newHashMap();
++   static final Logger LOGGER = LogManager.getLogger();
     private static final ResourceLocation TEMPLATE_ICON_LOCATION = new ResourceLocation("textures/gui/presets/isles.png");
  
 +   public RealmsTextureManager() {
@@ -59,78 +67,98 @@
           }
  
        } else {
-@@ -89,44 +87,43 @@
-                   try {
-                      var4 = (HttpURLConnection)(new URL(var3)).openConnection(Minecraft.getInstance().getProxy());
-                      var4.setDoInput(true);
-                      var4.setDoOutput(false);
-                      var4.connect();
--                     if (var4.getResponseCode() / 100 == 2) {
--                        BufferedImage var5;
--                        try {
--                           var5 = ImageIO.read(var4.getInputStream());
--                        } catch (Exception var17) {
--                           RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
--                           return;
--                        } finally {
--                           IOUtils.closeQuietly(var4.getInputStream());
--                        }
-+                     if (var4.getResponseCode() / 100 != 2) {
-+                        RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
-+                        return;
-+                     }
- 
--                        var5 = (new SkinProcessor()).process(var5);
--                        ByteArrayOutputStream var6 = new ByteArrayOutputStream();
--                        ImageIO.write(var5, "png", var6);
--                        RealmsTextureManager.FETCHED_SKINS.put(var0, (new Base64()).encodeToString(var6.toByteArray()));
--                        RealmsTextureManager.SKIN_FETCH_STATUS.put(var0, true);
-+                     BufferedImage var5;
-+                     try {
-+                        var5 = ImageIO.read(var4.getInputStream());
-+                     } catch (Exception var17) {
-+                        RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
-                         return;
-+                     } finally {
-+                        IOUtils.closeQuietly(var4.getInputStream());
-                      }
- 
--                     RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
-+                     var5 = (new SkinProcessor()).process(var5);
-+                     ByteArrayOutputStream var6 = new ByteArrayOutputStream();
-+                     ImageIO.write(var5, "png", var6);
-+                     RealmsTextureManager.FETCHED_SKINS.put(var0, (new Base64()).encodeToString(var6.toByteArray()));
-+                     RealmsTextureManager.SKIN_FETCH_STATUS.put(var0, true);
-                   } catch (Exception var19) {
-                      RealmsTextureManager.LOGGER.error("Couldn't download http texture", var19);
-                      RealmsTextureManager.SKIN_FETCH_STATUS.remove(var0);
--                     return;
-                   } finally {
-                      if (var4 != null) {
-                         var4.disconnect();
-                      }
- 
-                   }
--
-                } else {
-                   RealmsTextureManager.SKIN_FETCH_STATUS.put(var0, true);
-                }
-+
-             }
-          };
-          var2.setDaemon(true);
+@@ -131,58 +129,57 @@
           var2.start();
        }
-@@ -170,11 +167,11 @@
-       } catch (IOException var12) {
-          var12.printStackTrace();
-       }
- 
-       RenderSystem.activeTexture(33984);
--      RenderSystem.bindTexture(var2);
-+      RenderSystem.bindTextureForSetup(var2);
-       TextureUtil.initTexture(var13, var4, var5);
-       TEXTURES.put(var0, new RealmsTextureManager.RealmsTexture(var1, var2));
-       return var2;
     }
  
+    private static int getTextureId(String var0, String var1) {
+-      int var2;
+-      if (TEXTURES.containsKey(var0)) {
+-         RealmsTextureManager.RealmsTexture var3 = (RealmsTextureManager.RealmsTexture)TEXTURES.get(var0);
+-         if (var3.image.equals(var1)) {
+-            return var3.textureId;
++      RealmsTextureManager.RealmsTexture var2 = (RealmsTextureManager.RealmsTexture)TEXTURES.get(var0);
++      if (var2 != null && var2.image.equals(var1)) {
++         return var2.textureId;
++      } else {
++         int var3;
++         if (var2 != null) {
++            var3 = var2.textureId;
++         } else {
++            var3 = GlStateManager._genTexture();
+          }
+ 
+-         RenderSystem.deleteTexture(var3.textureId);
+-         var2 = var3.textureId;
+-      } else {
+-         var2 = GlStateManager._genTexture();
+-      }
++         IntBuffer var4 = null;
++         int var5 = 0;
++         int var6 = 0;
+ 
+-      IntBuffer var13 = null;
+-      int var4 = 0;
+-      int var5 = 0;
++         try {
++            ByteArrayInputStream var8 = new ByteArrayInputStream((new Base64()).decode(var1));
+ 
+-      try {
+-         ByteArrayInputStream var7 = new ByteArrayInputStream((new Base64()).decode(var1));
++            BufferedImage var7;
++            try {
++               var7 = ImageIO.read(var8);
++            } finally {
++               IOUtils.closeQuietly(var8);
++            }
+ 
+-         BufferedImage var6;
+-         try {
+-            var6 = ImageIO.read(var7);
+-         } finally {
+-            IOUtils.closeQuietly(var7);
++            var5 = var7.getWidth();
++            var6 = var7.getHeight();
++            int[] var9 = new int[var5 * var6];
++            var7.getRGB(0, 0, var5, var6, var9, 0, var5);
++            var4 = ByteBuffer.allocateDirect(4 * var5 * var6).order(ByteOrder.nativeOrder()).asIntBuffer();
++            var4.put(var9);
++            var4.flip();
++         } catch (IOException var13) {
++            var13.printStackTrace();
+          }
+ 
+-         var4 = var6.getWidth();
+-         var5 = var6.getHeight();
+-         int[] var8 = new int[var4 * var5];
+-         var6.getRGB(0, 0, var4, var5, var8, 0, var4);
+-         var13 = ByteBuffer.allocateDirect(4 * var4 * var5).order(ByteOrder.nativeOrder()).asIntBuffer();
+-         var13.put(var8);
+-         var13.flip();
+-      } catch (IOException var12) {
+-         var12.printStackTrace();
++         RenderSystem.activeTexture(33984);
++         RenderSystem.bindTextureForSetup(var3);
++         TextureUtil.initTexture(var4, var5, var6);
++         TEXTURES.put(var0, new RealmsTextureManager.RealmsTexture(var1, var3));
++         return var3;
+       }
+-
+-      RenderSystem.activeTexture(33984);
+-      RenderSystem.bindTexture(var2);
+-      TextureUtil.initTexture(var13, var4, var5);
+-      TEXTURES.put(var0, new RealmsTextureManager.RealmsTexture(var1, var2));
+-      return var2;
+    }
+ 
+    public static class RealmsTexture {
+-      private final String image;
+-      private final int textureId;
++      final String image;
++      final int textureId;
+ 
+       public RealmsTexture(String var1, int var2) {
+          this.image = var1;
+          this.textureId = var2;
+       }

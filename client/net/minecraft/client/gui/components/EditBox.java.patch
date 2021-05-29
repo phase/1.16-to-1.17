@@ -12,11 +12,14 @@
  import java.util.function.Consumer;
  import java.util.function.Predicate;
  import javax.annotation.Nullable;
-@@ -16,18 +17,29 @@
+@@ -15,19 +16,31 @@
+ import net.minecraft.Util;
  import net.minecraft.client.Minecraft;
  import net.minecraft.client.gui.Font;
  import net.minecraft.client.gui.GuiComponent;
  import net.minecraft.client.gui.components.events.GuiEventListener;
++import net.minecraft.client.gui.narration.NarratedElementType;
++import net.minecraft.client.gui.narration.NarrationElementOutput;
  import net.minecraft.client.gui.screens.Screen;
 +import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.network.chat.Component;
@@ -32,7 +35,6 @@
 +   private static final int CURSOR_INSERT_WIDTH = 1;
 +   private static final int CURSOR_INSERT_COLOR = -3092272;
 +   private static final String CURSOR_APPEND_CHARACTER = "_";
-+   private static final long NARRATE_DELAY_TYPING_MS = 500L;
 +   public static final int DEFAULT_TEXT_COLOR = 14737632;
 +   private static final int BORDER_COLOR_FOCUSED = -1;
 +   private static final int BORDER_COLOR = -6250336;
@@ -42,7 +44,60 @@
     private int maxLength;
     private int frame;
     private boolean bordered;
-@@ -233,11 +245,11 @@
+@@ -37,11 +50,13 @@
+    private int displayPos;
+    private int cursorPos;
+    private int highlightPos;
+    private int textColor;
+    private int textColorUneditable;
++   @Nullable
+    private String suggestion;
++   @Nullable
+    private Consumer<String> responder;
+    private Predicate<String> filter;
+    private BiFunction<String, Integer, FormattedCharSequence> formatter;
+ 
+    public EditBox(Font var1, int var2, int var3, int var4, int var5, Component var6) {
+@@ -102,22 +117,22 @@
+    public String getValue() {
+       return this.value;
+    }
+ 
+    public String getHighlighted() {
+-      int var1 = this.cursorPos < this.highlightPos ? this.cursorPos : this.highlightPos;
+-      int var2 = this.cursorPos < this.highlightPos ? this.highlightPos : this.cursorPos;
++      int var1 = Math.min(this.cursorPos, this.highlightPos);
++      int var2 = Math.max(this.cursorPos, this.highlightPos);
+       return this.value.substring(var1, var2);
+    }
+ 
+    public void setFilter(Predicate<String> var1) {
+       this.filter = var1;
+    }
+ 
+    public void insertText(String var1) {
+-      int var2 = this.cursorPos < this.highlightPos ? this.cursorPos : this.highlightPos;
+-      int var3 = this.cursorPos < this.highlightPos ? this.highlightPos : this.cursorPos;
++      int var2 = Math.min(this.cursorPos, this.highlightPos);
++      int var3 = Math.max(this.cursorPos, this.highlightPos);
+       int var4 = this.maxLength - this.value.length() - (var2 - var3);
+       String var5 = SharedConstants.filterText(var1);
+       int var6 = var5.length();
+       if (var4 < var6) {
+          var5 = var5.substring(0, var4);
+@@ -136,11 +151,10 @@
+    private void onValueChange(String var1) {
+       if (this.responder != null) {
+          this.responder.accept(var1);
+       }
+ 
+-      this.nextNarration = Util.getMillis() + 500L;
+    }
+ 
+    private void deleteText(int var1) {
+       if (Screen.hasControlDown()) {
+          this.deleteWords(var1);
+@@ -233,11 +247,11 @@
  
        this.onValueChange(this.value);
     }
@@ -55,7 +110,46 @@
     public void moveCursorToStart() {
        this.moveCursorTo(0);
     }
-@@ -462,20 +474,22 @@
+@@ -364,11 +378,11 @@
+          }
+       }
+    }
+ 
+    public void setFocus(boolean var1) {
+-      super.setFocused(var1);
++      this.setFocused(var1);
+    }
+ 
+    public void renderButton(PoseStack var1, int var2, int var3, float var4) {
+       if (this.isVisible()) {
+          int var5;
+@@ -419,11 +433,11 @@
+          if (var10) {
+             if (var17) {
+                var10002 = var12 - 1;
+                var10003 = var15 + 1;
+                var10004 = var12 + 1;
+-               this.font.getClass();
++               Objects.requireNonNull(this.font);
+                GuiComponent.fill(var1, var15, var10002, var10003, var10004 + 9, -3092272);
+             } else {
+                this.font.drawShadow(var1, "_", (float)var15, (float)var12, var5);
+             }
+          }
+@@ -431,11 +445,11 @@
+          if (var7 != var6) {
+             int var16 = var11 + this.font.width(var8.substring(0, var7));
+             var10002 = var12 - 1;
+             var10003 = var16 - 1;
+             var10004 = var12 + 1;
+-            this.font.getClass();
++            Objects.requireNonNull(this.font);
+             this.renderHighlight(var15, var10002, var10003, var10004 + 9);
+          }
+ 
+       }
+    }
+@@ -462,20 +476,22 @@
           var1 = this.x + this.width;
        }
  
@@ -80,7 +174,7 @@
     }
  
     public void setMaxLength(int var1) {
-@@ -538,11 +552,11 @@
+@@ -538,11 +554,11 @@
        return this.isBordered() ? this.width - 8 : this.width;
     }
  
@@ -93,7 +187,7 @@
              this.displayPos = var2;
           }
  
-@@ -557,11 +571,11 @@
+@@ -557,11 +573,11 @@
              this.displayPos += this.highlightPos - var5;
           } else if (this.highlightPos <= this.displayPos) {
              this.displayPos -= this.displayPos - this.highlightPos;
@@ -106,3 +200,14 @@
     }
  
     public void setCanLoseFocus(boolean var1) {
+@@ -585,6 +601,10 @@
+    }
+ 
+    public void setX(int var1) {
+       this.x = var1;
+    }
++
++   public void updateNarration(NarrationElementOutput var1) {
++      var1.add(NarratedElementType.TITLE, (Component)(new TranslatableComponent("narration.edit_box", new Object[]{this.getValue()})));
++   }
+ }

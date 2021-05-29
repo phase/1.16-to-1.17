@@ -38,10 +38,14 @@
        ArrayList var2 = Lists.newArrayList();
        ArrayList var3 = Lists.newArrayList();
        ArrayList var4 = Lists.newArrayList();
-@@ -56,11 +61,11 @@
+@@ -53,14 +58,14 @@
+       }
+ 
+       int var8 = var2.size() + var3.size() + var4.size();
        LOGGER.info((String)"Total conversion count is {}", (Object)var8);
        RegistryAccess.RegistryHolder var9 = RegistryAccess.builtin();
-       RegistryReadOps var10 = RegistryReadOps.create(NbtOps.INSTANCE, (ResourceManager)ResourceManager.Empty.INSTANCE, var9);
+-      RegistryReadOps var10 = RegistryReadOps.create(NbtOps.INSTANCE, (ResourceManager)ResourceManager.Empty.INSTANCE, var9);
++      RegistryReadOps var10 = RegistryReadOps.createAndLoad(NbtOps.INSTANCE, (ResourceManager)ResourceManager.Empty.INSTANCE, var9);
        WorldData var11 = var0.getDataTag(var10, DataPackConfig.DEFAULT);
        long var12 = var11 != null ? var11.worldGenSettings().seed() : 0L;
 -      WritableRegistry var15 = var9.registryOrThrow(Registry.BIOME_REGISTRY);
@@ -51,29 +55,211 @@
           var14 = new FixedBiomeSource((Biome)var15.getOrThrow(Biomes.PLAINS));
        } else {
           var14 = new OverworldBiomeSource(var12, false, false, var15);
-@@ -126,11 +131,11 @@
-                               if (var16 == null) {
-                                  LOGGER.warn((String)"Failed to fetch input stream for chunk {}", (Object)var14);
-                                  continue;
-                               }
+@@ -103,129 +108,120 @@
+    private static void convertRegion(RegistryAccess.RegistryHolder var0, File var1, File var2, BiomeSource var3, int var4, int var5, ProgressListener var6) {
+       String var7 = var2.getName();
+ 
+       try {
+          RegionFile var8 = new RegionFile(var2, var1, true);
+-         Throwable var9 = null;
+ 
+          try {
+-            RegionFile var10 = new RegionFile(new File(var1, var7.substring(0, var7.length() - ".mcr".length()) + ".mca"), var1, true);
+-            Throwable var11 = null;
++            String var10005 = var7.substring(0, var7.length() - ".mcr".length());
++            RegionFile var9 = new RegionFile(new File(var1, var10005 + ".mca"), var1, true);
+ 
+             try {
+-               for(int var12 = 0; var12 < 32; ++var12) {
+-                  int var13;
+-                  for(var13 = 0; var13 < 32; ++var13) {
+-                     ChunkPos var14 = new ChunkPos(var12, var13);
+-                     if (var8.hasChunk(var14) && !var10.hasChunk(var14)) {
+-                        CompoundTag var15;
++               for(int var10 = 0; var10 < 32; ++var10) {
++                  int var11;
++                  for(var11 = 0; var11 < 32; ++var11) {
++                     ChunkPos var12 = new ChunkPos(var10, var11);
++                     if (var8.hasChunk(var12) && !var9.hasChunk(var12)) {
++                        CompoundTag var13;
+                         try {
+-                           DataInputStream var16 = var8.getChunkDataInputStream(var14);
+-                           Throwable var17 = null;
++                           label141: {
++                              DataInputStream var14 = var8.getChunkDataInputStream(var12);
+ 
+-                           try {
+-                              if (var16 == null) {
+-                                 LOGGER.warn((String)"Failed to fetch input stream for chunk {}", (Object)var14);
+-                                 continue;
+-                              }
++                              label142: {
++                                 try {
++                                    if (var14 == null) {
++                                       LOGGER.warn((String)"Failed to fetch input stream for chunk {}", (Object)var12);
++                                       break label142;
++                                    }
  
 -                              var15 = NbtIo.read(var16);
-+                              var15 = NbtIo.read((DataInput)var16);
-                            } catch (Throwable var105) {
-                               var17 = var105;
-                               throw var105;
-                            } finally {
-                               if (var16 != null) {
-@@ -159,11 +164,11 @@
-                         OldChunkStorage.convertToAnvilFormat(var0, var115, var19, var3);
-                         DataOutputStream var20 = var10.getChunkDataOutputStream(var14);
-                         Throwable var21 = null;
+-                           } catch (Throwable var105) {
+-                              var17 = var105;
+-                              throw var105;
+-                           } finally {
+-                              if (var16 != null) {
+-                                 if (var17 != null) {
+-                                    try {
+-                                       var16.close();
+-                                    } catch (Throwable var102) {
+-                                       var17.addSuppressed(var102);
++                                    var13 = NbtIo.read((DataInput)var14);
++                                 } catch (Throwable var26) {
++                                    if (var14 != null) {
++                                       try {
++                                          var14.close();
++                                       } catch (Throwable var24) {
++                                          var26.addSuppressed(var24);
++                                       }
+                                     }
+-                                 } else {
+-                                    var16.close();
++
++                                    throw var26;
+                                  }
++
++                                 if (var14 != null) {
++                                    var14.close();
++                                 }
++                                 break label141;
+                               }
+ 
++                              if (var14 != null) {
++                                 var14.close();
++                              }
++                              continue;
+                            }
+-                        } catch (IOException var107) {
+-                           LOGGER.warn((String)"Failed to read data for chunk {}", (Object)var14, (Object)var107);
++                        } catch (IOException var27) {
++                           LOGGER.warn((String)"Failed to read data for chunk {}", (Object)var12, (Object)var27);
+                            continue;
+                         }
+ 
+-                        CompoundTag var114 = var15.getCompound("Level");
+-                        OldChunkStorage.OldLevelChunk var115 = OldChunkStorage.load(var114);
+-                        CompoundTag var18 = new CompoundTag();
+-                        CompoundTag var19 = new CompoundTag();
+-                        var18.put("Level", var19);
+-                        OldChunkStorage.convertToAnvilFormat(var0, var115, var19, var3);
+-                        DataOutputStream var20 = var10.getChunkDataOutputStream(var14);
+-                        Throwable var21 = null;
++                        CompoundTag var32 = var13.getCompound("Level");
++                        OldChunkStorage.OldLevelChunk var15 = OldChunkStorage.load(var32);
++                        CompoundTag var16 = new CompoundTag();
++                        CompoundTag var17 = new CompoundTag();
++                        var16.put("Level", var17);
++                        OldChunkStorage.convertToAnvilFormat(var0, var15, var17, var3);
++                        DataOutputStream var18 = var9.getChunkDataOutputStream(var12);
  
                          try {
 -                           NbtIo.write(var18, var20);
-+                           NbtIo.write(var18, (DataOutput)var20);
-                         } catch (Throwable var103) {
-                            var21 = var103;
-                            throw var103;
-                         } finally {
-                            if (var20 != null) {
+-                        } catch (Throwable var103) {
+-                           var21 = var103;
+-                           throw var103;
+-                        } finally {
+-                           if (var20 != null) {
+-                              if (var21 != null) {
+-                                 try {
+-                                    var20.close();
+-                                 } catch (Throwable var101) {
+-                                    var21.addSuppressed(var101);
+-                                 }
+-                              } else {
+-                                 var20.close();
++                           NbtIo.write(var16, (DataOutput)var18);
++                        } catch (Throwable var25) {
++                           if (var18 != null) {
++                              try {
++                                 var18.close();
++                              } catch (Throwable var23) {
++                                 var25.addSuppressed(var23);
+                               }
+                            }
+ 
++                           throw var25;
+                         }
++
++                        if (var18 != null) {
++                           var18.close();
++                        }
+                      }
+                   }
+ 
+-                  var13 = (int)Math.round(100.0D * (double)(var4 * 1024) / (double)(var5 * 1024));
+-                  int var113 = (int)Math.round(100.0D * (double)((var12 + 1) * 32 + var4 * 1024) / (double)(var5 * 1024));
+-                  if (var113 > var13) {
+-                     var6.progressStagePercentage(var113);
++                  var11 = (int)Math.round(100.0D * (double)(var4 * 1024) / (double)(var5 * 1024));
++                  int var31 = (int)Math.round(100.0D * (double)((var10 + 1) * 32 + var4 * 1024) / (double)(var5 * 1024));
++                  if (var31 > var11) {
++                     var6.progressStagePercentage(var31);
+                   }
+                }
+-            } catch (Throwable var108) {
+-               var11 = var108;
+-               throw var108;
+-            } finally {
+-               if (var10 != null) {
+-                  if (var11 != null) {
+-                     try {
+-                        var10.close();
+-                     } catch (Throwable var100) {
+-                        var11.addSuppressed(var100);
+-                     }
+-                  } else {
+-                     var10.close();
+-                  }
++            } catch (Throwable var28) {
++               try {
++                  var9.close();
++               } catch (Throwable var22) {
++                  var28.addSuppressed(var22);
+                }
+ 
++               throw var28;
+             }
+-         } catch (Throwable var110) {
+-            var9 = var110;
+-            throw var110;
+-         } finally {
+-            if (var8 != null) {
+-               if (var9 != null) {
+-                  try {
+-                     var8.close();
+-                  } catch (Throwable var99) {
+-                     var9.addSuppressed(var99);
+-                  }
+-               } else {
+-                  var8.close();
+-               }
++
++            var9.close();
++         } catch (Throwable var29) {
++            try {
++               var8.close();
++            } catch (Throwable var21) {
++               var29.addSuppressed(var21);
+             }
+ 
++            throw var29;
+          }
+-      } catch (IOException var112) {
+-         LOGGER.error((String)"Failed to upgrade region file {}", (Object)var2, (Object)var112);
++
++         var8.close();
++      } catch (IOException var30) {
++         LOGGER.error((String)"Failed to upgrade region file {}", (Object)var2, (Object)var30);
+       }
+ 
+    }
+ 
+    private static void addRegionFiles(File var0, Collection<File> var1) {

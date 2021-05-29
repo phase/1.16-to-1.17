@@ -185,7 +185,7 @@
           var6 = 10;
           if (!this.level.isClientSide && this.isTamed() && this.getAge() == 0 && !this.isInLove()) {
              var3 = true;
-@@ -461,10 +474,11 @@
+@@ -461,21 +474,22 @@
           }
        }
  
@@ -197,7 +197,68 @@
        return var3;
     }
  
-@@ -764,11 +778,11 @@
+    protected void doPlayerRide(Player var1) {
+       this.setEating(false);
+       this.setStanding(false);
+       if (!this.level.isClientSide) {
+-         var1.yRot = this.yRot;
+-         var1.xRot = this.xRot;
++         var1.setYRot(this.getYRot());
++         var1.setXRot(this.getXRot());
+          var1.startRiding(this);
+       }
+ 
+    }
+ 
+@@ -663,15 +677,15 @@
+ 
+    public void travel(Vec3 var1) {
+       if (this.isAlive()) {
+          if (this.isVehicle() && this.canBeControlledByRider() && this.isSaddled()) {
+             LivingEntity var2 = (LivingEntity)this.getControllingPassenger();
+-            this.yRot = var2.yRot;
+-            this.yRotO = this.yRot;
+-            this.xRot = var2.xRot * 0.5F;
+-            this.setRot(this.yRot, this.xRot);
+-            this.yBodyRot = this.yRot;
++            this.setYRot(var2.getYRot());
++            this.yRotO = this.getYRot();
++            this.setXRot(var2.getXRot() * 0.5F);
++            this.setRot(this.getYRot(), this.getXRot());
++            this.yBodyRot = this.getYRot();
+             this.yHeadRot = this.yBodyRot;
+             float var3 = var2.xxa * 0.5F;
+             float var4 = var2.zza;
+             if (var4 <= 0.0F) {
+                var4 *= 0.25F;
+@@ -695,12 +709,12 @@
+                Vec3 var9 = this.getDeltaMovement();
+                this.setDeltaMovement(var9.x, var7, var9.z);
+                this.setIsJumping(true);
+                this.hasImpulse = true;
+                if (var4 > 0.0F) {
+-                  float var10 = Mth.sin(this.yRot * 0.017453292F);
+-                  float var11 = Mth.cos(this.yRot * 0.017453292F);
++                  float var10 = Mth.sin(this.getYRot() * 0.017453292F);
++                  float var11 = Mth.cos(this.getYRot() * 0.017453292F);
+                   this.setDeltaMovement(this.getDeltaMovement().add((double)(-0.4F * var10 * this.playerJumpPendingScale), 0.0D, (double)(0.4F * var11 * this.playerJumpPendingScale)));
+                }
+ 
+                this.playerJumpPendingScale = 0.0F;
+             }
+@@ -717,10 +731,11 @@
+                this.playerJumpPendingScale = 0.0F;
+                this.setIsJumping(false);
+             }
+ 
+             this.calculateEntityAnimation(this, false);
++            this.tryCheckInsideBlocks();
+          } else {
+             this.flyingSpeed = 0.02F;
+             super.travel(var1);
+          }
+       }
+@@ -764,11 +779,11 @@
           this.setOwnerUUID(var2);
        }
  
@@ -210,7 +271,7 @@
        }
  
        this.updateContainerEquipment();
-@@ -781,15 +795,15 @@
+@@ -781,15 +796,15 @@
     protected boolean canParent() {
        return !this.isVehicle() && !this.isPassenger() && this.isTamed() && !this.isBaby() && this.getHealth() >= this.getMaxHealth() && this.isInLove();
     }
@@ -228,7 +289,7 @@
        double var5 = this.getAttributeBaseValue(Attributes.JUMP_STRENGTH) + var1.getAttributeBaseValue(Attributes.JUMP_STRENGTH) + this.generateRandomJumpStrength();
        var2.getAttribute(Attributes.JUMP_STRENGTH).setBaseValue(var5 / 3.0D);
        double var7 = this.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) + var1.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) + this.generateRandomSpeed();
-@@ -798,10 +812,40 @@
+@@ -798,10 +813,40 @@
  
     public boolean canBeControlledByRider() {
        return this.getControllingPassenger() instanceof LivingEntity;
@@ -269,7 +330,7 @@
     }
  
     public void handleStartJump(int var1) {
-@@ -811,10 +855,33 @@
+@@ -811,10 +856,33 @@
     }
  
     public void handleStopJump() {
@@ -303,7 +364,7 @@
        if (var1 instanceof Mob) {
           Mob var2 = (Mob)var1;
           this.yBodyRot = var2.yBodyRot;
-@@ -863,36 +930,55 @@
+@@ -863,36 +931,55 @@
  
     public boolean isArmor(ItemStack var1) {
        return false;
@@ -378,7 +439,26 @@
     @Nullable
     private Vec3 getDismountLocationInDirection(Vec3 var1, LivingEntity var2) {
        double var3 = this.getX() + var1.x;
-@@ -947,17 +1033,21 @@
+@@ -930,16 +1017,16 @@
+ 
+       return null;
+    }
+ 
+    public Vec3 getDismountLocationForPassenger(LivingEntity var1) {
+-      Vec3 var2 = getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), this.yRot + (var1.getMainArm() == HumanoidArm.RIGHT ? 90.0F : -90.0F));
++      Vec3 var2 = getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), this.getYRot() + (var1.getMainArm() == HumanoidArm.RIGHT ? 90.0F : -90.0F));
+       Vec3 var3 = this.getDismountLocationInDirection(var2, var1);
+       if (var3 != null) {
+          return var3;
+       } else {
+-         Vec3 var4 = getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), this.yRot + (var1.getMainArm() == HumanoidArm.LEFT ? 90.0F : -90.0F));
++         Vec3 var4 = getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), this.getYRot() + (var1.getMainArm() == HumanoidArm.LEFT ? 90.0F : -90.0F));
+          Vec3 var5 = this.getDismountLocationInDirection(var4, var1);
+          return var5 != null ? var5 : this.position();
+       }
+    }
+ 
+@@ -947,19 +1034,23 @@
     }
  
     @Nullable
@@ -397,7 +477,10 @@
 +   }
 +
     static {
-       MOMMY_TARGETING = (new TargetingConditions()).range(16.0D).allowInvulnerable().allowSameTeam().allowUnseeable().selector(PARENT_HORSE_SELECTOR);
+-      MOMMY_TARGETING = (new TargetingConditions()).range(16.0D).allowInvulnerable().allowSameTeam().allowUnseeable().selector(PARENT_HORSE_SELECTOR);
++      MOMMY_TARGETING = TargetingConditions.forNonCombat().range(16.0D).ignoreLineOfSight().selector(PARENT_HORSE_SELECTOR);
        FOOD_ITEMS = Ingredient.of(Items.WHEAT, Items.SUGAR, Blocks.HAY_BLOCK.asItem(), Items.APPLE, Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE);
        DATA_ID_FLAGS = SynchedEntityData.defineId(AbstractHorse.class, EntityDataSerializers.BYTE);
        DATA_ID_OWNER_UUID = SynchedEntityData.defineId(AbstractHorse.class, EntityDataSerializers.OPTIONAL_UUID);
+    }
+ }

@@ -23,7 +23,124 @@
        return new TranslatableComponent("argument.entity.selector.unknown", new Object[]{var0});
     });
     public static final SimpleCommandExceptionType ERROR_SELECTORS_NOT_ALLOWED = new SimpleCommandExceptionType(new TranslatableComponent("argument.entity.selector.not_allowed"));
-@@ -439,10 +451,14 @@
+@@ -61,11 +73,11 @@
+    private final StringReader reader;
+    private final boolean allowSelectors;
+    private int maxResults;
+    private boolean includesEntities;
+    private boolean worldLimited;
+-   private MinMaxBounds.Floats distance;
++   private MinMaxBounds.Doubles distance;
+    private MinMaxBounds.Ints level;
+    @Nullable
+    private Double x;
+    @Nullable
+    private Double y;
+@@ -106,11 +118,11 @@
+    public EntitySelectorParser(StringReader var1) {
+       this(var1, true);
+    }
+ 
+    public EntitySelectorParser(StringReader var1, boolean var2) {
+-      this.distance = MinMaxBounds.Floats.ANY;
++      this.distance = MinMaxBounds.Doubles.ANY;
+       this.level = MinMaxBounds.Ints.ANY;
+       this.rotX = WrappedMinMaxBounds.ANY;
+       this.rotY = WrappedMinMaxBounds.ANY;
+       this.predicate = (var0) -> {
+          return true;
+@@ -123,31 +135,31 @@
+ 
+    public EntitySelector getSelector() {
+       AABB var1;
+       if (this.deltaX == null && this.deltaY == null && this.deltaZ == null) {
+          if (this.distance.getMax() != null) {
+-            float var2 = (Float)this.distance.getMax();
+-            var1 = new AABB((double)(-var2), (double)(-var2), (double)(-var2), (double)(var2 + 1.0F), (double)(var2 + 1.0F), (double)(var2 + 1.0F));
++            double var2 = (Double)this.distance.getMax();
++            var1 = new AABB(-var2, -var2, -var2, var2 + 1.0D, var2 + 1.0D, var2 + 1.0D);
+          } else {
+             var1 = null;
+          }
+       } else {
+          var1 = this.createAabb(this.deltaX == null ? 0.0D : this.deltaX, this.deltaY == null ? 0.0D : this.deltaY, this.deltaZ == null ? 0.0D : this.deltaZ);
+       }
+ 
+-      Function var3;
++      Function var4;
+       if (this.x == null && this.y == null && this.z == null) {
+-         var3 = (var0) -> {
++         var4 = (var0) -> {
+             return var0;
+          };
+       } else {
+-         var3 = (var1x) -> {
++         var4 = (var1x) -> {
+             return new Vec3(this.x == null ? var1x.x : this.x, this.y == null ? var1x.y : this.y, this.z == null ? var1x.z : this.z);
+          };
+       }
+ 
+-      return new EntitySelector(this.maxResults, this.includesEntities, this.worldLimited, this.predicate, this.distance, var3, var1, this.order, this.currentEntity, this.playerName, this.entityUUID, this.type, this.usesSelectors);
++      return new EntitySelector(this.maxResults, this.includesEntities, this.worldLimited, this.predicate, this.distance, var4, var1, this.order, this.currentEntity, this.playerName, this.entityUUID, this.type, this.usesSelectors);
+    }
+ 
+    private AABB createAabb(double var1, double var3, double var5) {
+       boolean var7 = var1 < 0.0D;
+       boolean var8 = var3 < 0.0D;
+@@ -161,19 +173,15 @@
+       return new AABB(var10, var12, var14, var16, var18, var20);
+    }
+ 
+    private void finalizePredicates() {
+       if (this.rotX != WrappedMinMaxBounds.ANY) {
+-         this.predicate = this.predicate.and(this.createRotationPredicate(this.rotX, (var0) -> {
+-            return (double)var0.xRot;
+-         }));
++         this.predicate = this.predicate.and(this.createRotationPredicate(this.rotX, Entity::getXRot));
+       }
+ 
+       if (this.rotY != WrappedMinMaxBounds.ANY) {
+-         this.predicate = this.predicate.and(this.createRotationPredicate(this.rotY, (var0) -> {
+-            return (double)var0.yRot;
+-         }));
++         this.predicate = this.predicate.and(this.createRotationPredicate(this.rotY, Entity::getYRot));
+       }
+ 
+       if (!this.level.isAny()) {
+          this.predicate = this.predicate.and((var1) -> {
+             return !(var1 instanceof ServerPlayer) ? false : this.level.matches(((ServerPlayer)var1).experienceLevel);
+@@ -223,11 +231,11 @@
+             this.includesEntities = true;
+             this.currentEntity = true;
+          } else {
+             if (var2 != 'e') {
+                this.reader.setCursor(var1);
+-               throw ERROR_UNKNOWN_SELECTOR_TYPE.createWithContext(this.reader, '@' + String.valueOf(var2));
++               throw ERROR_UNKNOWN_SELECTOR_TYPE.createWithContext(this.reader, "@" + String.valueOf(var2));
+             }
+ 
+             this.maxResults = Integer.MAX_VALUE;
+             this.includesEntities = true;
+             this.order = ORDER_ARBITRARY;
+@@ -345,15 +353,15 @@
+ 
+    public void setWorldLimited() {
+       this.worldLimited = true;
+    }
+ 
+-   public MinMaxBounds.Floats getDistance() {
++   public MinMaxBounds.Doubles getDistance() {
+       return this.distance;
+    }
+ 
+-   public void setDistance(MinMaxBounds.Floats var1) {
++   public void setDistance(MinMaxBounds.Doubles var1) {
+       this.distance = var1;
+    }
+ 
+    public MinMaxBounds.Ints getLevel() {
+       return this.level;
+@@ -439,10 +447,14 @@
  
     public void setIncludesEntities(boolean var1) {
        this.includesEntities = var1;
@@ -38,7 +155,7 @@
     }
  
     public EntitySelector parse() throws CommandSyntaxException {
-@@ -513,10 +529,15 @@
+@@ -513,10 +525,15 @@
        var1.suggest(String.valueOf(','));
        var1.suggest(String.valueOf(']'));
        return var1.buildFuture();
@@ -54,7 +171,7 @@
     }
  
     public void setSuggestions(BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> var1) {
-@@ -581,10 +602,14 @@
+@@ -581,10 +598,14 @@
  
     public void setHasTeamEquals(boolean var1) {
        this.hasTeamEquals = var1;

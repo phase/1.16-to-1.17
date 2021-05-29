@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/ai/behavior/SocializeAtBell.java
 +++ net/minecraft/world/entity/ai/behavior/SocializeAtBell.java
-@@ -11,10 +11,12 @@
+@@ -11,25 +11,27 @@
  import net.minecraft.world.entity.ai.memory.MemoryModuleType;
  import net.minecraft.world.entity.ai.memory.MemoryStatus;
  import net.minecraft.world.entity.ai.memory.WalkTarget;
@@ -9,7 +9,25 @@
 +   private static final float SPEED_MODIFIER = 0.3F;
 +
     public SocializeAtBell() {
-       super(ImmutableMap.of(MemoryModuleType.WALK_TARGET, MemoryStatus.REGISTERED, MemoryModuleType.LOOK_TARGET, MemoryStatus.REGISTERED, MemoryModuleType.MEETING_POINT, MemoryStatus.VALUE_PRESENT, MemoryModuleType.VISIBLE_LIVING_ENTITIES, MemoryStatus.VALUE_PRESENT, MemoryModuleType.INTERACTION_TARGET, MemoryStatus.VALUE_ABSENT));
+-      super(ImmutableMap.of(MemoryModuleType.WALK_TARGET, MemoryStatus.REGISTERED, MemoryModuleType.LOOK_TARGET, MemoryStatus.REGISTERED, MemoryModuleType.MEETING_POINT, MemoryStatus.VALUE_PRESENT, MemoryModuleType.VISIBLE_LIVING_ENTITIES, MemoryStatus.VALUE_PRESENT, MemoryModuleType.INTERACTION_TARGET, MemoryStatus.VALUE_ABSENT));
++      super(ImmutableMap.of(MemoryModuleType.WALK_TARGET, MemoryStatus.REGISTERED, MemoryModuleType.LOOK_TARGET, MemoryStatus.REGISTERED, MemoryModuleType.MEETING_POINT, MemoryStatus.VALUE_PRESENT, MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES, MemoryStatus.VALUE_PRESENT, MemoryModuleType.INTERACTION_TARGET, MemoryStatus.VALUE_ABSENT));
     }
  
     protected boolean checkExtraStartConditions(ServerLevel var1, LivingEntity var2) {
+       Brain var3 = var2.getBrain();
+       Optional var4 = var3.getMemory(MemoryModuleType.MEETING_POINT);
+-      return var1.getRandom().nextInt(100) == 0 && var4.isPresent() && var1.dimension() == ((GlobalPos)var4.get()).dimension() && ((GlobalPos)var4.get()).pos().closerThan(var2.position(), 4.0D) && ((List)var3.getMemory(MemoryModuleType.VISIBLE_LIVING_ENTITIES).get()).stream().anyMatch((var0) -> {
++      return var1.getRandom().nextInt(100) == 0 && var4.isPresent() && var1.dimension() == ((GlobalPos)var4.get()).dimension() && ((GlobalPos)var4.get()).pos().closerThan(var2.position(), 4.0D) && ((List)var3.getMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES).get()).stream().anyMatch((var0) -> {
+          return EntityType.VILLAGER.equals(var0.getType());
+       });
+    }
+ 
+    protected void start(ServerLevel var1, LivingEntity var2, long var3) {
+       Brain var5 = var2.getBrain();
+-      var5.getMemory(MemoryModuleType.VISIBLE_LIVING_ENTITIES).ifPresent((var2x) -> {
++      var5.getMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES).ifPresent((var2x) -> {
+          var2x.stream().filter((var0) -> {
+             return EntityType.VILLAGER.equals(var0.getType());
+          }).filter((var1) -> {
+             return var1.distanceToSqr(var2) <= 32.0D;
+          }).findFirst().ifPresent((var1) -> {

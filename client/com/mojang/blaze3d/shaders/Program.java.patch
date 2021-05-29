@@ -1,6 +1,6 @@
 --- com/mojang/blaze3d/shaders/Program.java
 +++ com/mojang/blaze3d/shaders/Program.java
-@@ -1,68 +1,77 @@
+@@ -1,68 +1,85 @@
  package com.mojang.blaze3d.shaders;
  
  import com.google.common.collect.Maps;
@@ -12,13 +12,17 @@
  import java.io.InputStream;
  import java.util.Map;
  import org.apache.commons.lang3.StringUtils;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
  
  public class Program {
++   private static final Logger LOGGER = LogManager.getLogger();
 +   private static final int MAX_LOG_LENGTH = 32768;
     private final Program.Type type;
     private final String name;
-    private final int id;
+-   private final int id;
 -   private int references;
++   private int id;
  
 -   private Program(Program.Type var1, int var2, String var3) {
 +   protected Program(Program.Type var1, int var2, String var3) {
@@ -36,15 +40,18 @@
     }
  
     public void close() {
-       RenderSystem.assertThread(RenderSystem::isOnRenderThread);
+-      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
 -      --this.references;
 -      if (this.references <= 0) {
--         GlStateManager.glDeleteShader(this.id);
--         this.type.getPrograms().remove(this.name);
--      }
++      if (this.id == -1) {
++         LOGGER.warn("Double closing {} program: {}", this.type, this.name);
++      } else {
++         RenderSystem.assertThread(RenderSystem::isOnRenderThread);
+          GlStateManager.glDeleteShader(this.id);
++         this.id = -1;
+          this.type.getPrograms().remove(this.name);
+       }
 -
-+      GlStateManager.glDeleteShader(this.id);
-+      this.type.getPrograms().remove(this.name);
     }
  
     public String getName() {
@@ -99,3 +106,16 @@
        FRAGMENT("fragment", ".fsh", 35632);
  
        private final String name;
+@@ -82,11 +99,11 @@
+ 
+       public String getExtension() {
+          return this.extension;
+       }
+ 
+-      private int getGlType() {
++      int getGlType() {
+          return this.glType;
+       }
+ 
+       public Map<String, Program> getPrograms() {
+          return this.programs;

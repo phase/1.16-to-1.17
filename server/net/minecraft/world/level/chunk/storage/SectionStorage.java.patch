@@ -1,6 +1,18 @@
 --- net/minecraft/world/level/chunk/storage/SectionStorage.java
 +++ net/minecraft/world/level/chunk/storage/SectionStorage.java
-@@ -25,29 +25,32 @@
+@@ -13,10 +13,11 @@
+ import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
+ import java.io.File;
+ import java.io.IOException;
+ import java.util.HashMap;
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.Optional;
+ import java.util.function.BooleanSupplier;
+ import java.util.function.Function;
+ import javax.annotation.Nullable;
+ import net.minecraft.SharedConstants;
+@@ -25,29 +26,32 @@
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.NbtOps;
  import net.minecraft.nbt.Tag;
@@ -35,7 +47,7 @@
  
     protected void tick(BooleanSupplier var1) {
        while(!this.dirty.isEmpty() && var1.getAsBoolean()) {
-@@ -61,43 +64,47 @@
+@@ -61,43 +65,47 @@
     protected Optional<R> get(long var1) {
        return (Optional)this.storage.get(var1);
     }
@@ -102,7 +114,7 @@
  
     private void readColumn(ChunkPos var1) {
        this.readColumn(var1, NbtOps.INSTANCE, this.tryRead(var1));
-@@ -113,23 +120,23 @@
+@@ -113,29 +121,29 @@
        }
     }
  
@@ -130,7 +142,14 @@
                    this.setDirty(var11);
                 })).parse(var3x);
                 Logger var10001 = LOGGER;
-@@ -161,12 +168,12 @@
+-               var10001.getClass();
++               Objects.requireNonNull(var10001);
+                return var10000.resultOrPartial(var10001::error);
+             });
+             this.storage.put(var11, var13);
+             var13.ifPresent((var4x) -> {
+                this.onSectionLoad(var11);
+@@ -161,30 +169,34 @@
     }
  
     private <T> Dynamic<T> writeColumn(ChunkPos var1, DynamicOps<T> var2) {
@@ -145,7 +164,15 @@
           if (var7 != null && var7.isPresent()) {
              DataResult var8 = ((Codec)this.codec.apply(() -> {
                 this.setDirty(var5);
-@@ -181,10 +188,14 @@
+             })).encodeStart(var2, var7.get());
+             String var9 = Integer.toString(var4);
+             Logger var10001 = LOGGER;
+-            var10001.getClass();
++            Objects.requireNonNull(var10001);
+             var8.resultOrPartial(var10001::error).ifPresent((var3x) -> {
+                var3.put(var2.createString(var9), var3x);
+             });
+          }
        }
  
        return new Dynamic(var2, var2.createMap((Map)ImmutableMap.of(var2.createString("Sections"), var2.createMap((Map)var3), var2.createString("DataVersion"), var2.createInt(SharedConstants.getCurrentVersion().getWorldVersion()))));
@@ -160,7 +187,7 @@
  
     protected void setDirty(long var1) {
        Optional var3 = (Optional)this.storage.get(var1);
-@@ -199,12 +210,12 @@
+@@ -199,12 +211,12 @@
        return var0.get("DataVersion").asInt(1945);
     }
  

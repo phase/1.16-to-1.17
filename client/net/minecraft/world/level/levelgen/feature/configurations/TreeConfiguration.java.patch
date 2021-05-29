@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/feature/configurations/TreeConfiguration.java
 +++ net/minecraft/world/level/levelgen/feature/configurations/TreeConfiguration.java
-@@ -2,110 +2,106 @@
+@@ -2,110 +2,112 @@
  
  import com.google.common.collect.ImmutableList;
  import com.mojang.serialization.Codec;
@@ -27,6 +27,8 @@
           return var0x.trunkPlacer;
 +      }), BlockStateProvider.CODEC.fieldOf("foliage_provider").forGetter((var0x) -> {
 +         return var0x.foliageProvider;
++      }), BlockStateProvider.CODEC.fieldOf("sapling_provider").forGetter((var0x) -> {
++         return var0x.saplingProvider;
 +      }), FoliagePlacer.CODEC.fieldOf("foliage_placer").forGetter((var0x) -> {
 +         return var0x.foliagePlacer;
 +      }), BlockStateProvider.CODEC.fieldOf("dirt_provider").forGetter((var0x) -> {
@@ -53,6 +55,7 @@
 +   public final BlockStateProvider dirtProvider;
     public final TrunkPlacer trunkPlacer;
 +   public final BlockStateProvider foliageProvider;
++   public final BlockStateProvider saplingProvider;
 +   public final FoliagePlacer foliagePlacer;
     public final FeatureSize minimumSize;
 -   public final int maxWaterDepth;
@@ -62,7 +65,7 @@
 +   public final boolean forceDirt;
  
 -   protected TreeConfiguration(BlockStateProvider var1, BlockStateProvider var2, FoliagePlacer var3, TrunkPlacer var4, FeatureSize var5, List<TreeDecorator> var6, int var7, boolean var8, Heightmap.Types var9) {
-+   protected TreeConfiguration(BlockStateProvider var1, TrunkPlacer var2, BlockStateProvider var3, FoliagePlacer var4, BlockStateProvider var5, FeatureSize var6, List<TreeDecorator> var7, boolean var8, boolean var9) {
++   protected TreeConfiguration(BlockStateProvider var1, TrunkPlacer var2, BlockStateProvider var3, BlockStateProvider var4, FoliagePlacer var5, BlockStateProvider var6, FeatureSize var7, List<TreeDecorator> var8, boolean var9, boolean var10) {
        this.trunkProvider = var1;
 -      this.leavesProvider = var2;
 -      this.decorators = var6;
@@ -70,15 +73,17 @@
 -      this.minimumSize = var5;
 -      this.trunkPlacer = var4;
 -      this.maxWaterDepth = var7;
+-      this.ignoreVines = var8;
+-      this.heightmap = var9;
 +      this.trunkPlacer = var2;
 +      this.foliageProvider = var3;
-+      this.foliagePlacer = var4;
-+      this.dirtProvider = var5;
-+      this.minimumSize = var6;
-+      this.decorators = var7;
-       this.ignoreVines = var8;
--      this.heightmap = var9;
-+      this.forceDirt = var9;
++      this.foliagePlacer = var5;
++      this.dirtProvider = var6;
++      this.saplingProvider = var4;
++      this.minimumSize = var7;
++      this.decorators = var8;
++      this.ignoreVines = var9;
++      this.forceDirt = var10;
     }
  
 -   public void setFromSapling() {
@@ -87,7 +92,7 @@
 -
     public TreeConfiguration withDecorators(List<TreeDecorator> var1) {
 -      return new TreeConfiguration(this.trunkProvider, this.leavesProvider, this.foliagePlacer, this.trunkPlacer, this.minimumSize, var1, this.maxWaterDepth, this.ignoreVines, this.heightmap);
-+      return new TreeConfiguration(this.trunkProvider, this.trunkPlacer, this.foliageProvider, this.foliagePlacer, this.dirtProvider, this.minimumSize, var1, this.ignoreVines, this.forceDirt);
++      return new TreeConfiguration(this.trunkProvider, this.trunkPlacer, this.foliageProvider, this.saplingProvider, this.foliagePlacer, this.dirtProvider, this.minimumSize, var1, this.ignoreVines, this.forceDirt);
     }
  
     public static class TreeConfigurationBuilder {
@@ -96,6 +101,7 @@
 -      private final FoliagePlacer foliagePlacer;
        private final TrunkPlacer trunkPlacer;
 +      public final BlockStateProvider foliageProvider;
++      public final BlockStateProvider saplingProvider;
 +      private final FoliagePlacer foliagePlacer;
 +      private BlockStateProvider dirtProvider;
        private final FeatureSize minimumSize;
@@ -107,16 +113,18 @@
  
 -      public TreeConfigurationBuilder(BlockStateProvider var1, BlockStateProvider var2, FoliagePlacer var3, TrunkPlacer var4, FeatureSize var5) {
 -         this.heightmap = Heightmap.Types.OCEAN_FLOOR;
-+      public TreeConfigurationBuilder(BlockStateProvider var1, TrunkPlacer var2, BlockStateProvider var3, FoliagePlacer var4, FeatureSize var5) {
++      public TreeConfigurationBuilder(BlockStateProvider var1, TrunkPlacer var2, BlockStateProvider var3, BlockStateProvider var4, FoliagePlacer var5, FeatureSize var6) {
           this.trunkProvider = var1;
 -         this.leavesProvider = var2;
 -         this.foliagePlacer = var3;
 -         this.trunkPlacer = var4;
+-         this.minimumSize = var5;
 +         this.trunkPlacer = var2;
 +         this.foliageProvider = var3;
++         this.saplingProvider = var4;
 +         this.dirtProvider = new SimpleStateProvider(Blocks.DIRT.defaultBlockState());
-+         this.foliagePlacer = var4;
-          this.minimumSize = var5;
++         this.foliagePlacer = var5;
++         this.minimumSize = var6;
        }
  
 -      public TreeConfiguration.TreeConfigurationBuilder decorators(List<TreeDecorator> var1) {
@@ -147,7 +155,7 @@
  
        public TreeConfiguration build() {
 -         return new TreeConfiguration(this.trunkProvider, this.leavesProvider, this.foliagePlacer, this.trunkPlacer, this.minimumSize, this.decorators, this.maxWaterDepth, this.ignoreVines, this.heightmap);
-+         return new TreeConfiguration(this.trunkProvider, this.trunkPlacer, this.foliageProvider, this.foliagePlacer, this.dirtProvider, this.minimumSize, this.decorators, this.ignoreVines, this.forceDirt);
++         return new TreeConfiguration(this.trunkProvider, this.trunkPlacer, this.foliageProvider, this.saplingProvider, this.foliagePlacer, this.dirtProvider, this.minimumSize, this.decorators, this.ignoreVines, this.forceDirt);
        }
     }
  }

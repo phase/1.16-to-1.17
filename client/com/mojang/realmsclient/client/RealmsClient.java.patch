@@ -69,7 +69,7 @@
     public static RealmsClient create() {
        Minecraft var0 = Minecraft.getInstance();
        String var1 = var0.getUser().getName();
-@@ -92,10 +132,16 @@
+@@ -92,18 +132,24 @@
        String var3 = this.url("worlds" + "/$ID".replace("$ID", String.valueOf(var1)));
        String var4 = this.execute(Request.get(var3));
        return RealmsServer.parse(var4);
@@ -86,6 +86,15 @@
        String var2 = this.execute(Request.get(var1));
        return RealmsServerPlayerLists.parse(var2);
     }
+ 
+    public RealmsServerAddress join(long var1) throws RealmsServiceException {
+-      String var3 = this.url("worlds" + "/v1/$ID/join/pc".replace("$ID", "" + var1));
++      String var3 = this.url("worlds" + "/v1/$ID/join/pc".replace("$ID", var1.makeConcatWithConstants<invokedynamic>(var1)));
+       String var4 = this.execute(Request.get(var3, 5000, 30000));
+       return RealmsServerAddress.parse(var4);
+    }
+ 
+    public void initializeWorld(long var1, String var3, String var4) throws RealmsServiceException {
 @@ -218,15 +264,15 @@
        String var3 = this.url("worlds" + "/$WORLD_ID/close".replace("$WORLD_ID", String.valueOf(var1)));
        String var4 = this.execute(Request.put(var3, ""));
@@ -129,3 +138,39 @@
           } else {
              int var3 = var1.getRetryAfterHeader();
              throw new RetryCallException(var3, var2);
+@@ -361,19 +407,10 @@
+       currentEnvironment = RealmsClient.Environment.PRODUCTION;
+       LOGGER = LogManager.getLogger();
+       GSON = new GuardedSerializer();
+    }
+ 
+-   public static enum CompatibleVersionResponse {
+-      COMPATIBLE,
+-      OUTDATED,
+-      OTHER;
+-
+-      private CompatibleVersionResponse() {
+-      }
+-   }
+-
+    public static enum Environment {
+       PRODUCTION("pc.realms.minecraft.net", "https"),
+       STAGE("pc-stage.realms.minecraft.net", "https"),
+       LOCAL("localhost:8080", "http");
+ 
+@@ -383,6 +420,15 @@
+       private Environment(String var3, String var4) {
+          this.baseUrl = var3;
+          this.protocol = var4;
+       }
+    }
++
++   public static enum CompatibleVersionResponse {
++      COMPATIBLE,
++      OUTDATED,
++      OTHER;
++
++      private CompatibleVersionResponse() {
++      }
++   }
+ }

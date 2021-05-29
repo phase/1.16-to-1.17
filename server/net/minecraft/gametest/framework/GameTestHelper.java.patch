@@ -1,11 +1,12 @@
 --- net/minecraft/gametest/framework/GameTestHelper.java
 +++ net/minecraft/gametest/framework/GameTestHelper.java
-@@ -1,9 +1,622 @@
+@@ -1,9 +1,630 @@
  package net.minecraft.gametest.framework;
  
 +import com.mojang.authlib.GameProfile;
 +import java.util.Iterator;
 +import java.util.List;
++import java.util.Objects;
 +import java.util.UUID;
 +import java.util.function.Consumer;
 +import java.util.function.Function;
@@ -93,7 +94,7 @@
 +      }
 +
 +      Vec3 var5 = this.absoluteVec(var2);
-+      var4.moveTo(var5.x, var5.y, var5.z, var4.yRot, var4.xRot);
++      var4.moveTo(var5.x, var5.y, var5.z, var4.getYRot(), var4.getXRot());
 +      var3.addFreshEntity(var4);
 +      return var4;
 +   }
@@ -226,9 +227,11 @@
 +
 +   public void assertBlockPresent(Block var1, BlockPos var2) {
 +      BlockState var3 = this.getBlockState(var2);
-+      this.assertBlock(var2, (var2x) -> {
++      Predicate var10002 = (var2x) -> {
 +         return var3.is(var1);
-+      }, "Expected " + var1.getName().getString() + ", got " + var3.getBlock().getName().getString());
++      };
++      String var10003 = var1.getName().getString();
++      this.assertBlock(var2, var10002, "Expected " + var10003 + ", got " + var3.getBlock().getName().getString());
 +   }
 +
 +   public void assertBlockNotPresent(Block var1, int var2, int var3, int var4) {
@@ -267,7 +270,8 @@
 +      this.assertBlockState(var1, (var2x) -> {
 +         return var2x.hasProperty(var2) && var2x.getValue(var2).equals(var3);
 +      }, () -> {
-+         return "Expected property " + var2.getName() + " to be " + var3;
++         String var10000 = var2.getName();
++         return "Expected property " + var10000 + " to be " + var3;
 +      });
 +   }
 +
@@ -573,7 +577,9 @@
 +
 +   public void failIfEver(Runnable var1) {
 +      LongStream.range(this.testInfo.getTick(), (long)this.testInfo.getTimeoutTicks()).forEach((var2) -> {
-+         this.testInfo.setRunAtTickTime(var2, var1::run);
++         GameTestInfo var10000 = this.testInfo;
++         Objects.requireNonNull(var1);
++         var10000.setRunAtTickTime(var2, var1::run);
 +      });
 +   }
 +
@@ -619,7 +625,9 @@
 +
 +   public void onEachTick(Runnable var1) {
 +      LongStream.range(this.testInfo.getTick(), (long)this.testInfo.getTimeoutTicks()).forEach((var2) -> {
-+         this.testInfo.setRunAtTickTime(var2, var1::run);
++         GameTestInfo var10000 = this.testInfo;
++         Objects.requireNonNull(var1);
++         var10000.setRunAtTickTime(var2, var1::run);
 +      });
 +   }
  }

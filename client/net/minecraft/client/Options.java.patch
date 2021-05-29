@@ -1,12 +1,13 @@
 --- net/minecraft/client/Options.java
 +++ net/minecraft/client/Options.java
-@@ -1,29 +1,33 @@
+@@ -1,29 +1,37 @@
  package net.minecraft.client;
  
  import com.google.common.base.Charsets;
 +import com.google.common.base.MoreObjects;
  import com.google.common.base.Splitter;
 -import com.google.common.collect.ImmutableSet;
++import com.google.common.collect.ImmutableList;
  import com.google.common.collect.Lists;
 -import com.google.common.collect.Maps;
  import com.google.common.collect.Sets;
@@ -15,6 +16,7 @@
  import com.google.gson.reflect.TypeToken;
  import com.mojang.blaze3d.platform.InputConstants;
  import com.mojang.blaze3d.platform.VideoMode;
++import com.mojang.datafixers.util.Pair;
 +import it.unimi.dsi.fastutil.objects.Object2FloatMap;
 +import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap;
  import java.io.BufferedReader;
@@ -28,18 +30,25 @@
  import java.util.LinkedHashSet;
  import java.util.List;
 -import java.util.Map;
++import java.util.Objects;
  import java.util.Set;
 +import java.util.function.Function;
 +import java.util.function.IntFunction;
 +import java.util.function.ToIntFunction;
++import java.util.stream.Collectors;
  import javax.annotation.Nullable;
  import net.minecraft.SharedConstants;
  import net.minecraft.Util;
  import net.minecraft.client.tutorial.TutorialSteps;
  import net.minecraft.nbt.CompoundTag;
-@@ -46,13 +50,21 @@
+@@ -42,17 +50,25 @@
+ import org.apache.commons.lang3.ArrayUtils;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
  public class Options {
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
     private static final Gson GSON = new Gson();
     private static final TypeToken<List<String>> RESOURCE_PACK_TYPE = new TypeToken<List<String>>() {
     };
@@ -60,7 +69,7 @@
     public CloudStatus renderClouds;
     public GraphicsStatus graphicsMode;
     public AmbientOcclusionStatus ambientOcclusion;
-@@ -76,15 +88,16 @@
+@@ -76,15 +92,16 @@
     public double chatWidth;
     public double chatHeightUnfocused;
     public double chatHeightFocused;
@@ -78,7 +87,7 @@
     public boolean rawMouseInput;
     public int glDebugVerbosity;
     public boolean autoJump;
-@@ -162,27 +175,28 @@
+@@ -162,27 +179,28 @@
        this.ambientOcclusion = AmbientOcclusionStatus.MAX;
        this.resourcePacks = Lists.newArrayList();
        this.incompatibleResourcePacks = Lists.newArrayList();
@@ -111,7 +120,7 @@
        this.rawMouseInput = true;
        this.glDebugVerbosity = 1;
        this.autoJump = true;
-@@ -265,10 +279,127 @@
+@@ -265,20 +283,136 @@
     public void setKey(KeyMapping var1, InputConstants.Key var2) {
        var1.setKey(var2);
        this.save();
@@ -158,12 +167,12 @@
 +      List var10003 = this.resourcePacks;
 +      Function var10004 = Options::readPackList;
 +      Gson var10005 = GSON;
-+      var10005.getClass();
++      Objects.requireNonNull(var10005);
 +      this.resourcePacks = (List)var1.process("resourcePacks", var10003, (Function)var10004, (Function)(var10005::toJson));
 +      var10003 = this.incompatibleResourcePacks;
 +      var10004 = Options::readPackList;
 +      var10005 = GSON;
-+      var10005.getClass();
++      Objects.requireNonNull(var10005);
 +      this.incompatibleResourcePacks = (List)var1.process("incompatibleResourcePacks", var10003, (Function)var10004, (Function)(var10005::toJson));
 +      this.lastMpIp = var1.process("lastServer", this.lastMpIp);
 +      this.languageCode = var1.process("lang", this.languageCode);
@@ -239,7 +248,17 @@
           if (!this.optionsFile.exists()) {
              return;
           }
-@@ -286,379 +417,148 @@
+ 
+          this.sourceVolumes.clear();
+          CompoundTag var1 = new CompoundTag();
+          BufferedReader var2 = Files.newReader(this.optionsFile, Charsets.UTF_8);
+-         Throwable var3 = null;
+ 
+          try {
+             var2.lines().forEach((var1x) -> {
+                try {
+                   Iterator var2 = OPTION_SPLITTER.split(var1x).iterator();
+@@ -286,379 +420,146 @@
                 } catch (Exception var3) {
                    LOGGER.warn("Skipping bad option: {}", var1x);
                 }
@@ -248,32 +267,36 @@
 -         } catch (Throwable var17) {
 -            var3 = var17;
 -            throw var17;
-+         } catch (Throwable var13) {
-+            var3 = var13;
-+            throw var13;
-          } finally {
+-         } finally {
++         } catch (Throwable var6) {
              if (var2 != null) {
-                if (var3 != null) {
-                   try {
-                      var2.close();
+-               if (var3 != null) {
+-                  try {
+-                     var2.close();
 -                  } catch (Throwable var16) {
 -                     var3.addSuppressed(var16);
-+                  } catch (Throwable var12) {
-+                     var3.addSuppressed(var12);
-                   }
-                } else {
+-                  }
+-               } else {
++               try {
                    var2.close();
++               } catch (Throwable var5) {
++                  var6.addSuppressed(var5);
                 }
              }
  
++            throw var6;
           }
  
 -         CompoundTag var21 = this.dataFix(var1);
 -         if (!var21.contains("graphicsMode") && var21.contains("fancyGraphics")) {
 -            if ("true".equals(var21.getString("fancyGraphics"))) {
-+         final CompoundTag var16 = this.dataFix(var1);
-+         if (!var16.contains("graphicsMode") && var16.contains("fancyGraphics")) {
-+            if (isTrue(var16.getString("fancyGraphics"))) {
++         if (var2 != null) {
++            var2.close();
++         }
++
++         final CompoundTag var8 = this.dataFix(var1);
++         if (!var8.contains("graphicsMode") && var8.contains("fancyGraphics")) {
++            if (isTrue(var8.getString("fancyGraphics"))) {
                 this.graphicsMode = GraphicsStatus.FANCY;
              } else {
                 this.graphicsMode = GraphicsStatus.FAST;
@@ -284,7 +307,7 @@
 +         this.processOptions(new Options.FieldAccess() {
 +            @Nullable
 +            private String getValueOrNull(String var1) {
-+               return var16.contains(var1) ? var16.getString(var1) : null;
++               return var8.contains(var1) ? var8.getString(var1) : null;
 +            }
  
 -         while(var22.hasNext()) {
@@ -675,8 +698,8 @@
 +               return var2;
              }
 +         });
-+         if (var16.contains("fullscreenResolution")) {
-+            this.fullscreenVideoModeString = var16.getString("fullscreenResolution");
++         if (var8.contains("fullscreenResolution")) {
++            this.fullscreenVideoModeString = var8.getString("fullscreenResolution");
           }
  
 +         if (this.minecraft.getWindow() != null) {
@@ -686,17 +709,17 @@
           KeyMapping.resetMapping();
 -      } catch (Exception var20) {
 -         LOGGER.error("Failed to load options", var20);
-+      } catch (Exception var15) {
-+         LOGGER.error("Failed to load options", var15);
++      } catch (Exception var7) {
++         LOGGER.error("Failed to load options", var7);
        }
  
     }
  
-+   private static boolean isTrue(String var0) {
++   static boolean isTrue(String var0) {
 +      return "true".equals(var0);
 +   }
 +
-+   private static boolean isFalse(String var0) {
++   static boolean isFalse(String var0) {
 +      return "false".equals(var0);
 +   }
 +
@@ -705,7 +728,7 @@
  
        try {
           var2 = Integer.parseInt(var1.getString("version"));
-@@ -666,156 +566,94 @@
+@@ -666,156 +567,87 @@
        }
  
        return NbtUtils.update(this.minecraft.getFixerUpper(), DataFixTypes.OPTIONS, var1, var2);
@@ -722,8 +745,8 @@
     public void save() {
        try {
 -         PrintWriter var1 = new PrintWriter(new OutputStreamWriter(new FileOutputStream(this.optionsFile), StandardCharsets.UTF_8));
+-         Throwable var2 = null;
 +         final PrintWriter var1 = new PrintWriter(new OutputStreamWriter(new FileOutputStream(this.optionsFile), StandardCharsets.UTF_8));
-          Throwable var2 = null;
  
           try {
              var1.println("version:" + SharedConstants.getCurrentVersion().getWorldVersion());
@@ -866,41 +889,44 @@
 -            for(var5 = 0; var5 < var4; ++var5) {
 -               PlayerModelPart var21 = var19[var5];
 -               var1.println("modelPart_" + var21.getId() + ":" + this.modelParts.contains(var21));
+-            }
+-         } catch (Throwable var15) {
+-            var2 = var15;
+-            throw var15;
+-         } finally {
+-            if (var1 != null) {
+-               if (var2 != null) {
+-                  try {
+-                     var1.close();
+-                  } catch (Throwable var14) {
+-                     var2.addSuppressed(var14);
+-                  }
+-               } else {
+-                  var1.close();
 +               public <T> T process(String var1x, T var2, IntFunction<T> var3, ToIntFunction<T> var4) {
 +                  this.writePrefix(var1x);
 +                  var1.println(var4.applyAsInt(var2));
 +                  return var2;
-+               }
+                }
 +            });
 +            if (this.minecraft.getWindow().getPreferredFullscreenVideoMode().isPresent()) {
 +               var1.println("fullscreenResolution:" + ((VideoMode)this.minecraft.getWindow().getPreferredFullscreenVideoMode().get()).write());
              }
--         } catch (Throwable var15) {
--            var2 = var15;
--            throw var15;
-+         } catch (Throwable var12) {
-+            var2 = var12;
-+            throw var12;
-          } finally {
-             if (var1 != null) {
-                if (var2 != null) {
-                   try {
-                      var1.close();
--                  } catch (Throwable var14) {
--                     var2.addSuppressed(var14);
-+                  } catch (Throwable var11) {
-+                     var2.addSuppressed(var11);
-                   }
-                } else {
-                   var1.close();
-                }
-             }
++         } catch (Throwable var5) {
++            try {
++               var1.close();
++            } catch (Throwable var4) {
++               var5.addSuppressed(var4);
++            }
  
++            throw var5;
           }
 -      } catch (Exception var17) {
 -         LOGGER.error("Failed to save options", var17);
-+      } catch (Exception var14) {
-+         LOGGER.error("Failed to save options", var14);
++
++         var1.close();
++      } catch (Exception var6) {
++         LOGGER.error("Failed to save options", var6);
        }
  
        this.broadcastOptions();
@@ -914,7 +940,7 @@
     public void setSoundCategoryVolume(SoundSource var1, float var2) {
        this.sourceVolumes.put(var1, var2);
        this.minecraft.getSoundManager().updateSourceVolume(var1, var2);
-@@ -828,36 +666,30 @@
+@@ -828,36 +660,30 @@
           PlayerModelPart var3;
           for(Iterator var2 = this.modelParts.iterator(); var2.hasNext(); var1 |= var3.getMask()) {
              var3 = (PlayerModelPart)var2.next();
@@ -958,7 +984,7 @@
  
     public CloudStatus getCloudsType() {
        return this.renderDistance >= 4 ? this.renderClouds : CloudStatus.OFF;
-@@ -903,6 +735,85 @@
+@@ -903,6 +729,97 @@
     }
  
     public void setCameraType(CameraType var1) {
@@ -1028,7 +1054,19 @@
 +      return var0 == HumanoidArm.LEFT ? "left" : "right";
 +   }
 +
-+   interface FieldAccess {
++   public File getFile() {
++      return this.optionsFile;
++   }
++
++   public String dumpOptionsForReport() {
++      ImmutableList var1 = ImmutableList.builder().add(Pair.of("ao", String.valueOf(this.ambientOcclusion))).add(Pair.of("biomeBlendRadius", String.valueOf(this.biomeBlendRadius))).add(Pair.of("enableVsync", String.valueOf(this.enableVsync))).add(Pair.of("entityDistanceScaling", String.valueOf(this.entityDistanceScaling))).add(Pair.of("entityShadows", String.valueOf(this.entityShadows))).add(Pair.of("forceUnicodeFont", String.valueOf(this.forceUnicodeFont))).add(Pair.of("fov", String.valueOf(this.fov))).add(Pair.of("fovEffectScale", String.valueOf(this.fovEffectScale))).add(Pair.of("fullscreen", String.valueOf(this.fullscreen))).add(Pair.of("fullscreenResolution", String.valueOf(this.fullscreenVideoModeString))).add(Pair.of("gamma", String.valueOf(this.gamma))).add(Pair.of("glDebugVerbosity", String.valueOf(this.glDebugVerbosity))).add(Pair.of("graphicsMode", String.valueOf(this.graphicsMode))).add(Pair.of("guiScale", String.valueOf(this.guiScale))).add(Pair.of("maxFps", String.valueOf(this.framerateLimit))).add(Pair.of("mipmapLevels", String.valueOf(this.mipmapLevels))).add(Pair.of("narrator", String.valueOf(this.narratorStatus))).add(Pair.of("overrideHeight", String.valueOf(this.overrideHeight))).add(Pair.of("overrideWidth", String.valueOf(this.overrideWidth))).add(Pair.of("particles", String.valueOf(this.particles))).add(Pair.of("reducedDebugInfo", String.valueOf(this.reducedDebugInfo))).add(Pair.of("renderClouds", String.valueOf(this.renderClouds))).add(Pair.of("renderDistance", String.valueOf(this.renderDistance))).add(Pair.of("resourcePacks", String.valueOf(this.resourcePacks))).add(Pair.of("screenEffectScale", String.valueOf(this.screenEffectScale))).add(Pair.of("syncChunkWrites", String.valueOf(this.syncWrites))).add(Pair.of("useNativeTransport", String.valueOf(this.useNativeTransport))).build();
++      return (String)var1.stream().map((var0) -> {
++         String var10000 = (String)var0.getFirst();
++         return var10000 + ": " + (String)var0.getSecond();
++      }).collect(Collectors.joining(System.lineSeparator()));
++   }
++
++   private interface FieldAccess {
 +      int process(String var1, int var2);
 +
 +      boolean process(String var1, boolean var2);

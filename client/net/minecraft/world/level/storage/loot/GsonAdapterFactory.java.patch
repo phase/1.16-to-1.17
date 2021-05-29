@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/storage/loot/GsonAdapterFactory.java
 +++ net/minecraft/world/level/storage/loot/GsonAdapterFactory.java
-@@ -15,15 +15,18 @@
+@@ -15,83 +15,108 @@
  import net.minecraft.core.Registry;
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.util.GsonHelper;
@@ -14,13 +14,46 @@
     }
  
 -   public interface DefaultSerializer<T> {
++   public static class Builder<E, T extends SerializerType<E>> {
++      private final Registry<T> registry;
++      private final String elementName;
++      private final String typeKey;
++      private final Function<E, T> typeGetter;
++      @Nullable
++      private Pair<T, GsonAdapterFactory.InlineSerializer<? extends E>> inlineType;
++      @Nullable
++      private T defaultType;
++
++      Builder(Registry<T> var1, String var2, String var3, Function<E, T> var4) {
++         this.registry = var1;
++         this.elementName = var2;
++         this.typeKey = var3;
++         this.typeGetter = var4;
++      }
++
++      public GsonAdapterFactory.Builder<E, T> withInlineSerializer(T var1, GsonAdapterFactory.InlineSerializer<? extends E> var2) {
++         this.inlineType = Pair.of(var1, var2);
++         return this;
++      }
++
++      public GsonAdapterFactory.Builder<E, T> withDefaultType(T var1) {
++         this.defaultType = var1;
++         return this;
++      }
++
++      public Object build() {
++         return new GsonAdapterFactory.JsonAdapter(this.registry, this.elementName, this.typeKey, this.typeGetter, this.defaultType, this.inlineType);
++      }
++   }
++
 +   public interface InlineSerializer<T> {
        JsonElement serialize(T var1, JsonSerializationContext var2);
  
        T deserialize(JsonElement var1, JsonDeserializationContext var2);
     }
  
-@@ -31,41 +34,51 @@
+-   static class JsonAdapter<E, T extends SerializerType<E>> implements JsonDeserializer<E>, JsonSerializer<E> {
++   private static class JsonAdapter<E, T extends SerializerType<E>> implements JsonDeserializer<E>, JsonSerializer<E> {
        private final Registry<T> registry;
        private final String elementName;
        private final String typeKey;
@@ -32,7 +65,7 @@
 +      private final Pair<T, GsonAdapterFactory.InlineSerializer<? extends E>> inlineType;
  
 -      private JsonAdapter(Registry<T> var1, String var2, String var3, Function<E, T> var4, @Nullable Pair<T, GsonAdapterFactory.DefaultSerializer<? extends E>> var5) {
-+      private JsonAdapter(Registry<T> var1, String var2, String var3, Function<E, T> var4, @Nullable T var5, @Nullable Pair<T, GsonAdapterFactory.InlineSerializer<? extends E>> var6) {
++      JsonAdapter(Registry<T> var1, String var2, String var3, Function<E, T> var4, @Nullable T var5, @Nullable Pair<T, GsonAdapterFactory.InlineSerializer<? extends E>> var6) {
           this.registry = var1;
           this.elementName = var2;
           this.typeKey = var3;
@@ -83,37 +116,29 @@
           } else {
              JsonObject var5 = new JsonObject();
              var5.addProperty(this.typeKey, this.registry.getKey(var4).toString());
-@@ -79,19 +92,31 @@
-       private final Registry<T> registry;
-       private final String elementName;
-       private final String typeKey;
-       private final Function<E, T> typeGetter;
-       @Nullable
--      private Pair<T, GsonAdapterFactory.DefaultSerializer<? extends E>> defaultType;
-+      private Pair<T, GsonAdapterFactory.InlineSerializer<? extends E>> inlineType;
-+      @Nullable
-+      private T defaultType;
- 
-       private Builder(Registry<T> var1, String var2, String var3, Function<E, T> var4) {
-          this.registry = var1;
-          this.elementName = var2;
-          this.typeKey = var3;
-          this.typeGetter = var4;
-       }
- 
-+      public GsonAdapterFactory.Builder<E, T> withInlineSerializer(T var1, GsonAdapterFactory.InlineSerializer<? extends E> var2) {
-+         this.inlineType = Pair.of(var1, var2);
-+         return this;
-+      }
-+
-+      public GsonAdapterFactory.Builder<E, T> withDefaultType(T var1) {
-+         this.defaultType = var1;
-+         return this;
-+      }
-+
-       public Object build() {
--         return new GsonAdapterFactory.JsonAdapter(this.registry, this.elementName, this.typeKey, this.typeGetter, this.defaultType);
-+         return new GsonAdapterFactory.JsonAdapter(this.registry, this.elementName, this.typeKey, this.typeGetter, this.defaultType, this.inlineType);
+             var4.getSerializer().serialize(var5, var1, var3);
+             return var5;
+          }
        }
     }
+-
+-   public static class Builder<E, T extends SerializerType<E>> {
+-      private final Registry<T> registry;
+-      private final String elementName;
+-      private final String typeKey;
+-      private final Function<E, T> typeGetter;
+-      @Nullable
+-      private Pair<T, GsonAdapterFactory.DefaultSerializer<? extends E>> defaultType;
+-
+-      private Builder(Registry<T> var1, String var2, String var3, Function<E, T> var4) {
+-         this.registry = var1;
+-         this.elementName = var2;
+-         this.typeKey = var3;
+-         this.typeGetter = var4;
+-      }
+-
+-      public Object build() {
+-         return new GsonAdapterFactory.JsonAdapter(this.registry, this.elementName, this.typeKey, this.typeGetter, this.defaultType);
+-      }
+-   }
  }

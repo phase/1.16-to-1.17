@@ -1,6 +1,18 @@
 --- net/minecraft/server/level/ChunkTaskPriorityQueueSorter.java
 +++ net/minecraft/server/level/ChunkTaskPriorityQueueSorter.java
-@@ -20,11 +20,11 @@
+@@ -2,10 +2,11 @@
+ 
+ import com.google.common.annotations.VisibleForTesting;
+ import com.google.common.collect.Sets;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.Optional;
+ import java.util.Set;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.Executor;
+ import java.util.function.Function;
+@@ -20,11 +21,11 @@
  import net.minecraft.util.thread.StrictQueue;
  import net.minecraft.world.level.ChunkPos;
  import org.apache.logging.log4j.LogManager;
@@ -13,7 +25,7 @@
     private final Set<ProcessorHandle<?>> sleeping;
     private final ProcessorMailbox<StrictQueue.IntRunnable> mailbox;
  
-@@ -34,10 +34,14 @@
+@@ -34,10 +35,14 @@
        }));
        this.sleeping = Sets.newHashSet((Iterable)var1);
        this.mailbox = new ProcessorMailbox(new StrictQueue.FixedPriorityQueue(4), var2, "sorter");
@@ -28,15 +40,20 @@
           return () -> {
              var0.run();
              var1x.tell(Unit.INSTANCE);
-@@ -49,10 +53,16 @@
+@@ -45,14 +50,20 @@
+       }, var1, var3);
+    }
+ 
+    public static ChunkTaskPriorityQueueSorter.Message<Runnable> message(ChunkHolder var0, Runnable var1) {
        long var10001 = var0.getPos().toLong();
-       var0.getClass();
+-      var0.getClass();
++      Objects.requireNonNull(var0);
        return message(var1, var10001, var0::getQueueLevel);
     }
  
 +   public static <T> ChunkTaskPriorityQueueSorter.Message<T> message(ChunkHolder var0, Function<ProcessorHandle<Unit>, T> var1) {
 +      long var10001 = var0.getPos().toLong();
-+      var0.getClass();
++      Objects.requireNonNull(var0);
 +      return message(var1, var10001, var0::getQueueLevel);
 +   }
 +
@@ -45,3 +62,73 @@
     }
  
     public <T> ProcessorHandle<ChunkTaskPriorityQueueSorter.Message<T>> getProcessor(ProcessorHandle<T> var1, boolean var2) {
+@@ -119,10 +130,11 @@
+          Stream var3 = var1.pop();
+          if (var3 == null) {
+             this.sleeping.add(var2);
+          } else {
+             Util.sequence((List)var3.map((var1x) -> {
++               Objects.requireNonNull(var2);
+                return (CompletableFuture)var1x.map(var2::ask, (var0) -> {
+                   var0.run();
+                   return CompletableFuture.completedFuture(Unit.INSTANCE);
+                });
+             }).collect(Collectors.toList())).thenAccept((var3x) -> {
+@@ -142,40 +154,42 @@
+       }
+    }
+ 
+    @VisibleForTesting
+    public String getDebugStatus() {
+-      return (String)this.queues.entrySet().stream().map((var0) -> {
+-         return ((ProcessorHandle)var0.getKey()).name() + "=[" + (String)((ChunkTaskPriorityQueue)var0.getValue()).getAcquired().stream().map((var0x) -> {
++      String var10000 = (String)this.queues.entrySet().stream().map((var0) -> {
++         String var10000 = ((ProcessorHandle)var0.getKey()).name();
++         return var10000 + "=[" + (String)((ChunkTaskPriorityQueue)var0.getValue()).getAcquired().stream().map((var0x) -> {
+             return var0x + ":" + new ChunkPos(var0x);
+          }).collect(Collectors.joining(",")) + "]";
+-      }).collect(Collectors.joining(",")) + ", s=" + this.sleeping.size();
++      }).collect(Collectors.joining(","));
++      return var10000 + ", s=" + this.sleeping.size();
+    }
+ 
+    public void close() {
+       this.queues.keySet().forEach(ProcessorHandle::close);
+    }
+ 
+-   public static final class Release {
+-      private final Runnable task;
+-      private final long pos;
+-      private final boolean clearQueue;
++   public static final class Message<T> {
++      final Function<ProcessorHandle<Unit>, T> task;
++      final long pos;
++      final IntSupplier level;
+ 
+-      private Release(Runnable var1, long var2, boolean var4) {
++      Message(Function<ProcessorHandle<Unit>, T> var1, long var2, IntSupplier var4) {
+          this.task = var1;
+          this.pos = var2;
+-         this.clearQueue = var4;
++         this.level = var4;
+       }
+    }
+ 
+-   public static final class Message<T> {
+-      private final Function<ProcessorHandle<Unit>, T> task;
+-      private final long pos;
+-      private final IntSupplier level;
++   public static final class Release {
++      final Runnable task;
++      final long pos;
++      final boolean clearQueue;
+ 
+-      private Message(Function<ProcessorHandle<Unit>, T> var1, long var2, IntSupplier var4) {
++      Release(Runnable var1, long var2, boolean var4) {
+          this.task = var1;
+          this.pos = var2;
+-         this.level = var4;
++         this.clearQueue = var4;
+       }
+    }
+ }

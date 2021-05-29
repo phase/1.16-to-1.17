@@ -1,6 +1,18 @@
 --- net/minecraft/server/commands/DataPackCommand.java
 +++ net/minecraft/server/commands/DataPackCommand.java
-@@ -40,10 +40,13 @@
+@@ -10,10 +10,11 @@
+ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+ import com.mojang.brigadier.suggestion.SuggestionProvider;
+ import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.List;
++import java.util.function.Function;
+ import java.util.stream.Collectors;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.commands.Commands;
+ import net.minecraft.commands.SharedSuggestionProvider;
+ import net.minecraft.network.chat.ComponentUtils;
+@@ -40,10 +41,13 @@
        return SharedSuggestionProvider.suggest(var2.getAvailableIds().stream().filter((var1x) -> {
           return !var3.contains(var1x);
        }).map(StringArgumentType::escapeIfRequired), var1);
@@ -14,3 +26,30 @@
           return var0x.hasPermission(2);
        })).then(Commands.literal("enable").then(((RequiredArgumentBuilder)((RequiredArgumentBuilder)((RequiredArgumentBuilder)((RequiredArgumentBuilder)Commands.argument("name", StringArgumentType.string()).suggests(UNSELECTED_PACKS).executes((var0x) -> {
           return enablePack((CommandSourceStack)var0x.getSource(), getPack(var0x, "name", true), (var0, var1) -> {
+@@ -107,13 +111,13 @@
+          return !var2.contains(var1x);
+       }).collect(Collectors.toList());
+       if (var4.isEmpty()) {
+          var0.sendSuccess(new TranslatableComponent("commands.datapack.list.available.none"), false);
+       } else {
+-         var0.sendSuccess(new TranslatableComponent("commands.datapack.list.available.success", new Object[]{var4.size(), ComponentUtils.formatList(var4, (var0x) -> {
++         var0.sendSuccess(new TranslatableComponent("commands.datapack.list.available.success", new Object[]{var4.size(), ComponentUtils.formatList(var4, (Function)((var0x) -> {
+             return var0x.getChatLink(false);
+-         })}), false);
++         }))}), false);
+       }
+ 
+       return var4.size();
+    }
+ 
+@@ -148,9 +152,9 @@
+             return var5;
+          }
+       }
+    }
+ 
+-   interface Inserter {
++   private interface Inserter {
+       void apply(List<Pack> var1, Pack var2) throws CommandSyntaxException;
+    }
+ }

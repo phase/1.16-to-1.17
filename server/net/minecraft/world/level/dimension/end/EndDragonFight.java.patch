@@ -19,7 +19,34 @@
     private final ServerLevel level;
     private final List<Integer> gateways;
     private final BlockPattern exitPortalPattern;
-@@ -202,11 +210,11 @@
+@@ -80,10 +88,14 @@
+    public EndDragonFight(ServerLevel var1, long var2, CompoundTag var4) {
+       this.dragonEvent = (ServerBossEvent)(new ServerBossEvent(new TranslatableComponent("entity.minecraft.ender_dragon"), BossEvent.BossBarColor.PINK, BossEvent.BossBarOverlay.PROGRESS)).setPlayBossMusic(true).setCreateWorldFog(true);
+       this.gateways = Lists.newArrayList();
+       this.needsStateScanning = true;
+       this.level = var1;
++      if (var4.contains("NeedsStateScanning")) {
++         this.needsStateScanning = var4.getBoolean("NeedsStateScanning");
++      }
++
+       if (var4.contains("DragonKilled", 99)) {
+          if (var4.hasUUID("Dragon")) {
+             this.dragonUUID = var4.getUUID("Dragon");
+          }
+ 
+@@ -115,10 +127,11 @@
+       this.exitPortalPattern = BlockPatternBuilder.start().aisle("       ", "       ", "       ", "   #   ", "       ", "       ", "       ").aisle("       ", "       ", "       ", "   #   ", "       ", "       ", "       ").aisle("       ", "       ", "       ", "   #   ", "       ", "       ", "       ").aisle("  ###  ", " #   # ", "#     #", "#  #  #", "#     #", " #   # ", "  ###  ").aisle("       ", "  ###  ", " ##### ", " ##### ", " ##### ", "  ###  ", "       ").where('#', BlockInWorld.hasState(BlockPredicate.forBlock(Blocks.BEDROCK))).build();
+    }
+ 
+    public CompoundTag saveData() {
+       CompoundTag var1 = new CompoundTag();
++      var1.putBoolean("NeedsStateScanning", this.needsStateScanning);
+       if (this.dragonUUID != null) {
+          var1.putUUID("Dragon", this.dragonUUID);
+       }
+ 
+       var1.putBoolean("DragonKilled", this.dragonKilled);
+@@ -202,11 +215,11 @@
           this.dragonUUID = var3.getUUID();
           LOGGER.info((String)"Found that there's a dragon still alive ({})", (Object)var3);
           this.dragonKilled = false;
@@ -32,7 +59,20 @@
        }
  
        if (!this.previouslyKilled && this.dragonKilled) {
-@@ -293,11 +301,11 @@
+@@ -280,11 +293,11 @@
+                BlockEntity var5 = (BlockEntity)var4.next();
+                if (var5 instanceof TheEndPortalBlockEntity) {
+                   BlockPattern.BlockPatternMatch var6 = this.exitPortalPattern.find(this.level, var5.getBlockPos());
+                   if (var6 != null) {
+                      BlockPos var7 = var6.getBlock(3, 3, 3).getPos();
+-                     if (this.portalLocation == null && var7.getX() == 0 && var7.getZ() == 0) {
++                     if (this.portalLocation == null) {
+                         this.portalLocation = var7;
+                      }
+ 
+                      return var6;
+                   }
+@@ -293,11 +306,11 @@
           }
        }
  
@@ -45,7 +85,7 @@
              if (this.portalLocation == null) {
                 this.portalLocation = var8.getBlock(3, 3, 3).getPos();
              }
-@@ -360,11 +368,11 @@
+@@ -360,11 +373,11 @@
        LOGGER.debug((String)"Found {} end crystals still alive", (Object)this.crystalsAlive);
     }
  
@@ -58,7 +98,7 @@
           this.spawnNewGateway();
           if (!this.previouslyKilled) {
              this.level.setBlockAndUpdate(this.level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, EndPodiumFeature.END_PODIUM_LOCATION), Blocks.DRAGON_EGG.defaultBlockState());
-@@ -410,11 +418,11 @@
+@@ -410,11 +423,11 @@
        return var1;
     }
  
@@ -71,3 +111,16 @@
              this.dragonEvent.setName(var1.getDisplayName());
           }
        }
+@@ -454,11 +467,11 @@
+             BlockPattern.BlockPatternMatch var2 = this.findExitPortal();
+             if (var2 == null) {
+                LOGGER.debug("Couldn't find a portal, so we made one.");
+                this.spawnExitPortal(true);
+             } else {
+-               LOGGER.debug("Found the exit portal & temporarily using it.");
++               LOGGER.debug("Found the exit portal & saved its location for next time.");
+             }
+ 
+             var1 = this.portalLocation;
+          }
+ 

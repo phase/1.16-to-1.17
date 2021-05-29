@@ -30,7 +30,13 @@
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.util.FrameTimer;
  import net.minecraft.util.Mth;
-@@ -56,16 +59,19 @@
+@@ -51,21 +54,25 @@
+ import net.minecraft.world.entity.MobCategory;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LightLayer;
+ import net.minecraft.world.level.NaturalSpawner;
++import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.properties.Property;
  import net.minecraft.world.level.chunk.ChunkStatus;
@@ -51,7 +57,7 @@
        var0.put(Heightmap.Types.WORLD_SURFACE, "S");
        var0.put(Heightmap.Types.OCEAN_FLOOR_WG, "OW");
        var0.put(Heightmap.Types.OCEAN_FLOOR, "O");
-@@ -80,10 +86,13 @@
+@@ -80,10 +87,13 @@
     private ChunkPos lastPos;
     @Nullable
     private LevelChunk clientChunk;
@@ -65,7 +71,7 @@
        this.minecraft = var1;
        this.font = var1.font;
     }
-@@ -93,17 +102,15 @@
+@@ -93,17 +103,15 @@
        this.clientChunk = null;
     }
  
@@ -83,15 +89,99 @@
           this.drawChart(var1, this.minecraft.getFrameTimer(), 0, var3 / 2, true);
           IntegratedServer var4 = this.minecraft.getSingleplayerServer();
           if (var4 != null) {
-@@ -206,90 +213,74 @@
+@@ -116,17 +124,18 @@
  
-          var13.add(this.minecraft.level.dimension().location() + " FC: " + ((LongSet)var12).size());
+    protected void drawGameInformation(PoseStack var1) {
+       List var2 = this.getGameInformation();
+       var2.add("");
+       boolean var3 = this.minecraft.getSingleplayerServer() != null;
+-      var2.add("Debug: Pie [shift]: " + (this.minecraft.options.renderDebugCharts ? "visible" : "hidden") + (var3 ? " FPS + TPS" : " FPS") + " [alt]: " + (this.minecraft.options.renderFpsChart ? "visible" : "hidden"));
++      String var10001 = this.minecraft.options.renderDebugCharts ? "visible" : "hidden";
++      var2.add("Debug: Pie [shift]: " + var10001 + (var3 ? " FPS + TPS" : " FPS") + " [alt]: " + (this.minecraft.options.renderFpsChart ? "visible" : "hidden"));
+       var2.add("For help: press F3 + Q");
+ 
+       for(int var4 = 0; var4 < var2.size(); ++var4) {
+          String var5 = (String)var2.get(var4);
+          if (!Strings.isNullOrEmpty(var5)) {
+-            this.font.getClass();
++            Objects.requireNonNull(this.font);
+             byte var6 = 9;
+             int var7 = this.font.width(var5);
+             boolean var8 = true;
+             int var9 = 2 + var6 * var4;
+             fill(var1, 1, var9 - 1, 2 + var7 + 1, var9 + var6 - 1, -1873784752);
+@@ -140,11 +149,11 @@
+       List var2 = this.getSystemInformation();
+ 
+       for(int var3 = 0; var3 < var2.size(); ++var3) {
+          String var4 = (String)var2.get(var3);
+          if (!Strings.isNullOrEmpty(var4)) {
+-            this.font.getClass();
++            Objects.requireNonNull(this.font);
+             byte var5 = 9;
+             int var6 = this.font.width(var4);
+             int var7 = this.minecraft.getWindow().getGuiScaledWidth() - 2 - var6;
+             int var8 = 2 + var5 * var3;
+             fill(var1, var7 - 1, var8 - 1, var7 + var6 + 1, var8 + var5 - 1, -1873784752);
+@@ -165,12 +174,26 @@
+       } else {
+          var1 = String.format("\"%s\" server, %.0f tx, %.0f rx", this.minecraft.player.getServerBrand(), var4, var5);
+       }
+ 
+       BlockPos var6 = this.minecraft.getCameraEntity().blockPosition();
++      String[] var10000;
++      String var10003;
+       if (this.minecraft.showOnlyReducedInfo()) {
+-         return Lists.newArrayList(new String[]{"Minecraft " + SharedConstants.getCurrentVersion().getName() + " (" + this.minecraft.getLaunchedVersion() + "/" + ClientBrandRetriever.getClientModName() + ")", this.minecraft.fpsString, var1, this.minecraft.levelRenderer.getChunkStatistics(), this.minecraft.levelRenderer.getEntityStatistics(), "P: " + this.minecraft.particleEngine.countParticles() + ". T: " + this.minecraft.level.getEntityCount(), this.minecraft.level.gatherChunkSourceStats(), "", String.format("Chunk-relative: %d %d %d", var6.getX() & 15, var6.getY() & 15, var6.getZ() & 15)});
++         var10000 = new String[9];
++         var10003 = SharedConstants.getCurrentVersion().getName();
++         var10000[0] = "Minecraft " + var10003 + " (" + this.minecraft.getLaunchedVersion() + "/" + ClientBrandRetriever.getClientModName() + ")";
++         var10000[1] = this.minecraft.fpsString;
++         var10000[2] = var1;
++         var10000[3] = this.minecraft.levelRenderer.getChunkStatistics();
++         var10000[4] = this.minecraft.levelRenderer.getEntityStatistics();
++         var10003 = this.minecraft.particleEngine.countParticles();
++         var10000[5] = "P: " + var10003 + ". T: " + this.minecraft.level.getEntityCount();
++         var10000[6] = this.minecraft.level.gatherChunkSourceStats();
++         var10000[7] = "";
++         var10000[8] = String.format("Chunk-relative: %d %d %d", var6.getX() & 15, var6.getY() & 15, var6.getZ() & 15);
++         return Lists.newArrayList(var10000);
+       } else {
+          Entity var7 = this.minecraft.getCameraEntity();
+          Direction var8 = var7.getDirection();
+          String var9;
+          switch(var8) {
+@@ -196,113 +219,112 @@
+             this.clearChunkCache();
+          }
+ 
+          Level var11 = this.getLevel();
+          Object var12 = var11 instanceof ServerLevel ? ((ServerLevel)var11).getForcedChunks() : LongSets.EMPTY_SET;
+-         ArrayList var13 = Lists.newArrayList(new String[]{"Minecraft " + SharedConstants.getCurrentVersion().getName() + " (" + this.minecraft.getLaunchedVersion() + "/" + ClientBrandRetriever.getClientModName() + ("release".equalsIgnoreCase(this.minecraft.getVersionType()) ? "" : "/" + this.minecraft.getVersionType()) + ")", this.minecraft.fpsString, var1, this.minecraft.levelRenderer.getChunkStatistics(), this.minecraft.levelRenderer.getEntityStatistics(), "P: " + this.minecraft.particleEngine.countParticles() + ". T: " + this.minecraft.level.getEntityCount(), this.minecraft.level.gatherChunkSourceStats()});
++         var10000 = new String[7];
++         var10003 = SharedConstants.getCurrentVersion().getName();
++         var10000[0] = "Minecraft " + var10003 + " (" + this.minecraft.getLaunchedVersion() + "/" + ClientBrandRetriever.getClientModName() + ("release".equalsIgnoreCase(this.minecraft.getVersionType()) ? "" : "/" + this.minecraft.getVersionType()) + ")";
++         var10000[1] = this.minecraft.fpsString;
++         var10000[2] = var1;
++         var10000[3] = this.minecraft.levelRenderer.getChunkStatistics();
++         var10000[4] = this.minecraft.levelRenderer.getEntityStatistics();
++         var10003 = this.minecraft.particleEngine.countParticles();
++         var10000[5] = "P: " + var10003 + ". T: " + this.minecraft.level.getEntityCount();
++         var10000[6] = this.minecraft.level.gatherChunkSourceStats();
++         ArrayList var13 = Lists.newArrayList(var10000);
+          String var14 = this.getServerChunkStats();
+          if (var14 != null) {
+             var13.add(var14);
+          }
+ 
+-         var13.add(this.minecraft.level.dimension().location() + " FC: " + ((LongSet)var12).size());
++         ResourceLocation var10001 = this.minecraft.level.dimension().location();
++         var13.add(var10001 + " FC: " + ((LongSet)var12).size());
           var13.add("");
           var13.add(String.format(Locale.ROOT, "XYZ: %.3f / %.5f / %.3f", this.minecraft.getCameraEntity().getX(), this.minecraft.getCameraEntity().getY(), this.minecraft.getCameraEntity().getZ()));
           var13.add(String.format("Block: %d %d %d", var6.getX(), var6.getY(), var6.getZ()));
 -         var13.add(String.format("Chunk: %d %d %d in %d %d %d", var6.getX() & 15, var6.getY() & 15, var6.getZ() & 15, var6.getX() >> 4, var6.getY() >> 4, var6.getZ() >> 4));
-+         var13.add(String.format("Chunk: %d %d %d in %d %d %d", var6.getX() & 15, var6.getY() & 15, var6.getZ() & 15, SectionPos.blockToSectionCoord(var6.getX()), SectionPos.blockToSectionCoord(var6.getY()), SectionPos.blockToSectionCoord(var6.getZ())));
-          var13.add(String.format(Locale.ROOT, "Facing: %s (%s) (%.1f / %.1f)", var8, var9, Mth.wrapDegrees(var7.yRot), Mth.wrapDegrees(var7.xRot)));
+-         var13.add(String.format(Locale.ROOT, "Facing: %s (%s) (%.1f / %.1f)", var8, var9, Mth.wrapDegrees(var7.yRot), Mth.wrapDegrees(var7.xRot)));
 -         int var18;
 -         if (this.minecraft.level != null) {
 -            if (this.minecraft.level.hasChunkAt(var6)) {
@@ -110,6 +200,8 @@
 -                  } else {
 -                     var13.add("Server Light: (?? sky, ?? block)");
 -                  }
++         var13.add(String.format("Chunk: %d %d %d in %d %d %d", var6.getX() & 15, var6.getY() & 15, var6.getZ() & 15, SectionPos.blockToSectionCoord(var6.getX()), SectionPos.blockToSectionCoord(var6.getY()), SectionPos.blockToSectionCoord(var6.getZ())));
++         var13.add(String.format(Locale.ROOT, "Facing: %s (%s) (%.1f / %.1f)", var8, var9, Mth.wrapDegrees(var7.getYRot()), Mth.wrapDegrees(var7.getXRot())));
 +         LevelChunk var15 = this.getClientChunk();
 +         if (var15.isEmpty()) {
 +            var13.add("Waiting for chunk...");
@@ -192,18 +284,20 @@
 -                  }
 +            var13.add(var20.toString());
 +            if (var6.getY() >= this.minecraft.level.getMinBuildHeight() && var6.getY() < this.minecraft.level.getMaxBuildHeight()) {
-+               var13.add("Biome: " + this.minecraft.level.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY).getKey(this.minecraft.level.getBiome(var6)));
-+               long var30 = 0L;
-+               float var31 = 0.0F;
++               Registry var27 = this.minecraft.level.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY);
++               Biome var10002 = this.minecraft.level.getBiome(var6);
++               var13.add("Biome: " + var27.getKey(var10002));
++               long var32 = 0L;
++               float var33 = 0.0F;
 +               if (var19 != null) {
-+                  var31 = var11.getMoonBrightness();
-+                  var30 = var19.getInhabitedTime();
++                  var33 = var11.getMoonBrightness();
++                  var32 = var19.getInhabitedTime();
                 }
 -            } else {
 -               var13.add("Outside of world...");
 +
-+               DifficultyInstance var32 = new DifficultyInstance(var11.getDifficulty(), var11.getDayTime(), var30, var31);
-+               var13.add(String.format(Locale.ROOT, "Local Difficulty: %.2f // %.2f (Day %d)", var32.getEffectiveDifficulty(), var32.getSpecialMultiplier(), this.minecraft.level.getDayTime() / 24000L));
++               DifficultyInstance var34 = new DifficultyInstance(var11.getDifficulty(), var11.getDayTime(), var32, var33);
++               var13.add(String.format(Locale.ROOT, "Local Difficulty: %.2f // %.2f (Day %d)", var34.getEffectiveDifficulty(), var34.getSpecialMultiplier(), this.minecraft.level.getDayTime() / 24000L));
              }
 -         } else {
 -            var13.add("Outside of world...");
@@ -213,17 +307,55 @@
           if (var25 != null) {
              NaturalSpawner.SpawnState var26 = var25.getChunkSource().getLastSpawnState();
              if (var26 != null) {
-                Object2IntMap var28 = var26.getMobCategoryCounts();
+-               Object2IntMap var28 = var26.getMobCategoryCounts();
 -               var18 = var26.getSpawnableChunkCount();
 -               var13.add("SC: " + var18 + ", " + (String)Stream.of(MobCategory.values()).map((var1x) -> {
-+               int var29 = var26.getSpawnableChunkCount();
-+               var13.add("SC: " + var29 + ", " + (String)Stream.of(MobCategory.values()).map((var1x) -> {
-                   return Character.toUpperCase(var1x.getName().charAt(0)) + ": " + var28.getInt(var1x);
+-                  return Character.toUpperCase(var1x.getName().charAt(0)) + ": " + var28.getInt(var1x);
++               Object2IntMap var30 = var26.getMobCategoryCounts();
++               int var31 = var26.getSpawnableChunkCount();
++               var13.add("SC: " + var31 + ", " + (String)Stream.of(MobCategory.values()).map((var1x) -> {
++                  char var10000 = Character.toUpperCase(var1x.getName().charAt(0));
++                  return var10000 + ": " + var30.getInt(var1x);
                 }).collect(Collectors.joining(", ")));
              } else {
                 var13.add("SC: N/A");
              }
-@@ -378,11 +369,11 @@
+          }
+ 
+-         PostChain var27 = this.minecraft.gameRenderer.currentEffect();
+-         if (var27 != null) {
+-            var13.add("Shader: " + var27.getName());
++         PostChain var28 = this.minecraft.gameRenderer.currentEffect();
++         if (var28 != null) {
++            var13.add("Shader: " + var28.getName());
+          }
+ 
+-         var13.add(this.minecraft.getSoundManager().getDebugString() + String.format(" (Mood %d%%)", Math.round(this.minecraft.player.getCurrentMood() * 100.0F)));
++         String var29 = this.minecraft.getSoundManager().getDebugString();
++         var13.add(var29 + String.format(" (Mood %d%%)", Math.round(this.minecraft.player.getCurrentMood() * 100.0F)));
+          return var13;
+       }
+    }
+ 
+    @Nullable
+@@ -364,25 +386,27 @@
+       } else {
+          BlockPos var10;
+          UnmodifiableIterator var12;
+          Entry var13;
+          Iterator var16;
++         ChatFormatting var10001;
+          ResourceLocation var17;
+          if (this.block.getType() == HitResult.Type.BLOCK) {
+             var10 = ((BlockHitResult)this.block).getBlockPos();
+             BlockState var11 = this.minecraft.level.getBlockState(var10);
+             var9.add("");
+-            var9.add(ChatFormatting.UNDERLINE + "Targeted Block: " + var10.getX() + ", " + var10.getY() + ", " + var10.getZ());
++            var10001 = ChatFormatting.UNDERLINE;
++            var9.add(var10001 + "Targeted Block: " + var10.getX() + ", " + var10.getY() + ", " + var10.getZ());
+             var9.add(String.valueOf(Registry.BLOCK.getKey(var11.getBlock())));
+             var12 = var11.getValues().entrySet().iterator();
+ 
              while(var12.hasNext()) {
                 var13 = (Entry)var12.next();
                 var9.add(this.getPropertyValueString(var13));
@@ -236,7 +368,18 @@
                 var17 = (ResourceLocation)var16.next();
                 var9.add("#" + var17);
              }
-@@ -399,11 +390,11 @@
+@@ -390,20 +414,21 @@
+ 
+          if (this.liquid.getType() == HitResult.Type.BLOCK) {
+             var10 = ((BlockHitResult)this.liquid).getBlockPos();
+             FluidState var15 = this.minecraft.level.getFluidState(var10);
+             var9.add("");
+-            var9.add(ChatFormatting.UNDERLINE + "Targeted Fluid: " + var10.getX() + ", " + var10.getY() + ", " + var10.getZ());
++            var10001 = ChatFormatting.UNDERLINE;
++            var9.add(var10001 + "Targeted Fluid: " + var10.getX() + ", " + var10.getY() + ", " + var10.getZ());
+             var9.add(String.valueOf(Registry.FLUID.getKey(var15.getType())));
+             var12 = var15.getValues().entrySet().iterator();
+ 
              while(var12.hasNext()) {
                 var13 = (Entry)var12.next();
                 var9.add(this.getPropertyValueString(var13));
@@ -249,7 +392,21 @@
                 var17 = (ResourceLocation)var16.next();
                 var9.add("#" + var17);
              }
-@@ -454,20 +445,21 @@
+@@ -428,11 +453,12 @@
+          var4 = ChatFormatting.GREEN + var4;
+       } else if (Boolean.FALSE.equals(var3)) {
+          var4 = ChatFormatting.RED + var4;
+       }
+ 
+-      return var2.getName() + ": " + var4;
++      String var10000 = var2.getName();
++      return var10000 + ": " + var4;
+    }
+ 
+    private void drawChart(PoseStack var1, FrameTimer var2, int var3, int var4, boolean var5) {
+       RenderSystem.disableDepthTest();
+       int var6 = var2.getLogStart();
+@@ -454,20 +480,21 @@
           var13 += (long)var18;
        }
  
@@ -273,7 +430,32 @@
           int var25 = var22 >> 8 & 255;
           int var26 = var22 & 255;
           var27.vertex(var19, (float)(var10 + 1), (float)var17, 0.0F).color(var24, var25, var26, var23).endVertex();
-@@ -533,14 +525,14 @@
+@@ -505,21 +532,21 @@
+       String var29 = var13 / (long)var12 + " ms avg";
+       String var30 = var16 + " ms max";
+       Font var10000 = this.font;
+       float var10003 = (float)(var3 + 2);
+       int var10004 = var17 - 60;
+-      this.font.getClass();
++      Objects.requireNonNull(this.font);
+       var10000.drawShadow(var1, var28, var10003, (float)(var10004 - 9), 14737632);
+       var10000 = this.font;
+       var10003 = (float)(var3 + var12 / 2 - this.font.width(var29) / 2);
+       var10004 = var17 - 60;
+-      this.font.getClass();
++      Objects.requireNonNull(this.font);
+       var10000.drawShadow(var1, var29, var10003, (float)(var10004 - 9), 14737632);
+       var10000 = this.font;
+       var10003 = (float)(var3 + var12 - this.font.width(var30));
+       var10004 = var17 - 60;
+-      this.font.getClass();
++      Objects.requireNonNull(this.font);
+       var10000.drawShadow(var1, var30, var10003, (float)(var10004 - 9), 14737632);
+       RenderSystem.enableDepthTest();
+    }
+ 
+    private int getSampleColor(int var1, int var2, int var3, int var4) {
+@@ -533,14 +560,14 @@
        int var7 = var1 & 255;
        int var8 = var2 >> 24 & 255;
        int var9 = var2 >> 16 & 255;

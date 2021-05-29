@@ -18,6 +18,7 @@
  
  public class CreativeModeInventoryScreen extends EffectRenderingInventoryScreen<CreativeModeInventoryScreen.ItemPickerMenu> {
     private static final ResourceLocation CREATIVE_TABS_LOCATION = new ResourceLocation("textures/gui/container/creative_inventory/tabs.png");
+-   private static final SimpleContainer CONTAINER = new SimpleContainer(45);
 +   private static final String GUI_CREATIVE_TAB_PREFIX = "textures/gui/container/creative_inventory/tab_";
 +   private static final String CUSTOM_SLOT_LOCK = "CustomCreativeLock";
 +   private static final int NUM_ROWS = 5;
@@ -26,7 +27,7 @@
 +   private static final int TAB_HEIGHT = 32;
 +   private static final int SCROLLER_WIDTH = 12;
 +   private static final int SCROLLER_HEIGHT = 15;
-    private static final SimpleContainer CONTAINER = new SimpleContainer(45);
++   static final SimpleContainer CONTAINER = new SimpleContainer(45);
     private static final Component TRASH_SLOT_TOOLTIP = new TranslatableComponent("inventory.binSlot");
 +   private static final int TEXT_COLOR = 16777215;
     private static int selectedTab;
@@ -266,6 +267,26 @@
        }
  
     }
+@@ -244,17 +249,17 @@
+          super.init();
+          this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
+          Font var10003 = this.font;
+          int var10004 = this.leftPos + 82;
+          int var10005 = this.topPos + 6;
+-         this.font.getClass();
++         Objects.requireNonNull(this.font);
+          this.searchBox = new EditBox(var10003, var10004, var10005, 80, 9, new TranslatableComponent("itemGroup.search"));
+          this.searchBox.setMaxLength(50);
+          this.searchBox.setBordered(false);
+          this.searchBox.setVisible(false);
+          this.searchBox.setTextColor(16777215);
+-         this.children.add(this.searchBox);
++         this.addWidget(this.searchBox);
+          int var1 = selectedTab;
+          selectedTab = -1;
+          this.selectTab(CreativeModeTab.TABS[var1]);
+          this.minecraft.player.inventoryMenu.removeSlotListener(this.listener);
+          this.listener = new CreativeInventoryListener(this.minecraft);
 @@ -275,11 +280,11 @@
  
     }
@@ -279,6 +300,19 @@
  
        this.minecraft.keyboardHandler.setSendRepeatsToGui(false);
     }
+@@ -382,11 +387,11 @@
+          };
+       }
+ 
+       TagCollection var6 = ItemTags.getAllTags();
+       var6.getAvailableTags().stream().filter(var3).forEach((var2x) -> {
+-         Tag var10000 = (Tag)this.visibleTags.put(var2x, var6.getTag(var2x));
++         this.visibleTags.put(var2x, var6.getTag(var2x));
+       });
+    }
+ 
+    protected void renderLabels(PoseStack var1, int var2, int var3) {
+       CreativeModeTab var4 = CreativeModeTab.TABS[selectedTab];
 @@ -604,21 +609,21 @@
  
        if (this.destroyItemSlot != null && selectedTab == CreativeModeTab.TAB_INVENTORY.getId() && this.isHovering(this.destroyItemSlot.x, this.destroyItemSlot.y, 16, 16, (double)var2, (double)var3)) {
@@ -396,25 +430,84 @@
           Component var9 = var0.options.keyHotbarSlots[var1].getTranslatedKeyMessage();
           Component var10 = var0.options.keyLoadHotbarActivator.getTranslatedKeyMessage();
           var0.gui.setOverlayMessage(new TranslatableComponent("inventory.hotbarSaved", new Object[]{var10, var9}), false);
-@@ -820,12 +827,12 @@
-       public SlotWrapper(Slot var1, int var2, int var3, int var4) {
-          super(var1.container, var2, var3, var4);
-          this.target = var1;
-       }
+@@ -798,88 +805,18 @@
  
--      public ItemStack onTake(Player var1, ItemStack var2) {
--         return this.target.onTake(var1, var2);
-+      public void onTake(Player var1, ItemStack var2) {
-+         this.target.onTake(var1, var2);
-       }
- 
-       public boolean mayPlace(ItemStack var1) {
-          return this.target.mayPlace(var1);
-       }
-@@ -872,14 +879,16 @@
-       }
+    static {
+       selectedTab = CreativeModeTab.TAB_BUILDING_BLOCKS.getId();
     }
  
+-   static class CustomCreativeSlot extends Slot {
+-      public CustomCreativeSlot(Container var1, int var2, int var3, int var4) {
+-         super(var1, var2, var3, var4);
+-      }
+-
+-      public boolean mayPickup(Player var1) {
+-         if (super.mayPickup(var1) && this.hasItem()) {
+-            return this.getItem().getTagElement("CustomCreativeLock") == null;
+-         } else {
+-            return !this.hasItem();
+-         }
+-      }
+-   }
+-
+-   static class SlotWrapper extends Slot {
+-      private final Slot target;
+-
+-      public SlotWrapper(Slot var1, int var2, int var3, int var4) {
+-         super(var1.container, var2, var3, var4);
+-         this.target = var1;
+-      }
+-
+-      public ItemStack onTake(Player var1, ItemStack var2) {
+-         return this.target.onTake(var1, var2);
+-      }
+-
+-      public boolean mayPlace(ItemStack var1) {
+-         return this.target.mayPlace(var1);
+-      }
+-
+-      public ItemStack getItem() {
+-         return this.target.getItem();
+-      }
+-
+-      public boolean hasItem() {
+-         return this.target.hasItem();
+-      }
+-
+-      public void set(ItemStack var1) {
+-         this.target.set(var1);
+-      }
+-
+-      public void setChanged() {
+-         this.target.setChanged();
+-      }
+-
+-      public int getMaxStackSize() {
+-         return this.target.getMaxStackSize();
+-      }
+-
+-      public int getMaxStackSize(ItemStack var1) {
+-         return this.target.getMaxStackSize(var1);
+-      }
+-
+-      @Nullable
+-      public Pair<ResourceLocation, ResourceLocation> getNoItemIcon() {
+-         return this.target.getNoItemIcon();
+-      }
+-
+-      public ItemStack remove(int var1) {
+-         return this.target.remove(var1);
+-      }
+-
+-      public boolean isActive() {
+-         return this.target.isActive();
+-      }
+-
+-      public boolean mayPickup(Player var1) {
+-         return this.target.mayPickup(var1);
+-      }
+-   }
+-
     public static class ItemPickerMenu extends AbstractContainerMenu {
        public final NonNullList<ItemStack> items = NonNullList.create();
 +      private final AbstractContainerMenu inventoryMenu;
@@ -429,7 +522,7 @@
           for(var3 = 0; var3 < 5; ++var3) {
              for(int var4 = 0; var4 < 9; ++var4) {
                 this.addSlot(new CreativeModeInventoryScreen.CustomCreativeSlot(CreativeModeInventoryScreen.CONTAINER, var3 * 9 + var4, 9 + var4 * 18, 18 + var3 * 18));
-@@ -937,7 +946,15 @@
+@@ -937,7 +874,87 @@
        }
  
        public boolean canDragTo(Slot var1) {
@@ -444,4 +537,76 @@
 +         this.inventoryMenu.setCarried(var1);
 +      }
     }
++
++   static class SlotWrapper extends Slot {
++      final Slot target;
++
++      public SlotWrapper(Slot var1, int var2, int var3, int var4) {
++         super(var1.container, var2, var3, var4);
++         this.target = var1;
++      }
++
++      public void onTake(Player var1, ItemStack var2) {
++         this.target.onTake(var1, var2);
++      }
++
++      public boolean mayPlace(ItemStack var1) {
++         return this.target.mayPlace(var1);
++      }
++
++      public ItemStack getItem() {
++         return this.target.getItem();
++      }
++
++      public boolean hasItem() {
++         return this.target.hasItem();
++      }
++
++      public void set(ItemStack var1) {
++         this.target.set(var1);
++      }
++
++      public void setChanged() {
++         this.target.setChanged();
++      }
++
++      public int getMaxStackSize() {
++         return this.target.getMaxStackSize();
++      }
++
++      public int getMaxStackSize(ItemStack var1) {
++         return this.target.getMaxStackSize(var1);
++      }
++
++      @Nullable
++      public Pair<ResourceLocation, ResourceLocation> getNoItemIcon() {
++         return this.target.getNoItemIcon();
++      }
++
++      public ItemStack remove(int var1) {
++         return this.target.remove(var1);
++      }
++
++      public boolean isActive() {
++         return this.target.isActive();
++      }
++
++      public boolean mayPickup(Player var1) {
++         return this.target.mayPickup(var1);
++      }
++   }
++
++   static class CustomCreativeSlot extends Slot {
++      public CustomCreativeSlot(Container var1, int var2, int var3, int var4) {
++         super(var1, var2, var3, var4);
++      }
++
++      public boolean mayPickup(Player var1) {
++         if (super.mayPickup(var1) && this.hasItem()) {
++            return this.getItem().getTagElement("CustomCreativeLock") == null;
++         } else {
++            return !this.hasItem();
++         }
++      }
++   }
  }

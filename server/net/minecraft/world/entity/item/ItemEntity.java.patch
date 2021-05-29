@@ -1,11 +1,12 @@
 --- net/minecraft/world/entity/item/ItemEntity.java
 +++ net/minecraft/world/entity/item/ItemEntity.java
-@@ -14,26 +14,32 @@
+@@ -13,63 +13,81 @@
+ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
  import net.minecraft.network.syncher.EntityDataAccessor;
  import net.minecraft.network.syncher.EntityDataSerializers;
  import net.minecraft.network.syncher.SynchedEntityData;
  import net.minecraft.server.level.ServerLevel;
- import net.minecraft.sounds.SoundEvents;
+-import net.minecraft.sounds.SoundEvents;
 +import net.minecraft.sounds.SoundSource;
  import net.minecraft.stats.Stats;
  import net.minecraft.tags.FluidTags;
@@ -33,14 +34,33 @@
     private int health;
     private UUID thrower;
     private UUID owner;
-@@ -55,21 +61,34 @@
-    public ItemEntity(Level var1, double var2, double var4, double var6, ItemStack var8) {
-       this(var1, var2, var4, var6);
-       this.setItem(var8);
+    public final float bobOffs;
+ 
+    public ItemEntity(EntityType<? extends ItemEntity> var1, Level var2) {
+       super(var1, var2);
+       this.health = 5;
+-      this.bobOffs = (float)(Math.random() * 3.141592653589793D * 2.0D);
++      this.bobOffs = this.random.nextFloat() * 3.1415927F * 2.0F;
++      this.setYRot(this.random.nextFloat() * 360.0F);
     }
  
--   protected boolean isMovementNoisy() {
--      return false;
+-   public ItemEntity(Level var1, double var2, double var4, double var6) {
++   public ItemEntity(Level var1, double var2, double var4, double var6, ItemStack var8) {
++      this(var1, var2, var4, var6, var8, var1.random.nextDouble() * 0.2D - 0.1D, 0.2D, var1.random.nextDouble() * 0.2D - 0.1D);
++   }
++
++   public ItemEntity(Level var1, double var2, double var4, double var6, ItemStack var8, double var9, double var11, double var13) {
+       this(EntityType.ITEM, var1);
+       this.setPos(var2, var4, var6);
+-      this.yRot = this.random.nextFloat() * 360.0F;
+-      this.setDeltaMovement(this.random.nextDouble() * 0.2D - 0.1D, 0.2D, this.random.nextDouble() * 0.2D - 0.1D);
++      this.setDeltaMovement(var9, var11, var13);
++      this.setItem(var8);
+    }
+ 
+-   public ItemEntity(Level var1, double var2, double var4, double var6, ItemStack var8) {
+-      this(var1, var2, var4, var6);
+-      this.setItem(var8);
 +   private ItemEntity(ItemEntity var1) {
 +      super(var1.getType(), var1.level);
 +      this.health = 5;
@@ -50,10 +70,12 @@
 +      this.bobOffs = var1.bobOffs;
     }
  
+-   protected boolean isMovementNoisy() {
+-      return false;
 +   public boolean occludesVibrations() {
 +      return ItemTags.OCCLUDES_VIBRATION_SIGNALS.contains(this.getItem().getItem());
-+   }
-+
+    }
+ 
 +   protected Entity.MovementEmission getMovementEmission() {
 +      return Entity.MovementEmission.NONE;
 +   }
@@ -71,7 +93,7 @@
           if (this.pickupDelay > 0 && this.pickupDelay != 32767) {
              --this.pickupDelay;
           }
-@@ -88,11 +107,13 @@
+@@ -88,17 +106,19 @@
           }
  
           if (this.level.isClientSide) {
@@ -86,7 +108,35 @@
              }
           }
  
-@@ -135,11 +156,11 @@
+-         if (!this.onGround || getHorizontalDistanceSqr(this.getDeltaMovement()) > 9.999999747378752E-6D || (this.tickCount + this.getId()) % 4 == 0) {
++         if (!this.onGround || this.getDeltaMovement().horizontalDistanceSqr() > 9.999999747378752E-6D || (this.tickCount + this.getId()) % 4 == 0) {
+             this.move(MoverType.SELF, this.getDeltaMovement());
+             float var3 = 0.98F;
+             if (this.onGround) {
+                var3 = this.level.getBlockState(new BlockPos(this.getX(), this.getY() - 1.0D, this.getZ())).getBlock().getFriction() * 0.98F;
+             }
+@@ -112,18 +132,12 @@
+             }
+          }
+ 
+          boolean var7 = Mth.floor(this.xo) != Mth.floor(this.getX()) || Mth.floor(this.yo) != Mth.floor(this.getY()) || Mth.floor(this.zo) != Mth.floor(this.getZ());
+          int var8 = var7 ? 2 : 40;
+-         if (this.tickCount % var8 == 0) {
+-            if (this.level.getFluidState(this.blockPosition()).is(FluidTags.LAVA) && !this.fireImmune()) {
+-               this.playSound(SoundEvents.GENERIC_BURN, 0.4F, 2.0F + this.random.nextFloat() * 0.4F);
+-            }
+-
+-            if (!this.level.isClientSide && this.isMergable()) {
+-               this.mergeWithNeighbours();
+-            }
++         if (this.tickCount % var8 == 0 && !this.level.isClientSide && this.isMergable()) {
++            this.mergeWithNeighbours();
+          }
+ 
+          if (this.age != -32768) {
+             ++this.age;
+          }
+@@ -135,11 +149,11 @@
                 this.hasImpulse = true;
              }
           }
@@ -99,7 +149,7 @@
        }
     }
  
-@@ -162,11 +183,11 @@
+@@ -162,11 +176,11 @@
  
           while(var2.hasNext()) {
              ItemEntity var3 = (ItemEntity)var2.next();
@@ -112,7 +162,7 @@
              }
           }
  
-@@ -190,11 +211,11 @@
+@@ -190,11 +204,11 @@
  
        }
     }
@@ -125,7 +175,7 @@
           return false;
        } else if (var1.hasTag() ^ var0.hasTag()) {
           return false;
-@@ -219,11 +240,11 @@
+@@ -219,11 +233,11 @@
     private static void merge(ItemEntity var0, ItemStack var1, ItemEntity var2, ItemStack var3) {
        merge(var0, var1, var3);
        var0.pickupDelay = Math.max(var0.pickupDelay, var2.pickupDelay);
@@ -138,7 +188,7 @@
     }
  
     public boolean fireImmune() {
-@@ -231,19 +252,21 @@
+@@ -231,22 +245,24 @@
     }
  
     public boolean hurt(DamageSource var1, float var2) {
@@ -159,10 +209,14 @@
 +            this.discard();
           }
  
-          return false;
+-         return false;
++         return true;
        }
     }
-@@ -282,24 +305,24 @@
+ 
+    public void addAdditionalSaveData(CompoundTag var1) {
+       var1.putShort("Health", (short)this.health);
+@@ -282,24 +298,24 @@
        }
  
        CompoundTag var2 = var1.getCompound("Item");
@@ -190,7 +244,7 @@
  
              var1.awardStat(Stats.ITEM_PICKED_UP.get(var3), var4);
              var1.onItemPickup(this);
-@@ -359,10 +382,14 @@
+@@ -359,10 +375,14 @@
  
     public void setThrower(@Nullable UUID var1) {
        this.thrower = var1;
@@ -205,7 +259,7 @@
     }
  
     public void setNoPickUpDelay() {
-@@ -379,22 +406,38 @@
+@@ -379,22 +399,38 @@
  
     public boolean hasPickUpDelay() {
        return this.pickupDelay > 0;

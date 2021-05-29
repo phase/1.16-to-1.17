@@ -14,7 +14,7 @@
  import net.minecraft.core.RegistryAccess;
  import net.minecraft.core.WritableRegistry;
  import net.minecraft.resources.RegistryFileCodec;
-@@ -30,29 +32,20 @@
+@@ -30,29 +32,21 @@
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
  import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
@@ -40,6 +40,7 @@
 -   });
 -   public static final float[] MOON_BRIGHTNESS_PER_PHASE = new float[]{1.0F, 0.75F, 0.5F, 0.25F, 0.0F, 0.25F, 0.5F, 0.75F};
 +   public static final int BITS_FOR_Y;
++   public static final int MIN_HEIGHT = 16;
 +   public static final int Y_SIZE;
 +   public static final int MAX_Y;
 +   public static final int MIN_Y;
@@ -54,7 +55,7 @@
     public static final ResourceKey<DimensionType> END_LOCATION;
     protected static final DimensionType DEFAULT_OVERWORLD;
     protected static final DimensionType DEFAULT_NETHER;
-@@ -69,22 +62,45 @@
+@@ -69,22 +63,47 @@
     private final boolean createDragonFight;
     private final boolean piglinSafe;
     private final boolean bedWorks;
@@ -72,7 +73,9 @@
 -   protected DimensionType(OptionalLong var1, boolean var2, boolean var3, boolean var4, boolean var5, double var6, boolean var8, boolean var9, boolean var10, boolean var11, int var12, ResourceLocation var13, ResourceLocation var14, float var15) {
 -      this(var1, var2, var3, var4, var5, var6, false, var8, var9, var10, var11, var12, FuzzyOffsetBiomeZoomer.INSTANCE, var13, var14, var15);
 +   private static DataResult<DimensionType> guardY(DimensionType var0) {
-+      if (var0.minY() + var0.height() > MAX_Y + 1) {
++      if (var0.height() < 16) {
++         return DataResult.error("height has to be at least 16");
++      } else if (var0.minY() + var0.height() > MAX_Y + 1) {
 +         return DataResult.error("min_y + height cannot be higher than: " + (MAX_Y + 1));
 +      } else if (var0.logicalHeight() > var0.height()) {
 +         return DataResult.error("logical_height cannot be higher than height");
@@ -103,7 +106,7 @@
        this.hasCeiling = var3;
        this.ultraWarm = var4;
        this.natural = var5;
-@@ -92,16 +108,18 @@
+@@ -92,16 +111,18 @@
        this.createDragonFight = var8;
        this.piglinSafe = var9;
        this.bedWorks = var10;
@@ -128,7 +131,7 @@
     private static float[] fillBrightnessRamp(float var0) {
        float[] var1 = new float[16];
  
-@@ -134,11 +152,11 @@
+@@ -134,11 +155,11 @@
  
        return Level.RESOURCE_KEY_CODEC.parse(var0);
     }
@@ -141,7 +144,24 @@
        var1.register(NETHER_LOCATION, DEFAULT_NETHER, Lifecycle.stable());
        var1.register(END_LOCATION, DEFAULT_END, Lifecycle.stable());
        return var0;
-@@ -222,10 +240,18 @@
+@@ -181,12 +202,15 @@
+    public static File getStorageFolder(ResourceKey<Level> var0, File var1) {
+       if (var0 == Level.OVERWORLD) {
+          return var1;
+       } else if (var0 == Level.END) {
+          return new File(var1, "DIM1");
++      } else if (var0 == Level.NETHER) {
++         return new File(var1, "DIM-1");
+       } else {
+-         return var0 == Level.NETHER ? new File(var1, "DIM-1") : new File(var1, "dimensions/" + var0.location().getNamespace() + "/" + var0.location().getPath());
++         String var10003 = var0.location().getNamespace();
++         return new File(var1, "dimensions/" + var10003 + "/" + var0.location().getPath());
+       }
+    }
+ 
+    public boolean hasSkyLight() {
+       return this.hasSkylight;
+@@ -222,10 +246,18 @@
  
     public boolean hasRaids() {
        return this.hasRaids;
@@ -160,7 +180,7 @@
     }
  
     public boolean createDragonFight() {
-@@ -265,21 +291,44 @@
+@@ -265,21 +297,44 @@
  
     public boolean equalTo(DimensionType var1) {
        if (this == var1) {
@@ -186,7 +206,7 @@
 +            return var0x.isPresent() ? Optional.of(var0x.getAsLong()) : Optional.empty();
 +         }).forGetter((var0x) -> {
 +            return var0x.fixedTime;
-+         }), Codec.BOOL.fieldOf("has_skylight").forGetter(DimensionType::hasSkyLight), Codec.BOOL.fieldOf("has_ceiling").forGetter(DimensionType::hasCeiling), Codec.BOOL.fieldOf("ultrawarm").forGetter(DimensionType::ultraWarm), Codec.BOOL.fieldOf("natural").forGetter(DimensionType::natural), Codec.doubleRange(9.999999747378752E-6D, 3.0E7D).fieldOf("coordinate_scale").forGetter(DimensionType::coordinateScale), Codec.BOOL.fieldOf("piglin_safe").forGetter(DimensionType::piglinSafe), Codec.BOOL.fieldOf("bed_works").forGetter(DimensionType::bedWorks), Codec.BOOL.fieldOf("respawn_anchor_works").forGetter(DimensionType::respawnAnchorWorks), Codec.BOOL.fieldOf("has_raids").forGetter(DimensionType::hasRaids), Codec.intRange(MIN_Y, MAX_Y).fieldOf("min_y").forGetter(DimensionType::minY), Codec.intRange(0, Y_SIZE).fieldOf("height").forGetter(DimensionType::height), Codec.intRange(0, Y_SIZE).fieldOf("logical_height").forGetter(DimensionType::logicalHeight), ResourceLocation.CODEC.fieldOf("infiniburn").forGetter((var0x) -> {
++         }), Codec.BOOL.fieldOf("has_skylight").forGetter(DimensionType::hasSkyLight), Codec.BOOL.fieldOf("has_ceiling").forGetter(DimensionType::hasCeiling), Codec.BOOL.fieldOf("ultrawarm").forGetter(DimensionType::ultraWarm), Codec.BOOL.fieldOf("natural").forGetter(DimensionType::natural), Codec.doubleRange(9.999999747378752E-6D, 3.0E7D).fieldOf("coordinate_scale").forGetter(DimensionType::coordinateScale), Codec.BOOL.fieldOf("piglin_safe").forGetter(DimensionType::piglinSafe), Codec.BOOL.fieldOf("bed_works").forGetter(DimensionType::bedWorks), Codec.BOOL.fieldOf("respawn_anchor_works").forGetter(DimensionType::respawnAnchorWorks), Codec.BOOL.fieldOf("has_raids").forGetter(DimensionType::hasRaids), Codec.intRange(MIN_Y, MAX_Y).fieldOf("min_y").forGetter(DimensionType::minY), Codec.intRange(16, Y_SIZE).fieldOf("height").forGetter(DimensionType::height), Codec.intRange(0, Y_SIZE).fieldOf("logical_height").forGetter(DimensionType::logicalHeight), ResourceLocation.CODEC.fieldOf("infiniburn").forGetter((var0x) -> {
 +            return var0x.infiniburn;
 +         }), ResourceLocation.CODEC.fieldOf("effects").orElse(OVERWORLD_EFFECTS).forGetter((var0x) -> {
 +            return var0x.effectsLocation;
@@ -201,12 +221,12 @@
 -      DEFAULT_OVERWORLD = new DimensionType(OptionalLong.empty(), true, false, false, true, 1.0D, false, false, true, false, true, 256, FuzzyOffsetConstantColumnBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_OVERWORLD.getName(), OVERWORLD_EFFECTS, 0.0F);
 -      DEFAULT_NETHER = new DimensionType(OptionalLong.of(18000L), false, true, true, false, 8.0D, false, true, false, true, false, 128, FuzzyOffsetBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_NETHER.getName(), NETHER_EFFECTS, 0.1F);
 -      DEFAULT_END = new DimensionType(OptionalLong.of(6000L), false, false, false, false, 1.0D, true, false, false, false, true, 256, FuzzyOffsetBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_END.getName(), END_EFFECTS, 0.0F);
-+      DEFAULT_OVERWORLD = create(OptionalLong.empty(), true, false, false, true, 1.0D, false, false, true, false, true, -64, 384, 384, FuzzyOffsetConstantColumnBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_OVERWORLD.getName(), OVERWORLD_EFFECTS, 0.0F);
++      DEFAULT_OVERWORLD = create(OptionalLong.empty(), true, false, false, true, 1.0D, false, false, true, false, true, 0, 256, 256, FuzzyOffsetConstantColumnBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_OVERWORLD.getName(), OVERWORLD_EFFECTS, 0.0F);
 +      DEFAULT_NETHER = create(OptionalLong.of(18000L), false, true, true, false, 8.0D, false, true, false, true, false, 0, 256, 128, FuzzyOffsetBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_NETHER.getName(), NETHER_EFFECTS, 0.1F);
 +      DEFAULT_END = create(OptionalLong.of(6000L), false, false, false, false, 1.0D, true, false, false, false, true, 0, 256, 256, FuzzyOffsetBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_END.getName(), END_EFFECTS, 0.0F);
        OVERWORLD_CAVES_LOCATION = ResourceKey.create(Registry.DIMENSION_TYPE_REGISTRY, new ResourceLocation("overworld_caves"));
 -      DEFAULT_OVERWORLD_CAVES = new DimensionType(OptionalLong.empty(), true, true, false, true, 1.0D, false, false, true, false, true, 256, FuzzyOffsetConstantColumnBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_OVERWORLD.getName(), OVERWORLD_EFFECTS, 0.0F);
-+      DEFAULT_OVERWORLD_CAVES = create(OptionalLong.empty(), true, true, false, true, 1.0D, false, false, true, false, true, -64, 384, 384, FuzzyOffsetConstantColumnBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_OVERWORLD.getName(), OVERWORLD_EFFECTS, 0.0F);
++      DEFAULT_OVERWORLD_CAVES = create(OptionalLong.empty(), true, true, false, true, 1.0D, false, false, true, false, true, 0, 256, 256, FuzzyOffsetConstantColumnBiomeZoomer.INSTANCE, BlockTags.INFINIBURN_OVERWORLD.getName(), OVERWORLD_EFFECTS, 0.0F);
        CODEC = RegistryFileCodec.create(Registry.DIMENSION_TYPE_REGISTRY, DIRECT_CODEC);
     }
  }

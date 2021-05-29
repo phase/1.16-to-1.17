@@ -1,0 +1,56 @@
+--- net/minecraft/world/level/storage/loot/functions/LootItemConditionalFunction.java
++++ net/minecraft/world/level/storage/loot/functions/LootItemConditionalFunction.java
+@@ -42,10 +42,26 @@
+ 
+    protected static LootItemConditionalFunction.Builder<?> simpleBuilder(Function<LootItemCondition[], LootItemFunction> var0) {
+       return new LootItemConditionalFunction.DummyBuilder(var0);
+    }
+ 
++   static final class DummyBuilder extends LootItemConditionalFunction.Builder<LootItemConditionalFunction.DummyBuilder> {
++      private final Function<LootItemCondition[], LootItemFunction> constructor;
++
++      public DummyBuilder(Function<LootItemCondition[], LootItemFunction> var1) {
++         this.constructor = var1;
++      }
++
++      protected LootItemConditionalFunction.DummyBuilder getThis() {
++         return this;
++      }
++
++      public LootItemFunction build() {
++         return (LootItemFunction)this.constructor.apply(this.getConditions());
++      }
++   }
++
+    public abstract static class Serializer<T extends LootItemConditionalFunction> implements net.minecraft.world.level.storage.loot.Serializer<T> {
+       public Serializer() {
+       }
+ 
+       public void serialize(JsonObject var1, T var2, JsonSerializationContext var3) {
+@@ -61,26 +77,10 @@
+       }
+ 
+       public abstract T deserialize(JsonObject var1, JsonDeserializationContext var2, LootItemCondition[] var3);
+    }
+ 
+-   static final class DummyBuilder extends LootItemConditionalFunction.Builder<LootItemConditionalFunction.DummyBuilder> {
+-      private final Function<LootItemCondition[], LootItemFunction> constructor;
+-
+-      public DummyBuilder(Function<LootItemCondition[], LootItemFunction> var1) {
+-         this.constructor = var1;
+-      }
+-
+-      protected LootItemConditionalFunction.DummyBuilder getThis() {
+-         return this;
+-      }
+-
+-      public LootItemFunction build() {
+-         return (LootItemFunction)this.constructor.apply(this.getConditions());
+-      }
+-   }
+-
+    public abstract static class Builder<T extends LootItemConditionalFunction.Builder<T>> implements LootItemFunction.Builder, ConditionUserBuilder<T> {
+       private final List<LootItemCondition> conditions = Lists.newArrayList();
+ 
+       public Builder() {
+       }

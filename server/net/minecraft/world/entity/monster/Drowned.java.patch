@@ -16,25 +16,27 @@
  import net.minecraft.world.entity.projectile.ThrownTrident;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
-@@ -50,10 +51,11 @@
+@@ -50,11 +51,12 @@
  import net.minecraft.world.level.pathfinder.BlockPathTypes;
  import net.minecraft.world.level.pathfinder.Path;
  import net.minecraft.world.phys.Vec3;
  
  public class Drowned extends Zombie implements RangedAttackMob {
+-   private boolean searchingForLand;
 +   public static final float NAUTILUS_SHELL_CHANCE = 0.03F;
-    private boolean searchingForLand;
++   boolean searchingForLand;
     protected final WaterBoundPathNavigation waterNavigation;
     protected final GroundPathNavigation groundNavigation;
  
     public Drowned(EntityType<? extends Drowned> var1, Level var2) {
+       super(var1, var2);
 @@ -74,10 +76,11 @@
        this.goalSelector.addGoal(7, new RandomStrollGoal(this, 1.0D));
        this.targetSelector.addGoal(1, (new HurtByTargetGoal(this, new Class[]{Drowned.class})).setAlertOthers(ZombifiedPiglin.class));
        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal(this, Player.class, 10, true, false, this::okTarget));
        this.targetSelector.addGoal(3, new NearestAttackableTargetGoal(this, AbstractVillager.class, false));
        this.targetSelector.addGoal(3, new NearestAttackableTargetGoal(this, IronGolem.class, true));
-+      this.targetSelector.addGoal(3, new NearestAttackableTargetGoal(this, Axolotl.class, 10, true, false, Axolotl.NOT_PLAYING_DEAD_SELECTOR));
++      this.targetSelector.addGoal(3, new NearestAttackableTargetGoal(this, Axolotl.class, true, false));
        this.targetSelector.addGoal(5, new NearestAttackableTargetGoal(this, Turtle.class, 10, true, false, Turtle.BABY_ON_LAND_SELECTOR));
     }
  
@@ -65,7 +67,137 @@
  
     protected boolean convertsInWater() {
        return false;
-@@ -409,11 +412,11 @@
+@@ -175,11 +178,11 @@
+ 
+    public boolean isPushedByFluid() {
+       return !this.isSwimming();
+    }
+ 
+-   private boolean wantsToSwim() {
++   boolean wantsToSwim() {
+       if (this.searchingForLand) {
+          return true;
+       } else {
+          LivingEntity var1 = this.getTarget();
+          return var1 != null && var1.isInWater();
+@@ -228,11 +231,11 @@
+    public void performRangedAttack(LivingEntity var1, float var2) {
+       ThrownTrident var3 = new ThrownTrident(this.level, this, new ItemStack(Items.TRIDENT));
+       double var4 = var1.getX() - this.getX();
+       double var6 = var1.getY(0.3333333333333333D) - var3.getY();
+       double var8 = var1.getZ() - this.getZ();
+-      double var10 = (double)Mth.sqrt(var4 * var4 + var8 * var8);
++      double var10 = Math.sqrt(var4 * var4 + var8 * var8);
+       var3.shoot(var4, var6 + var10 * 0.20000000298023224D, var8, 1.6F, (float)(14 - this.level.getDifficulty().getId() * 4));
+       this.playSound(SoundEvents.DROWNED_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
+       this.level.addFreshEntity(var3);
+    }
+ 
+@@ -261,15 +264,15 @@
+             }
+ 
+             double var2 = this.wantedX - this.drowned.getX();
+             double var4 = this.wantedY - this.drowned.getY();
+             double var6 = this.wantedZ - this.drowned.getZ();
+-            double var8 = (double)Mth.sqrt(var2 * var2 + var4 * var4 + var6 * var6);
++            double var8 = Math.sqrt(var2 * var2 + var4 * var4 + var6 * var6);
+             var4 /= var8;
+             float var10 = (float)(Mth.atan2(var6, var2) * 57.2957763671875D) - 90.0F;
+-            this.drowned.yRot = this.rotlerp(this.drowned.yRot, var10, 90.0F);
+-            this.drowned.yBodyRot = this.drowned.yRot;
++            this.drowned.setYRot(this.rotlerp(this.drowned.getYRot(), var10, 90.0F));
++            this.drowned.yBodyRot = this.drowned.getYRot();
+             float var11 = (float)(this.speedModifier * this.drowned.getAttributeValue(Attributes.MOVEMENT_SPEED));
+             float var12 = Mth.lerp(0.125F, this.drowned.getSpeed(), var11);
+             this.drowned.setSpeed(var12);
+             this.drowned.setDeltaMovement(this.drowned.getDeltaMovement().add((double)var12 * var2 * 0.005D, (double)var12 * var4 * 0.1D, (double)var12 * var6 * 0.005D));
+          } else {
+@@ -281,27 +284,10 @@
+          }
+ 
+       }
+    }
+ 
+-   static class DrownedAttackGoal extends ZombieAttackGoal {
+-      private final Drowned drowned;
+-
+-      public DrownedAttackGoal(Drowned var1, double var2, boolean var4) {
+-         super(var1, var2, var4);
+-         this.drowned = var1;
+-      }
+-
+-      public boolean canUse() {
+-         return super.canUse() && this.drowned.okTarget(this.drowned.getTarget());
+-      }
+-
+-      public boolean canContinueToUse() {
+-         return super.canContinueToUse() && this.drowned.okTarget(this.drowned.getTarget());
+-      }
+-   }
+-
+    static class DrownedGoToWaterGoal extends Goal {
+       private final PathfinderMob mob;
+       private double wantedX;
+       private double wantedY;
+       private double wantedZ;
+@@ -355,13 +341,55 @@
+ 
+          return null;
+       }
+    }
+ 
+-   static class DrownedGoToBeachGoal extends MoveToBlockGoal {
++   static class DrownedTridentAttackGoal extends RangedAttackGoal {
+       private final Drowned drowned;
+ 
++      public DrownedTridentAttackGoal(RangedAttackMob var1, double var2, int var4, float var5) {
++         super(var1, var2, var4, var5);
++         this.drowned = (Drowned)var1;
++      }
++
++      public boolean canUse() {
++         return super.canUse() && this.drowned.getMainHandItem().is(Items.TRIDENT);
++      }
++
++      public void start() {
++         super.start();
++         this.drowned.setAggressive(true);
++         this.drowned.startUsingItem(InteractionHand.MAIN_HAND);
++      }
++
++      public void stop() {
++         super.stop();
++         this.drowned.stopUsingItem();
++         this.drowned.setAggressive(false);
++      }
++   }
++
++   private static class DrownedAttackGoal extends ZombieAttackGoal {
++      private final Drowned drowned;
++
++      public DrownedAttackGoal(Drowned var1, double var2, boolean var4) {
++         super(var1, var2, var4);
++         this.drowned = var1;
++      }
++
++      public boolean canUse() {
++         return super.canUse() && this.drowned.okTarget(this.drowned.getTarget());
++      }
++
++      public boolean canContinueToUse() {
++         return super.canContinueToUse() && this.drowned.okTarget(this.drowned.getTarget());
++      }
++   }
++
++   private static class DrownedGoToBeachGoal extends MoveToBlockGoal {
++      private final Drowned drowned;
++
+       public DrownedGoToBeachGoal(Drowned var1, double var2) {
+          super(var1, var2, 8, 2);
+          this.drowned = var1;
+       }
+ 
+@@ -409,11 +437,11 @@
           return this.canUse() && !this.stuck;
        }
  
@@ -78,16 +210,35 @@
                 return;
              }
  
-@@ -439,11 +442,11 @@
-          super(var1, var2, var4, var5);
-          this.drowned = (Drowned)var1;
-       }
+@@ -429,31 +457,6 @@
  
-       public boolean canUse() {
+       public void stop() {
+          this.drowned.setSearchingForLand(false);
+       }
+    }
+-
+-   static class DrownedTridentAttackGoal extends RangedAttackGoal {
+-      private final Drowned drowned;
+-
+-      public DrownedTridentAttackGoal(RangedAttackMob var1, double var2, int var4, float var5) {
+-         super(var1, var2, var4, var5);
+-         this.drowned = (Drowned)var1;
+-      }
+-
+-      public boolean canUse() {
 -         return super.canUse() && this.drowned.getMainHandItem().getItem() == Items.TRIDENT;
-+         return super.canUse() && this.drowned.getMainHandItem().is(Items.TRIDENT);
-       }
- 
-       public void start() {
-          super.start();
-          this.drowned.setAggressive(true);
+-      }
+-
+-      public void start() {
+-         super.start();
+-         this.drowned.setAggressive(true);
+-         this.drowned.startUsingItem(InteractionHand.MAIN_HAND);
+-      }
+-
+-      public void stop() {
+-         super.stop();
+-         this.drowned.stopUsingItem();
+-         this.drowned.setAggressive(false);
+-      }
+-   }
+ }

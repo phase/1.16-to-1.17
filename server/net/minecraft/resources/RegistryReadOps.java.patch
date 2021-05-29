@@ -1,11 +1,13 @@
 --- net/minecraft/resources/RegistryReadOps.java
 +++ net/minecraft/resources/RegistryReadOps.java
-@@ -38,35 +38,36 @@
+@@ -37,36 +37,45 @@
+ import net.minecraft.server.packs.resources.ResourceManager;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class RegistryReadOps<T> extends DelegatingOps<T> {
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   private static final String JSON = ".json";
     private final RegistryReadOps.ResourceAccess resources;
 -   private final RegistryAccess.RegistryHolder registryHolder;
@@ -14,18 +16,27 @@
     private final RegistryReadOps<JsonElement> jsonOps;
  
 -   public static <T> RegistryReadOps<T> create(DynamicOps<T> var0, ResourceManager var1, RegistryAccess.RegistryHolder var2) {
-+   public static <T> RegistryReadOps<T> create(DynamicOps<T> var0, ResourceManager var1, RegistryAccess var2) {
-       return create(var0, RegistryReadOps.ResourceAccess.forResourceManager(var1), var2);
+-      return create(var0, RegistryReadOps.ResourceAccess.forResourceManager(var1), var2);
++   public static <T> RegistryReadOps<T> createAndLoad(DynamicOps<T> var0, ResourceManager var1, RegistryAccess var2) {
++      return createAndLoad(var0, RegistryReadOps.ResourceAccess.forResourceManager(var1), var2);
     }
  
 -   public static <T> RegistryReadOps<T> create(DynamicOps<T> var0, RegistryReadOps.ResourceAccess var1, RegistryAccess.RegistryHolder var2) {
-+   public static <T> RegistryReadOps<T> create(DynamicOps<T> var0, RegistryReadOps.ResourceAccess var1, RegistryAccess var2) {
++   public static <T> RegistryReadOps<T> createAndLoad(DynamicOps<T> var0, RegistryReadOps.ResourceAccess var1, RegistryAccess var2) {
        RegistryReadOps var3 = new RegistryReadOps(var0, var1, var2, Maps.newIdentityHashMap());
        RegistryAccess.load(var2, var3);
        return var3;
     }
  
 -   private RegistryReadOps(DynamicOps<T> var1, RegistryReadOps.ResourceAccess var2, RegistryAccess.RegistryHolder var3, IdentityHashMap<ResourceKey<? extends Registry<?>>, RegistryReadOps.ReadCache<?>> var4) {
++   public static <T> RegistryReadOps<T> create(DynamicOps<T> var0, ResourceManager var1, RegistryAccess var2) {
++      return create(var0, RegistryReadOps.ResourceAccess.forResourceManager(var1), var2);
++   }
++
++   public static <T> RegistryReadOps<T> create(DynamicOps<T> var0, RegistryReadOps.ResourceAccess var1, RegistryAccess var2) {
++      return new RegistryReadOps(var0, var1, var2, Maps.newIdentityHashMap());
++   }
++
 +   private RegistryReadOps(DynamicOps<T> var1, RegistryReadOps.ResourceAccess var2, RegistryAccess var3, IdentityHashMap<ResourceKey<? extends Registry<?>>, RegistryReadOps.ReadCache<?>> var4) {
        super(var1);
        this.resources = var2;
@@ -43,7 +54,53 @@
        } else {
           WritableRegistry var6 = (WritableRegistry)var5.get();
           DataResult var7 = ResourceLocation.CODEC.decode(this.delegate, var1);
-@@ -161,11 +162,11 @@
+@@ -129,119 +138,115 @@
+             } else {
+                return var2x;
+             }
+          });
+          var6.values.put(var5, DataResult.success(var8));
+-         DataResult var9 = this.resources.parseElement(this.jsonOps, var1, var5, var3);
+-         Optional var10 = var9.result();
+-         if (var10.isPresent()) {
+-            Pair var11 = (Pair)var10.get();
+-            var2.registerOrOverride((OptionalInt)var11.getSecond(), var5, var11.getFirst(), var9.lifecycle());
+-         }
+-
+-         DataResult var12;
+-         if (!var10.isPresent() && var2.get(var5) != null) {
+-            var12 = DataResult.success(() -> {
++         Optional var9 = this.resources.parseElement(this.jsonOps, var1, var5, var3);
++         DataResult var10;
++         if (!var9.isPresent()) {
++            var10 = DataResult.success(() -> {
+                return var2.get(var5);
+             }, Lifecycle.stable());
+          } else {
+-            var12 = var9.map((var2x) -> {
++            DataResult var11 = (DataResult)var9.get();
++            Optional var12 = var11.result();
++            if (var12.isPresent()) {
++               Pair var13 = (Pair)var12.get();
++               var2.registerOrOverride((OptionalInt)var13.getSecond(), var5, var13.getFirst(), var11.lifecycle());
++            }
++
++            var10 = var11.map((var2x) -> {
+                return () -> {
+                   return var2.get(var5);
+                };
+             });
+          }
+ 
+-         var6.values.put(var5, var12);
+-         return var12;
++         var6.values.put(var5, var10);
++         return var10;
+       }
+    }
+ 
+    private <E> RegistryReadOps.ReadCache<E> readCache(ResourceKey<? extends Registry<E>> var1) {
+       return (RegistryReadOps.ReadCache)this.readCache.computeIfAbsent(var1, (var0) -> {
           return new RegistryReadOps.ReadCache();
        });
     }
@@ -56,3 +113,164 @@
           return DataResult.error("Unknown registry: " + var1);
        });
     }
+ 
+    public interface ResourceAccess {
+       Collection<ResourceLocation> listResources(ResourceKey<? extends Registry<?>> var1);
+ 
+-      <E> DataResult<Pair<E, OptionalInt>> parseElement(DynamicOps<JsonElement> var1, ResourceKey<? extends Registry<E>> var2, ResourceKey<E> var3, Decoder<E> var4);
++      <E> Optional<DataResult<Pair<E, OptionalInt>>> parseElement(DynamicOps<JsonElement> var1, ResourceKey<? extends Registry<E>> var2, ResourceKey<E> var3, Decoder<E> var4);
+ 
+       static RegistryReadOps.ResourceAccess forResourceManager(final ResourceManager var0) {
+          return new RegistryReadOps.ResourceAccess() {
+             public Collection<ResourceLocation> listResources(ResourceKey<? extends Registry<?>> var1) {
+                return var0.listResources(var1.location().getPath(), (var0x) -> {
+                   return var0x.endsWith(".json");
+                });
+             }
+ 
+-            public <E> DataResult<Pair<E, OptionalInt>> parseElement(DynamicOps<JsonElement> var1, ResourceKey<? extends Registry<E>> var2, ResourceKey<E> var3, Decoder<E> var4) {
++            public <E> Optional<DataResult<Pair<E, OptionalInt>>> parseElement(DynamicOps<JsonElement> var1, ResourceKey<? extends Registry<E>> var2, ResourceKey<E> var3, Decoder<E> var4) {
+                ResourceLocation var5 = var3.location();
+-               ResourceLocation var6 = new ResourceLocation(var5.getNamespace(), var2.location().getPath() + "/" + var5.getPath() + ".json");
+-
+-               try {
+-                  Resource var7 = var0.getResource(var6);
+-                  Throwable var8 = null;
+-
+-                  DataResult var13;
++               String var10002 = var5.getNamespace();
++               String var10003 = var2.location().getPath();
++               ResourceLocation var6 = new ResourceLocation(var10002, var10003 + "/" + var5.getPath() + ".json");
++               if (!var0.hasResource(var6)) {
++                  return Optional.empty();
++               } else {
+                   try {
+-                     InputStreamReader var9 = new InputStreamReader(var7.getInputStream(), StandardCharsets.UTF_8);
+-                     Throwable var10 = null;
++                     Resource var7 = var0.getResource(var6);
+ 
++                     Optional var11;
+                      try {
+-                        JsonParser var11 = new JsonParser();
+-                        JsonElement var12 = var11.parse((Reader)var9);
+-                        var13 = var4.parse(var1, var12).map((var0x) -> {
+-                           return Pair.of(var0x, OptionalInt.empty());
+-                        });
+-                     } catch (Throwable var38) {
+-                        var10 = var38;
+-                        throw var38;
+-                     } finally {
+-                        if (var9 != null) {
+-                           if (var10 != null) {
+-                              try {
+-                                 var9.close();
+-                              } catch (Throwable var37) {
+-                                 var10.addSuppressed(var37);
+-                              }
+-                           } else {
+-                              var9.close();
++                        InputStreamReader var8 = new InputStreamReader(var7.getInputStream(), StandardCharsets.UTF_8);
++
++                        try {
++                           JsonParser var9 = new JsonParser();
++                           JsonElement var10 = var9.parse((Reader)var8);
++                           var11 = Optional.of(var4.parse(var1, var10).map((var0x) -> {
++                              return Pair.of(var0x, OptionalInt.empty());
++                           }));
++                        } catch (Throwable var14) {
++                           try {
++                              var8.close();
++                           } catch (Throwable var13) {
++                              var14.addSuppressed(var13);
+                            }
++
++                           throw var14;
+                         }
+ 
+-                     }
+-                  } catch (Throwable var40) {
+-                     var8 = var40;
+-                     throw var40;
+-                  } finally {
+-                     if (var7 != null) {
+-                        if (var8 != null) {
++                        var8.close();
++                     } catch (Throwable var15) {
++                        if (var7 != null) {
+                            try {
+                               var7.close();
+-                           } catch (Throwable var36) {
+-                              var8.addSuppressed(var36);
++                           } catch (Throwable var12) {
++                              var15.addSuppressed(var12);
+                            }
+-                        } else {
+-                           var7.close();
+                         }
++
++                        throw var15;
+                      }
+ 
+-                  }
++                     if (var7 != null) {
++                        var7.close();
++                     }
+ 
+-                  return var13;
+-               } catch (JsonIOException | JsonSyntaxException | IOException var42) {
+-                  return DataResult.error("Failed to parse " + var6 + " file: " + var42.getMessage());
++                     return var11;
++                  } catch (JsonIOException | JsonSyntaxException | IOException var16) {
++                     return Optional.of(DataResult.error("Failed to parse " + var6 + " file: " + var16.getMessage()));
++                  }
+                }
+             }
+ 
+             public String toString() {
+                return "ResourceAccess[" + var0 + "]";
+@@ -261,36 +266,37 @@
+             DataResult var7 = var3.encodeStart(RegistryWriteOps.create(JsonOps.INSTANCE, var1), var5);
+             Optional var8 = var7.error();
+             if (var8.isPresent()) {
+                RegistryReadOps.LOGGER.error((String)"Error adding element: {}", (Object)((DataResult.PartialResult)var8.get()).message());
+             } else {
+-               this.data.put(var2, var7.result().get());
++               this.data.put(var2, (JsonElement)var7.result().get());
+                this.ids.put(var2, var4);
+                this.lifecycles.put(var2, var6);
+             }
+          }
+ 
+          public Collection<ResourceLocation> listResources(ResourceKey<? extends Registry<?>> var1) {
+             return (Collection)this.data.keySet().stream().filter((var1x) -> {
+                return var1x.isFor(var1);
+             }).map((var1x) -> {
+-               return new ResourceLocation(var1x.location().getNamespace(), var1.location().getPath() + "/" + var1x.location().getPath() + ".json");
++               String var10002 = var1x.location().getNamespace();
++               String var10003 = var1.location().getPath();
++               return new ResourceLocation(var10002, var10003 + "/" + var1x.location().getPath() + ".json");
+             }).collect(Collectors.toList());
+          }
+ 
+-         public <E> DataResult<Pair<E, OptionalInt>> parseElement(DynamicOps<JsonElement> var1, ResourceKey<? extends Registry<E>> var2, ResourceKey<E> var3, Decoder<E> var4) {
++         public <E> Optional<DataResult<Pair<E, OptionalInt>>> parseElement(DynamicOps<JsonElement> var1, ResourceKey<? extends Registry<E>> var2, ResourceKey<E> var3, Decoder<E> var4) {
+             JsonElement var5 = (JsonElement)this.data.get(var3);
+-            return var5 == null ? DataResult.error("Unknown element: " + var3) : var4.parse(var1, var5).setLifecycle((Lifecycle)this.lifecycles.get(var3)).map((var2x) -> {
++            return var5 == null ? Optional.of(DataResult.error("Unknown element: " + var3)) : Optional.of(var4.parse(var1, var5).setLifecycle((Lifecycle)this.lifecycles.get(var3)).map((var2x) -> {
+                return Pair.of(var2x, OptionalInt.of(this.ids.getInt(var3)));
+-            });
++            }));
+          }
+       }
+    }
+ 
+    static final class ReadCache<E> {
+-      private final Map<ResourceKey<E>, DataResult<Supplier<E>>> values;
++      final Map<ResourceKey<E>, DataResult<Supplier<E>>> values = Maps.newIdentityHashMap();
+ 
+-      private ReadCache() {
+-         this.values = Maps.newIdentityHashMap();
++      ReadCache() {
+       }
+    }
+ }

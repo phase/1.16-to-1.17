@@ -1,6 +1,34 @@
 --- net/minecraft/commands/CommandSourceStack.java
 +++ net/minecraft/commands/CommandSourceStack.java
-@@ -118,15 +118,15 @@
+@@ -71,10 +71,14 @@
+       this.consumer = var11;
+       this.anchor = var12;
+       this.rotation = var3;
+    }
+ 
++   public CommandSourceStack withSource(CommandSource var1) {
++      return this.source == var1 ? this : new CommandSourceStack(var1, this.worldPosition, this.rotation, this.level, this.permissionLevel, this.textName, this.displayName, this.server, this.entity, this.silent, this.consumer, this.anchor);
++   }
++
+    public CommandSourceStack withEntity(Entity var1) {
+       return this.entity == var1 ? this : new CommandSourceStack(this.source, this.worldPosition, this.rotation, this.level, this.permissionLevel, var1.getName().getString(), var1.getDisplayName(), this.server, var1, this.silent, this.consumer, this.anchor);
+    }
+ 
+    public CommandSourceStack withPosition(Vec3 var1) {
+@@ -93,11 +97,11 @@
+       ResultConsumer var3 = (ResultConsumer)var2.apply(this.consumer, var1);
+       return this.withCallback(var3);
+    }
+ 
+    public CommandSourceStack withSuppressedOutput() {
+-      return this.silent ? this : new CommandSourceStack(this.source, this.worldPosition, this.rotation, this.level, this.permissionLevel, this.textName, this.displayName, this.server, this.entity, true, this.consumer, this.anchor);
++      return !this.silent && !this.source.alwaysAccepts() ? new CommandSourceStack(this.source, this.worldPosition, this.rotation, this.level, this.permissionLevel, this.textName, this.displayName, this.server, this.entity, true, this.consumer, this.anchor) : this;
+    }
+ 
+    public CommandSourceStack withPermission(int var1) {
+       return var1 == this.permissionLevel ? this : new CommandSourceStack(this.source, this.worldPosition, this.rotation, this.level, var1, this.textName, this.displayName, this.server, this.entity, this.silent, this.consumer, this.anchor);
+    }
+@@ -118,20 +122,20 @@
           Vec3 var4 = new Vec3(this.worldPosition.x * var2, this.worldPosition.y, this.worldPosition.z * var2);
           return new CommandSourceStack(this.source, var4, this.rotation, var1, this.permissionLevel, this.textName, this.displayName, this.server, this.entity, this.silent, this.consumer, this.anchor);
        }
@@ -17,4 +45,10 @@
        double var3 = var1.x - var2.x;
        double var5 = var1.y - var2.y;
        double var7 = var1.z - var2.z;
-       double var9 = (double)Mth.sqrt(var3 * var3 + var7 * var7);
+-      double var9 = (double)Mth.sqrt(var3 * var3 + var7 * var7);
++      double var9 = Math.sqrt(var3 * var3 + var7 * var7);
+       float var11 = Mth.wrapDegrees((float)(-(Mth.atan2(var5, var9) * 57.2957763671875D)));
+       float var12 = Mth.wrapDegrees((float)(Mth.atan2(var7, var3) * 57.2957763671875D) - 90.0F);
+       return this.withRotation(new Vec2(var11, var12));
+    }
+ 

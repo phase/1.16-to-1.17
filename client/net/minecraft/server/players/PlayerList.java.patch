@@ -1,9 +1,12 @@
 --- net/minecraft/server/players/PlayerList.java
 +++ net/minecraft/server/players/PlayerList.java
-@@ -16,10 +16,11 @@
+@@ -14,12 +14,14 @@
+ import java.util.Collection;
+ import java.util.HashSet;
  import java.util.Iterator;
  import java.util.List;
  import java.util.Map;
++import java.util.Objects;
  import java.util.Optional;
  import java.util.UUID;
 +import java.util.function.Function;
@@ -12,7 +15,7 @@
  import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.RegistryAccess;
-@@ -30,19 +31,23 @@
+@@ -30,19 +32,23 @@
  import net.minecraft.network.chat.ChatType;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TranslatableComponent;
@@ -38,7 +41,7 @@
  import net.minecraft.network.protocol.game.ClientboundSetDefaultSpawnPositionPacket;
  import net.minecraft.network.protocol.game.ClientboundSetExperiencePacket;
  import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
-@@ -53,14 +58,12 @@
+@@ -53,14 +59,12 @@
  import net.minecraft.network.protocol.game.ClientboundUpdateTagsPacket;
  import net.minecraft.resources.ResourceKey;
  import net.minecraft.server.MinecraftServer;
@@ -53,7 +56,7 @@
  import net.minecraft.sounds.SoundSource;
  import net.minecraft.stats.ServerStatsCounter;
  import net.minecraft.stats.Stats;
-@@ -69,11 +72,10 @@
+@@ -69,11 +73,10 @@
  import net.minecraft.world.effect.MobEffectInstance;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.EntityType;
@@ -65,7 +68,7 @@
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.border.BorderChangeListener;
-@@ -93,10 +95,11 @@
+@@ -93,10 +96,11 @@
     public static final File USERBANLIST_FILE = new File("banned-players.json");
     public static final File IPBANLIST_FILE = new File("banned-ips.json");
     public static final File OPLIST_FILE = new File("ops.json");
@@ -77,7 +80,7 @@
     private final List<ServerPlayer> players = Lists.newArrayList();
     private final Map<UUID, ServerPlayer> playersByUUID = Maps.newHashMap();
     private final UserBanList bans;
-@@ -108,12 +111,12 @@
+@@ -108,12 +112,12 @@
     private final PlayerDataStorage playerIo;
     private boolean doWhiteList;
     private final RegistryAccess.RegistryHolder registryHolder;
@@ -91,7 +94,20 @@
     public PlayerList(MinecraftServer var1, RegistryAccess.RegistryHolder var2, PlayerDataStorage var3, int var4) {
        this.bans = new UserBanList(USERBANLIST_FILE);
        this.ipBans = new IpBanList(IPBANLIST_FILE);
-@@ -153,30 +156,29 @@
+@@ -136,11 +140,11 @@
+       CompoundTag var7 = this.load(var2);
+       ResourceKey var23;
+       if (var7 != null) {
+          DataResult var10000 = DimensionType.parseLegacy(new Dynamic(NbtOps.INSTANCE, var7.get("Dimension")));
+          Logger var10001 = LOGGER;
+-         var10001.getClass();
++         Objects.requireNonNull(var10001);
+          var23 = (ResourceKey)var10000.resultOrPartial(var10001::error).orElse(Level.OVERWORLD);
+       } else {
+          var23 = Level.OVERWORLD;
+       }
+ 
+@@ -153,30 +157,29 @@
        } else {
           var10 = var9;
        }
@@ -126,20 +142,33 @@
        var2.getRecipeBook().sendInitialRecipeBook(var2);
        this.updateEntireScoreboard(var10.getScoreboard(), var2);
        this.server.invalidateStatus();
-@@ -199,11 +201,11 @@
+@@ -186,11 +189,11 @@
+       } else {
+          var17 = new TranslatableComponent("multiplayer.player.joined.renamed", new Object[]{var2.getDisplayName(), var6});
+       }
+ 
+       this.broadcastMessage(var17.withStyle(ChatFormatting.YELLOW), ChatType.SYSTEM, Util.NIL_UUID);
+-      var13.teleport(var2.getX(), var2.getY(), var2.getZ(), var2.yRot, var2.xRot);
++      var13.teleport(var2.getX(), var2.getY(), var2.getZ(), var2.getYRot(), var2.getXRot());
+       this.players.add(var2);
+       this.playersByUUID.put(var2.getUUID(), var2);
+       this.broadcastAll(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.ADD_PLAYER, new ServerPlayer[]{var2}));
+ 
+       for(int var18 = 0; var18 < this.players.size(); ++var18) {
+@@ -199,11 +202,11 @@
  
        var10.addNewPlayer(var2);
        this.server.getCustomBossEvents().onPlayerConnect(var2);
        this.sendLevelInfo(var2, var10);
        if (!this.server.getResourcePack().isEmpty()) {
 -         var2.sendTexturePack(this.server.getResourcePack(), this.server.getResourcePackHash());
-+         var2.sendTexturePack(this.server.getResourcePack(), this.server.getResourcePackHash(), this.server.isResourcePackRequired());
++         var2.sendTexturePack(this.server.getResourcePack(), this.server.getResourcePackHash(), this.server.isResourcePackRequired(), this.server.getResourcePackPrompt());
        }
  
        Iterator var24 = var2.getActiveEffects().iterator();
  
        while(var24.hasNext()) {
-@@ -240,31 +242,31 @@
+@@ -240,31 +243,31 @@
                 }
              }
  
@@ -175,7 +204,7 @@
        for(int var9 = 0; var9 < 19; ++var9) {
           Objective var10 = var1.getDisplayObjective(var9);
           if (var10 != null && !var3.contains(var10)) {
-@@ -283,27 +285,27 @@
+@@ -283,27 +286,27 @@
     }
  
     public void setLevel(ServerLevel var1) {
@@ -208,7 +237,7 @@
           public void onBorderSetDamagePerBlock(WorldBorder var1, double var2) {
           }
  
-@@ -345,37 +347,30 @@
+@@ -345,37 +348,30 @@
        ServerLevel var2 = var1.getLevel();
        var1.awardStat(Stats.LEAVE_GAME);
        this.save(var1);
@@ -257,7 +286,7 @@
        this.broadcastAll(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.REMOVE_PLAYER, new ServerPlayer[]{var1}));
     }
  
-@@ -426,24 +421,16 @@
+@@ -426,24 +422,16 @@
        while(var8.hasNext()) {
           ServerPlayer var6 = (ServerPlayer)var8.next();
           var6.connection.disconnect(new TranslatableComponent("multiplayer.disconnect.duplicate_login"));
@@ -284,7 +313,7 @@
        boolean var5 = var1.isRespawnForced();
        ServerLevel var6 = this.server.getLevel(var1.getRespawnDimension());
        Optional var7;
-@@ -451,73 +438,65 @@
+@@ -451,73 +439,65 @@
           var7 = Player.findRespawnPositionAndUseSpawnBlock(var6, var3, var4, var5, var2);
        } else {
           var7 = Optional.empty();
@@ -377,7 +406,7 @@
 -         var10.connection.send(new ClientboundSoundPacket(SoundEvents.RESPAWN_ANCHOR_DEPLETE, SoundSource.BLOCKS, (double)var3.getX(), (double)var3.getY(), (double)var3.getZ(), 1.0F, 1.0F));
 +      LevelData var18 = var9.level.getLevelData();
 +      var9.connection.send(new ClientboundRespawnPacket(var9.level.dimensionType(), var9.level.dimension(), BiomeManager.obfuscateSeed(var9.getLevel().getSeed()), var9.gameMode.getGameModeForPlayer(), var9.gameMode.getPreviousGameModeForPlayer(), var9.getLevel().isDebug(), var9.getLevel().isFlat(), var2));
-+      var9.connection.teleport(var9.getX(), var9.getY(), var9.getZ(), var9.yRot, var9.xRot);
++      var9.connection.teleport(var9.getX(), var9.getY(), var9.getZ(), var9.getYRot(), var9.getXRot());
 +      var9.connection.send(new ClientboundSetDefaultSpawnPositionPacket(var8.getSharedSpawnPos(), var8.getSharedSpawnAngle()));
 +      var9.connection.send(new ClientboundChangeDifficultyPacket(var18.getDifficulty(), var18.isDifficultyLocked()));
 +      var9.connection.send(new ClientboundSetExperiencePacket(var9.experienceProgress, var9.totalExperience, var9.experienceLevel));
@@ -399,7 +428,7 @@
     public void sendPlayerPermissionLevel(ServerPlayer var1) {
        GameProfile var2 = var1.getGameProfile();
        int var3 = this.server.getProfilePermissions(var2);
-@@ -531,19 +510,24 @@
+@@ -531,19 +511,24 @@
        }
  
     }
@@ -428,7 +457,7 @@
           }
        }
  
-@@ -699,11 +683,11 @@
+@@ -699,11 +684,11 @@
     public void reloadWhiteList() {
     }
  
@@ -441,7 +470,7 @@
        if (var2.isRaining()) {
           var1.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0F));
           var1.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, var2.getRainLevel(1.0F)));
-@@ -711,13 +695,13 @@
+@@ -711,13 +696,13 @@
        }
  
     }
@@ -457,7 +486,7 @@
     public int getPlayerCount() {
        return this.players.size();
     }
-@@ -758,24 +742,10 @@
+@@ -758,24 +743,10 @@
  
     public CompoundTag getSingleplayerData() {
        return null;
@@ -482,7 +511,7 @@
     }
  
     public void removeAll() {
-@@ -785,13 +755,33 @@
+@@ -785,13 +756,33 @@
  
     }
  
@@ -517,7 +546,7 @@
        ServerStatsCounter var3 = var2 == null ? null : (ServerStatsCounter)this.stats.get(var2);
        if (var3 == null) {
           File var4 = this.server.getWorldPath(LevelResource.PLAYER_STATS_DIR).toFile();
-@@ -857,11 +847,11 @@
+@@ -857,11 +848,11 @@
        while(var1.hasNext()) {
           PlayerAdvancements var2 = (PlayerAdvancements)var1.next();
           var2.reload(this.server.getAdvancements());

@@ -1,18 +1,128 @@
 --- net/minecraft/client/gui/screens/worldselection/EditGameRulesScreen.java
 +++ net/minecraft/client/gui/screens/worldselection/EditGameRulesScreen.java
-@@ -18,10 +18,11 @@
+@@ -8,22 +8,27 @@
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import java.util.Comparator;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.Optional;
+ import java.util.Set;
+ import java.util.Map.Entry;
+ import java.util.function.Consumer;
+ import javax.annotation.Nullable;
  import net.minecraft.ChatFormatting;
  import net.minecraft.client.gui.GuiComponent;
- import net.minecraft.client.gui.components.AbstractSelectionList;
+-import net.minecraft.client.gui.components.AbstractSelectionList;
++import net.minecraft.client.gui.components.AbstractWidget;
  import net.minecraft.client.gui.components.Button;
  import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 +import net.minecraft.client.gui.components.CycleButton;
  import net.minecraft.client.gui.components.EditBox;
  import net.minecraft.client.gui.components.events.GuiEventListener;
++import net.minecraft.client.gui.narration.NarratableEntry;
++import net.minecraft.client.gui.narration.NarratedElementType;
++import net.minecraft.client.gui.narration.NarrationElementOutput;
  import net.minecraft.client.gui.screens.Screen;
  import net.minecraft.client.resources.language.I18n;
  import net.minecraft.network.chat.CommonComponents;
-@@ -187,23 +188,19 @@
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.MutableComponent;
+@@ -50,15 +55,15 @@
+ 
+    protected void init() {
+       this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
+       super.init();
+       this.rules = new EditGameRulesScreen.RuleList(this.gameRules);
+-      this.children.add(this.rules);
+-      this.addButton(new Button(this.width / 2 - 155 + 160, this.height - 29, 150, 20, CommonComponents.GUI_CANCEL, (var1) -> {
++      this.addWidget(this.rules);
++      this.addRenderableWidget(new Button(this.width / 2 - 155 + 160, this.height - 29, 150, 20, CommonComponents.GUI_CANCEL, (var1) -> {
+          this.exitCallback.accept(Optional.empty());
+       }));
+-      this.doneButton = (Button)this.addButton(new Button(this.width / 2 - 155, this.height - 29, 150, 20, CommonComponents.GUI_DONE, (var1) -> {
++      this.doneButton = (Button)this.addRenderableWidget(new Button(this.width / 2 - 155, this.height - 29, 150, 20, CommonComponents.GUI_DONE, (var1) -> {
+          this.exitCallback.accept(Optional.of(this.gameRules));
+       }));
+    }
+ 
+    public void removed() {
+@@ -78,24 +83,24 @@
+          this.renderTooltip(var1, this.tooltip, var2, var3);
+       }
+ 
+    }
+ 
+-   private void setTooltip(@Nullable List<FormattedCharSequence> var1) {
++   void setTooltip(@Nullable List<FormattedCharSequence> var1) {
+       this.tooltip = var1;
+    }
+ 
+    private void updateDoneButton() {
+       this.doneButton.active = this.invalidEntries.isEmpty();
+    }
+ 
+-   private void markInvalid(EditGameRulesScreen.RuleEntry var1) {
++   void markInvalid(EditGameRulesScreen.RuleEntry var1) {
+       this.invalidEntries.add(var1);
+       this.updateDoneButton();
+    }
+ 
+-   private void clearInvalid(EditGameRulesScreen.RuleEntry var1) {
++   void clearInvalid(EditGameRulesScreen.RuleEntry var1) {
+       this.invalidEntries.remove(var1);
+       this.updateDoneButton();
+    }
+ 
+    public class RuleList extends ContainerObjectSelectionList<EditGameRulesScreen.RuleEntry> {
+@@ -125,13 +130,16 @@
+                ImmutableList var9;
+                String var10;
+                if (I18n.exists(var8)) {
+                   Builder var11 = ImmutableList.builder().add(var4.getVisualOrderText());
+                   TranslatableComponent var12 = new TranslatableComponent(var8);
+-                  EditGameRulesScreen.this.font.split(var12, 150).forEach(var11::add);
++                  List var10000 = EditGameRulesScreen.this.font.split(var12, 150);
++                  Objects.requireNonNull(var11);
++                  var10000.forEach(var11::add);
+                   var9 = var11.add(var7.getVisualOrderText()).build();
+-                  var10 = var12.getString() + "\n" + var7.getString();
++                  String var13 = var12.getString();
++                  var10 = var13 + "\n" + var7.getString();
+                } else {
+                   var9 = ImmutableList.of(var4.getVisualOrderText(), var7.getVisualOrderText());
+                   var10 = var7.getString();
+                }
+ 
+@@ -141,22 +149,20 @@
+             }
+          });
+          var3.entrySet().stream().sorted(Entry.comparingByKey()).forEach((var1x) -> {
+             this.addEntry(EditGameRulesScreen.this.new CategoryRuleEntry((new TranslatableComponent(((GameRules.Category)var1x.getKey()).getDescriptionId())).withStyle(new ChatFormatting[]{ChatFormatting.BOLD, ChatFormatting.YELLOW})));
+             ((Map)var1x.getValue()).entrySet().stream().sorted(Entry.comparingByKey(Comparator.comparing(GameRules.Key::getId))).forEach((var1) -> {
+-               this.addEntry((AbstractSelectionList.Entry)var1.getValue());
++               this.addEntry((EditGameRulesScreen.RuleEntry)var1.getValue());
+             });
+          });
+       }
+ 
+       public void render(PoseStack var1, int var2, int var3, float var4) {
+          super.render(var1, var2, var3, var4);
+-         if (this.isMouseOver((double)var2, (double)var3)) {
+-            EditGameRulesScreen.RuleEntry var5 = (EditGameRulesScreen.RuleEntry)this.getEntryAtPosition((double)var2, (double)var3);
+-            if (var5 != null) {
+-               EditGameRulesScreen.this.setTooltip(var5.tooltip);
+-            }
++         EditGameRulesScreen.RuleEntry var5 = (EditGameRulesScreen.RuleEntry)this.getHovered();
++         if (var5 != null) {
++            EditGameRulesScreen.this.setTooltip(var5.tooltip);
+          }
+ 
+       }
+    }
+ 
+@@ -187,23 +193,19 @@
           this.input.render(var1, var7, var8, var10);
        }
     }
@@ -43,3 +153,75 @@
  
        public void render(PoseStack var1, int var2, int var3, int var4, int var5, int var6, int var7, int var8, boolean var9, float var10) {
           this.renderLabel(var1, var3, var4);
+@@ -213,21 +215,25 @@
+       }
+    }
+ 
+    public abstract class GameRuleEntry extends EditGameRulesScreen.RuleEntry {
+       private final List<FormattedCharSequence> label;
+-      protected final List<GuiEventListener> children = Lists.newArrayList();
++      protected final List<AbstractWidget> children = Lists.newArrayList();
+ 
+-      public GameRuleEntry(List<FormattedCharSequence> var2, @Nullable Component var3) {
++      public GameRuleEntry(@Nullable List<FormattedCharSequence> var2, Component var3) {
+          super(var2);
+          this.label = EditGameRulesScreen.this.minecraft.font.split(var3, 175);
+       }
+ 
+       public List<? extends GuiEventListener> children() {
+          return this.children;
+       }
+ 
++      public List<? extends NarratableEntry> narratables() {
++         return this.children;
++      }
++
+       protected void renderLabel(PoseStack var1, int var2, int var3) {
+          if (this.label.size() == 1) {
+             EditGameRulesScreen.this.minecraft.font.draw(var1, (FormattedCharSequence)this.label.get(0), (float)var3, (float)(var2 + 5), 16777215);
+          } else if (this.label.size() >= 2) {
+             EditGameRulesScreen.this.minecraft.font.draw(var1, (FormattedCharSequence)this.label.get(0), (float)var3, (float)var2, 16777215);
+@@ -241,11 +247,11 @@
+    interface EntryFactory<T extends GameRules.Value<T>> {
+       EditGameRulesScreen.RuleEntry create(Component var1, List<FormattedCharSequence> var2, String var3, T var4);
+    }
+ 
+    public class CategoryRuleEntry extends EditGameRulesScreen.RuleEntry {
+-      private final Component label;
++      final Component label;
+ 
+       public CategoryRuleEntry(Component var2) {
+          super((List)null);
+          this.label = var2;
+       }
+@@ -255,16 +261,28 @@
+       }
+ 
+       public List<? extends GuiEventListener> children() {
+          return ImmutableList.of();
+       }
++
++      public List<? extends NarratableEntry> narratables() {
++         return ImmutableList.of(new NarratableEntry() {
++            public NarratableEntry.NarrationPriority narrationPriority() {
++               return NarratableEntry.NarrationPriority.HOVERED;
++            }
++
++            public void updateNarration(NarrationElementOutput var1) {
++               var1.add(NarratedElementType.TITLE, CategoryRuleEntry.this.label);
++            }
++         });
++      }
+    }
+ 
+    public abstract class RuleEntry extends ContainerObjectSelectionList.Entry<EditGameRulesScreen.RuleEntry> {
+       @Nullable
+-      private final List<FormattedCharSequence> tooltip;
++      final List<FormattedCharSequence> tooltip;
+ 
+-      public RuleEntry(List<FormattedCharSequence> var2) {
++      public RuleEntry(@Nullable List<FormattedCharSequence> var2) {
+          this.tooltip = var2;
+       }
+    }
+ }

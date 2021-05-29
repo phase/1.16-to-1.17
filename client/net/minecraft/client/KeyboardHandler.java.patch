@@ -1,6 +1,6 @@
 --- net/minecraft/client/KeyboardHandler.java
 +++ net/minecraft/client/KeyboardHandler.java
-@@ -1,16 +1,20 @@
+@@ -1,41 +1,48 @@
  package net.minecraft.client;
  
 +import com.google.common.base.MoreObjects;
@@ -9,7 +9,6 @@
  import com.mojang.blaze3d.platform.InputConstants;
 +import java.text.MessageFormat;
  import java.util.Locale;
-+import java.util.function.Consumer;
  import javax.annotation.Nullable;
  import net.minecraft.ChatFormatting;
  import net.minecraft.CrashReport;
@@ -21,8 +20,9 @@
  import net.minecraft.client.gui.screens.Screen;
  import net.minecraft.client.gui.screens.SimpleOptionsSubScreen;
  import net.minecraft.client.gui.screens.controls.ControlsScreen;
-@@ -18,24 +22,27 @@
+ import net.minecraft.client.gui.screens.debug.GameModeSwitcherScreen;
  import net.minecraft.client.multiplayer.ClientPacketListener;
++import net.minecraft.client.player.LocalPlayer;
  import net.minecraft.commands.arguments.blocks.BlockStateParser;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Registry;
@@ -49,7 +49,7 @@
     private final ClipboardManager clipboardManager = new ClipboardManager();
     private long debugCrashKeyTime = -1L;
     private long debugCrashKeyReportedTime = -1L;
-@@ -44,18 +51,55 @@
+@@ -44,18 +51,63 @@
  
     public KeyboardHandler(Minecraft var1) {
        this.minecraft = var1;
@@ -88,16 +88,26 @@
 +      }
 +   }
 +
++   private void debugComponent(ChatFormatting var1, Component var2) {
++      this.minecraft.gui.getChat().addMessage((new TextComponent("")).append((new TranslatableComponent("debug.prefix")).withStyle(new ChatFormatting[]{var1, ChatFormatting.BOLD})).append(" ").append(var2));
++   }
++
++   private void debugFeedbackComponent(Component var1) {
++      this.debugComponent(ChatFormatting.YELLOW, var1);
++   }
++
     private void debugFeedbackTranslated(String var1, Object... var2) {
-       this.minecraft.gui.getChat().addMessage((new TextComponent("")).append((new TranslatableComponent("debug.prefix")).withStyle(new ChatFormatting[]{ChatFormatting.YELLOW, ChatFormatting.BOLD})).append(" ").append((Component)(new TranslatableComponent(var1, var2))));
+-      this.minecraft.gui.getChat().addMessage((new TextComponent("")).append((new TranslatableComponent("debug.prefix")).withStyle(new ChatFormatting[]{ChatFormatting.YELLOW, ChatFormatting.BOLD})).append(" ").append((Component)(new TranslatableComponent(var1, var2))));
++      this.debugFeedbackComponent(new TranslatableComponent(var1, var2));
     }
  
     private void debugWarningTranslated(String var1, Object... var2) {
-       this.minecraft.gui.getChat().addMessage((new TextComponent("")).append((new TranslatableComponent("debug.prefix")).withStyle(new ChatFormatting[]{ChatFormatting.RED, ChatFormatting.BOLD})).append(" ").append((Component)(new TranslatableComponent(var1, var2))));
+-      this.minecraft.gui.getChat().addMessage((new TextComponent("")).append((new TranslatableComponent("debug.prefix")).withStyle(new ChatFormatting[]{ChatFormatting.RED, ChatFormatting.BOLD})).append(" ").append((Component)(new TranslatableComponent(var1, var2))));
++      this.debugComponent(ChatFormatting.RED, new TranslatableComponent(var1, var2));
     }
  
 +   private void debugFeedback(String var1, Object... var2) {
-+      this.minecraft.gui.getChat().addMessage((new TextComponent("")).append((new TranslatableComponent("debug.prefix")).withStyle(new ChatFormatting[]{ChatFormatting.YELLOW, ChatFormatting.BOLD})).append(" ").append(MessageFormat.format(var1, var2)));
++      this.debugFeedbackComponent(new TextComponent(MessageFormat.format(var1, var2)));
 +   }
 +
     private boolean handleDebugKeys(int var1) {
@@ -105,35 +115,30 @@
           return true;
        } else {
           switch(var1) {
-@@ -70,12 +114,12 @@
-             return true;
-          case 67:
-             if (this.minecraft.player.isReducedDebugInfo()) {
-                return false;
-             } else {
--               ClientPacketListener var5 = this.minecraft.player.connection;
--               if (var5 == null) {
-+               ClientPacketListener var7 = this.minecraft.player.connection;
-+               if (var7 == null) {
+@@ -76,11 +128,11 @@
+                if (var5 == null) {
                    return false;
                 }
  
                 this.debugFeedbackTranslated("debug.copy_location.message");
-                this.setClipboard(String.format(Locale.ROOT, "/execute in %s run tp @s %.2f %.2f %.2f %.2f %.2f", this.minecraft.player.level.dimension().location(), this.minecraft.player.getX(), this.minecraft.player.getY(), this.minecraft.player.getZ(), this.minecraft.player.yRot, this.minecraft.player.xRot));
-@@ -104,17 +148,26 @@
+-               this.setClipboard(String.format(Locale.ROOT, "/execute in %s run tp @s %.2f %.2f %.2f %.2f %.2f", this.minecraft.player.level.dimension().location(), this.minecraft.player.getX(), this.minecraft.player.getY(), this.minecraft.player.getZ(), this.minecraft.player.yRot, this.minecraft.player.xRot));
++               this.setClipboard(String.format(Locale.ROOT, "/execute in %s run tp @s %.2f %.2f %.2f %.2f %.2f", this.minecraft.player.level.dimension().location(), this.minecraft.player.getX(), this.minecraft.player.getY(), this.minecraft.player.getZ(), this.minecraft.player.getYRot(), this.minecraft.player.getXRot()));
+                return true;
+             }
+          case 68:
+             if (this.minecraft.gui != null) {
+                this.minecraft.gui.getChat().clearMessages(false);
+@@ -104,17 +156,25 @@
              if (!this.minecraft.player.isReducedDebugInfo()) {
                 this.copyRecreateCommand(this.minecraft.player.hasPermissions(2), !Screen.hasShiftDown());
              }
  
              return true;
 +         case 76:
-+            Runnable var5 = () -> {
++            if (this.minecraft.debugClientMetricsStart(this::debugFeedbackComponent)) {
 +               this.debugFeedbackTranslated("debug.profiling.start", 10);
-+            };
-+            Consumer var6 = (var1x) -> {
-+               this.debugFeedbackTranslated("debug.profiling.stop", var1x.toAbsolutePath());
-+            };
-+            this.minecraft.debugClientMetricsKeyPressed(var5, var6);
++            }
++
 +            return true;
           case 78:
              if (!this.minecraft.player.hasPermissions(2)) {
@@ -142,25 +147,27 @@
                 this.minecraft.player.chat("/gamemode spectator");
              } else {
 -               this.minecraft.player.chat("/gamemode " + this.minecraft.gameMode.getPreviousPlayerMode().getName());
-+               this.minecraft.player.chat("/gamemode " + ((GameType)MoreObjects.firstNonNull(this.minecraft.gameMode.getPreviousPlayerMode(), GameType.CREATIVE)).getName());
++               LocalPlayer var10000 = this.minecraft.player;
++               GameType var10001 = this.minecraft.gameMode.getPreviousPlayerMode();
++               var10000.chat("/gamemode " + ((GameType)MoreObjects.firstNonNull(var10001, GameType.CREATIVE)).getName());
              }
  
              return true;
           case 80:
              this.minecraft.options.pauseOnLostFocus = !this.minecraft.options.pauseOnLostFocus;
-@@ -134,10 +187,11 @@
+@@ -130,10 +190,11 @@
+             var4.addMessage(new TranslatableComponent("debug.clear_chat.help"));
+             var4.addMessage(new TranslatableComponent("debug.cycle_renderdistance.help"));
+             var4.addMessage(new TranslatableComponent("debug.chunk_boundaries.help"));
+             var4.addMessage(new TranslatableComponent("debug.advanced_tooltips.help"));
              var4.addMessage(new TranslatableComponent("debug.inspect.help"));
++            var4.addMessage(new TranslatableComponent("debug.profiling.help"));
              var4.addMessage(new TranslatableComponent("debug.creative_spectator.help"));
              var4.addMessage(new TranslatableComponent("debug.pause_focus.help"));
              var4.addMessage(new TranslatableComponent("debug.help.help"));
              var4.addMessage(new TranslatableComponent("debug.reload_resourcepacks.help"));
-+            var4.addMessage(new TranslatableComponent("debug.profiling.help"));
              var4.addMessage(new TranslatableComponent("debug.pause.help"));
-             var4.addMessage(new TranslatableComponent("debug.gamemodes.help"));
-             return true;
-          case 84:
-             this.debugFeedbackTranslated("debug.reload_resourcepacks.message");
-@@ -225,11 +279,11 @@
+@@ -225,11 +286,11 @@
        String var4;
        if (var3 != null) {
           var3.remove("UUID");
@@ -173,7 +180,7 @@
           var4 = String.format(Locale.ROOT, "/summon %s %.2f %.2f %.2f", var1.toString(), var2.x, var2.y, var2.z);
        }
  
-@@ -269,31 +323,34 @@
+@@ -269,31 +330,41 @@
                 });
                 return;
              }
@@ -184,13 +191,19 @@
 -            Option.NARRATOR.toggle(this.minecraft.options, 1);
 -            if (var7 instanceof SimpleOptionsSubScreen) {
 -               ((SimpleOptionsSubScreen)var7).updateNarratorButton();
++         boolean var9;
 +         if (NarratorChatListener.INSTANCE.isActive()) {
 +            boolean var8 = var7 == null || !(var7.getFocused() instanceof EditBox) || !((EditBox)var7.getFocused()).canConsumeInput();
 +            if (var5 != 0 && var3 == 66 && Screen.hasControlDown() && var8) {
++               var9 = this.minecraft.options.narratorStatus == NarratorStatus.OFF;
 +               this.minecraft.options.narratorStatus = NarratorStatus.byId(this.minecraft.options.narratorStatus.getId() + 1);
 +               NarratorChatListener.INSTANCE.updateNarratorStatus(this.minecraft.options.narratorStatus);
 +               if (var7 instanceof SimpleOptionsSubScreen) {
 +                  ((SimpleOptionsSubScreen)var7).updateNarratorButton();
++               }
++
++               if (var9 && var7 != null) {
++                  var7.narrationEnabled();
 +               }
              }
           }
@@ -206,6 +219,7 @@
                    }
                 } else {
 -                  var9[0] = var7.keyPressed(var3, var4, var6);
++                  var7.afterKeyboardAction();
 +                  var11[0] = var7.keyPressed(var3, var4, var6);
                 }
  
@@ -217,14 +231,14 @@
           }
  
           if (this.minecraft.screen == null || this.minecraft.screen.passEvents) {
-@@ -312,25 +369,25 @@
+@@ -312,25 +383,25 @@
              } else {
                 if (var3 == 293 && this.minecraft.gameRenderer != null) {
                    this.minecraft.gameRenderer.togglePostEffect();
                 }
  
 -               boolean var10 = false;
-+               boolean var9 = false;
++               var9 = false;
                 if (this.minecraft.screen == null) {
                    if (var3 == 256) {
 -                     boolean var11 = InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), 292);
@@ -249,7 +263,7 @@
                    KeyMapping.set(var12, true);
                    KeyMapping.click(var12);
                 }
-@@ -392,11 +449,14 @@
+@@ -392,11 +463,14 @@
  
        });
     }

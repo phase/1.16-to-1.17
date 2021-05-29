@@ -1,0 +1,74 @@
+--- net/minecraft/client/gui/chat/NarratorChatListener.java
++++ net/minecraft/client/gui/chat/NarratorChatListener.java
+@@ -23,44 +23,56 @@
+    public NarratorChatListener() {
+    }
+ 
+    public void handle(ChatType var1, Component var2, UUID var3) {
+       NarratorStatus var4 = getStatus();
+-      if (var4 != NarratorStatus.OFF && this.narrator.active()) {
+-         if (var4 == NarratorStatus.ALL || var4 == NarratorStatus.CHAT && var1 == ChatType.CHAT || var4 == NarratorStatus.SYSTEM && var1 == ChatType.SYSTEM) {
+-            Object var5;
+-            if (var2 instanceof TranslatableComponent && "chat.type.text".equals(((TranslatableComponent)var2).getKey())) {
+-               var5 = new TranslatableComponent("chat.type.text.narrate", ((TranslatableComponent)var2).getArgs());
+-            } else {
+-               var5 = var2;
++      if (var4 != NarratorStatus.OFF) {
++         if (!this.narrator.active()) {
++            this.logNarratedMessage(var2.getString());
++         } else {
++            if (var4 == NarratorStatus.ALL || var4 == NarratorStatus.CHAT && var1 == ChatType.CHAT || var4 == NarratorStatus.SYSTEM && var1 == ChatType.SYSTEM) {
++               Object var5;
++               if (var2 instanceof TranslatableComponent && "chat.type.text".equals(((TranslatableComponent)var2).getKey())) {
++                  var5 = new TranslatableComponent("chat.type.text.narrate", ((TranslatableComponent)var2).getArgs());
++               } else {
++                  var5 = var2;
++               }
++
++               String var6 = ((Component)var5).getString();
++               this.logNarratedMessage(var6);
++               this.narrator.say(var6, var1.shouldInterrupt());
+             }
+ 
+-            this.doSay(var1.shouldInterrupt(), ((Component)var5).getString());
+          }
+-
+       }
+    }
+ 
++   public void sayNow(Component var1) {
++      this.sayNow(var1.getString());
++   }
++
+    public void sayNow(String var1) {
+       NarratorStatus var2 = getStatus();
+-      if (this.narrator.active() && var2 != NarratorStatus.OFF && var2 != NarratorStatus.CHAT && !var1.isEmpty()) {
+-         this.narrator.clear();
+-         this.doSay(true, var1);
++      if (var2 != NarratorStatus.OFF && var2 != NarratorStatus.CHAT && !var1.isEmpty()) {
++         this.logNarratedMessage(var1);
++         if (this.narrator.active()) {
++            this.narrator.clear();
++            this.narrator.say(var1, true);
++         }
+       }
+ 
+    }
+ 
+    private static NarratorStatus getStatus() {
+       return Minecraft.getInstance().options.narratorStatus;
+    }
+ 
+-   private void doSay(boolean var1, String var2) {
++   private void logNarratedMessage(String var1) {
+       if (SharedConstants.IS_RUNNING_IN_IDE) {
+-         LOGGER.debug("Narrating: {}", var2.replaceAll("\n", "\\\\n"));
++         LOGGER.debug("Narrating: {}", var1.replaceAll("\n", "\\\\n"));
+       }
+ 
+-      this.narrator.say(var2, var1);
+    }
+ 
+    public void updateNarratorStatus(NarratorStatus var1) {
+       this.clear();
+       this.narrator.say((new TranslatableComponent("options.narrator")).append(" : ").append(var1.getName()).getString(), true);

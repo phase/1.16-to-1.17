@@ -76,7 +76,7 @@
 +         HttpURLConnection var4 = (HttpURLConnection)var0.openConnection(var3);
 +         var4.setRequestMethod("POST");
 +         var4.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-+         var4.setRequestProperty("Content-Length", "" + var1.getBytes().length);
++         var4.setRequestProperty("Content-Length", var1.getBytes().length.makeConcatWithConstants<invokedynamic>(var1.getBytes().length));
 +         var4.setRequestProperty("Content-Language", "en-US");
 +         var4.setUseCaches(false);
 +         var4.setDoInput(true);
@@ -110,3 +110,192 @@
           HttpURLConnection var6 = null;
           InputStream var7 = null;
           DataOutputStream var8 = null;
+@@ -39,60 +118,58 @@
+             var4.progressStart(new TranslatableComponent("resourcepack.downloading"));
+             var4.progressStage(new TranslatableComponent("resourcepack.requesting"));
+          }
+ 
+          try {
+-            try {
+-               byte[] var9 = new byte[4096];
+-               URL var24 = new URL(var1);
+-               var6 = (HttpURLConnection)var24.openConnection(var5);
+-               var6.setInstanceFollowRedirects(true);
+-               float var11 = 0.0F;
+-               float var12 = (float)var2.entrySet().size();
+-               Iterator var13 = var2.entrySet().iterator();
++            byte[] var9 = new byte[4096];
++            URL var24 = new URL(var1);
++            var6 = (HttpURLConnection)var24.openConnection(var5);
++            var6.setInstanceFollowRedirects(true);
++            float var11 = 0.0F;
++            float var12 = (float)var2.entrySet().size();
++            Iterator var13 = var2.entrySet().iterator();
+ 
+-               while(var13.hasNext()) {
+-                  Entry var14 = (Entry)var13.next();
+-                  var6.setRequestProperty((String)var14.getKey(), (String)var14.getValue());
+-                  if (var4 != null) {
+-                     var4.progressStagePercentage((int)(++var11 / var12 * 100.0F));
+-                  }
+-               }
+-
+-               var7 = var6.getInputStream();
+-               var12 = (float)var6.getContentLength();
+-               int var25 = var6.getContentLength();
++            while(var13.hasNext()) {
++               Entry var14 = (Entry)var13.next();
++               var6.setRequestProperty((String)var14.getKey(), (String)var14.getValue());
+                if (var4 != null) {
+-                  var4.progressStage(new TranslatableComponent("resourcepack.progress", new Object[]{String.format(Locale.ROOT, "%.2f", var12 / 1000.0F / 1000.0F)}));
++                  var4.progressStagePercentage((int)(++var11 / var12 * 100.0F));
+                }
++            }
+ 
+-               if (var0.exists()) {
+-                  long var26 = var0.length();
+-                  if (var26 == (long)var25) {
+-                     if (var4 != null) {
+-                        var4.stop();
+-                     }
++            var7 = var6.getInputStream();
++            var12 = (float)var6.getContentLength();
++            int var25 = var6.getContentLength();
++            if (var4 != null) {
++               var4.progressStage(new TranslatableComponent("resourcepack.progress", new Object[]{String.format(Locale.ROOT, "%.2f", var12 / 1000.0F / 1000.0F)}));
++            }
+ 
+-                     Object var16 = null;
+-                     return var16;
++            if (var0.exists()) {
++               long var26 = var0.length();
++               if (var26 == (long)var25) {
++                  if (var4 != null) {
++                     var4.stop();
+                   }
+ 
+-                  LOGGER.warn("Deleting {} as it does not match what we currently have ({} vs our {}).", var0, var25, var26);
+-                  FileUtils.deleteQuietly(var0);
+-               } else if (var0.getParentFile() != null) {
+-                  var0.getParentFile().mkdirs();
++                  Object var16 = null;
++                  return var16;
+                }
+ 
+-               var8 = new DataOutputStream(new FileOutputStream(var0));
+-               if (var3 > 0 && var12 > (float)var3) {
+-                  if (var4 != null) {
+-                     var4.stop();
+-                  }
++               LOGGER.warn("Deleting {} as it does not match what we currently have ({} vs our {}).", var0, var25, var26);
++               FileUtils.deleteQuietly(var0);
++            } else if (var0.getParentFile() != null) {
++               var0.getParentFile().mkdirs();
++            }
+ 
+-                  throw new IOException("Filesize is bigger than maximum allowed (file is " + var11 + ", limit is " + var3 + ")");
++            var8 = new DataOutputStream(new FileOutputStream(var0));
++            if (var3 > 0 && var12 > (float)var3) {
++               if (var4 != null) {
++                  var4.stop();
+                }
+ 
++               throw new IOException("Filesize is bigger than maximum allowed (file is " + var11 + ", limit is " + var3 + ")");
++            } else {
+                int var27;
+                while((var27 = var7.read(var9)) >= 0) {
+                   var11 += (float)var27;
+                   if (var4 != null) {
+                      var4.progressStagePercentage((int)(var11 / var12 * 100.0F));
+@@ -119,30 +196,30 @@
+                   var8.write(var9, 0, var27);
+                }
+ 
+                if (var4 != null) {
+                   var4.stop();
+-                  return null;
+                }
+-            } catch (Throwable var22) {
+-               var22.printStackTrace();
+-               if (var6 != null) {
+-                  InputStream var10 = var6.getErrorStream();
+ 
+-                  try {
+-                     LOGGER.error(IOUtils.toString(var10));
+-                  } catch (IOException var21) {
+-                     var21.printStackTrace();
+-                  }
+-               }
++               return null;
++            }
++         } catch (Throwable var22) {
++            var22.printStackTrace();
++            if (var6 != null) {
++               InputStream var10 = var6.getErrorStream();
+ 
+-               if (var4 != null) {
+-                  var4.stop();
+-                  return null;
++               try {
++                  LOGGER.error(IOUtils.toString(var10));
++               } catch (IOException var21) {
++                  var21.printStackTrace();
+                }
+             }
+ 
++            if (var4 != null) {
++               var4.stop();
++            }
++
+             return null;
+          } finally {
+             IOUtils.closeQuietly(var7);
+             IOUtils.closeQuietly(var8);
+          }
+@@ -150,35 +227,27 @@
+    }
+ 
+    public static int getAvailablePort() {
+       try {
+          ServerSocket var0 = new ServerSocket(0);
+-         Throwable var1 = null;
+ 
+-         int var2;
++         int var1;
+          try {
+-            var2 = var0.getLocalPort();
+-         } catch (Throwable var12) {
+-            var1 = var12;
+-            throw var12;
+-         } finally {
+-            if (var0 != null) {
+-               if (var1 != null) {
+-                  try {
+-                     var0.close();
+-                  } catch (Throwable var11) {
+-                     var1.addSuppressed(var11);
+-                  }
+-               } else {
+-                  var0.close();
+-               }
++            var1 = var0.getLocalPort();
++         } catch (Throwable var4) {
++            try {
++               var0.close();
++            } catch (Throwable var3) {
++               var4.addSuppressed(var3);
+             }
+ 
++            throw var4;
+          }
+ 
+-         return var2;
+-      } catch (IOException var14) {
++         var0.close();
++         return var1;
++      } catch (IOException var5) {
+          return 25564;
+       }
+    }
+ 
+    static {

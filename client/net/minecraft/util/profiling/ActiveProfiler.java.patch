@@ -1,28 +1,134 @@
 --- net/minecraft/util/profiling/ActiveProfiler.java
 +++ net/minecraft/util/profiling/ActiveProfiler.java
-@@ -143,17 +143,21 @@
+@@ -5,17 +5,21 @@
+ import it.unimi.dsi.fastutil.longs.LongArrayList;
+ import it.unimi.dsi.fastutil.longs.LongList;
+ import it.unimi.dsi.fastutil.objects.Object2LongMap;
+ import it.unimi.dsi.fastutil.objects.Object2LongMaps;
+ import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
++import it.unimi.dsi.fastutil.objects.ObjectArraySet;
+ import java.time.Duration;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Set;
+ import java.util.function.IntSupplier;
+ import java.util.function.LongSupplier;
+ import javax.annotation.Nullable;
+ import net.minecraft.Util;
++import net.minecraft.util.profiling.metrics.MetricCategory;
++import org.apache.commons.lang3.tuple.Pair;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.apache.logging.log4j.util.Supplier;
+ 
+ public class ActiveProfiler implements ProfileCollector {
+@@ -31,10 +35,11 @@
+    private String path = "";
+    private boolean started;
+    @Nullable
+    private ActiveProfiler.PathEntry currentEntry;
+    private final boolean warn;
++   private final Set<Pair<String, MetricCategory>> chartedPaths = new ObjectArraySet();
+ 
+    public ActiveProfiler(LongSupplier var1, IntSupplier var2, boolean var3) {
+       this.startTimeNano = var1.getAsLong();
+       this.getRealTime = var1;
+       this.startTimeTicks = var2.getAsInt();
+@@ -71,11 +76,11 @@
+    public void push(String var1) {
+       if (!this.started) {
+          LOGGER.error("Cannot push '{}' to profiler if profiler tick hasn't started - missing startTick()?", var1);
+       } else {
+          if (!this.path.isEmpty()) {
+-            this.path = this.path + '\u001e';
++            this.path = this.path + "\u001e";
+          }
+ 
+          this.path = this.path + var1;
+          this.paths.add(this.path);
+          this.startTimes.add(Util.getNanos());
+@@ -85,10 +90,14 @@
+ 
+    public void push(java.util.function.Supplier<String> var1) {
+       this.push((String)var1.get());
+    }
+ 
++   public void markForCharting(MetricCategory var1) {
++      this.chartedPaths.add(Pair.of(this.path, var1));
++   }
++
+    public void pop() {
+       if (!this.started) {
+          LOGGER.error("Cannot pop from profiler if profiler tick hasn't started - missing startTick()?");
+       } else if (this.startTimes.isEmpty()) {
+          LOGGER.error("Tried to pop one too many times! Mismatched push() and pop()?");
+@@ -96,12 +105,14 @@
+          long var1 = Util.getNanos();
+          long var3 = this.startTimes.removeLong(this.startTimes.size() - 1);
+          this.paths.remove(this.paths.size() - 1);
+          long var5 = var1 - var3;
+          ActiveProfiler.PathEntry var7 = this.getCurrentEntry();
+-         var7.duration = var7.duration + var5;
+-         var7.count = var7.count + 1L;
++         var7.accumulatedDuration += var5;
++         ++var7.count;
++         var7.maxDuration = Math.max(var7.maxDuration, var5);
++         var7.minDuration = Math.min(var7.minDuration, var5);
+          if (this.warn && var5 > WARNING_TIME_NANOS) {
+             LOGGER.warn("Something's taking too long! '{}' took aprox {} ms", new Supplier[]{() -> {
+                return ProfileResults.demanglePath(this.path);
+             }, () -> {
+                return (double)var5 / 1000000.0D;
+@@ -136,30 +147,44 @@
+    public void incrementCounter(String var1) {
+       this.getCurrentEntry().counters.addTo(var1, 1L);
+    }
+ 
+    public void incrementCounter(java.util.function.Supplier<String> var1) {
+-      this.getCurrentEntry().counters.addTo(var1.get(), 1L);
++      this.getCurrentEntry().counters.addTo((String)var1.get(), 1L);
+    }
  
     public ProfileResults getResults() {
        return new FilledProfileResults(this.entries, this.startTimeNano, this.startTimeTicks, this.getRealTime.getAsLong(), this.getTickTime.getAsInt());
     }
  
 -   static class PathEntry implements ProfilerPathEntry {
+-      private long duration;
+-      private long count;
+-      private Object2LongOpenHashMap<String> counters;
 +   @Nullable
 +   public ActiveProfiler.PathEntry getEntry(String var1) {
 +      return (ActiveProfiler.PathEntry)this.entries.get(var1);
 +   }
-+
-+   public static class PathEntry implements ProfilerPathEntry {
-       private long duration;
-       private long count;
--      private Object2LongOpenHashMap<String> counters;
-+      private final Object2LongOpenHashMap<String> counters = new Object2LongOpenHashMap();
  
 -      private PathEntry() {
 -         this.counters = new Object2LongOpenHashMap();
++   public Set<Pair<String, MetricCategory>> getChartedPaths() {
++      return this.chartedPaths;
++   }
++
++   public static class PathEntry implements ProfilerPathEntry {
++      long maxDuration = Long.MIN_VALUE;
++      long minDuration = Long.MAX_VALUE;
++      long accumulatedDuration;
++      long count;
++      final Object2LongOpenHashMap<String> counters = new Object2LongOpenHashMap();
++
 +      public PathEntry() {
        }
  
        public long getDuration() {
-          return this.duration;
+-         return this.duration;
++         return this.accumulatedDuration;
        }
+ 
++      public long getMaxDuration() {
++         return this.maxDuration;
++      }
++
+       public long getCount() {
+          return this.count;
+       }
+ 
+       public Object2LongMap<String> getCounters() {

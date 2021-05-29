@@ -1,6 +1,6 @@
 --- net/minecraft/client/renderer/chunk/ChunkRenderDispatcher.java
 +++ net/minecraft/client/renderer/chunk/ChunkRenderDispatcher.java
-@@ -6,10 +6,11 @@
+@@ -6,16 +6,18 @@
  import com.google.common.primitives.Doubles;
  import com.mojang.blaze3d.vertex.BufferBuilder;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -12,7 +12,14 @@
  import java.util.HashSet;
  import java.util.Iterator;
  import java.util.List;
-@@ -34,17 +35,16 @@
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.PriorityQueue;
+ import java.util.Queue;
+ import java.util.Random;
+ import java.util.Set;
+ import java.util.concurrent.CancellationException;
+@@ -34,17 +36,16 @@
  import net.minecraft.client.renderer.ItemBlockRenderTypes;
  import net.minecraft.client.renderer.LevelRenderer;
  import net.minecraft.client.renderer.RenderType;
@@ -31,7 +38,7 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.ChunkStatus;
  import net.minecraft.world.level.chunk.LevelChunk;
-@@ -54,10 +54,12 @@
+@@ -54,20 +55,22 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -44,7 +51,20 @@
     private final Queue<Runnable> toUpload = Queues.newConcurrentLinkedQueue();
     private volatile int toBatchCount;
     private volatile int freeBufferCount;
-@@ -139,10 +141,22 @@
+-   private final ChunkBufferBuilderPack fixedBuffers;
++   final ChunkBufferBuilderPack fixedBuffers;
+    private final ProcessorMailbox<Runnable> mailbox;
+    private final Executor executor;
+-   private Level level;
+-   private final LevelRenderer renderer;
++   Level level;
++   final LevelRenderer renderer;
+    private Vec3 camera;
+ 
+    public ChunkRenderDispatcher(Level var1, LevelRenderer var2, Executor var3, boolean var4, ChunkBufferBuilderPack var5) {
+       this.camera = Vec3.ZERO;
+       this.level = var1;
+@@ -139,10 +142,22 @@
  
     public String getStats() {
        return String.format("pC: %03d, pU: %02d, aB: %02d", this.toBatchCount, this.toUpload.size(), this.freeBufferCount);
@@ -67,39 +87,69 @@
     }
  
     public Vec3 getCameraPosition() {
-@@ -208,10 +222,14 @@
+@@ -177,11 +192,11 @@
+ 
+    public CompletableFuture<Void> uploadChunkLayer(BufferBuilder var1, VertexBuffer var2) {
+       Runnable var10000 = () -> {
+       };
+       Queue var10001 = this.toUpload;
+-      var10001.getClass();
++      Objects.requireNonNull(var10001);
+       return CompletableFuture.runAsync(var10000, var10001::add).thenCompose((var3) -> {
+          return this.doUploadChunkLayer(var1, var2);
+       });
+    }
+ 
+@@ -208,88 +223,53 @@
        this.clearBatchQueue();
        this.mailbox.close();
        this.freeBuffers.clear();
     }
  
+-   public static class CompiledChunk {
+-      public static final ChunkRenderDispatcher.CompiledChunk UNCOMPILED = new ChunkRenderDispatcher.CompiledChunk() {
+-         public boolean facesCanSeeEachother(Direction var1, Direction var2) {
+-            return false;
+-         }
+-      };
+-      private final Set<RenderType> hasBlocks = new ObjectArraySet();
+-      private final Set<RenderType> hasLayer = new ObjectArraySet();
+-      private boolean isCompletelyEmpty = true;
+-      private final List<BlockEntity> renderableBlockEntities = Lists.newArrayList();
+-      private VisibilitySet visibilitySet = new VisibilitySet();
+-      @Nullable
+-      private BufferBuilder.State transparencyState;
+-
+-      public CompiledChunk() {
+-      }
+-
+-      public boolean hasNoRenderableLayers() {
+-         return this.isCompletelyEmpty;
+-      }
+-
+-      public boolean isEmpty(RenderType var1) {
+-         return !this.hasBlocks.contains(var1);
+-      }
+-
+-      public List<BlockEntity> getRenderableBlockEntities() {
+-         return this.renderableBlockEntities;
+-      }
+-
+-      public boolean facesCanSeeEachother(Direction var1, Direction var2) {
+-         return this.visibilitySet.visibilityBetween(var1, var2);
+-      }
 +   static {
 +      VERTEX_FORMAT = DefaultVertexFormat.BLOCK;
-+   }
-+
-    public static class CompiledChunk {
-       public static final ChunkRenderDispatcher.CompiledChunk UNCOMPILED = new ChunkRenderDispatcher.CompiledChunk() {
-          public boolean facesCanSeeEachother(Direction var1, Direction var2) {
-             return false;
-          }
-@@ -220,11 +238,11 @@
-       private final Set<RenderType> hasLayer = new ObjectArraySet();
-       private boolean isCompletelyEmpty = true;
-       private final List<BlockEntity> renderableBlockEntities = Lists.newArrayList();
-       private VisibilitySet visibilitySet = new VisibilitySet();
-       @Nullable
--      private BufferBuilder.State transparencyState;
-+      private BufferBuilder.SortState transparencyState;
- 
-       public CompiledChunk() {
-       }
- 
-       public boolean hasNoRenderableLayers() {
-@@ -251,10 +269,12 @@
-       private ChunkTaskResult() {
-       }
     }
  
+-   static enum ChunkTaskResult {
+-      SUCCESSFUL,
+-      CANCELLED;
+-
+-      private ChunkTaskResult() {
+-      }
+-   }
+-
     public class RenderChunk {
 +      public static final int SIZE = 16;
 +      public final int index;
@@ -108,9 +158,13 @@
        private ChunkRenderDispatcher.RenderChunk.RebuildTask lastRebuildTask;
        @Nullable
        private ChunkRenderDispatcher.RenderChunk.ResortTransparencyTask lastResortTransparencyTask;
-@@ -265,31 +285,32 @@
+       private final Set<BlockEntity> globalBlockEntities;
+       private final Map<RenderType, VertexBuffer> buffers;
+       public AABB bb;
+       private int lastFrame;
        private boolean dirty;
-       private final BlockPos.MutableBlockPos origin;
+-      private final BlockPos.MutableBlockPos origin;
++      final BlockPos.MutableBlockPos origin;
        private final BlockPos.MutableBlockPos[] relativeOrigins;
        private boolean playerChanged;
  
@@ -144,20 +198,65 @@
        public boolean hasAllNeighbors() {
           boolean var1 = true;
           if (this.getDistToPlayerSqr() <= 576.0D) {
-@@ -335,11 +356,11 @@
+@@ -334,12 +314,12 @@
+          double var4 = this.bb.minY + 8.0D - var1.getPosition().y;
           double var6 = this.bb.minZ + 8.0D - var1.getPosition().z;
           return var2 * var2 + var4 * var4 + var6 * var6;
        }
  
-       private void beginLayer(BufferBuilder var1) {
+-      private void beginLayer(BufferBuilder var1) {
 -         var1.begin(7, DefaultVertexFormat.BLOCK);
++      void beginLayer(BufferBuilder var1) {
 +         var1.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
        }
  
        public ChunkRenderDispatcher.CompiledChunk getCompiledChunk() {
           return (ChunkRenderDispatcher.CompiledChunk)this.compiled.get();
        }
-@@ -475,17 +496,17 @@
+@@ -422,11 +402,11 @@
+       public void rebuildChunkAsync(ChunkRenderDispatcher var1) {
+          ChunkRenderDispatcher.RenderChunk.ChunkCompileTask var2 = this.createCompileTask();
+          var1.schedule(var2);
+       }
+ 
+-      private void updateGlobalBlockEntities(Set<BlockEntity> var1) {
++      void updateGlobalBlockEntities(Set<BlockEntity> var1) {
+          HashSet var2 = Sets.newHashSet(var1);
+          HashSet var3 = Sets.newHashSet(this.globalBlockEntities);
+          var2.removeAll(this.globalBlockEntities);
+          var3.removeAll(var1);
+          this.globalBlockEntities.clear();
+@@ -437,28 +417,11 @@
+       public void compileSync() {
+          ChunkRenderDispatcher.RenderChunk.ChunkCompileTask var1 = this.createCompileTask();
+          var1.doTask(ChunkRenderDispatcher.this.fixedBuffers);
+       }
+ 
+-      abstract class ChunkCompileTask implements Comparable<ChunkRenderDispatcher.RenderChunk.ChunkCompileTask> {
+-         protected final double distAtCreation;
+-         protected final AtomicBoolean isCancelled = new AtomicBoolean(false);
+-
+-         public ChunkCompileTask(double var2) {
+-            this.distAtCreation = var2;
+-         }
+-
+-         public abstract CompletableFuture<ChunkRenderDispatcher.ChunkTaskResult> doTask(ChunkBufferBuilderPack var1);
+-
+-         public abstract void cancel();
+-
+-         public int compareTo(ChunkRenderDispatcher.RenderChunk.ChunkCompileTask var1) {
+-            return Doubles.compare(this.distAtCreation, var1.distAtCreation);
+-         }
+-      }
+-
+-      class ResortTransparencyTask extends ChunkRenderDispatcher.RenderChunk.ChunkCompileTask {
++      private class ResortTransparencyTask extends ChunkRenderDispatcher.RenderChunk.ChunkCompileTask {
+          private final ChunkRenderDispatcher.CompiledChunk compiledChunk;
+ 
+          public ResortTransparencyTask(double var2, ChunkRenderDispatcher.CompiledChunk var4) {
+             super(var2);
+             this.compiledChunk = var4;
+@@ -475,17 +438,17 @@
              } else {
                 Vec3 var2 = ChunkRenderDispatcher.this.getCameraPosition();
                 float var3 = (float)var2.x;
@@ -179,7 +278,41 @@
                       return CompletableFuture.completedFuture(ChunkRenderDispatcher.ChunkTaskResult.CANCELLED);
                    } else {
                       CompletableFuture var8 = ChunkRenderDispatcher.this.uploadChunkLayer(var1.builder(RenderType.translucent()), RenderChunk.this.getBuffer(RenderType.translucent())).thenApply((var0) -> {
-@@ -542,11 +563,11 @@
+@@ -508,15 +471,32 @@
+          public void cancel() {
+             this.isCancelled.set(true);
+          }
+       }
+ 
++      private abstract class ChunkCompileTask implements Comparable<ChunkRenderDispatcher.RenderChunk.ChunkCompileTask> {
++         protected final double distAtCreation;
++         protected final AtomicBoolean isCancelled = new AtomicBoolean(false);
++
++         public ChunkCompileTask(double var2) {
++            this.distAtCreation = var2;
++         }
++
++         public abstract CompletableFuture<ChunkRenderDispatcher.ChunkTaskResult> doTask(ChunkBufferBuilderPack var1);
++
++         public abstract void cancel();
++
++         public int compareTo(ChunkRenderDispatcher.RenderChunk.ChunkCompileTask var1) {
++            return Doubles.compare(this.distAtCreation, var1.distAtCreation);
++         }
++      }
++
+       class RebuildTask extends ChunkRenderDispatcher.RenderChunk.ChunkCompileTask {
+          @Nullable
+          protected RenderChunkRegion region;
+ 
+-         public RebuildTask(double var2, RenderChunkRegion var4) {
++         public RebuildTask(double var2, @Nullable RenderChunkRegion var4) {
+             super(var2);
+             this.region = var4;
+          }
+ 
+          public CompletableFuture<ChunkRenderDispatcher.ChunkTaskResult> doTask(ChunkBufferBuilderPack var1) {
+@@ -542,11 +522,11 @@
                 } else {
                    ArrayList var8 = Lists.newArrayList();
                    var6.hasLayer.forEach((var3x) -> {
@@ -192,7 +325,7 @@
                       }
  
                       if (this.isCancelled.get()) {
-@@ -576,60 +597,59 @@
+@@ -576,74 +556,73 @@
                 Iterator var15 = BlockPos.betweenClosed(var7, var8).iterator();
  
                 while(var15.hasNext()) {
@@ -274,9 +407,12 @@
                 }
  
                 Stream var10000 = var4.hasLayer.stream();
-                var5.getClass();
+-               var5.getClass();
++               Objects.requireNonNull(var5);
                 var10000.map(var5::builder).forEach(BufferBuilder::end);
-@@ -639,11 +659,11 @@
+                ModelBlockRenderer.clearCache();
+             }
+ 
              var4.visibilitySet = var9.resolve();
              return var10;
           }
@@ -289,3 +425,52 @@
                 if (var4.shouldRenderOffScreen(var3)) {
                    var2.add(var3);
                 }
+@@ -658,6 +637,48 @@
+             }
+ 
+          }
+       }
+    }
++
++   static enum ChunkTaskResult {
++      SUCCESSFUL,
++      CANCELLED;
++
++      private ChunkTaskResult() {
++      }
++   }
++
++   public static class CompiledChunk {
++      public static final ChunkRenderDispatcher.CompiledChunk UNCOMPILED = new ChunkRenderDispatcher.CompiledChunk() {
++         public boolean facesCanSeeEachother(Direction var1, Direction var2) {
++            return false;
++         }
++      };
++      final Set<RenderType> hasBlocks = new ObjectArraySet();
++      final Set<RenderType> hasLayer = new ObjectArraySet();
++      boolean isCompletelyEmpty = true;
++      final List<BlockEntity> renderableBlockEntities = Lists.newArrayList();
++      VisibilitySet visibilitySet = new VisibilitySet();
++      @Nullable
++      BufferBuilder.SortState transparencyState;
++
++      public CompiledChunk() {
++      }
++
++      public boolean hasNoRenderableLayers() {
++         return this.isCompletelyEmpty;
++      }
++
++      public boolean isEmpty(RenderType var1) {
++         return !this.hasBlocks.contains(var1);
++      }
++
++      public List<BlockEntity> getRenderableBlockEntities() {
++         return this.renderableBlockEntities;
++      }
++
++      public boolean facesCanSeeEachother(Direction var1, Direction var2) {
++         return this.visibilitySet.visibilityBetween(var1, var2);
++      }
++   }
+ }

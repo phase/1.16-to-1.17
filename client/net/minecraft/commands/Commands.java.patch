@@ -12,8 +12,13 @@
  import net.minecraft.server.commands.ListPlayersCommand;
  import net.minecraft.server.commands.LocateBiomeCommand;
  import net.minecraft.server.commands.LocateCommand;
-@@ -70,11 +71,10 @@
+@@ -66,15 +67,15 @@
+ import net.minecraft.server.commands.MsgCommand;
+ import net.minecraft.server.commands.OpCommand;
+ import net.minecraft.server.commands.PardonCommand;
+ import net.minecraft.server.commands.PardonIpCommand;
  import net.minecraft.server.commands.ParticleCommand;
++import net.minecraft.server.commands.PerfCommand;
  import net.minecraft.server.commands.PlaySoundCommand;
  import net.minecraft.server.commands.PublishCommand;
  import net.minecraft.server.commands.RecipeCommand;
@@ -24,7 +29,7 @@
  import net.minecraft.server.commands.SaveOnCommand;
  import net.minecraft.server.commands.SayCommand;
  import net.minecraft.server.commands.ScheduleCommand;
-@@ -105,10 +105,15 @@
+@@ -105,10 +106,15 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -40,7 +45,7 @@
     public Commands(Commands.CommandSelection var1) {
        AdvancementCommands.register(this.dispatcher);
        AttributeCommand.register(this.dispatcher);
-@@ -130,10 +135,11 @@
+@@ -130,10 +136,11 @@
        FunctionCommand.register(this.dispatcher);
        GameModeCommand.register(this.dispatcher);
        GameRuleCommand.register(this.dispatcher);
@@ -52,7 +57,7 @@
        ListPlayersCommand.register(this.dispatcher);
        LocateCommand.register(this.dispatcher);
        LocateBiomeCommand.register(this.dispatcher);
-@@ -141,11 +147,10 @@
+@@ -141,11 +148,10 @@
        MsgCommand.register(this.dispatcher);
        ParticleCommand.register(this.dispatcher);
        PlaySoundCommand.register(this.dispatcher);
@@ -64,21 +69,19 @@
        ScoreboardCommand.register(this.dispatcher);
        SeedCommand.register(this.dispatcher, var1 != Commands.CommandSelection.INTEGRATED);
        SetBlockCommand.register(this.dispatcher);
-@@ -203,12 +208,12 @@
-          var3.skip();
-       }
- 
-       var1.getServer().getProfiler().push(var2);
- 
--      byte var18;
-       try {
-+         byte var18;
-          try {
-             int var4 = this.dispatcher.execute(var3, var1);
-             return var4;
-          } catch (CommandRuntimeException var13) {
-             var1.sendFailure(var13.getComponent());
-@@ -250,23 +255,22 @@
+@@ -175,10 +181,11 @@
+          BanPlayerCommands.register(this.dispatcher);
+          DeOpCommands.register(this.dispatcher);
+          OpCommand.register(this.dispatcher);
+          PardonCommand.register(this.dispatcher);
+          PardonIpCommand.register(this.dispatcher);
++         PerfCommand.register(this.dispatcher);
+          SaveAllCommand.register(this.dispatcher);
+          SaveOffCommand.register(this.dispatcher);
+          SaveOnCommand.register(this.dispatcher);
+          SetPlayerIdleTimeoutCommand.register(this.dispatcher);
+          StopCommand.register(this.dispatcher);
+@@ -250,11 +257,11 @@
              var1.sendFailure((new TranslatableComponent("command.failed")).withStyle((var1x) -> {
                 return var1x.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, var5));
              }));
@@ -91,16 +94,18 @@
              byte var19 = 0;
              return var19;
           }
+@@ -364,12 +371,12 @@
+    public static enum CommandSelection {
+       ALL(true, true),
+       DEDICATED(false, true),
+       INTEGRATED(true, false);
  
-          var18 = 0;
-+         return var18;
-       } finally {
-          var1.getServer().getProfiler().pop();
+-      private final boolean includeIntegrated;
+-      private final boolean includeDedicated;
++      final boolean includeIntegrated;
++      final boolean includeDedicated;
+ 
+       private CommandSelection(boolean var3, boolean var4) {
+          this.includeIntegrated = var3;
+          this.includeDedicated = var4;
        }
--
--      return var18;
-    }
- 
-    public void sendCommands(ServerPlayer var1) {
-       HashMap var2 = Maps.newHashMap();
-       RootCommandNode var3 = new RootCommandNode();

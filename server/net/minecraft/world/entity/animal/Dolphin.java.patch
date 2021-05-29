@@ -51,12 +51,14 @@
  import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.level.Level;
-@@ -68,16 +70,18 @@
+@@ -67,24 +69,26 @@
+ 
  public class Dolphin extends WaterAnimal {
     private static final EntityDataAccessor<BlockPos> TREASURE_POS;
     private static final EntityDataAccessor<Boolean> GOT_FISH;
     private static final EntityDataAccessor<Integer> MOISTNESS_LEVEL;
-    private static final TargetingConditions SWIM_WITH_PLAYER_TARGETING;
+-   private static final TargetingConditions SWIM_WITH_PLAYER_TARGETING;
++   static final TargetingConditions SWIM_WITH_PLAYER_TARGETING;
 +   public static final int TOTAL_AIR_SUPPLY = 4800;
 +   private static final int TOTAL_MOISTNESS_LEVEL = 2400;
     public static final Predicate<ItemEntity> ALLOWED_ITEMS;
@@ -72,6 +74,14 @@
  
     @Nullable
     public SpawnGroupData finalizeSpawn(ServerLevelAccessor var1, DifficultyInstance var2, MobSpawnType var3, @Nullable SpawnGroupData var4, @Nullable CompoundTag var5) {
+       this.setAirSupply(this.getMaxAirSupply());
+-      this.xRot = 0.0F;
++      this.setXRot(0.0F);
+       return super.finalizeSpawn(var1, var2, var3, var4, var5);
+    }
+ 
+    public boolean canBreatheUnderwater() {
+       return false;
 @@ -216,11 +220,11 @@
           if (this.canHoldItem(var2)) {
              this.onItemPickup(var1);
@@ -85,6 +95,30 @@
  
     }
  
+@@ -237,20 +241,20 @@
+                this.hurt(DamageSource.DRY_OUT, 1.0F);
+             }
+ 
+             if (this.onGround) {
+                this.setDeltaMovement(this.getDeltaMovement().add((double)((this.random.nextFloat() * 2.0F - 1.0F) * 0.2F), 0.5D, (double)((this.random.nextFloat() * 2.0F - 1.0F) * 0.2F)));
+-               this.yRot = this.random.nextFloat() * 360.0F;
++               this.setYRot(this.random.nextFloat() * 360.0F);
+                this.onGround = false;
+                this.hasImpulse = true;
+             }
+          }
+ 
+          if (this.level.isClientSide && this.isInWater() && this.getDeltaMovement().lengthSqr() > 0.03D) {
+             Vec3 var1 = this.getViewVector(0.0F);
+-            float var2 = Mth.cos(this.yRot * 0.017453292F) * 0.3F;
+-            float var3 = Mth.sin(this.yRot * 0.017453292F) * 0.3F;
++            float var2 = Mth.cos(this.getYRot() * 0.017453292F) * 0.3F;
++            float var3 = Mth.sin(this.getYRot() * 0.017453292F) * 0.3F;
+             float var4 = 1.2F - this.random.nextFloat() * 0.7F;
+ 
+             for(int var5 = 0; var5 < 2; ++var5) {
+                this.level.addParticle(ParticleTypes.DOLPHIN, this.getX() - var1.x * (double)var4 + (double)var2, this.getY() - var1.y, this.getZ() - var1.z * (double)var4 + (double)var3, 0.0D, 0.0D, 0.0D);
+                this.level.addParticle(ParticleTypes.DOLPHIN, this.getX() - var1.x * (double)var4 - (double)var2, this.getY() - var1.y, this.getZ() - var1.z * (double)var4 - (double)var3, 0.0D, 0.0D, 0.0D);
 @@ -258,19 +262,38 @@
           }
  
@@ -126,6 +160,19 @@
  
           return InteractionResult.sidedSuccess(this.level.isClientSide);
        } else {
+@@ -334,11 +357,11 @@
+ 
+    static {
+       TREASURE_POS = SynchedEntityData.defineId(Dolphin.class, EntityDataSerializers.BLOCK_POS);
+       GOT_FISH = SynchedEntityData.defineId(Dolphin.class, EntityDataSerializers.BOOLEAN);
+       MOISTNESS_LEVEL = SynchedEntityData.defineId(Dolphin.class, EntityDataSerializers.INT);
+-      SWIM_WITH_PLAYER_TARGETING = (new TargetingConditions()).range(10.0D).allowSameTeam().allowInvulnerable().allowUnseeable();
++      SWIM_WITH_PLAYER_TARGETING = TargetingConditions.forNonCombat().range(10.0D).ignoreLineOfSight();
+       ALLOWED_ITEMS = (var0) -> {
+          return !var0.hasPickUpDelay() && var0.isAlive() && var0.isInWater();
+       };
+    }
+ 
 @@ -399,19 +422,19 @@
  
        public void tick() {
@@ -149,8 +196,63 @@
  
              if (var3 == null) {
                 this.stuck = true;
-@@ -535,55 +558,6 @@
-             var4.setDeltaMovement((double)(0.3F * -Mth.sin(Dolphin.this.yRot * 0.017453292F) * Mth.cos(Dolphin.this.xRot * 0.017453292F) + Mth.cos(var6) * var7), (double)(0.3F * Mth.sin(Dolphin.this.xRot * 0.017453292F) * 1.5F), (double)(0.3F * Mth.cos(Dolphin.this.yRot * 0.017453292F) * Mth.cos(Dolphin.this.xRot * 0.017453292F) + Mth.sin(var6) * var7));
+@@ -426,11 +449,11 @@
+          }
+ 
+       }
+    }
+ 
+-   static class DolphinSwimWithPlayerGoal extends Goal {
++   private static class DolphinSwimWithPlayerGoal extends Goal {
+       private final Dolphin dolphin;
+       private final double speedModifier;
+       private Player player;
+ 
+       DolphinSwimWithPlayerGoal(Dolphin var1, double var2) {
+@@ -451,11 +474,11 @@
+       public boolean canContinueToUse() {
+          return this.player != null && this.player.isSwimming() && this.dolphin.distanceToSqr(this.player) < 256.0D;
+       }
+ 
+       public void start() {
+-         this.player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 100));
++         this.player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 100), this.dolphin);
+       }
+ 
+       public void stop() {
+          this.player = null;
+          this.dolphin.getNavigation().stop();
+@@ -468,20 +491,20 @@
+          } else {
+             this.dolphin.getNavigation().moveTo((Entity)this.player, this.speedModifier);
+          }
+ 
+          if (this.player.isSwimming() && this.player.level.random.nextInt(6) == 0) {
+-            this.player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 100));
++            this.player.addEffect(new MobEffectInstance(MobEffects.DOLPHINS_GRACE, 100), this.dolphin);
+          }
+ 
+       }
+    }
+ 
+    class PlayWithItemsGoal extends Goal {
+       private int cooldown;
+ 
+-      private PlayWithItemsGoal() {
++      PlayWithItemsGoal() {
+       }
+ 
+       public boolean canUse() {
+          if (this.cooldown > Dolphin.this.tickCount) {
+             return false;
+@@ -530,60 +553,11 @@
+             var4.setPickUpDelay(40);
+             var4.setThrower(Dolphin.this.getUUID());
+             float var5 = 0.3F;
+             float var6 = Dolphin.this.random.nextFloat() * 6.2831855F;
+             float var7 = 0.02F * Dolphin.this.random.nextFloat();
+-            var4.setDeltaMovement((double)(0.3F * -Mth.sin(Dolphin.this.yRot * 0.017453292F) * Mth.cos(Dolphin.this.xRot * 0.017453292F) + Mth.cos(var6) * var7), (double)(0.3F * Mth.sin(Dolphin.this.xRot * 0.017453292F) * 1.5F), (double)(0.3F * Mth.cos(Dolphin.this.yRot * 0.017453292F) * Mth.cos(Dolphin.this.xRot * 0.017453292F) + Mth.sin(var6) * var7));
++            var4.setDeltaMovement((double)(0.3F * -Mth.sin(Dolphin.this.getYRot() * 0.017453292F) * Mth.cos(Dolphin.this.getXRot() * 0.017453292F) + Mth.cos(var6) * var7), (double)(0.3F * Mth.sin(Dolphin.this.getXRot() * 0.017453292F) * 1.5F), (double)(0.3F * Mth.cos(Dolphin.this.getYRot() * 0.017453292F) * Mth.cos(Dolphin.this.getXRot() * 0.017453292F) + Mth.sin(var6) * var7));
              Dolphin.this.level.addFreshEntity(var4);
           }
        }

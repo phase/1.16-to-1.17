@@ -24,7 +24,7 @@
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
  import net.minecraft.world.level.material.Material;
-@@ -54,10 +54,13 @@
+@@ -54,10 +54,15 @@
  
  public class EnderDragon extends Mob implements Enemy {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -33,12 +33,14 @@
 +   private static final int GROWL_INTERVAL_MIN = 200;
 +   private static final int GROWL_INTERVAL_MAX = 400;
 +   private static final float SITTING_ALLOWED_DAMAGE_PERCENTAGE = 0.25F;
++   private static final String DRAGON_DEATH_TIME_KEY = "DragonDeathTime";
++   private static final String DRAGON_PHASE_KEY = "DragonPhase";
     public final double[][] positions = new double[64][3];
     public int posPointer = -1;
     private final EnderDragonPart[] subEntities;
     public final EnderDragonPart head = new EnderDragonPart(this, "head", 1.0F, 1.0F);
     private final EnderDragonPart neck = new EnderDragonPart(this, "neck", 3.0F, 3.0F);
-@@ -100,10 +103,23 @@
+@@ -100,10 +105,23 @@
  
     public static AttributeSupplier.Builder createAttributes() {
        return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 200.0D);
@@ -62,7 +64,7 @@
        this.getEntityData().define(DATA_PHASE, EnderDragonPhase.HOVERING.getId());
     }
  
-@@ -125,39 +141,31 @@
+@@ -125,63 +143,55 @@
        var5[2] = Mth.lerp((double)var2, this.positions[var3][2], this.positions[var4][2]);
        return var5;
     }
@@ -105,14 +107,144 @@
 -         var2 = 0.2F / (Mth.sqrt(getHorizontalDistanceSqr(var26)) * 10.0F + 1.0F);
 -         var2 *= (float)Math.pow(2.0D, var26.y);
 +         Vec3 var1 = this.getDeltaMovement();
-+         var2 = 0.2F / (Mth.sqrt(getHorizontalDistanceSqr(var1)) * 10.0F + 1.0F);
++         var2 = 0.2F / ((float)var1.horizontalDistance() * 10.0F + 1.0F);
 +         var2 *= (float)Math.pow(2.0D, var1.y);
           if (this.phaseManager.getCurrentPhase().isSitting()) {
              this.flapTime += 0.1F;
           } else if (this.inWall) {
              this.flapTime += var2 * 0.5F;
           } else {
-@@ -332,11 +340,11 @@
+             this.flapTime += var2;
+          }
+ 
+-         this.yRot = Mth.wrapDegrees(this.yRot);
++         this.setYRot(Mth.wrapDegrees(this.getYRot()));
+          if (this.isNoAi()) {
+             this.flapTime = 0.5F;
+          } else {
+             if (this.posPointer < 0) {
+                for(int var3 = 0; var3 < this.positions.length; ++var3) {
+-                  this.positions[var3][0] = (double)this.yRot;
++                  this.positions[var3][0] = (double)this.getYRot();
+                   this.positions[var3][1] = this.getY();
+                }
+             }
+ 
+             if (++this.posPointer == this.positions.length) {
+                this.posPointer = 0;
+             }
+ 
+-            this.positions[this.posPointer][0] = (double)this.yRot;
++            this.positions[this.posPointer][0] = (double)this.getYRot();
+             this.positions[this.posPointer][1] = this.getY();
+             double var5;
+             double var7;
+             double var9;
+             float var20;
+@@ -189,16 +199,16 @@
+             if (this.level.isClientSide) {
+                if (this.lerpSteps > 0) {
+                   double var27 = this.getX() + (this.lerpX - this.getX()) / (double)this.lerpSteps;
+                   var5 = this.getY() + (this.lerpY - this.getY()) / (double)this.lerpSteps;
+                   var7 = this.getZ() + (this.lerpZ - this.getZ()) / (double)this.lerpSteps;
+-                  var9 = Mth.wrapDegrees(this.lerpYRot - (double)this.yRot);
+-                  this.yRot = (float)((double)this.yRot + var9 / (double)this.lerpSteps);
+-                  this.xRot = (float)((double)this.xRot + (this.lerpXRot - (double)this.xRot) / (double)this.lerpSteps);
++                  var9 = Mth.wrapDegrees(this.lerpYRot - (double)this.getYRot());
++                  this.setYRot(this.getYRot() + (float)var9 / (float)this.lerpSteps);
++                  this.setXRot(this.getXRot() + (float)(this.lerpXRot - (double)this.getXRot()) / (float)this.lerpSteps);
+                   --this.lerpSteps;
+                   this.setPos(var27, var5, var7);
+-                  this.setRot(this.yRot, this.xRot);
++                  this.setRot(this.getYRot(), this.getXRot());
+                }
+ 
+                this.phaseManager.getCurrentPhase().doClientTick();
+             } else {
+                DragonPhaseInstance var28 = this.phaseManager.getCurrentPhase();
+@@ -213,24 +223,24 @@
+                   var5 = var4.x - this.getX();
+                   var7 = var4.y - this.getY();
+                   var9 = var4.z - this.getZ();
+                   double var11 = var5 * var5 + var7 * var7 + var9 * var9;
+                   float var13 = var28.getFlySpeed();
+-                  double var14 = (double)Mth.sqrt(var5 * var5 + var9 * var9);
++                  double var14 = Math.sqrt(var5 * var5 + var9 * var9);
+                   if (var14 > 0.0D) {
+                      var7 = Mth.clamp(var7 / var14, (double)(-var13), (double)var13);
+                   }
+ 
+                   this.setDeltaMovement(this.getDeltaMovement().add(0.0D, var7 * 0.01D, 0.0D));
+-                  this.yRot = Mth.wrapDegrees(this.yRot);
+-                  double var16 = Mth.clamp(Mth.wrapDegrees(180.0D - Mth.atan2(var5, var9) * 57.2957763671875D - (double)this.yRot), -50.0D, 50.0D);
++                  this.setYRot(Mth.wrapDegrees(this.getYRot()));
++                  double var16 = Mth.clamp(Mth.wrapDegrees(180.0D - Mth.atan2(var5, var9) * 57.2957763671875D - (double)this.getYRot()), -50.0D, 50.0D);
+                   Vec3 var18 = var4.subtract(this.getX(), this.getY(), this.getZ()).normalize();
+-                  Vec3 var19 = (new Vec3((double)Mth.sin(this.yRot * 0.017453292F), this.getDeltaMovement().y, (double)(-Mth.cos(this.yRot * 0.017453292F)))).normalize();
++                  Vec3 var19 = (new Vec3((double)Mth.sin(this.getYRot() * 0.017453292F), this.getDeltaMovement().y, (double)(-Mth.cos(this.getYRot() * 0.017453292F)))).normalize();
+                   var20 = Math.max(((float)var19.dot(var18) + 0.5F) / 1.5F, 0.0F);
+                   this.yRotA *= 0.8F;
+                   this.yRotA = (float)((double)this.yRotA + var16 * (double)var28.getTurnSpeed());
+-                  this.yRot += this.yRotA * 0.1F;
++                  this.setYRot(this.getYRot() + this.yRotA * 0.1F);
+                   var21 = (float)(2.0D / (var11 + 1.0D));
+                   float var22 = 0.06F;
+                   this.moveRelative(0.06F * (var20 * var21 + (1.0F - var21)), new Vec3(0.0D, 0.0D, -1.0D));
+                   if (this.inWall) {
+                      this.move(MoverType.SELF, this.getDeltaMovement().scale(0.800000011920929D));
+@@ -242,21 +252,21 @@
+                   double var24 = 0.8D + 0.15D * (var23.dot(var19) + 1.0D) / 2.0D;
+                   this.setDeltaMovement(this.getDeltaMovement().multiply(var24, 0.9100000262260437D, var24));
+                }
+             }
+ 
+-            this.yBodyRot = this.yRot;
++            this.yBodyRot = this.getYRot();
+             Vec3[] var30 = new Vec3[this.subEntities.length];
+ 
+             for(int var29 = 0; var29 < this.subEntities.length; ++var29) {
+                var30[var29] = new Vec3(this.subEntities[var29].getX(), this.subEntities[var29].getY(), this.subEntities[var29].getZ());
+             }
+ 
+             float var31 = (float)(this.getLatencyPos(5, 1.0F)[1] - this.getLatencyPos(10, 1.0F)[1]) * 10.0F * 0.017453292F;
+             float var33 = Mth.cos(var31);
+             float var6 = Mth.sin(var31);
+-            float var34 = this.yRot * 0.017453292F;
++            float var34 = this.getYRot() * 0.017453292F;
+             float var8 = Mth.sin(var34);
+             float var35 = Mth.cos(var34);
+             this.tickPart(this.body, (double)(var8 * 0.5F), 0.0D, (double)(-var35 * 0.5F));
+             this.tickPart(this.wing1, (double)(var35 * 4.5F), 2.0D, (double)(var8 * 4.5F));
+             this.tickPart(this.wing2, (double)(var35 * -4.5F), 2.0D, (double)(var8 * -4.5F));
+@@ -265,12 +275,12 @@
+                this.knockBack(this.level.getEntities((Entity)this, this.wing2.getBoundingBox().inflate(4.0D, 2.0D, 4.0D).move(0.0D, -2.0D, 0.0D), EntitySelector.NO_CREATIVE_OR_SPECTATOR));
+                this.hurt(this.level.getEntities((Entity)this, this.head.getBoundingBox().inflate(1.0D), EntitySelector.NO_CREATIVE_OR_SPECTATOR));
+                this.hurt(this.level.getEntities((Entity)this, this.neck.getBoundingBox().inflate(1.0D), EntitySelector.NO_CREATIVE_OR_SPECTATOR));
+             }
+ 
+-            float var10 = Mth.sin(this.yRot * 0.017453292F - this.yRotA * 0.01F);
+-            float var36 = Mth.cos(this.yRot * 0.017453292F - this.yRotA * 0.01F);
++            float var10 = Mth.sin(this.getYRot() * 0.017453292F - this.yRotA * 0.01F);
++            float var36 = Mth.cos(this.getYRot() * 0.017453292F - this.yRotA * 0.01F);
+             float var12 = this.getHeadYOffset();
+             this.tickPart(this.head, (double)(var10 * 6.5F * var33), (double)(var12 + var6 * 6.5F), (double)(-var36 * 6.5F * var33));
+             this.tickPart(this.neck, (double)(var10 * 5.5F * var33), (double)(var12 + var6 * 5.5F), (double)(-var36 * 5.5F * var33));
+             double[] var37 = this.getLatencyPos(5, 1.0F);
+ 
+@@ -288,11 +298,11 @@
+                if (var38 == 2) {
+                   var15 = this.tail3;
+                }
+ 
+                double[] var39 = this.getLatencyPos(12 + var38 * 2, 1.0F);
+-               float var17 = this.yRot * 0.017453292F + this.rotWrap(var39[0] - var37[0]) * 0.017453292F;
++               float var17 = this.getYRot() * 0.017453292F + this.rotWrap(var39[0] - var37[0]) * 0.017453292F;
+                float var40 = Mth.sin(var17);
+                float var41 = Mth.cos(var17);
+                var20 = 1.5F;
+                var21 = (float)(var38 + 1) * 2.0F;
+                this.tickPart(var15, (double)(-(var8 * 1.5F + var40 * var21) * var33), var39[1] - var37[1] - (double)((var21 + 1.5F) * var6) + 1.5D, (double)((var35 * 1.5F + var41 * var21) * var33));
+@@ -332,11 +342,11 @@
        }
     }
  
@@ -125,7 +257,7 @@
              this.setHealth(this.getHealth() + 1.0F);
           }
        }
-@@ -412,25 +420,24 @@
+@@ -412,25 +422,24 @@
        for(int var10 = var2; var10 <= var5; ++var10) {
           for(int var11 = var3; var11 <= var6; ++var11) {
              for(int var12 = var4; var12 <= var7; ++var12) {
@@ -154,7 +286,7 @@
        return var8;
     }
  
-@@ -479,11 +486,11 @@
+@@ -479,11 +488,11 @@
     protected boolean reallyHurt(DamageSource var1, float var2) {
        return super.hurt(var1, var2);
     }
@@ -167,7 +299,7 @@
           this.dragonFight.setDragonKilled(this);
        }
  
-@@ -506,46 +513,37 @@
+@@ -506,46 +515,37 @@
        short var5 = 500;
        if (this.dragonFight != null && !this.dragonFight.hasPreviouslyKilledDragon()) {
           var5 = 12000;
@@ -186,9 +318,11 @@
        }
  
        this.move(MoverType.SELF, new Vec3(0.0D, 0.10000000149011612D, 0.0D));
-       this.yRot += 20.0F;
-       this.yBodyRot = this.yRot;
+-      this.yRot += 20.0F;
+-      this.yBodyRot = this.yRot;
 -      if (this.dragonDeathTime == 200 && !this.level.isClientSide) {
++      this.setYRot(this.getYRot() + 20.0F);
++      this.yBodyRot = this.getYRot();
 +      if (this.dragonDeathTime == 200 && this.level instanceof ServerLevel) {
           if (var4) {
 -            this.dropExperience(Mth.floor((float)var5 * 0.2F));
@@ -219,7 +353,31 @@
           for(int var1 = 0; var1 < 24; ++var1) {
              int var2 = 5;
              int var4;
-@@ -759,10 +757,31 @@
+@@ -722,18 +722,23 @@
+    }
+ 
+    public void addAdditionalSaveData(CompoundTag var1) {
+       super.addAdditionalSaveData(var1);
+       var1.putInt("DragonPhase", this.phaseManager.getCurrentPhase().getPhase().getId());
++      var1.putInt("DragonDeathTime", this.dragonDeathTime);
+    }
+ 
+    public void readAdditionalSaveData(CompoundTag var1) {
+       super.readAdditionalSaveData(var1);
+       if (var1.contains("DragonPhase")) {
+          this.phaseManager.setPhase(EnderDragonPhase.getById(var1.getInt("DragonPhase")));
+       }
+ 
++      if (var1.contains("DragonDeathTime")) {
++         this.dragonDeathTime = var1.getInt("DragonDeathTime");
++      }
++
+    }
+ 
+    public void checkDespawn() {
+    }
+ 
+@@ -759,34 +764,55 @@
  
     protected float getSoundVolume() {
        return 5.0F;
@@ -239,8 +397,8 @@
 +         }
 +      } else {
 +         BlockPos var8 = this.level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, EndPodiumFeature.END_PODIUM_LOCATION);
-+         float var9 = Math.max(Mth.sqrt(var8.distSqr(this.position(), true)) / 4.0F, 1.0F);
-+         var6 = (double)((float)var1 / var9);
++         double var9 = Math.max(Math.sqrt(var8.distSqr(this.position(), true)) / 4.0D, 1.0D);
++         var6 = (double)var1 / var9;
 +      }
 +
 +      return (float)var6;
@@ -251,7 +409,38 @@
        EnderDragonPhase var3 = var2.getPhase();
        Vec3 var4;
        float var6;
-@@ -832,10 +851,20 @@
+       if (var3 != EnderDragonPhase.LANDING && var3 != EnderDragonPhase.TAKEOFF) {
+          if (var2.isSitting()) {
+-            float var10 = this.xRot;
++            float var10 = this.getXRot();
+             var6 = 1.5F;
+-            this.xRot = -45.0F;
++            this.setXRot(-45.0F);
+             var4 = this.getViewVector(var1);
+-            this.xRot = var10;
++            this.setXRot(var10);
+          } else {
+             var4 = this.getViewVector(var1);
+          }
+       } else {
+          BlockPos var5 = this.level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, EndPodiumFeature.END_PODIUM_LOCATION);
+-         var6 = Math.max(Mth.sqrt(var5.distSqr(this.position(), true)) / 4.0F, 1.0F);
++         var6 = Math.max((float)Math.sqrt(var5.distSqr(this.position(), true)) / 4.0F, 1.0F);
+          float var7 = 6.0F / var6;
+-         float var8 = this.xRot;
++         float var8 = this.getXRot();
+          float var9 = 1.5F;
+-         this.xRot = -var7 * 1.5F * 5.0F;
++         this.setXRot(-var7 * 1.5F * 5.0F);
+          var4 = this.getViewVector(var1);
+-         this.xRot = var8;
++         this.setXRot(var8);
+       }
+ 
+       return var4;
+    }
+ 
+@@ -832,10 +858,28 @@
  
     public boolean canChangeDimensions() {
        return false;
@@ -267,8 +456,17 @@
 +
 +   }
 +
++   public boolean canAttack(LivingEntity var1) {
++      if (!(var1 instanceof Player)) {
++         return super.canAttack(var1);
++      } else {
++         return !((Player)var1).getAbilities().invulnerable && !var1.isInvulnerable() && var1.canBeSeenByAnyone();
++      }
++   }
++
     static {
        DATA_PHASE = SynchedEntityData.defineId(EnderDragon.class, EntityDataSerializers.INT);
-       CRYSTAL_DESTROY_TARGETING = (new TargetingConditions()).range(64.0D);
+-      CRYSTAL_DESTROY_TARGETING = (new TargetingConditions()).range(64.0D);
++      CRYSTAL_DESTROY_TARGETING = TargetingConditions.forCombat().range(64.0D);
     }
  }

@@ -1,6 +1,6 @@
 --- net/minecraft/data/loot/BlockLoot.java
 +++ net/minecraft/data/loot/BlockLoot.java
-@@ -18,21 +18,25 @@
+@@ -18,28 +18,33 @@
  import net.minecraft.advancements.critereon.MinMaxBounds;
  import net.minecraft.advancements.critereon.StatePropertiesPredicate;
  import net.minecraft.core.BlockPos;
@@ -26,7 +26,15 @@
  import net.minecraft.world.level.block.CropBlock;
  import net.minecraft.world.level.block.DoorBlock;
  import net.minecraft.world.level.block.DoublePlantBlock;
-@@ -48,19 +52,15 @@
+ import net.minecraft.world.level.block.FlowerPotBlock;
+ import net.minecraft.world.level.block.NetherWartBlock;
++import net.minecraft.world.level.block.PipeBlock;
+ import net.minecraft.world.level.block.PotatoBlock;
+ import net.minecraft.world.level.block.SeaPickleBlock;
+ import net.minecraft.world.level.block.ShulkerBoxBlock;
+ import net.minecraft.world.level.block.SlabBlock;
+ import net.minecraft.world.level.block.SnowLayerBlock;
+@@ -48,19 +53,15 @@
  import net.minecraft.world.level.block.TntBlock;
  import net.minecraft.world.level.block.state.properties.BedPart;
  import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -47,7 +55,7 @@
  import net.minecraft.world.level.storage.loot.entries.LootItem;
  import net.minecraft.world.level.storage.loot.entries.LootPoolEntryContainer;
  import net.minecraft.world.level.storage.loot.entries.LootPoolSingletonContainer;
-@@ -80,10 +80,16 @@
+@@ -80,10 +81,16 @@
  import net.minecraft.world.level.storage.loot.predicates.LootItemBlockStatePropertyCondition;
  import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
  import net.minecraft.world.level.storage.loot.predicates.LootItemEntityPropertyCondition;
@@ -64,7 +72,7 @@
     private static final LootItemCondition.Builder HAS_SILK_TOUCH;
     private static final LootItemCondition.Builder HAS_NO_SILK_TOUCH;
     private static final LootItemCondition.Builder HAS_SHEARS;
-@@ -104,15 +110,15 @@
+@@ -104,15 +111,15 @@
     private static <T> T applyExplosionCondition(ItemLike var0, ConditionUserBuilder<T> var1) {
        return !EXPLOSION_RESISTANT.contains(var0.asItem()) ? var1.when(ExplosionCondition.survivesExplosion()) : var1.unwrap();
     }
@@ -82,7 +90,7 @@
     private static LootTable.Builder createSilkTouchDispatchTable(Block var0, LootPoolEntryContainer.Builder<?> var1) {
        return createSelfDropDispatchTable(var0, HAS_SILK_TOUCH, var1);
     }
-@@ -127,99 +133,119 @@
+@@ -127,99 +134,127 @@
  
     private static LootTable.Builder createSingleItemTableWithSilkTouch(Block var0, ItemLike var1) {
        return createSilkTouchDispatchTable(var0, (LootPoolEntryContainer.Builder)applyExplosionCondition(var0, LootItem.lootTableItem(var1)));
@@ -129,6 +137,10 @@
 +      return LootTable.lootTable().withPool((LootPool.Builder)applyExplosionCondition(var0, LootPool.lootPool().setRolls(ConstantValue.exactly(1.0F)).add(LootItem.lootTableItem(var0).apply(CopyNameFunction.copyName(CopyNameFunction.NameSource.BLOCK_ENTITY)).apply(CopyNbtFunction.copyData((NbtProvider)ContextNbtProvider.BLOCK_ENTITY).copy("Lock", "BlockEntityTag.Lock").copy("LootTable", "BlockEntityTag.LootTable").copy("LootTableSeed", "BlockEntityTag.LootTableSeed")).apply(SetContainerContents.setContents().withEntry(DynamicLoot.dynamicEntry(ShulkerBoxBlock.CONTENTS))))));
     }
  
++   private static LootTable.Builder createCopperOreDrops(Block var0) {
++      return createSilkTouchDispatchTable(var0, (LootPoolEntryContainer.Builder)applyExplosionDecay(var0, LootItem.lootTableItem(Items.RAW_COPPER).apply(SetItemCountFunction.setCount(UniformGenerator.between(2.0F, 3.0F))).apply(ApplyBonusCount.addOreBonusCount(Enchantments.BLOCK_FORTUNE))));
++   }
++
 +   private static LootTable.Builder createLapisOreDrops(Block var0) {
 +      return createSilkTouchDispatchTable(var0, (LootPoolEntryContainer.Builder)applyExplosionDecay(var0, LootItem.lootTableItem(Items.LAPIS_LAZULI).apply(SetItemCountFunction.setCount(UniformGenerator.between(4.0F, 9.0F))).apply(ApplyBonusCount.addOreBonusCount(Enchantments.BLOCK_FORTUNE))));
 +   }
@@ -184,6 +196,10 @@
 +      return LootTable.lootTable().withPool(LootPool.lootPool().setRolls(ConstantValue.exactly(1.0F)).when(HAS_SHEARS).add(LootItem.lootTableItem(var0)));
     }
  
++   private static LootTable.Builder createGlowLichenDrops(Block var0) {
++      return LootTable.lootTable().withPool(LootPool.lootPool().add((LootPoolEntryContainer.Builder)applyExplosionDecay(var0, ((LootPoolSingletonContainer.Builder)LootItem.lootTableItem(var0).when(HAS_SHEARS)).apply(SetItemCountFunction.setCount(ConstantValue.exactly(1.0F), true).when(LootItemBlockStatePropertyCondition.hasBlockStateProperties(var0).setProperties(StatePropertiesPredicate.Builder.properties().hasProperty(PipeBlock.EAST, true)))).apply(SetItemCountFunction.setCount(ConstantValue.exactly(1.0F), true).when(LootItemBlockStatePropertyCondition.hasBlockStateProperties(var0).setProperties(StatePropertiesPredicate.Builder.properties().hasProperty(PipeBlock.WEST, true)))).apply(SetItemCountFunction.setCount(ConstantValue.exactly(1.0F), true).when(LootItemBlockStatePropertyCondition.hasBlockStateProperties(var0).setProperties(StatePropertiesPredicate.Builder.properties().hasProperty(PipeBlock.NORTH, true)))).apply(SetItemCountFunction.setCount(ConstantValue.exactly(1.0F), true).when(LootItemBlockStatePropertyCondition.hasBlockStateProperties(var0).setProperties(StatePropertiesPredicate.Builder.properties().hasProperty(PipeBlock.SOUTH, true)))).apply(SetItemCountFunction.setCount(ConstantValue.exactly(1.0F), true).when(LootItemBlockStatePropertyCondition.hasBlockStateProperties(var0).setProperties(StatePropertiesPredicate.Builder.properties().hasProperty(PipeBlock.UP, true)))).apply(SetItemCountFunction.setCount(ConstantValue.exactly(1.0F), true).when(LootItemBlockStatePropertyCondition.hasBlockStateProperties(var0).setProperties(StatePropertiesPredicate.Builder.properties().hasProperty(PipeBlock.DOWN, true)))).apply(SetItemCountFunction.setCount(ConstantValue.exactly(-1.0F), true)))));
++   }
++
     private static LootTable.Builder createLeavesDrops(Block var0, Block var1, float... var2) {
 -      return createSilkTouchOrShearsDispatchTable(var0, ((LootPoolSingletonContainer.Builder)applyExplosionCondition(var0, LootItem.lootTableItem(var1))).when(BonusLevelTableCondition.bonusLevelFlatChance(Enchantments.BLOCK_FORTUNE, var2))).withPool(LootPool.lootPool().setRolls(ConstantIntValue.exactly(1)).when(HAS_NO_SHEARS_OR_SILK_TOUCH).add(((LootPoolSingletonContainer.Builder)applyExplosionDecay(var0, LootItem.lootTableItem(Items.STICK).apply(SetItemCountFunction.setCount(RandomValueBounds.between(1.0F, 2.0F))))).when(BonusLevelTableCondition.bonusLevelFlatChance(Enchantments.BLOCK_FORTUNE, 0.02F, 0.022222223F, 0.025F, 0.033333335F, 0.1F))));
 +      return createSilkTouchOrShearsDispatchTable(var0, ((LootPoolSingletonContainer.Builder)applyExplosionCondition(var0, LootItem.lootTableItem(var1))).when(BonusLevelTableCondition.bonusLevelFlatChance(Enchantments.BLOCK_FORTUNE, var2))).withPool(LootPool.lootPool().setRolls(ConstantValue.exactly(1.0F)).when(HAS_NO_SHEARS_OR_SILK_TOUCH).add(((LootPoolSingletonContainer.Builder)applyExplosionDecay(var0, LootItem.lootTableItem(Items.STICK).apply(SetItemCountFunction.setCount(UniformGenerator.between(1.0F, 2.0F))))).when(BonusLevelTableCondition.bonusLevelFlatChance(Enchantments.BLOCK_FORTUNE, 0.02F, 0.022222223F, 0.025F, 0.033333335F, 0.1F))));
@@ -222,21 +238,20 @@
     }
  
     public void accept(BiConsumer<ResourceLocation, LootTable.Builder> var1) {
-@@ -245,11 +271,13 @@
+@@ -244,12 +279,10 @@
+       this.dropSelf(Blocks.JUNGLE_SAPLING);
        this.dropSelf(Blocks.ACACIA_SAPLING);
        this.dropSelf(Blocks.DARK_OAK_SAPLING);
        this.dropSelf(Blocks.SAND);
        this.dropSelf(Blocks.RED_SAND);
-       this.dropSelf(Blocks.GOLD_ORE);
-+      this.dropSelf(Blocks.DEEPSLATE_GOLD_ORE);
-       this.dropSelf(Blocks.IRON_ORE);
-+      this.dropSelf(Blocks.DEEPSLATE_IRON_ORE);
+-      this.dropSelf(Blocks.GOLD_ORE);
+-      this.dropSelf(Blocks.IRON_ORE);
        this.dropSelf(Blocks.OAK_LOG);
        this.dropSelf(Blocks.SPRUCE_LOG);
        this.dropSelf(Blocks.BIRCH_LOG);
        this.dropSelf(Blocks.JUNGLE_LOG);
        this.dropSelf(Blocks.ACACIA_LOG);
-@@ -356,10 +384,11 @@
+@@ -356,10 +389,11 @@
        this.dropSelf(Blocks.NETHERRACK);
        this.dropSelf(Blocks.SOUL_SAND);
        this.dropSelf(Blocks.SOUL_SOIL);
@@ -248,7 +263,7 @@
        this.dropSelf(Blocks.JACK_O_LANTERN);
        this.dropSelf(Blocks.REPEATER);
        this.dropSelf(Blocks.OAK_TRAPDOOR);
-@@ -623,18 +652,78 @@
+@@ -623,18 +657,82 @@
        this.dropSelf(Blocks.CRACKED_NETHER_BRICKS);
        this.dropSelf(Blocks.QUARTZ_BRICKS);
        this.dropSelf(Blocks.CHAIN);
@@ -263,8 +278,6 @@
 +      this.dropSelf(Blocks.EXPOSED_COPPER);
 +      this.dropSelf(Blocks.WEATHERED_COPPER);
 +      this.dropSelf(Blocks.OXIDIZED_COPPER);
-+      this.dropSelf(Blocks.COPPER_ORE);
-+      this.dropSelf(Blocks.DEEPSLATE_COPPER_ORE);
 +      this.dropSelf(Blocks.CUT_COPPER);
 +      this.dropSelf(Blocks.EXPOSED_CUT_COPPER);
 +      this.dropSelf(Blocks.WEATHERED_CUT_COPPER);
@@ -272,12 +285,15 @@
 +      this.dropSelf(Blocks.WAXED_COPPER_BLOCK);
 +      this.dropSelf(Blocks.WAXED_WEATHERED_COPPER);
 +      this.dropSelf(Blocks.WAXED_EXPOSED_COPPER);
++      this.dropSelf(Blocks.WAXED_OXIDIZED_COPPER);
 +      this.dropSelf(Blocks.WAXED_CUT_COPPER);
 +      this.dropSelf(Blocks.WAXED_WEATHERED_CUT_COPPER);
 +      this.dropSelf(Blocks.WAXED_EXPOSED_CUT_COPPER);
++      this.dropSelf(Blocks.WAXED_OXIDIZED_CUT_COPPER);
 +      this.dropSelf(Blocks.WAXED_CUT_COPPER_STAIRS);
 +      this.dropSelf(Blocks.WAXED_EXPOSED_CUT_COPPER_STAIRS);
 +      this.dropSelf(Blocks.WAXED_WEATHERED_CUT_COPPER_STAIRS);
++      this.dropSelf(Blocks.WAXED_OXIDIZED_CUT_COPPER_STAIRS);
 +      this.dropSelf(Blocks.CUT_COPPER_STAIRS);
 +      this.dropSelf(Blocks.EXPOSED_CUT_COPPER_STAIRS);
 +      this.dropSelf(Blocks.WEATHERED_CUT_COPPER_STAIRS);
@@ -307,6 +323,9 @@
 +      this.dropSelf(Blocks.CHISELED_DEEPSLATE);
 +      this.dropSelf(Blocks.CRACKED_DEEPSLATE_BRICKS);
 +      this.dropSelf(Blocks.CRACKED_DEEPSLATE_TILES);
++      this.dropSelf(Blocks.RAW_IRON_BLOCK);
++      this.dropSelf(Blocks.RAW_COPPER_BLOCK);
++      this.dropSelf(Blocks.RAW_GOLD_BLOCK);
        this.dropOther(Blocks.FARMLAND, Blocks.DIRT);
        this.dropOther(Blocks.TRIPWIRE, Items.STRING);
 -      this.dropOther(Blocks.GRASS_PATH, Blocks.DIRT);
@@ -328,7 +347,7 @@
        });
        this.add(Blocks.PODZOL, (var0) -> {
           return createSingleItemTableWithSilkTouch(var0, Blocks.DIRT);
-@@ -662,22 +751,22 @@
+@@ -662,22 +760,22 @@
        });
        this.add(Blocks.WARPED_NYLIUM, (var0) -> {
           return createSingleItemTableWithSilkTouch(var0, Blocks.NETHERRACK);
@@ -356,7 +375,20 @@
        this.dropPottedContents(Blocks.POTTED_BIRCH_SAPLING);
        this.dropPottedContents(Blocks.POTTED_JUNGLE_SAPLING);
        this.dropPottedContents(Blocks.POTTED_ACACIA_SAPLING);
-@@ -743,10 +832,21 @@
+@@ -703,10 +801,12 @@
+       this.dropPottedContents(Blocks.POTTED_BAMBOO);
+       this.dropPottedContents(Blocks.POTTED_CRIMSON_FUNGUS);
+       this.dropPottedContents(Blocks.POTTED_WARPED_FUNGUS);
+       this.dropPottedContents(Blocks.POTTED_CRIMSON_ROOTS);
+       this.dropPottedContents(Blocks.POTTED_WARPED_ROOTS);
++      this.dropPottedContents(Blocks.POTTED_AZALEA);
++      this.dropPottedContents(Blocks.POTTED_FLOWERING_AZALEA);
+       this.add(Blocks.ACACIA_SLAB, BlockLoot::createSlabItemTable);
+       this.add(Blocks.BIRCH_SLAB, BlockLoot::createSlabItemTable);
+       this.add(Blocks.BRICK_SLAB, BlockLoot::createSlabItemTable);
+       this.add(Blocks.COBBLESTONE_SLAB, BlockLoot::createSlabItemTable);
+       this.add(Blocks.DARK_OAK_SLAB, BlockLoot::createSlabItemTable);
+@@ -743,10 +843,22 @@
        this.add(Blocks.CRIMSON_SLAB, BlockLoot::createSlabItemTable);
        this.add(Blocks.WARPED_SLAB, BlockLoot::createSlabItemTable);
        this.add(Blocks.BLACKSTONE_SLAB, BlockLoot::createSlabItemTable);
@@ -366,6 +398,7 @@
 +      this.add(Blocks.WEATHERED_CUT_COPPER_SLAB, BlockLoot::createSlabItemTable);
 +      this.add(Blocks.EXPOSED_CUT_COPPER_SLAB, BlockLoot::createSlabItemTable);
 +      this.add(Blocks.CUT_COPPER_SLAB, BlockLoot::createSlabItemTable);
++      this.add(Blocks.WAXED_OXIDIZED_CUT_COPPER_SLAB, BlockLoot::createSlabItemTable);
 +      this.add(Blocks.WAXED_WEATHERED_CUT_COPPER_SLAB, BlockLoot::createSlabItemTable);
 +      this.add(Blocks.WAXED_EXPOSED_CUT_COPPER_SLAB, BlockLoot::createSlabItemTable);
 +      this.add(Blocks.WAXED_CUT_COPPER_SLAB, BlockLoot::createSlabItemTable);
@@ -378,7 +411,7 @@
        this.add(Blocks.DARK_OAK_DOOR, BlockLoot::createDoorTable);
        this.add(Blocks.IRON_DOOR, BlockLoot::createDoorTable);
        this.add(Blocks.JUNGLE_DOOR, BlockLoot::createDoorTable);
-@@ -812,20 +912,39 @@
+@@ -812,20 +924,39 @@
           return createSinglePropConditionTable(var0, DoublePlantBlock.HALF, DoubleBlockHalf.LOWER);
        });
        this.add(Blocks.ROSE_BUSH, (var0) -> {
@@ -421,7 +454,7 @@
        this.add(Blocks.CHEST, BlockLoot::createNameableBlockEntityTable);
        this.add(Blocks.DISPENSER, BlockLoot::createNameableBlockEntityTable);
        this.add(Blocks.DROPPER, BlockLoot::createNameableBlockEntityTable);
-@@ -877,11 +996,11 @@
+@@ -877,11 +1008,11 @@
        this.add(Blocks.PURPLE_BANNER, BlockLoot::createBannerDrop);
        this.add(Blocks.RED_BANNER, BlockLoot::createBannerDrop);
        this.add(Blocks.WHITE_BANNER, BlockLoot::createBannerDrop);
@@ -434,7 +467,7 @@
        this.add(Blocks.BEEHIVE, BlockLoot::createBeeHiveDrop);
        this.add(Blocks.BIRCH_LEAVES, (var0) -> {
           return createLeavesDrops(var0, Blocks.BIRCH_SAPLING, NORMAL_LEAVES_SAPLING_CHANCES);
-@@ -899,54 +1018,71 @@
+@@ -899,54 +1030,85 @@
           return createOakLeavesDrops(var0, Blocks.OAK_SAPLING, NORMAL_LEAVES_SAPLING_CHANCES);
        });
        this.add(Blocks.DARK_OAK_LEAVES, (var0) -> {
@@ -482,16 +515,30 @@
        this.add(Blocks.DIAMOND_ORE, (var0) -> {
           return createOreDrop(var0, Items.DIAMOND);
        });
+-      this.add(Blocks.NETHER_GOLD_ORE, (var0) -> {
+-         return createSilkTouchDispatchTable(var0, (LootPoolEntryContainer.Builder)applyExplosionDecay(var0, LootItem.lootTableItem(Items.GOLD_NUGGET).apply(SetItemCountFunction.setCount(RandomValueBounds.between(2.0F, 6.0F))).apply(ApplyBonusCount.addOreBonusCount(Enchantments.BLOCK_FORTUNE))));
 +      this.add(Blocks.DEEPSLATE_DIAMOND_ORE, (var0) -> {
 +         return createOreDrop(var0, Items.DIAMOND);
-+      });
-       this.add(Blocks.NETHER_GOLD_ORE, (var0) -> {
--         return createSilkTouchDispatchTable(var0, (LootPoolEntryContainer.Builder)applyExplosionDecay(var0, LootItem.lootTableItem(Items.GOLD_NUGGET).apply(SetItemCountFunction.setCount(RandomValueBounds.between(2.0F, 6.0F))).apply(ApplyBonusCount.addOreBonusCount(Enchantments.BLOCK_FORTUNE))));
-+         return createSilkTouchDispatchTable(var0, (LootPoolEntryContainer.Builder)applyExplosionDecay(var0, LootItem.lootTableItem(Items.GOLD_NUGGET).apply(SetItemCountFunction.setCount(UniformGenerator.between(2.0F, 6.0F))).apply(ApplyBonusCount.addOreBonusCount(Enchantments.BLOCK_FORTUNE))));
        });
 -      this.add(Blocks.LAPIS_ORE, (var0) -> {
 -         return createSilkTouchDispatchTable(var0, (LootPoolEntryContainer.Builder)applyExplosionDecay(var0, LootItem.lootTableItem(Items.LAPIS_LAZULI).apply(SetItemCountFunction.setCount(RandomValueBounds.between(4.0F, 9.0F))).apply(ApplyBonusCount.addOreBonusCount(Enchantments.BLOCK_FORTUNE))));
--      });
++      this.add(Blocks.COPPER_ORE, BlockLoot::createCopperOreDrops);
++      this.add(Blocks.DEEPSLATE_COPPER_ORE, BlockLoot::createCopperOreDrops);
++      this.add(Blocks.IRON_ORE, (var0) -> {
++         return createOreDrop(var0, Items.RAW_IRON);
+       });
++      this.add(Blocks.DEEPSLATE_IRON_ORE, (var0) -> {
++         return createOreDrop(var0, Items.RAW_IRON);
++      });
++      this.add(Blocks.GOLD_ORE, (var0) -> {
++         return createOreDrop(var0, Items.RAW_GOLD);
++      });
++      this.add(Blocks.DEEPSLATE_GOLD_ORE, (var0) -> {
++         return createOreDrop(var0, Items.RAW_GOLD);
++      });
++      this.add(Blocks.NETHER_GOLD_ORE, (var0) -> {
++         return createSilkTouchDispatchTable(var0, (LootPoolEntryContainer.Builder)applyExplosionDecay(var0, LootItem.lootTableItem(Items.GOLD_NUGGET).apply(SetItemCountFunction.setCount(UniformGenerator.between(2.0F, 6.0F))).apply(ApplyBonusCount.addOreBonusCount(Enchantments.BLOCK_FORTUNE))));
++      });
 +      this.add(Blocks.LAPIS_ORE, BlockLoot::createLapisOreDrops);
 +      this.add(Blocks.DEEPSLATE_LAPIS_ORE, BlockLoot::createLapisOreDrops);
        this.add(Blocks.COBWEB, (var0) -> {
@@ -504,7 +551,7 @@
        this.add(Blocks.NETHER_SPROUTS, BlockLoot::createShearsOnlyDrop);
        this.add(Blocks.SEAGRASS, BlockLoot::createShearsOnlyDrop);
        this.add(Blocks.VINE, BlockLoot::createShearsOnlyDrop);
-+      this.add(Blocks.GLOW_LICHEN, BlockLoot::createShearsOnlyDrop);
++      this.add(Blocks.GLOW_LICHEN, BlockLoot::createGlowLichenDrops);
 +      this.add(Blocks.HANGING_ROOTS, BlockLoot::createShearsOnlyDrop);
 +      this.add(Blocks.SMALL_DRIPLEAF, BlockLoot::createShearsOnlyDrop);
        this.add(Blocks.TALL_SEAGRASS, createDoublePlantShearsDrop(Blocks.SEAGRASS));
@@ -512,7 +559,7 @@
           return createDoublePlantWithSeedDrops(var0, Blocks.FERN);
        });
        this.add(Blocks.TALL_GRASS, (var0) -> {
-@@ -963,44 +1099,49 @@
+@@ -963,44 +1125,49 @@
        });
        this.add(Blocks.ATTACHED_PUMPKIN_STEM, (var0) -> {
           return createAttachedStemDrops(var0, Items.PUMPKIN_SEEDS);
@@ -574,7 +621,7 @@
        this.dropWhenSilkTouch(Blocks.ORANGE_STAINED_GLASS);
        this.dropWhenSilkTouch(Blocks.MAGENTA_STAINED_GLASS);
        this.dropWhenSilkTouch(Blocks.LIGHT_BLUE_STAINED_GLASS);
-@@ -1062,18 +1203,38 @@
+@@ -1062,18 +1229,38 @@
        this.otherWhenSilkTouch(Blocks.INFESTED_COBBLESTONE, Blocks.COBBLESTONE);
        this.otherWhenSilkTouch(Blocks.INFESTED_STONE_BRICKS, Blocks.STONE_BRICKS);
        this.otherWhenSilkTouch(Blocks.INFESTED_MOSSY_STONE_BRICKS, Blocks.MOSSY_STONE_BRICKS);
@@ -613,3 +660,16 @@
  
        while(var7.hasNext()) {
           Block var8 = (Block)var7.next();
+@@ -1134,11 +1321,11 @@
+    }
+ 
+    static {
+       HAS_SILK_TOUCH = MatchTool.toolMatches(ItemPredicate.Builder.item().hasEnchantment(new EnchantmentPredicate(Enchantments.SILK_TOUCH, MinMaxBounds.Ints.atLeast(1))));
+       HAS_NO_SILK_TOUCH = HAS_SILK_TOUCH.invert();
+-      HAS_SHEARS = MatchTool.toolMatches(ItemPredicate.Builder.item().of((ItemLike)Items.SHEARS));
++      HAS_SHEARS = MatchTool.toolMatches(ItemPredicate.Builder.item().of(Items.SHEARS));
+       HAS_SHEARS_OR_SILK_TOUCH = HAS_SHEARS.or(HAS_SILK_TOUCH);
+       HAS_NO_SHEARS_OR_SILK_TOUCH = HAS_SHEARS_OR_SILK_TOUCH.invert();
+       EXPLOSION_RESISTANT = (Set)Stream.of(Blocks.DRAGON_EGG, Blocks.BEACON, Blocks.CONDUIT, Blocks.SKELETON_SKULL, Blocks.WITHER_SKELETON_SKULL, Blocks.PLAYER_HEAD, Blocks.ZOMBIE_HEAD, Blocks.CREEPER_HEAD, Blocks.DRAGON_HEAD, Blocks.SHULKER_BOX, Blocks.BLACK_SHULKER_BOX, Blocks.BLUE_SHULKER_BOX, Blocks.BROWN_SHULKER_BOX, Blocks.CYAN_SHULKER_BOX, Blocks.GRAY_SHULKER_BOX, Blocks.GREEN_SHULKER_BOX, Blocks.LIGHT_BLUE_SHULKER_BOX, Blocks.LIGHT_GRAY_SHULKER_BOX, Blocks.LIME_SHULKER_BOX, Blocks.MAGENTA_SHULKER_BOX, Blocks.ORANGE_SHULKER_BOX, Blocks.PINK_SHULKER_BOX, Blocks.PURPLE_SHULKER_BOX, Blocks.RED_SHULKER_BOX, Blocks.WHITE_SHULKER_BOX, Blocks.YELLOW_SHULKER_BOX).map(ItemLike::asItem).collect(ImmutableSet.toImmutableSet());
+       NORMAL_LEAVES_SAPLING_CHANCES = new float[]{0.05F, 0.0625F, 0.083333336F, 0.1F};
+       JUNGLE_LEAVES_SAPLING_CHANGES = new float[]{0.025F, 0.027777778F, 0.03125F, 0.041666668F, 0.1F};

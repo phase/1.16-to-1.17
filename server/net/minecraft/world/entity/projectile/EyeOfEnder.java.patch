@@ -13,7 +13,7 @@
     private double ty;
     private double tz;
     private int life;
-@@ -31,16 +31,15 @@
+@@ -31,17 +31,16 @@
        super(var1, var2);
     }
  
@@ -25,13 +25,15 @@
  
     public void setItem(ItemStack var1) {
 -      if (var1.getItem() != Items.ENDER_EYE || var1.hasTag()) {
+-         this.getEntityData().set(DATA_ITEM_STACK, Util.make(var1.copy(), (var0) -> {
 +      if (!var1.is(Items.ENDER_EYE) || var1.hasTag()) {
-          this.getEntityData().set(DATA_ITEM_STACK, Util.make(var1.copy(), (var0) -> {
++         this.getEntityData().set(DATA_ITEM_STACK, (ItemStack)Util.make(var1.copy(), (var0) -> {
              var0.setCount(1);
           }));
        }
  
-@@ -57,10 +56,20 @@
+    }
+@@ -57,20 +56,30 @@
  
     protected void defineSynchedData() {
        this.getEntityData().define(DATA_ITEM_STACK, ItemStack.EMPTY);
@@ -52,7 +54,21 @@
        int var4 = var1.getY();
        double var5 = (double)var1.getZ();
        double var7 = var2 - this.getX();
-@@ -78,10 +87,22 @@
+       double var9 = var5 - this.getZ();
+-      float var11 = Mth.sqrt(var7 * var7 + var9 * var9);
+-      if (var11 > 12.0F) {
+-         this.tx = this.getX() + var7 / (double)var11 * 12.0D;
+-         this.tz = this.getZ() + var9 / (double)var11 * 12.0D;
++      double var11 = Math.sqrt(var7 * var7 + var9 * var9);
++      if (var11 > 12.0D) {
++         this.tx = this.getX() + var7 / var11 * 12.0D;
++         this.tz = this.getZ() + var9 / var11 * 12.0D;
+          this.ty = this.getY() + 8.0D;
+       } else {
+          this.tx = var2;
+          this.ty = (double)var4;
+          this.tz = var5;
+@@ -78,39 +87,51 @@
  
        this.life = 0;
        this.surviveAfterDeath = this.random.nextInt(5) > 0;
@@ -61,11 +77,11 @@
 +   public void lerpMotion(double var1, double var3, double var5) {
 +      this.setDeltaMovement(var1, var3, var5);
 +      if (this.xRotO == 0.0F && this.yRotO == 0.0F) {
-+         float var7 = Mth.sqrt(var1 * var1 + var5 * var5);
-+         this.yRot = (float)(Mth.atan2(var1, var5) * 57.2957763671875D);
-+         this.xRot = (float)(Mth.atan2(var3, (double)var7) * 57.2957763671875D);
-+         this.yRotO = this.yRot;
-+         this.xRotO = this.xRot;
++         double var7 = Math.sqrt(var1 * var1 + var5 * var5);
++         this.setYRot((float)(Mth.atan2(var1, var5) * 57.2957763671875D));
++         this.setXRot((float)(Mth.atan2(var3, var7) * 57.2957763671875D));
++         this.yRotO = this.getYRot();
++         this.xRotO = this.getXRot();
 +      }
 +
 +   }
@@ -75,6 +91,51 @@
        Vec3 var1 = this.getDeltaMovement();
        double var2 = this.getX() + var1.x;
        double var4 = this.getY() + var1.y;
+       double var6 = this.getZ() + var1.z;
+-      float var8 = Mth.sqrt(getHorizontalDistanceSqr(var1));
+-      this.xRot = Projectile.lerpRotation(this.xRotO, (float)(Mth.atan2(var1.y, (double)var8) * 57.2957763671875D));
+-      this.yRot = Projectile.lerpRotation(this.yRotO, (float)(Mth.atan2(var1.x, var1.z) * 57.2957763671875D));
++      double var8 = var1.horizontalDistance();
++      this.setXRot(Projectile.lerpRotation(this.xRotO, (float)(Mth.atan2(var1.y, var8) * 57.2957763671875D)));
++      this.setYRot(Projectile.lerpRotation(this.yRotO, (float)(Mth.atan2(var1.x, var1.z) * 57.2957763671875D)));
+       if (!this.level.isClientSide) {
+-         double var9 = this.tx - var2;
+-         double var11 = this.tz - var6;
+-         float var13 = (float)Math.sqrt(var9 * var9 + var11 * var11);
+-         float var14 = (float)Mth.atan2(var11, var9);
+-         double var15 = Mth.lerp(0.0025D, (double)var8, (double)var13);
+-         double var17 = var1.y;
+-         if (var13 < 1.0F) {
+-            var15 *= 0.8D;
+-            var17 *= 0.8D;
++         double var10 = this.tx - var2;
++         double var12 = this.tz - var6;
++         float var14 = (float)Math.sqrt(var10 * var10 + var12 * var12);
++         float var15 = (float)Mth.atan2(var12, var10);
++         double var16 = Mth.lerp(0.0025D, var8, (double)var14);
++         double var18 = var1.y;
++         if (var14 < 1.0F) {
++            var16 *= 0.8D;
++            var18 *= 0.8D;
+          }
+ 
+-         int var19 = this.getY() < this.ty ? 1 : -1;
+-         var1 = new Vec3(Math.cos((double)var14) * var15, var17 + ((double)var19 - var17) * 0.014999999664723873D, Math.sin((double)var14) * var15);
++         int var20 = this.getY() < this.ty ? 1 : -1;
++         var1 = new Vec3(Math.cos((double)var15) * var16, var18 + ((double)var20 - var18) * 0.014999999664723873D, Math.sin((double)var15) * var16);
+          this.setDeltaMovement(var1);
+       }
+ 
+-      float var20 = 0.25F;
++      float var21 = 0.25F;
+       if (this.isInWater()) {
+-         for(int var10 = 0; var10 < 4; ++var10) {
++         for(int var11 = 0; var11 < 4; ++var11) {
+             this.level.addParticle(ParticleTypes.BUBBLE, var2 - var1.x * 0.25D, var4 - var1.y * 0.25D, var6 - var1.z * 0.25D, var1.x, var1.y, var1.z);
+          }
+       } else {
+          this.level.addParticle(ParticleTypes.PORTAL, var2 - var1.x * 0.25D + this.random.nextDouble() * 0.6D - 0.3D, var4 - var1.y * 0.25D - 0.5D, var6 - var1.z * 0.25D + this.random.nextDouble() * 0.6D - 0.3D, var1.x, var1.y, var1.z);
+       }
 @@ -118,11 +139,11 @@
        if (!this.level.isClientSide) {
           this.setPos(var2, var4, var6);

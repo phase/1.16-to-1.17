@@ -13,7 +13,7 @@
  import net.minecraft.network.syncher.EntityDataSerializers;
  import net.minecraft.network.syncher.SynchedEntityData;
  import net.minecraft.resources.ResourceLocation;
-@@ -34,21 +32,26 @@
+@@ -34,32 +32,39 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.enchantment.Enchantments;
@@ -40,7 +40,59 @@
     protected boolean inGround;
     protected int inGroundTime;
     public AbstractArrow.Pickup pickup;
-@@ -148,11 +151,11 @@
+    public int shakeTime;
+    private int life;
+    private double baseDamage;
+    private int knockback;
+    private SoundEvent soundEvent;
++   @Nullable
+    private IntOpenHashSet piercingIgnoreEntityIds;
++   @Nullable
+    private List<Entity> piercedAndKilledEntities;
+ 
+    protected AbstractArrow(EntityType<? extends AbstractArrow> var1, Level var2) {
+       super(var1, var2);
+       this.pickup = AbstractArrow.Pickup.DISALLOWED;
+@@ -118,29 +123,29 @@
+    public void tick() {
+       super.tick();
+       boolean var1 = this.isNoPhysics();
+       Vec3 var2 = this.getDeltaMovement();
+       if (this.xRotO == 0.0F && this.yRotO == 0.0F) {
+-         float var3 = Mth.sqrt(getHorizontalDistanceSqr(var2));
+-         this.yRot = (float)(Mth.atan2(var2.x, var2.z) * 57.2957763671875D);
+-         this.xRot = (float)(Mth.atan2(var2.y, (double)var3) * 57.2957763671875D);
+-         this.yRotO = this.yRot;
+-         this.xRotO = this.xRot;
++         double var3 = var2.horizontalDistance();
++         this.setYRot((float)(Mth.atan2(var2.x, var2.z) * 57.2957763671875D));
++         this.setXRot((float)(Mth.atan2(var2.y, var3) * 57.2957763671875D));
++         this.yRotO = this.getYRot();
++         this.xRotO = this.getXRot();
+       }
+ 
+-      BlockPos var25 = this.blockPosition();
+-      BlockState var4 = this.level.getBlockState(var25);
++      BlockPos var26 = this.blockPosition();
++      BlockState var4 = this.level.getBlockState(var26);
+       Vec3 var6;
+       if (!var4.isAir() && !var1) {
+-         VoxelShape var5 = var4.getCollisionShape(this.level, var25);
++         VoxelShape var5 = var4.getCollisionShape(this.level, var26);
+          if (!var5.isEmpty()) {
+             var6 = this.position();
+             Iterator var7 = var5.toAabbs().iterator();
+ 
+             while(var7.hasNext()) {
+                AABB var8 = (AABB)var7.next();
+-               if (var8.move(var25).contains(var6)) {
++               if (var8.move(var26).contains(var6)) {
+                   this.inGround = true;
+                   break;
+                }
+             }
+          }
+@@ -148,11 +153,11 @@
  
        if (this.shakeTime > 0) {
           --this.shakeTime;
@@ -53,20 +105,130 @@
  
        if (this.inGround && !var1) {
           if (this.lastState != var4 && this.shouldFall()) {
-@@ -169,11 +172,11 @@
-          Object var27 = this.level.clip(new ClipContext(var26, var6, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
-          if (((HitResult)var27).getType() != HitResult.Type.MISS) {
-             var6 = ((HitResult)var27).getLocation();
+@@ -162,85 +167,85 @@
+          }
+ 
+          ++this.inGroundTime;
+       } else {
+          this.inGroundTime = 0;
+-         Vec3 var26 = this.position();
+-         var6 = var26.add(var2);
+-         Object var27 = this.level.clip(new ClipContext(var26, var6, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+-         if (((HitResult)var27).getType() != HitResult.Type.MISS) {
+-            var6 = ((HitResult)var27).getLocation();
++         Vec3 var27 = this.position();
++         var6 = var27.add(var2);
++         Object var28 = this.level.clip(new ClipContext(var27, var6, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
++         if (((HitResult)var28).getType() != HitResult.Type.MISS) {
++            var6 = ((HitResult)var28).getLocation();
           }
  
 -         while(!this.removed) {
+-            EntityHitResult var28 = this.findHitEntity(var26, var6);
+-            if (var28 != null) {
+-               var27 = var28;
 +         while(!this.isRemoved()) {
-             EntityHitResult var28 = this.findHitEntity(var26, var6);
-             if (var28 != null) {
-                var27 = var28;
++            EntityHitResult var29 = this.findHitEntity(var27, var6);
++            if (var29 != null) {
++               var28 = var29;
              }
  
-@@ -263,11 +266,11 @@
+-            if (var27 != null && ((HitResult)var27).getType() == HitResult.Type.ENTITY) {
+-               Entity var9 = ((EntityHitResult)var27).getEntity();
++            if (var28 != null && ((HitResult)var28).getType() == HitResult.Type.ENTITY) {
++               Entity var9 = ((EntityHitResult)var28).getEntity();
+                Entity var10 = this.getOwner();
+                if (var9 instanceof Player && var10 instanceof Player && !((Player)var10).canHarmPlayer((Player)var9)) {
+-                  var27 = null;
+                   var28 = null;
++                  var29 = null;
+                }
+             }
+ 
+-            if (var27 != null && !var1) {
+-               this.onHit((HitResult)var27);
++            if (var28 != null && !var1) {
++               this.onHit((HitResult)var28);
+                this.hasImpulse = true;
+             }
+ 
+-            if (var28 == null || this.getPierceLevel() <= 0) {
++            if (var29 == null || this.getPierceLevel() <= 0) {
+                break;
+             }
+ 
+-            var27 = null;
++            var28 = null;
+          }
+ 
+          var2 = this.getDeltaMovement();
+-         double var29 = var2.x;
+-         double var30 = var2.y;
++         double var30 = var2.x;
++         double var31 = var2.y;
+          double var12 = var2.z;
+          if (this.isCritArrow()) {
+             for(int var14 = 0; var14 < 4; ++var14) {
+-               this.level.addParticle(ParticleTypes.CRIT, this.getX() + var29 * (double)var14 / 4.0D, this.getY() + var30 * (double)var14 / 4.0D, this.getZ() + var12 * (double)var14 / 4.0D, -var29, -var30 + 0.2D, -var12);
++               this.level.addParticle(ParticleTypes.CRIT, this.getX() + var30 * (double)var14 / 4.0D, this.getY() + var31 * (double)var14 / 4.0D, this.getZ() + var12 * (double)var14 / 4.0D, -var30, -var31 + 0.2D, -var12);
+             }
+          }
+ 
+-         double var31 = this.getX() + var29;
+-         double var16 = this.getY() + var30;
++         double var32 = this.getX() + var30;
++         double var16 = this.getY() + var31;
+          double var18 = this.getZ() + var12;
+-         float var20 = Mth.sqrt(getHorizontalDistanceSqr(var2));
++         double var20 = var2.horizontalDistance();
+          if (var1) {
+-            this.yRot = (float)(Mth.atan2(-var29, -var12) * 57.2957763671875D);
++            this.setYRot((float)(Mth.atan2(-var30, -var12) * 57.2957763671875D));
+          } else {
+-            this.yRot = (float)(Mth.atan2(var29, var12) * 57.2957763671875D);
++            this.setYRot((float)(Mth.atan2(var30, var12) * 57.2957763671875D));
+          }
+ 
+-         this.xRot = (float)(Mth.atan2(var30, (double)var20) * 57.2957763671875D);
+-         this.xRot = lerpRotation(this.xRotO, this.xRot);
+-         this.yRot = lerpRotation(this.yRotO, this.yRot);
+-         float var21 = 0.99F;
+-         float var22 = 0.05F;
++         this.setXRot((float)(Mth.atan2(var31, var20) * 57.2957763671875D));
++         this.setXRot(lerpRotation(this.xRotO, this.getXRot()));
++         this.setYRot(lerpRotation(this.yRotO, this.getYRot()));
++         float var22 = 0.99F;
++         float var23 = 0.05F;
+          if (this.isInWater()) {
+-            for(int var23 = 0; var23 < 4; ++var23) {
+-               float var24 = 0.25F;
+-               this.level.addParticle(ParticleTypes.BUBBLE, var31 - var29 * 0.25D, var16 - var30 * 0.25D, var18 - var12 * 0.25D, var29, var30, var12);
++            for(int var24 = 0; var24 < 4; ++var24) {
++               float var25 = 0.25F;
++               this.level.addParticle(ParticleTypes.BUBBLE, var32 - var30 * 0.25D, var16 - var31 * 0.25D, var18 - var12 * 0.25D, var30, var31, var12);
+             }
+ 
+-            var21 = this.getWaterInertia();
++            var22 = this.getWaterInertia();
+          }
+ 
+-         this.setDeltaMovement(var2.scale((double)var21));
++         this.setDeltaMovement(var2.scale((double)var22));
+          if (!this.isNoGravity() && !var1) {
+-            Vec3 var32 = this.getDeltaMovement();
+-            this.setDeltaMovement(var32.x, var32.y - 0.05000000074505806D, var32.z);
++            Vec3 var33 = this.getDeltaMovement();
++            this.setDeltaMovement(var33.x, var33.y - 0.05000000074505806D, var33.z);
+          }
+ 
+-         this.setPos(var31, var16, var18);
++         this.setPos(var32, var16, var18);
+          this.checkInsideBlocks();
+       }
+    }
+ 
+    private boolean shouldFall() {
+@@ -263,11 +268,11 @@
     }
  
     protected void tickDespawn() {
@@ -79,7 +241,7 @@
     }
  
     private void resetPiercedEntities() {
-@@ -294,11 +297,11 @@
+@@ -294,11 +299,11 @@
           if (this.piercedAndKilledEntities == null) {
              this.piercedAndKilledEntities = Lists.newArrayListWithCapacity(5);
           }
@@ -92,7 +254,7 @@
  
           this.piercingIgnoreEntityIds.add(var2.getId());
        }
-@@ -367,11 +370,11 @@
+@@ -367,23 +372,23 @@
              }
           }
  
@@ -104,8 +266,9 @@
        } else {
           var2.setRemainingFireTicks(var8);
           this.setDeltaMovement(this.getDeltaMovement().scale(-0.1D));
-          this.yRot += 180.0F;
-@@ -379,11 +382,11 @@
+-         this.yRot += 180.0F;
++         this.setYRot(this.getYRot() + 180.0F);
+          this.yRotO += 180.0F;
           if (!this.level.isClientSide && this.getDeltaMovement().lengthSqr() < 1.0E-7D) {
              if (this.pickup == AbstractArrow.Pickup.ALLOWED) {
                 this.spawnAtLocation(this.getPickupItem(), 0.1F);
@@ -118,7 +281,7 @@
  
     }
  
-@@ -452,16 +455,11 @@
+@@ -452,16 +457,11 @@
        this.inGround = var1.getBoolean("inGround");
        if (var1.contains("damage", 99)) {
           this.baseDamage = var1.getDouble("damage");
@@ -136,7 +299,7 @@
        if (var1.contains("SoundEvent", 8)) {
           this.soundEvent = (SoundEvent)Registry.SOUND_EVENT.getOptional(new ResourceLocation(var1.getString("SoundEvent"))).orElse(this.getDefaultHitGroundSoundEvent());
        }
-@@ -470,34 +468,40 @@
+@@ -470,34 +470,40 @@
     }
  
     public void setOwner(@Nullable Entity var1) {
@@ -187,7 +350,7 @@
     public void setBaseDamage(double var1) {
        this.baseDamage = var1;
     }
-@@ -508,10 +512,14 @@
+@@ -508,10 +514,14 @@
  
     public void setKnockback(int var1) {
        this.knockback = var1;
@@ -202,7 +365,7 @@
     }
  
     protected float getEyeHeight(Pose var1, EntityDimensions var2) {
-@@ -587,15 +595,10 @@
+@@ -587,15 +597,10 @@
  
     public void setShotFromCrossbow(boolean var1) {
        this.setFlag(4, var1);

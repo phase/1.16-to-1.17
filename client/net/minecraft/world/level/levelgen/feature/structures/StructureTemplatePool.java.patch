@@ -1,6 +1,18 @@
 --- net/minecraft/world/level/levelgen/feature/structures/StructureTemplatePool.java
 +++ net/minecraft/world/level/levelgen/feature/structures/StructureTemplatePool.java
-@@ -28,10 +28,11 @@
+@@ -12,11 +12,10 @@
+ import java.util.Map;
+ import java.util.Random;
+ import java.util.function.Function;
+ import java.util.function.Supplier;
+ import java.util.stream.Collectors;
+-import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Registry;
+ import net.minecraft.resources.RegistryFileCodec;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.StringRepresentable;
+@@ -28,17 +27,13 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -8,11 +20,32 @@
     private static final Logger LOGGER = LogManager.getLogger();
 +   private static final int SIZE_UNSET = Integer.MIN_VALUE;
     public static final Codec<StructureTemplatePool> DIRECT_CODEC = RecordCodecBuilder.create((var0) -> {
-       RecordCodecBuilder var10001 = ResourceLocation.CODEC.fieldOf("name").forGetter(StructureTemplatePool::getName);
-       RecordCodecBuilder var10002 = ResourceLocation.CODEC.fieldOf("fallback").forGetter(StructureTemplatePool::getFallback);
-       Codec var10003 = Codec.mapPair(StructurePoolElement.CODEC.fieldOf("element"), Codec.INT.fieldOf("weight")).codec().listOf();
-       Logger var10005 = LOGGER;
-@@ -84,11 +85,13 @@
+-      RecordCodecBuilder var10001 = ResourceLocation.CODEC.fieldOf("name").forGetter(StructureTemplatePool::getName);
+-      RecordCodecBuilder var10002 = ResourceLocation.CODEC.fieldOf("fallback").forGetter(StructureTemplatePool::getFallback);
+-      Codec var10003 = Codec.mapPair(StructurePoolElement.CODEC.fieldOf("element"), Codec.INT.fieldOf("weight")).codec().listOf();
+-      Logger var10005 = LOGGER;
+-      var10005.getClass();
+-      return var0.group(var10001, var10002, var10003.promotePartial(Util.prefix("Pool element: ", var10005::error)).fieldOf("elements").forGetter((var0x) -> {
++      return var0.group(ResourceLocation.CODEC.fieldOf("name").forGetter(StructureTemplatePool::getName), ResourceLocation.CODEC.fieldOf("fallback").forGetter(StructureTemplatePool::getFallback), Codec.mapPair(StructurePoolElement.CODEC.fieldOf("element"), Codec.intRange(1, 150).fieldOf("weight")).codec().listOf().fieldOf("elements").forGetter((var0x) -> {
+          return var0x.rawTemplates;
+       })).apply(var0, StructureTemplatePool::new);
+    });
+    public static final Codec<Supplier<StructureTemplatePool>> CODEC;
+    private final ResourceLocation name;
+@@ -72,11 +67,11 @@
+       Iterator var5 = var3.iterator();
+ 
+       while(var5.hasNext()) {
+          Pair var6 = (Pair)var5.next();
+          StructurePoolElement var7 = (StructurePoolElement)((Function)var6.getFirst()).apply(var4);
+-         this.rawTemplates.add(Pair.of(var7, var6.getSecond()));
++         this.rawTemplates.add(Pair.of(var7, (Integer)var6.getSecond()));
+ 
+          for(int var8 = 0; var8 < (Integer)var6.getSecond(); ++var8) {
+             this.templates.add(var7);
+          }
+       }
+@@ -84,11 +79,13 @@
        this.fallback = var2;
     }
  
@@ -27,3 +60,16 @@
        }
  
        return this.maxSize;
+@@ -101,11 +98,11 @@
+    public StructurePoolElement getRandomTemplate(Random var1) {
+       return (StructurePoolElement)this.templates.get(var1.nextInt(this.templates.size()));
+    }
+ 
+    public List<StructurePoolElement> getShuffledTemplates(Random var1) {
+-      return ImmutableList.copyOf(ObjectArrays.shuffle(this.templates.toArray(new StructurePoolElement[0]), var1));
++      return ImmutableList.copyOf((StructurePoolElement[])ObjectArrays.shuffle((StructurePoolElement[])this.templates.toArray(new StructurePoolElement[0]), var1));
+    }
+ 
+    public ResourceLocation getName() {
+       return this.name;
+    }

@@ -1,6 +1,25 @@
 --- net/minecraft/client/gui/screens/CreateFlatWorldScreen.java
 +++ net/minecraft/client/gui/screens/CreateFlatWorldScreen.java
-@@ -22,10 +22,17 @@
+@@ -4,31 +4,37 @@
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import java.util.List;
+ import java.util.function.Consumer;
+ import javax.annotation.Nullable;
+ import net.minecraft.client.gui.GuiComponent;
+-import net.minecraft.client.gui.chat.NarratorChatListener;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.ObjectSelectionList;
+ import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
+-import net.minecraft.client.resources.language.I18n;
+ import net.minecraft.network.chat.CommonComponents;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.FormattedText;
++import net.minecraft.network.chat.TextComponent;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.levelgen.flat.FlatLayerInfo;
  import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings;
@@ -15,27 +34,153 @@
 +   private static final int SLOT_FG_Y = 2;
     protected final CreateWorldScreen parent;
     private final Consumer<FlatLevelGeneratorSettings> applySettings;
-    private FlatLevelGeneratorSettings generator;
+-   private FlatLevelGeneratorSettings generator;
++   FlatLevelGeneratorSettings generator;
     private Component columnType;
     private Component columnHeight;
-@@ -116,13 +123,13 @@
+    private CreateFlatWorldScreen.DetailsList list;
+    private Button deleteLayerButton;
+ 
+@@ -49,12 +55,12 @@
+ 
+    protected void init() {
+       this.columnType = new TranslatableComponent("createWorld.customize.flat.tile");
+       this.columnHeight = new TranslatableComponent("createWorld.customize.flat.height");
+       this.list = new CreateFlatWorldScreen.DetailsList();
+-      this.children.add(this.list);
+-      this.deleteLayerButton = (Button)this.addButton(new Button(this.width / 2 - 155, this.height - 52, 150, 20, new TranslatableComponent("createWorld.customize.flat.removeLayer"), (var1) -> {
++      this.addWidget(this.list);
++      this.deleteLayerButton = (Button)this.addRenderableWidget(new Button(this.width / 2 - 155, this.height - 52, 150, 20, new TranslatableComponent("createWorld.customize.flat.removeLayer"), (var1) -> {
+          if (this.hasValidSelection()) {
+             List var2 = this.generator.getLayersInfo();
+             int var3 = this.list.children().indexOf(this.list.getSelected());
+             int var4 = var2.size() - var3 - 1;
+             var2.remove(var4);
+@@ -62,29 +68,29 @@
+             this.generator.updateLayers();
+             this.list.resetRows();
+             this.updateButtonValidity();
+          }
+       }));
+-      this.addButton(new Button(this.width / 2 + 5, this.height - 52, 150, 20, new TranslatableComponent("createWorld.customize.presets"), (var1) -> {
++      this.addRenderableWidget(new Button(this.width / 2 + 5, this.height - 52, 150, 20, new TranslatableComponent("createWorld.customize.presets"), (var1) -> {
+          this.minecraft.setScreen(new PresetFlatWorldScreen(this));
+          this.generator.updateLayers();
+          this.updateButtonValidity();
+       }));
+-      this.addButton(new Button(this.width / 2 - 155, this.height - 28, 150, 20, CommonComponents.GUI_DONE, (var1) -> {
++      this.addRenderableWidget(new Button(this.width / 2 - 155, this.height - 28, 150, 20, CommonComponents.GUI_DONE, (var1) -> {
+          this.applySettings.accept(this.generator);
+          this.minecraft.setScreen(this.parent);
+          this.generator.updateLayers();
+       }));
+-      this.addButton(new Button(this.width / 2 + 5, this.height - 28, 150, 20, CommonComponents.GUI_CANCEL, (var1) -> {
++      this.addRenderableWidget(new Button(this.width / 2 + 5, this.height - 28, 150, 20, CommonComponents.GUI_CANCEL, (var1) -> {
+          this.minecraft.setScreen(this.parent);
+          this.generator.updateLayers();
+       }));
+       this.generator.updateLayers();
+       this.updateButtonValidity();
+    }
+ 
+-   private void updateButtonValidity() {
++   void updateButtonValidity() {
+       this.deleteLayerButton.active = this.hasValidSelection();
+    }
+ 
+    private boolean hasValidSelection() {
+       return this.list.getSelected() != null;
+@@ -114,18 +120,10 @@
+ 
+       }
  
        public void setSelected(@Nullable CreateFlatWorldScreen.DetailsList.Entry var1) {
           super.setSelected(var1);
-          if (var1 != null) {
-             FlatLayerInfo var2 = (FlatLayerInfo)CreateFlatWorldScreen.this.generator.getLayersInfo().get(CreateFlatWorldScreen.this.generator.getLayersInfo().size() - this.children().indexOf(var1) - 1);
+-         if (var1 != null) {
+-            FlatLayerInfo var2 = (FlatLayerInfo)CreateFlatWorldScreen.this.generator.getLayersInfo().get(CreateFlatWorldScreen.this.generator.getLayersInfo().size() - this.children().indexOf(var1) - 1);
 -            Item var3 = var2.getBlockState().getBlock().asItem();
 -            if (var3 != Items.AIR) {
 -               NarratorChatListener.INSTANCE.sayNow((new TranslatableComponent("narrator.select", new Object[]{var3.getName(new ItemStack(var3))})).getString());
-+            ItemStack var3 = new ItemStack(var2.getBlockState().getBlock());
-+            if (!var3.isEmpty()) {
-+               NarratorChatListener.INSTANCE.sayNow((new TranslatableComponent("narrator.select", new Object[]{var3.getItem().getName(var3)})).getString());
-             }
-          }
- 
+-            }
+-         }
+-
           CreateFlatWorldScreen.this.updateButtonValidity();
        }
-@@ -190,21 +197,19 @@
+ 
+       protected boolean isFocused() {
+          return CreateFlatWorldScreen.this.getFocused() == this;
+@@ -148,41 +146,51 @@
+             this.setSelected((CreateFlatWorldScreen.DetailsList.Entry)var3.get(var1));
+          }
+ 
+       }
+ 
+-      class Entry extends ObjectSelectionList.Entry<CreateFlatWorldScreen.DetailsList.Entry> {
+-         private Entry() {
++      private class Entry extends ObjectSelectionList.Entry<CreateFlatWorldScreen.DetailsList.Entry> {
++         Entry() {
+          }
+ 
+          public void render(PoseStack var1, int var2, int var3, int var4, int var5, int var6, int var7, int var8, boolean var9, float var10) {
+             FlatLayerInfo var11 = (FlatLayerInfo)CreateFlatWorldScreen.this.generator.getLayersInfo().get(CreateFlatWorldScreen.this.generator.getLayersInfo().size() - var2 - 1);
+             BlockState var12 = var11.getBlockState();
+-            Item var13 = var12.getBlock().asItem();
+-            if (var13 == Items.AIR) {
+-               if (var12.is(Blocks.WATER)) {
+-                  var13 = Items.WATER_BUCKET;
+-               } else if (var12.is(Blocks.LAVA)) {
+-                  var13 = Items.LAVA_BUCKET;
+-               }
+-            }
+-
+-            ItemStack var14 = new ItemStack(var13);
+-            this.blitSlot(var1, var4, var3, var14);
+-            CreateFlatWorldScreen.this.font.draw(var1, var13.getName(var14), (float)(var4 + 18 + 5), (float)(var3 + 3), 16777215);
+-            String var15;
++            ItemStack var13 = this.getDisplayItem(var12);
++            this.blitSlot(var1, var4, var3, var13);
++            CreateFlatWorldScreen.this.font.draw(var1, var13.getHoverName(), (float)(var4 + 18 + 5), (float)(var3 + 3), 16777215);
++            TranslatableComponent var14;
+             if (var2 == 0) {
+-               var15 = I18n.get("createWorld.customize.flat.layer.top", var11.getHeight());
++               var14 = new TranslatableComponent("createWorld.customize.flat.layer.top", new Object[]{var11.getHeight()});
+             } else if (var2 == CreateFlatWorldScreen.this.generator.getLayersInfo().size() - 1) {
+-               var15 = I18n.get("createWorld.customize.flat.layer.bottom", var11.getHeight());
++               var14 = new TranslatableComponent("createWorld.customize.flat.layer.bottom", new Object[]{var11.getHeight()});
+             } else {
+-               var15 = I18n.get("createWorld.customize.flat.layer", var11.getHeight());
++               var14 = new TranslatableComponent("createWorld.customize.flat.layer", new Object[]{var11.getHeight()});
+             }
+ 
+-            CreateFlatWorldScreen.this.font.draw(var1, var15, (float)(var4 + 2 + 213 - CreateFlatWorldScreen.this.font.width(var15)), (float)(var3 + 3), 16777215);
++            CreateFlatWorldScreen.this.font.draw(var1, (Component)var14, (float)(var4 + 2 + 213 - CreateFlatWorldScreen.this.font.width((FormattedText)var14)), (float)(var3 + 3), 16777215);
+          }
+ 
++         private ItemStack getDisplayItem(BlockState var1) {
++            Item var2 = var1.getBlock().asItem();
++            if (var2 == Items.AIR) {
++               if (var1.is(Blocks.WATER)) {
++                  var2 = Items.WATER_BUCKET;
++               } else if (var1.is(Blocks.LAVA)) {
++                  var2 = Items.LAVA_BUCKET;
++               }
++            }
++
++            return new ItemStack(var2);
++         }
++
++         public Component getNarration() {
++            FlatLayerInfo var1 = (FlatLayerInfo)CreateFlatWorldScreen.this.generator.getLayersInfo().get(CreateFlatWorldScreen.this.generator.getLayersInfo().size() - DetailsList.this.children().indexOf(this) - 1);
++            ItemStack var2 = this.getDisplayItem(var1.getBlockState());
++            return (Component)(!var2.isEmpty() ? new TranslatableComponent("narrator.select", new Object[]{var2.getHoverName()}) : TextComponent.EMPTY);
++         }
++
+          public boolean mouseClicked(double var1, double var3, int var5) {
+             if (var5 == 0) {
+                DetailsList.this.setSelected(this);
+                return true;
+             } else {
+@@ -190,21 +198,19 @@
              }
           }
  

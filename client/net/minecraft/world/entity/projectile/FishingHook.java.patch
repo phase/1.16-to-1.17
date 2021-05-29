@@ -12,7 +12,7 @@
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.ExperienceOrb;
  import net.minecraft.world.entity.MoverType;
-@@ -46,10 +47,11 @@
+@@ -46,47 +47,44 @@
  
  public class FishingHook extends Projectile {
     private final Random syncronizedRandom;
@@ -24,7 +24,10 @@
     private int life;
     private int nibble;
     private int timeUntilLured;
-@@ -59,32 +61,27 @@
+    private int timeUntilHooked;
+    private float fishAngle;
+    private boolean openWater;
++   @Nullable
     private Entity hookedIn;
     private FishingHook.FishHookState currentState;
     private final int luck;
@@ -56,14 +59,37 @@
  
     public FishingHook(Player var1, Level var2, int var3, int var4) {
 -      this(var2, var1, var3, var4);
+-      float var5 = var1.xRot;
+-      float var6 = var1.yRot;
 +      this(EntityType.FISHING_BOBBER, var2, var3, var4);
 +      this.setOwner(var1);
-       float var5 = var1.xRot;
-       float var6 = var1.yRot;
++      float var5 = var1.getXRot();
++      float var6 = var1.getYRot();
        float var7 = Mth.cos(-var6 * 0.017453292F - 3.1415927F);
        float var8 = Mth.sin(-var6 * 0.017453292F - 3.1415927F);
        float var9 = -Mth.cos(-var5 * 0.017453292F);
-@@ -135,16 +132,16 @@
+       float var10 = Mth.sin(-var5 * 0.017453292F);
+       double var11 = var1.getX() - (double)var8 * 0.3D;
+@@ -95,14 +93,14 @@
+       this.moveTo(var11, var13, var15, var6, var5);
+       Vec3 var17 = new Vec3((double)(-var8), (double)Mth.clamp(-(var10 / var9), -5.0F, 5.0F), (double)(-var7));
+       double var18 = var17.length();
+       var17 = var17.multiply(0.6D / var18 + 0.5D + this.random.nextGaussian() * 0.0045D, 0.6D / var18 + 0.5D + this.random.nextGaussian() * 0.0045D, 0.6D / var18 + 0.5D + this.random.nextGaussian() * 0.0045D);
+       this.setDeltaMovement(var17);
+-      this.yRot = (float)(Mth.atan2(var17.x, var17.z) * 57.2957763671875D);
+-      this.xRot = (float)(Mth.atan2(var17.y, (double)Mth.sqrt(getHorizontalDistanceSqr(var17))) * 57.2957763671875D);
+-      this.yRotO = this.yRot;
+-      this.xRotO = this.xRot;
++      this.setYRot((float)(Mth.atan2(var17.x, var17.z) * 57.2957763671875D));
++      this.setXRot((float)(Mth.atan2(var17.y, var17.horizontalDistance()) * 57.2957763671875D));
++      this.yRotO = this.getYRot();
++      this.xRotO = this.getXRot();
+    }
+ 
+    protected void defineSynchedData() {
+       this.getEntityData().define(DATA_HOOKED_ENTITY, 0);
+       this.getEntityData().define(DATA_BITING, false);
+@@ -135,16 +133,16 @@
     public void tick() {
        this.syncronizedRandom.setSeed(this.getUUID().getLeastSignificantBits() ^ this.level.getGameTime());
        super.tick();
@@ -82,20 +108,27 @@
           } else {
              this.life = 0;
           }
-@@ -172,11 +169,11 @@
+@@ -172,15 +170,15 @@
  
              this.checkCollision();
           } else {
              if (this.currentState == FishingHook.FishHookState.HOOKED_IN_ENTITY) {
                 if (this.hookedIn != null) {
 -                  if (this.hookedIn.removed) {
-+                  if (this.hookedIn.isRemoved()) {
-                      this.hookedIn = null;
-                      this.currentState = FishingHook.FishHookState.FLYING;
-                   } else {
+-                     this.hookedIn = null;
+-                     this.currentState = FishingHook.FishHookState.FLYING;
+-                  } else {
++                  if (!this.hookedIn.isRemoved() && this.hookedIn.level.dimension() == this.level.dimension()) {
                       this.setPos(this.hookedIn.getX(), this.hookedIn.getY(0.8D), this.hookedIn.getZ());
++                  } else {
++                     this.setHookedEntity((Entity)null);
++                     this.currentState = FishingHook.FishHookState.FLYING;
                    }
-@@ -231,16 +228,16 @@
+                }
+ 
+                return;
+             }
+@@ -231,16 +229,16 @@
     }
  
     private boolean shouldStopFishing(Player var1) {
@@ -116,7 +149,52 @@
     }
  
     private void checkCollision() {
-@@ -436,11 +433,11 @@
+@@ -253,23 +251,23 @@
+    }
+ 
+    protected void onHitEntity(EntityHitResult var1) {
+       super.onHitEntity(var1);
+       if (!this.level.isClientSide) {
+-         this.hookedIn = var1.getEntity();
+-         this.setHookedEntity();
++         this.setHookedEntity(var1.getEntity());
+       }
+ 
+    }
+ 
+    protected void onHitBlock(BlockHitResult var1) {
+       super.onHitBlock(var1);
+       this.setDeltaMovement(this.getDeltaMovement().normalize().scale(var1.distanceTo(this)));
+    }
+ 
+-   private void setHookedEntity() {
+-      this.getEntityData().set(DATA_HOOKED_ENTITY, this.hookedIn.getId() + 1);
++   private void setHookedEntity(@Nullable Entity var1) {
++      this.hookedIn = var1;
++      this.getEntityData().set(DATA_HOOKED_ENTITY, var1 == null ? 0 : var1.getId() + 1);
+    }
+ 
+    private void catchingFish(BlockPos var1) {
+       ServerLevel var2 = (ServerLevel)this.level;
+       int var3 = 1;
+@@ -412,14 +410,14 @@
+    public void readAdditionalSaveData(CompoundTag var1) {
+    }
+ 
+    public int retrieve(ItemStack var1) {
+       Player var2 = this.getPlayerOwner();
+-      if (!this.level.isClientSide && var2 != null) {
++      if (!this.level.isClientSide && var2 != null && !this.shouldStopFishing(var2)) {
+          int var3 = 0;
+          if (this.hookedIn != null) {
+-            this.bringInHookedEntity();
++            this.pullEntity(this.hookedIn);
+             CriteriaTriggers.FISHING_ROD_HOOKED.trigger((ServerPlayer)var2, var1, this, Collections.emptyList());
+             this.level.broadcastEntityEvent(this, (byte)31);
+             var3 = this.hookedIn instanceof ItemEntity ? 3 : 5;
+          } else if (this.nibble > 0) {
+             LootContext.Builder var4 = (new LootContext.Builder((ServerLevel)this.level)).withParameter(LootContextParams.ORIGIN, this.position()).withParameter(LootContextParams.TOOL, var1).withParameter(LootContextParams.THIS_ENTITY, this).withRandom(this.random).withLuck((float)this.luck + var2.getLuck());
+@@ -436,11 +434,11 @@
                 double var14 = var2.getZ() - this.getZ();
                 double var16 = 0.1D;
                 var9.setDeltaMovement(var10 * 0.1D, var12 * 0.1D + Math.sqrt(Math.sqrt(var10 * var10 + var12 * var12 + var14 * var14)) * 0.08D, var14 * 0.1D);
@@ -129,7 +207,7 @@
              }
  
              var3 = 1;
-@@ -448,11 +445,11 @@
+@@ -448,42 +446,55 @@
  
           if (this.onGround) {
              var3 = 2;
@@ -142,9 +220,26 @@
           return 0;
        }
     }
-@@ -471,23 +468,32 @@
-          Vec3 var2 = (new Vec3(var1.getX() - this.getX(), var1.getY() - this.getY(), var1.getZ() - this.getZ())).scale(0.1D);
-          this.hookedIn.setDeltaMovement(this.hookedIn.getDeltaMovement().add(var2));
+ 
+    public void handleEntityEvent(byte var1) {
+       if (var1 == 31 && this.level.isClientSide && this.hookedIn instanceof Player && ((Player)this.hookedIn).isLocalPlayer()) {
+-         this.bringInHookedEntity();
++         this.pullEntity(this.hookedIn);
+       }
+ 
+       super.handleEntityEvent(var1);
+    }
+ 
+-   protected void bringInHookedEntity() {
+-      Entity var1 = this.getOwner();
+-      if (var1 != null) {
+-         Vec3 var2 = (new Vec3(var1.getX() - this.getX(), var1.getY() - this.getY(), var1.getZ() - this.getZ())).scale(0.1D);
+-         this.hookedIn.setDeltaMovement(this.hookedIn.getDeltaMovement().add(var2));
++   protected void pullEntity(Entity var1) {
++      Entity var2 = this.getOwner();
++      if (var2 != null) {
++         Vec3 var3 = (new Vec3(var2.getX() - this.getX(), var2.getY() - this.getY(), var2.getZ() - this.getZ())).scale(0.1D);
++         var1.setDeltaMovement(var1.getDeltaMovement().add(var3));
        }
     }
  
@@ -160,29 +255,29 @@
 -      if (var1 != null) {
 -         var1.fishing = null;
 +   public void remove(Entity.RemovalReason var1) {
++      this.updateOwnerInfo((FishingHook)null);
 +      super.remove(var1);
++   }
++
++   public void onClientRemoval() {
++      this.updateOwnerInfo((FishingHook)null);
++   }
++
++   public void setOwner(@Nullable Entity var1) {
++      super.setOwner(var1);
++      this.updateOwnerInfo(this);
++   }
++
++   private void updateOwnerInfo(@Nullable FishingHook var1) {
 +      Player var2 = this.getPlayerOwner();
 +      if (var2 != null) {
-+         var2.fishing = null;
++         var2.fishing = var1;
        }
  
     }
  
-+   public void setOwner(@Nullable Entity var1) {
-+      super.setOwner(var1);
-+      Player var2 = this.getPlayerOwner();
-+      if (var2 != null) {
-+         var2.fishing = this;
-+      }
-+
-+   }
-+
     @Nullable
-    public Player getPlayerOwner() {
-       Entity var1 = this.getOwner();
-       return var1 instanceof Player ? (Player)var1 : null;
-    }
-@@ -504,10 +510,20 @@
+@@ -504,28 +515,38 @@
     public Packet<?> getAddEntityPacket() {
        Entity var1 = this.getOwner();
        return new ClientboundAddEntityPacket(this, var1 == null ? this.getId() : var1.getId());
@@ -203,3 +298,30 @@
        DATA_BITING = SynchedEntityData.defineId(FishingHook.class, EntityDataSerializers.BOOLEAN);
     }
  
++   private static enum FishHookState {
++      FLYING,
++      HOOKED_IN_ENTITY,
++      BOBBING;
++
++      private FishHookState() {
++      }
++   }
++
+    static enum OpenWaterType {
+       ABOVE_WATER,
+       INSIDE_WATER,
+       INVALID;
+ 
+       private OpenWaterType() {
+       }
+    }
+-
+-   static enum FishHookState {
+-      FLYING,
+-      HOOKED_IN_ENTITY,
+-      BOBBING;
+-
+-      private FishHookState() {
+-      }
+-   }
+ }

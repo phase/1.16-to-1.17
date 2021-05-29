@@ -1,11 +1,26 @@
 --- net/minecraft/world/entity/animal/Pufferfish.java
 +++ net/minecraft/world/entity/animal/Pufferfish.java
-@@ -29,13 +29,17 @@
+@@ -19,23 +19,29 @@
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.MobType;
+ import net.minecraft.world.entity.Pose;
+ import net.minecraft.world.entity.ai.goal.Goal;
++import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.Level;
+ 
  public class Pufferfish extends AbstractFish {
     private static final EntityDataAccessor<Integer> PUFF_STATE;
-    private int inflateCounter;
-    private int deflateTimer;
-    private static final Predicate<LivingEntity> NO_SPECTATORS_AND_NO_WATER_MOB;
+-   private int inflateCounter;
+-   private int deflateTimer;
+-   private static final Predicate<LivingEntity> NO_SPECTATORS_AND_NO_WATER_MOB;
++   int inflateCounter;
++   int deflateTimer;
++   private static final Predicate<LivingEntity> SCARY_MOB;
++   static final TargetingConditions targetingConditions;
 +   public static final int STATE_SMALL = 0;
 +   public static final int STATE_MID = 1;
 +   public static final int STATE_FULL = 2;
@@ -18,7 +33,7 @@
     protected void defineSynchedData() {
        super.defineSynchedData();
        this.entityData.define(PUFF_STATE, 0);
-@@ -65,11 +69,11 @@
+@@ -65,11 +71,11 @@
     public void readAdditionalSaveData(CompoundTag var1) {
        super.readAdditionalSaveData(var1);
        this.setPuffState(var1.getInt("PuffState"));
@@ -31,3 +46,95 @@
  
     protected void registerGoals() {
        super.registerGoals();
+@@ -105,11 +111,13 @@
+    }
+ 
+    public void aiStep() {
+       super.aiStep();
+       if (this.isAlive() && this.getPuffState() > 0) {
+-         List var1 = this.level.getEntitiesOfClass(Mob.class, this.getBoundingBox().inflate(0.3D), NO_SPECTATORS_AND_NO_WATER_MOB);
++         List var1 = this.level.getEntitiesOfClass(Mob.class, this.getBoundingBox().inflate(0.3D), (var1x) -> {
++            return targetingConditions.test(this, var1x);
++         });
+          Iterator var2 = var1.iterator();
+ 
+          while(var2.hasNext()) {
+             Mob var3 = (Mob)var2.next();
+             if (var3.isAlive()) {
+@@ -121,11 +129,11 @@
+    }
+ 
+    private void touch(Mob var1) {
+       int var2 = this.getPuffState();
+       if (var1.hurt(DamageSource.mobAttack(this), (float)(1 + var2))) {
+-         var1.addEffect(new MobEffectInstance(MobEffects.POISON, 60 * var2, 0));
++         var1.addEffect(new MobEffectInstance(MobEffects.POISON, 60 * var2, 0), this);
+          this.playSound(SoundEvents.PUFFER_FISH_STING, 1.0F, 1.0F);
+       }
+ 
+    }
+ 
+@@ -134,11 +142,11 @@
+       if (var1 instanceof ServerPlayer && var2 > 0 && var1.hurt(DamageSource.mobAttack(this), (float)(1 + var2))) {
+          if (!this.isSilent()) {
+             ((ServerPlayer)var1).connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.PUFFER_FISH_STING, 0.0F));
+          }
+ 
+-         var1.addEffect(new MobEffectInstance(MobEffects.POISON, 60 * var2, 0));
++         var1.addEffect(new MobEffectInstance(MobEffects.POISON, 60 * var2, 0), this);
+       }
+ 
+    }
+ 
+    protected SoundEvent getAmbientSound() {
+@@ -172,30 +180,31 @@
+       }
+    }
+ 
+    static {
+       PUFF_STATE = SynchedEntityData.defineId(Pufferfish.class, EntityDataSerializers.INT);
+-      NO_SPECTATORS_AND_NO_WATER_MOB = (var0) -> {
+-         if (var0 == null) {
++      SCARY_MOB = (var0) -> {
++         if (var0 instanceof Player && ((Player)var0).isCreative()) {
+             return false;
+-         } else if (!(var0 instanceof Player) || !var0.isSpectator() && !((Player)var0).isCreative()) {
+-            return var0.getMobType() != MobType.WATER;
+          } else {
+-            return false;
++            return var0.getType() == EntityType.AXOLOTL || var0.getMobType() != MobType.WATER;
+          }
+       };
++      targetingConditions = TargetingConditions.forNonCombat().ignoreInvisibilityTesting().ignoreLineOfSight().selector(SCARY_MOB);
+    }
+ 
+    static class PufferfishPuffGoal extends Goal {
+       private final Pufferfish fish;
+ 
+       public PufferfishPuffGoal(Pufferfish var1) {
+          this.fish = var1;
+       }
+ 
+       public boolean canUse() {
+-         List var1 = this.fish.level.getEntitiesOfClass(LivingEntity.class, this.fish.getBoundingBox().inflate(2.0D), Pufferfish.NO_SPECTATORS_AND_NO_WATER_MOB);
++         List var1 = this.fish.level.getEntitiesOfClass(LivingEntity.class, this.fish.getBoundingBox().inflate(2.0D), (var1x) -> {
++            return Pufferfish.targetingConditions.test(this.fish, var1x);
++         });
+          return !var1.isEmpty();
+       }
+ 
+       public void start() {
+          this.fish.inflateCounter = 1;
+@@ -203,12 +212,7 @@
+       }
+ 
+       public void stop() {
+          this.fish.inflateCounter = 0;
+       }
+-
+-      public boolean canContinueToUse() {
+-         List var1 = this.fish.level.getEntitiesOfClass(LivingEntity.class, this.fish.getBoundingBox().inflate(2.0D), Pufferfish.NO_SPECTATORS_AND_NO_WATER_MOB);
+-         return !var1.isEmpty();
+-      }
+    }
+ }

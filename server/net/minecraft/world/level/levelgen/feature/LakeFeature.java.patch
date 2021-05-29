@@ -1,12 +1,19 @@
 --- net/minecraft/world/level/levelgen/feature/LakeFeature.java
 +++ net/minecraft/world/level/levelgen/feature/LakeFeature.java
-@@ -7,44 +7,47 @@
+@@ -2,49 +2,54 @@
+ 
+ import com.mojang.serialization.Codec;
+ import java.util.Random;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.SectionPos;
++import net.minecraft.tags.BlockTags;
  import net.minecraft.world.level.LightLayer;
  import net.minecraft.world.level.WorldGenLevel;
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
 -import net.minecraft.world.level.chunk.ChunkGenerator;
++import net.minecraft.world.level.levelgen.BaseStoneSource;
  import net.minecraft.world.level.levelgen.feature.configurations.BlockStateConfiguration;
  import net.minecraft.world.level.material.Material;
  
@@ -62,13 +69,21 @@
                    for(int var22 = 1; var22 < 15; ++var22) {
                       for(int var23 = 1; var23 < 7; ++var23) {
                          double var24 = ((double)var21 - var15) / (var9 / 2.0D);
-@@ -65,16 +68,16 @@
+@@ -59,78 +64,91 @@
+                }
+             }
+ 
+             int var10;
+             int var32;
+-            boolean var33;
              for(var8 = 0; var8 < 16; ++var8) {
                 for(var32 = 0; var32 < 16; ++var32) {
                    for(var10 = 0; var10 < 8; ++var10) {
-                      var33 = !var6[(var8 * 16 + var32) * 8 + var10] && (var8 < 15 && var6[((var8 + 1) * 16 + var32) * 8 + var10] || var8 > 0 && var6[((var8 - 1) * 16 + var32) * 8 + var10] || var32 < 15 && var6[(var8 * 16 + var32 + 1) * 8 + var10] || var32 > 0 && var6[(var8 * 16 + (var32 - 1)) * 8 + var10] || var10 < 7 && var6[(var8 * 16 + var32) * 8 + var10 + 1] || var10 > 0 && var6[(var8 * 16 + var32) * 8 + (var10 - 1)]);
-                      if (var33) {
+-                     var33 = !var6[(var8 * 16 + var32) * 8 + var10] && (var8 < 15 && var6[((var8 + 1) * 16 + var32) * 8 + var10] || var8 > 0 && var6[((var8 - 1) * 16 + var32) * 8 + var10] || var32 < 15 && var6[(var8 * 16 + var32 + 1) * 8 + var10] || var32 > 0 && var6[(var8 * 16 + (var32 - 1)) * 8 + var10] || var10 < 7 && var6[(var8 * 16 + var32) * 8 + var10 + 1] || var10 > 0 && var6[(var8 * 16 + var32) * 8 + (var10 - 1)]);
+-                     if (var33) {
 -                        Material var12 = var1.getBlockState(var4.offset(var8, var10, var32)).getMaterial();
++                     boolean var34 = !var6[(var8 * 16 + var32) * 8 + var10] && (var8 < 15 && var6[((var8 + 1) * 16 + var32) * 8 + var10] || var8 > 0 && var6[((var8 - 1) * 16 + var32) * 8 + var10] || var32 < 15 && var6[(var8 * 16 + var32 + 1) * 8 + var10] || var32 > 0 && var6[(var8 * 16 + (var32 - 1)) * 8 + var10] || var10 < 7 && var6[(var8 * 16 + var32) * 8 + var10 + 1] || var10 > 0 && var6[(var8 * 16 + var32) * 8 + (var10 - 1)]);
++                     if (var34) {
 +                        Material var12 = var3.getBlockState(var2.offset(var8, var10, var32)).getMaterial();
                          if (var10 >= 4 && var12.isLiquid()) {
                             return false;
@@ -81,20 +96,28 @@
                       }
                    }
                 }
-@@ -82,28 +85,28 @@
+             }
  
++            BlockPos var35;
++            boolean var36;
              for(var8 = 0; var8 < 16; ++var8) {
                 for(var32 = 0; var32 < 16; ++var32) {
                    for(var10 = 0; var10 < 8; ++var10) {
                       if (var6[(var8 * 16 + var32) * 8 + var10]) {
 -                        var1.setBlock(var4.offset(var8, var10, var32), var10 >= 4 ? AIR : var5.state, 2);
-+                        var3.setBlock(var2.offset(var8, var10, var32), var10 >= 4 ? AIR : var5.state, 2);
++                        var35 = var2.offset(var8, var10, var32);
++                        var36 = var10 >= 4;
++                        var3.setBlock(var35, var36 ? AIR : var5.state, 2);
++                        if (var36) {
++                           var3.getBlockTicks().scheduleTick(var35, AIR.getBlock(), 0);
++                           this.markAboveForPostProcessing(var3, var35);
++                        }
                       }
                    }
                 }
              }
  
-             BlockPos var34;
+-            BlockPos var34;
              for(var8 = 0; var8 < 16; ++var8) {
                 for(var32 = 0; var32 < 16; ++var32) {
                    for(var10 = 4; var10 < 8; ++var10) {
@@ -102,30 +125,43 @@
 -                        var34 = var4.offset(var8, var10 - 1, var32);
 -                        if (isDirt(var1.getBlockState(var34).getBlock()) && var1.getBrightness(LightLayer.SKY, var4.offset(var8, var10, var32)) > 0) {
 -                           Biome var35 = var1.getBiome(var34);
-+                        var34 = var2.offset(var8, var10 - 1, var32);
-+                        if (isDirt(var3.getBlockState(var34)) && var3.getBrightness(LightLayer.SKY, var2.offset(var8, var10, var32)) > 0) {
-+                           Biome var35 = var3.getBiome(var34);
-                            if (var35.getGenerationSettings().getSurfaceBuilderConfig().getTopMaterial().is(Blocks.MYCELIUM)) {
+-                           if (var35.getGenerationSettings().getSurfaceBuilderConfig().getTopMaterial().is(Blocks.MYCELIUM)) {
 -                              var1.setBlock(var34, Blocks.MYCELIUM.defaultBlockState(), 2);
-+                              var3.setBlock(var34, Blocks.MYCELIUM.defaultBlockState(), 2);
++                        var35 = var2.offset(var8, var10 - 1, var32);
++                        if (isDirt(var3.getBlockState(var35)) && var3.getBrightness(LightLayer.SKY, var2.offset(var8, var10, var32)) > 0) {
++                           Biome var39 = var3.getBiome(var35);
++                           if (var39.getGenerationSettings().getSurfaceBuilderConfig().getTopMaterial().is(Blocks.MYCELIUM)) {
++                              var3.setBlock(var35, Blocks.MYCELIUM.defaultBlockState(), 2);
                             } else {
 -                              var1.setBlock(var34, Blocks.GRASS_BLOCK.defaultBlockState(), 2);
-+                              var3.setBlock(var34, Blocks.GRASS_BLOCK.defaultBlockState(), 2);
++                              var3.setBlock(var35, Blocks.GRASS_BLOCK.defaultBlockState(), 2);
                             }
                          }
                       }
                    }
                 }
-@@ -112,25 +115,25 @@
+             }
+ 
              if (var5.state.getMaterial() == Material.LAVA) {
-                for(var8 = 0; var8 < 16; ++var8) {
-                   for(var32 = 0; var32 < 16; ++var32) {
-                      for(var10 = 0; var10 < 8; ++var10) {
-                         var33 = !var6[(var8 * 16 + var32) * 8 + var10] && (var8 < 15 && var6[((var8 + 1) * 16 + var32) * 8 + var10] || var8 > 0 && var6[((var8 - 1) * 16 + var32) * 8 + var10] || var32 < 15 && var6[(var8 * 16 + var32 + 1) * 8 + var10] || var32 > 0 && var6[(var8 * 16 + (var32 - 1)) * 8 + var10] || var10 < 7 && var6[(var8 * 16 + var32) * 8 + var10 + 1] || var10 > 0 && var6[(var8 * 16 + var32) * 8 + (var10 - 1)]);
+-               for(var8 = 0; var8 < 16; ++var8) {
+-                  for(var32 = 0; var32 < 16; ++var32) {
+-                     for(var10 = 0; var10 < 8; ++var10) {
+-                        var33 = !var6[(var8 * 16 + var32) * 8 + var10] && (var8 < 15 && var6[((var8 + 1) * 16 + var32) * 8 + var10] || var8 > 0 && var6[((var8 - 1) * 16 + var32) * 8 + var10] || var32 < 15 && var6[(var8 * 16 + var32 + 1) * 8 + var10] || var32 > 0 && var6[(var8 * 16 + (var32 - 1)) * 8 + var10] || var10 < 7 && var6[(var8 * 16 + var32) * 8 + var10 + 1] || var10 > 0 && var6[(var8 * 16 + var32) * 8 + (var10 - 1)]);
 -                        if (var33 && (var10 < 4 || var3.nextInt(2) != 0) && var1.getBlockState(var4.offset(var8, var10, var32)).getMaterial().isSolid()) {
 -                           var1.setBlock(var4.offset(var8, var10, var32), Blocks.STONE.defaultBlockState(), 2);
-+                        if (var33 && (var10 < 4 || var4.nextInt(2) != 0) && var3.getBlockState(var2.offset(var8, var10, var32)).getMaterial().isSolid()) {
-+                           var3.setBlock(var2.offset(var8, var10, var32), Blocks.STONE.defaultBlockState(), 2);
++               BaseStoneSource var33 = var1.chunkGenerator().getBaseStoneSource();
++
++               for(var32 = 0; var32 < 16; ++var32) {
++                  for(var10 = 0; var10 < 16; ++var10) {
++                     for(int var37 = 0; var37 < 8; ++var37) {
++                        var36 = !var6[(var32 * 16 + var10) * 8 + var37] && (var32 < 15 && var6[((var32 + 1) * 16 + var10) * 8 + var37] || var32 > 0 && var6[((var32 - 1) * 16 + var10) * 8 + var37] || var10 < 15 && var6[(var32 * 16 + var10 + 1) * 8 + var37] || var10 > 0 && var6[(var32 * 16 + (var10 - 1)) * 8 + var37] || var37 < 7 && var6[(var32 * 16 + var10) * 8 + var37 + 1] || var37 > 0 && var6[(var32 * 16 + var10) * 8 + (var37 - 1)]);
++                        if (var36 && (var37 < 4 || var4.nextInt(2) != 0)) {
++                           BlockState var40 = var3.getBlockState(var2.offset(var32, var37, var10));
++                           if (var40.getMaterial().isSolid() && !var40.is(BlockTags.LAVA_POOL_STONE_CANNOT_REPLACE)) {
++                              BlockPos var14 = var2.offset(var32, var37, var10);
++                              var3.setBlock(var14, var33.getBaseBlock(var14), 2);
++                              this.markAboveForPostProcessing(var3, var14);
++                           }
                          }
                       }
                    }
@@ -135,13 +171,14 @@
              if (var5.state.getMaterial() == Material.WATER) {
                 for(var8 = 0; var8 < 16; ++var8) {
                    for(var32 = 0; var32 < 16; ++var32) {
-                      boolean var36 = true;
+-                     boolean var36 = true;
 -                     var34 = var4.offset(var8, 4, var32);
 -                     if (var1.getBiome(var34).shouldFreeze(var1, var34, false)) {
 -                        var1.setBlock(var34, Blocks.ICE.defaultBlockState(), 2);
-+                     var34 = var2.offset(var8, 4, var32);
-+                     if (var3.getBiome(var34).shouldFreeze(var3, var34, false)) {
-+                        var3.setBlock(var34, Blocks.ICE.defaultBlockState(), 2);
++                     boolean var38 = true;
++                     var35 = var2.offset(var8, 4, var32);
++                     if (var3.getBiome(var35).shouldFreeze(var3, var35, false)) {
++                        var3.setBlock(var35, Blocks.ICE.defaultBlockState(), 2);
                       }
                    }
                 }

@@ -1,6 +1,6 @@
 --- net/minecraft/world/damagesource/CombatTracker.java
 +++ net/minecraft/world/damagesource/CombatTracker.java
-@@ -15,10 +15,12 @@
+@@ -15,17 +15,20 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
@@ -13,7 +13,57 @@
     private int lastDamageTime;
     private int combatStartTime;
     private int combatEndTime;
-@@ -189,10 +191,20 @@
+    private boolean inCombat;
+    private boolean takingDamage;
++   @Nullable
+    private String nextLocation;
+ 
+    public CombatTracker(LivingEntity var1) {
+       this.mob = var1;
+    }
+@@ -86,29 +89,27 @@
+          Entity var5 = var2.getSource().getEntity();
+          Object var3;
+          if (var1 != null && var2.getSource() == DamageSource.FALL) {
+             Component var6 = var1.getAttackerName();
+             if (var1.getSource() != DamageSource.FALL && var1.getSource() != DamageSource.OUT_OF_WORLD) {
+-               if (var6 == null || var4 != null && var6.equals(var4)) {
+-                  if (var4 != null) {
+-                     ItemStack var9 = var5 instanceof LivingEntity ? ((LivingEntity)var5).getMainHandItem() : ItemStack.EMPTY;
+-                     if (!var9.isEmpty() && var9.hasCustomHoverName()) {
+-                        var3 = new TranslatableComponent("death.fell.finish.item", new Object[]{this.mob.getDisplayName(), var4, var9.getDisplayName()});
+-                     } else {
+-                        var3 = new TranslatableComponent("death.fell.finish", new Object[]{this.mob.getDisplayName(), var4});
+-                     }
+-                  } else {
+-                     var3 = new TranslatableComponent("death.fell.killer", new Object[]{this.mob.getDisplayName()});
+-                  }
+-               } else {
+-                  Entity var7 = var1.getSource().getEntity();
+-                  ItemStack var8 = var7 instanceof LivingEntity ? ((LivingEntity)var7).getMainHandItem() : ItemStack.EMPTY;
++               if (var6 != null && !var6.equals(var4)) {
++                  Entity var9 = var1.getSource().getEntity();
++                  ItemStack var8 = var9 instanceof LivingEntity ? ((LivingEntity)var9).getMainHandItem() : ItemStack.EMPTY;
+                   if (!var8.isEmpty() && var8.hasCustomHoverName()) {
+                      var3 = new TranslatableComponent("death.fell.assist.item", new Object[]{this.mob.getDisplayName(), var6, var8.getDisplayName()});
+                   } else {
+                      var3 = new TranslatableComponent("death.fell.assist", new Object[]{this.mob.getDisplayName(), var6});
+                   }
++               } else if (var4 != null) {
++                  ItemStack var7 = var5 instanceof LivingEntity ? ((LivingEntity)var5).getMainHandItem() : ItemStack.EMPTY;
++                  if (!var7.isEmpty() && var7.hasCustomHoverName()) {
++                     var3 = new TranslatableComponent("death.fell.finish.item", new Object[]{this.mob.getDisplayName(), var4, var7.getDisplayName()});
++                  } else {
++                     var3 = new TranslatableComponent("death.fell.finish", new Object[]{this.mob.getDisplayName(), var4});
++                  }
++               } else {
++                  var3 = new TranslatableComponent("death.fell.killer", new Object[]{this.mob.getDisplayName()});
+                }
+             } else {
+                var3 = new TranslatableComponent("death.fell.accident." + this.getFallLocation(var1), new Object[]{this.mob.getDisplayName()});
+             }
+          } else {
+@@ -189,10 +190,20 @@
  
     private String getFallLocation(CombatEntry var1) {
        return var1.getLocation() == null ? "generic" : var1.getLocation();
@@ -34,7 +84,7 @@
     }
  
     private void resetPreparedStatus() {
-@@ -216,6 +228,16 @@
+@@ -216,6 +227,16 @@
     }
  
     public LivingEntity getMob() {

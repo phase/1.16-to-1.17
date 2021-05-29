@@ -1,20 +1,37 @@
 --- net/minecraft/server/network/ServerLoginPacketListenerImpl.java
 +++ net/minecraft/server/network/ServerLoginPacketListenerImpl.java
-@@ -36,19 +36,21 @@
+@@ -16,10 +16,11 @@
+ import javax.crypto.SecretKey;
+ import net.minecraft.DefaultUncaughtExceptionHandler;
+ import net.minecraft.network.Connection;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
++import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
+ import net.minecraft.network.protocol.login.ClientboundGameProfilePacket;
+ import net.minecraft.network.protocol.login.ClientboundHelloPacket;
+ import net.minecraft.network.protocol.login.ClientboundLoginCompressionPacket;
+ import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
+ import net.minecraft.network.protocol.login.ServerLoginPacketListener;
+@@ -35,20 +36,22 @@
+ import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class ServerLoginPacketListenerImpl implements ServerLoginPacketListener {
     private static final AtomicInteger UNIQUE_THREAD_ID = new AtomicInteger(0);
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   private static final int MAX_TICKS_BEFORE_LOGIN = 600;
     private static final Random RANDOM = new Random();
     private final byte[] nonce = new byte[4];
-    private final MinecraftServer server;
+-   private final MinecraftServer server;
++   final MinecraftServer server;
     public final Connection connection;
-    private ServerLoginPacketListenerImpl.State state;
+-   private ServerLoginPacketListenerImpl.State state;
++   ServerLoginPacketListenerImpl.State state;
     private int tick;
+-   private GameProfile gameProfile;
 +   @Nullable
-    private GameProfile gameProfile;
++   GameProfile gameProfile;
     private final String serverId;
 -   private SecretKey secretKey;
 +   @Nullable
@@ -23,7 +40,7 @@
     public ServerLoginPacketListenerImpl(MinecraftServer var1, Connection var2) {
        this.state = ServerLoginPacketListenerImpl.State.HELLO;
        this.serverId = "";
-@@ -62,11 +64,11 @@
+@@ -62,11 +65,11 @@
           this.handleAcceptedLogin();
        } else if (this.state == ServerLoginPacketListenerImpl.State.DELAY_ACCEPT) {
           ServerPlayer var1 = this.server.getPlayerList().getPlayer(this.gameProfile.getId());
@@ -36,14 +53,30 @@
        }
  
        if (this.tick++ == 600) {
-@@ -110,16 +112,20 @@
+@@ -106,26 +109,43 @@
+             });
+          }
+ 
+          this.connection.send(new ClientboundGameProfilePacket(this.gameProfile));
           ServerPlayer var2 = this.server.getPlayerList().getPlayer(this.gameProfile.getId());
-          if (var2 != null) {
-             this.state = ServerLoginPacketListenerImpl.State.DELAY_ACCEPT;
-             this.delayedAcceptPlayer = this.server.getPlayerList().getPlayerForLogin(this.gameProfile);
-          } else {
+-         if (var2 != null) {
+-            this.state = ServerLoginPacketListenerImpl.State.DELAY_ACCEPT;
+-            this.delayedAcceptPlayer = this.server.getPlayerList().getPlayerForLogin(this.gameProfile);
+-         } else {
 -            this.server.getPlayerList().placeNewPlayer(this.connection, this.server.getPlayerList().getPlayerForLogin(this.gameProfile));
-+            this.placeNewPlayer(this.server.getPlayerList().getPlayerForLogin(this.gameProfile));
++
++         try {
++            ServerPlayer var3 = this.server.getPlayerList().getPlayerForLogin(this.gameProfile);
++            if (var2 != null) {
++               this.state = ServerLoginPacketListenerImpl.State.DELAY_ACCEPT;
++               this.delayedAcceptPlayer = var3;
++            } else {
++               this.placeNewPlayer(var3);
++            }
++         } catch (Exception var5) {
++            TranslatableComponent var4 = new TranslatableComponent("multiplayer.disconnect.invalid_player_data");
++            this.connection.send(new ClientboundDisconnectPacket(var4));
++            this.connection.disconnect(var4);
           }
        }
  
@@ -58,7 +91,19 @@
     }
  
     public String getUserName() {
-@@ -146,21 +152,21 @@
+-      return this.gameProfile != null ? this.gameProfile + " (" + this.connection.getRemoteAddress() + ")" : String.valueOf(this.connection.getRemoteAddress());
++      if (this.gameProfile != null) {
++         GameProfile var10000 = this.gameProfile;
++         return var10000 + " (" + this.connection.getRemoteAddress() + ")";
++      } else {
++         return String.valueOf(this.connection.getRemoteAddress());
++      }
+    }
+ 
+    public void handleHello(ServerboundHelloPacket var1) {
+       Validate.validState(this.state == ServerLoginPacketListenerImpl.State.HELLO, "Unexpected hello packet");
+       this.gameProfile = var1.getGameProfile();
+@@ -146,21 +166,21 @@
        try {
           if (!Arrays.equals(this.nonce, var1.getNonce(var2))) {
              throw new IllegalStateException("Protocol error");
@@ -88,7 +133,7 @@
  
              try {
                 ServerLoginPacketListenerImpl.this.gameProfile = ServerLoginPacketListenerImpl.this.server.getSessionService().hasJoinedServer(new GameProfile((UUID)null, var1.getName()), var3, this.getAddress());
-@@ -192,12 +198,12 @@
+@@ -192,12 +212,12 @@
           private InetAddress getAddress() {
              SocketAddress var1 = ServerLoginPacketListenerImpl.this.connection.getRemoteAddress();
              return ServerLoginPacketListenerImpl.this.server.getPreventProxyConnections() && var1 instanceof InetSocketAddress ? ((InetSocketAddress)var1).getAddress() : null;
@@ -103,3 +148,16 @@
     public void handleCustomQueryPacket(ServerboundCustomQueryPacket var1) {
        this.disconnect(new TranslatableComponent("multiplayer.disconnect.unexpected_query_response"));
     }
+@@ -205,11 +225,11 @@
+    protected GameProfile createFakeProfile(GameProfile var1) {
+       UUID var2 = Player.createPlayerUUID(var1.getName());
+       return new GameProfile(var2, var1.getName());
+    }
+ 
+-   static enum State {
++   private static enum State {
+       HELLO,
+       KEY,
+       AUTHENTICATING,
+       NEGOTIATING,
+       READY_TO_ACCEPT,

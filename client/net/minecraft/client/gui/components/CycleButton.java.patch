@@ -1,6 +1,6 @@
 --- net/minecraft/client/gui/components/CycleButton.java
 +++ net/minecraft/client/gui/components/CycleButton.java
-@@ -1,0 +1,247 @@
+@@ -1,0 +1,273 @@
 +package net.minecraft.client.gui.components;
 +
 +import com.google.common.collect.ImmutableList;
@@ -8,15 +8,18 @@
 +import java.util.function.BooleanSupplier;
 +import java.util.function.Function;
 +import javax.annotation.Nullable;
++import net.minecraft.client.gui.narration.NarratedElementType;
++import net.minecraft.client.gui.narration.NarrationElementOutput;
 +import net.minecraft.client.gui.screens.Screen;
 +import net.minecraft.network.chat.CommonComponents;
 +import net.minecraft.network.chat.Component;
 +import net.minecraft.network.chat.MutableComponent;
++import net.minecraft.network.chat.TranslatableComponent;
 +import net.minecraft.util.FormattedCharSequence;
 +import net.minecraft.util.Mth;
 +
 +public class CycleButton<T> extends AbstractButton implements TooltipAccessor {
-+   private static final BooleanSupplier DEFAULT_ALT_LIST_SELECTOR = Screen::hasAltDown;
++   static final BooleanSupplier DEFAULT_ALT_LIST_SELECTOR = Screen::hasAltDown;
 +   private static final List<Boolean> BOOLEAN_OPTIONS;
 +   private final Component name;
 +   private int index;
@@ -28,7 +31,7 @@
 +   private final CycleButton.TooltipSupplier<T> tooltipSupplier;
 +   private final boolean displayOnlyValue;
 +
-+   private CycleButton(int var1, int var2, int var3, int var4, Component var5, Component var6, int var7, T var8, CycleButton.ValueListSupplier<T> var9, Function<T, Component> var10, Function<CycleButton<T>, MutableComponent> var11, CycleButton.OnValueChange<T> var12, CycleButton.TooltipSupplier<T> var13, boolean var14) {
++   CycleButton(int var1, int var2, int var3, int var4, Component var5, Component var6, int var7, T var8, CycleButton.ValueListSupplier<T> var9, Function<T, Component> var10, Function<CycleButton<T>, MutableComponent> var11, CycleButton.OnValueChange<T> var12, CycleButton.TooltipSupplier<T> var13, boolean var14) {
 +      super(var1, var2, var3, var4, var5);
 +      this.name = var6;
 +      this.index = var7;
@@ -58,6 +61,11 @@
 +      this.onValueChange.onValueChange(this, var3);
 +   }
 +
++   private T getCycledValue(int var1) {
++      List var2 = this.values.getSelectedList();
++      return var2.get(Mth.positiveModulo(this.index + var1, var2.size()));
++   }
++
 +   public boolean mouseScrolled(double var1, double var3, double var5) {
 +      if (var5 > 0.0D) {
 +         this.cycleValue(-1);
@@ -79,9 +87,13 @@
 +   }
 +
 +   private void updateValue(T var1) {
-+      Object var2 = this.displayOnlyValue ? (Component)this.valueStringifier.apply(var1) : this.createFullName(var1);
-+      this.setMessage((Component)var2);
++      Component var2 = this.createLabelForValue(var1);
++      this.setMessage(var2);
 +      this.value = var1;
++   }
++
++   private Component createLabelForValue(T var1) {
++      return (Component)(this.displayOnlyValue ? (Component)this.valueStringifier.apply(var1) : this.createFullName(var1));
 +   }
 +
 +   private MutableComponent createFullName(T var1) {
@@ -94,6 +106,20 @@
 +
 +   protected MutableComponent createNarrationMessage() {
 +      return (MutableComponent)this.narrationProvider.apply(this);
++   }
++
++   public void updateNarration(NarrationElementOutput var1) {
++      var1.add(NarratedElementType.TITLE, (Component)this.createNarrationMessage());
++      if (this.active) {
++         Object var2 = this.getCycledValue(1);
++         Component var3 = this.createLabelForValue(var2);
++         if (this.isFocused()) {
++            var1.add(NarratedElementType.USAGE, (Component)(new TranslatableComponent("narration.cycle_button.usage.focused", new Object[]{var3})));
++         } else {
++            var1.add(NarratedElementType.USAGE, (Component)(new TranslatableComponent("narration.cycle_button.usage.hovered", new Object[]{var3})));
++         }
++      }
++
 +   }
 +
 +   public MutableComponent createDefaultNarrationMessage() {
@@ -128,7 +154,7 @@
 +      BOOLEAN_OPTIONS = ImmutableList.of(Boolean.TRUE, Boolean.FALSE);
 +   }
 +
-+   interface ValueListSupplier<T> {
++   private interface ValueListSupplier<T> {
 +      List<T> getSelectedList();
 +
 +      List<T> getDefaultList();
@@ -159,6 +185,14 @@
 +            }
 +         };
 +      }
++   }
++
++   public interface OnValueChange<T> {
++      void onValueChange(CycleButton var1, T var2);
++   }
++
++   @FunctionalInterface
++   public interface TooltipSupplier<T> extends Function<T, List<FormattedCharSequence>> {
 +   }
 +
 +   public static class Builder<T> {
@@ -238,13 +272,5 @@
 +            return new CycleButton(var1, var2, var3, var4, (Component)var10, var5, this.initialIndex, var8, this.values, this.valueStringifier, this.narrationProvider, var6, this.tooltipSupplier, this.displayOnlyValue);
 +         }
 +      }
-+   }
-+
-+   @FunctionalInterface
-+   public interface TooltipSupplier<T> extends Function<T, List<FormattedCharSequence>> {
-+   }
-+
-+   public interface OnValueChange<T> {
-+      void onValueChange(CycleButton var1, T var2);
 +   }
 +}

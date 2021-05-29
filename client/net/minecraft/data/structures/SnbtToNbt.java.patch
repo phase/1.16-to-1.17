@@ -68,7 +68,7 @@
     public String getName() {
        return "SNBT -> NBT";
     }
-@@ -83,67 +94,62 @@
+@@ -83,123 +94,118 @@
     private String getName(Path var1, Path var2) {
        String var3 = var1.relativize(var2).toString().replaceAll("\\\\", "/");
        return var3.substring(0, var3.length() - ".snbt".length());
@@ -78,60 +78,74 @@
     private SnbtToNbt.TaskResult readStructure(Path var1, String var2) {
        try {
           BufferedReader var3 = Files.newBufferedReader(var1);
-          Throwable var4 = null;
+-         Throwable var4 = null;
  
-          SnbtToNbt.TaskResult var11;
+-         SnbtToNbt.TaskResult var11;
++         SnbtToNbt.TaskResult var10;
           try {
-             String var5 = IOUtils.toString(var3);
+-            String var5 = IOUtils.toString(var3);
 -            CompoundTag var6 = this.applyFilters(var2, TagParser.parseTag(var5));
-+            CompoundTag var6 = this.applyFilters(var2, NbtUtils.snbtToStructure(var5));
-             ByteArrayOutputStream var7 = new ByteArrayOutputStream();
-             NbtIo.writeCompressed(var6, (OutputStream)var7);
-             byte[] var8 = var7.toByteArray();
-             String var9 = SHA1.hashBytes(var8).toString();
-             String var10;
+-            ByteArrayOutputStream var7 = new ByteArrayOutputStream();
+-            NbtIo.writeCompressed(var6, (OutputStream)var7);
+-            byte[] var8 = var7.toByteArray();
+-            String var9 = SHA1.hashBytes(var8).toString();
+-            String var10;
 -            if (dumpSnbtTo != null) {
 -               var10 = var6.getPrettyDisplay("    ", 0).getString() + "\n";
++            String var4 = IOUtils.toString(var3);
++            CompoundTag var5 = this.applyFilters(var2, NbtUtils.snbtToStructure(var4));
++            ByteArrayOutputStream var6 = new ByteArrayOutputStream();
++            NbtIo.writeCompressed(var5, (OutputStream)var6);
++            byte[] var7 = var6.toByteArray();
++            String var8 = SHA1.hashBytes(var7).toString();
++            String var9;
 +            if (DUMP_SNBT_TO != null) {
-+               var10 = NbtUtils.structureToSnbt(var6);
++               var9 = NbtUtils.structureToSnbt(var5);
              } else {
-                var10 = null;
+-               var10 = null;
++               var9 = null;
              }
  
-             var11 = new SnbtToNbt.TaskResult(var2, var8, var10, var9);
+-            var11 = new SnbtToNbt.TaskResult(var2, var8, var10, var9);
 -         } catch (Throwable var22) {
 -            var4 = var22;
 -            throw var22;
-+         } catch (Throwable var21) {
-+            var4 = var21;
-+            throw var21;
-          } finally {
+-         } finally {
++            var10 = new SnbtToNbt.TaskResult(var2, var7, var9, var8);
++         } catch (Throwable var12) {
              if (var3 != null) {
-                if (var4 != null) {
-                   try {
-                      var3.close();
+-               if (var4 != null) {
+-                  try {
+-                     var3.close();
 -                  } catch (Throwable var21) {
 -                     var4.addSuppressed(var21);
-+                  } catch (Throwable var20) {
-+                     var4.addSuppressed(var20);
-                   }
-                } else {
+-                  }
+-               } else {
++               try {
                    var3.close();
++               } catch (Throwable var11) {
++                  var12.addSuppressed(var11);
                 }
              }
  
++            throw var12;
           }
  
-          return var11;
+-         return var11;
 -      } catch (CommandSyntaxException var24) {
 -         LOGGER.error("Couldn't convert {} from SNBT to NBT at {} as it's invalid SNBT", var2, var1, var24);
 -      } catch (IOException var25) {
 -         LOGGER.error("Couldn't convert {} from SNBT to NBT at {}", var2, var1, var25);
-+      } catch (Throwable var23) {
-+         throw new SnbtToNbt.StructureConversionException(var1, var23);
-       }
--
+-      }
++         if (var3 != null) {
++            var3.close();
++         }
+ 
 -      return null;
++         return var10;
++      } catch (Throwable var13) {
++         throw new SnbtToNbt.StructureConversionException(var1, var13);
++      }
     }
  
     private void storeStructureIfChanged(HashCache var1, SnbtToNbt.TaskResult var2, Path var3) {
@@ -142,26 +156,88 @@
  
           try {
 -            FileUtils.write(var4.toFile(), var2.snbtPayload, StandardCharsets.UTF_8);
+-         } catch (IOException var18) {
+-            LOGGER.error("Couldn't write structure SNBT {} at {}", var2.name, var4, var18);
 +            NbtToSnbt.writeSnbt(var4, var2.snbtPayload);
-          } catch (IOException var18) {
-             LOGGER.error("Couldn't write structure SNBT {} at {}", var2.name, var4, var18);
++         } catch (IOException var9) {
++            LOGGER.error("Couldn't write structure SNBT {} at {}", var2.name, var4, var9);
           }
        }
  
-@@ -181,10 +187,16 @@
-          LOGGER.error("Couldn't write structure {} at {}", var2.name, var4, var20);
+       var4 = var3.resolve(var2.name + ".nbt");
+ 
+       try {
+          if (!Objects.equals(var1.getHash(var4), var2.hash) || !Files.exists(var4, new LinkOption[0])) {
+             Files.createDirectories(var4.getParent());
+             OutputStream var5 = Files.newOutputStream(var4);
+-            Throwable var6 = null;
+ 
+             try {
+                var5.write(var2.payload);
+-            } catch (Throwable var17) {
+-               var6 = var17;
+-               throw var17;
+-            } finally {
++            } catch (Throwable var10) {
+                if (var5 != null) {
+-                  if (var6 != null) {
+-                     try {
+-                        var5.close();
+-                     } catch (Throwable var16) {
+-                        var6.addSuppressed(var16);
+-                     }
+-                  } else {
++                  try {
+                      var5.close();
++                  } catch (Throwable var8) {
++                     var10.addSuppressed(var8);
+                   }
+                }
+ 
++               throw var10;
+             }
++
++            if (var5 != null) {
++               var5.close();
++            }
+          }
+ 
+          var1.putNew(var4, var2.hash);
+-      } catch (IOException var20) {
+-         LOGGER.error("Couldn't write structure {} at {}", var2.name, var4, var20);
++      } catch (IOException var11) {
++         LOGGER.error("Couldn't write structure {} at {}", var2.name, var4, var11);
        }
  
     }
  
-+   static class StructureConversionException extends RuntimeException {
-+      public StructureConversionException(Path var1, Throwable var2) {
-+         super(var1.toAbsolutePath().toString(), var2);
-+      }
-+   }
-+
     @FunctionalInterface
     public interface Filter {
        CompoundTag apply(String var1, CompoundTag var2);
     }
  
+    static class TaskResult {
+-      private final String name;
+-      private final byte[] payload;
++      final String name;
++      final byte[] payload;
+       @Nullable
+-      private final String snbtPayload;
+-      private final String hash;
++      final String snbtPayload;
++      final String hash;
+ 
+       public TaskResult(String var1, byte[] var2, @Nullable String var3, String var4) {
+          this.name = var1;
+          this.payload = var2;
+          this.snbtPayload = var3;
+          this.hash = var4;
+       }
+    }
++
++   private static class StructureConversionException extends RuntimeException {
++      public StructureConversionException(Path var1, Throwable var2) {
++         super(var1.toAbsolutePath().toString(), var2);
++      }
++   }
+ }

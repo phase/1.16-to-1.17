@@ -1,0 +1,41 @@
+--- net/minecraft/world/level/block/state/StateDefinition.java
++++ net/minecraft/world/level/block/state/StateDefinition.java
+@@ -26,11 +26,11 @@
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.world.level.block.state.properties.Property;
+ 
+ public class StateDefinition<O, S extends StateHolder<O, S>> {
+-   private static final Pattern NAME_PATTERN = Pattern.compile("^[a-z0-9_]+$");
++   static final Pattern NAME_PATTERN = Pattern.compile("^[a-z0-9_]+$");
+    private final O owner;
+    private final ImmutableSortedMap<String, Property<?>> propertiesByName;
+    private final ImmutableList<S> states;
+ 
+    protected StateDefinition(Function<O, S> var1, O var2, StateDefinition.Factory<O, S> var3, Map<String, Property<?>> var4) {
+@@ -110,10 +110,14 @@
+    @Nullable
+    public Property<?> getProperty(String var1) {
+       return (Property)this.propertiesByName.get(var1);
+    }
+ 
++   public interface Factory<O, S> {
++      S create(O var1, ImmutableMap<Property<?>, Comparable<?>> var2, MapCodec<S> var3);
++   }
++
+    public static class Builder<O, S extends StateHolder<O, S>> {
+       private final O owner;
+       private final Map<String, Property<?>> properties = Maps.newHashMap();
+ 
+       public Builder(O var1) {
+@@ -165,10 +169,6 @@
+ 
+       public StateDefinition<O, S> create(Function<O, S> var1, StateDefinition.Factory<O, S> var2) {
+          return new StateDefinition(var1, this.owner, var2, this.properties);
+       }
+    }
+-
+-   public interface Factory<O, S> {
+-      S create(O var1, ImmutableMap<Property<?>, Comparable<?>> var2, MapCodec<S> var3);
+-   }
+ }

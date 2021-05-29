@@ -120,7 +120,7 @@
           var4.popPose();
        }
     }
-@@ -192,106 +206,109 @@
+@@ -192,109 +206,121 @@
           var2.putBulkData(var8, var10, var12, var13, var14, var5, var6);
        }
  
@@ -229,6 +229,10 @@
 +      this.tryRenderGuiItem(Minecraft.getInstance().player, var1, var2, var3, var4);
 +   }
 +
++   public void renderAndDecorateItem(ItemStack var1, int var2, int var3, int var4, int var5) {
++      this.tryRenderGuiItem(Minecraft.getInstance().player, var1, var2, var3, var4, var5);
++   }
++
     public void renderAndDecorateFakeItem(ItemStack var1, int var2, int var3) {
 -      this.tryRenderGuiItem((LivingEntity)null, var1, var2, var3);
 +      this.tryRenderGuiItem((LivingEntity)null, var1, var2, var3, 0);
@@ -242,8 +246,14 @@
  
 -   private void tryRenderGuiItem(@Nullable LivingEntity var1, ItemStack var2, int var3, int var4) {
 +   private void tryRenderGuiItem(@Nullable LivingEntity var1, ItemStack var2, int var3, int var4, int var5) {
++      this.tryRenderGuiItem(var1, var2, var3, var4, var5, 0);
++   }
++
++   private void tryRenderGuiItem(@Nullable LivingEntity var1, ItemStack var2, int var3, int var4, int var5, int var6) {
        if (!var2.isEmpty()) {
-          this.blitOffset += 50.0F;
+-         this.blitOffset += 50.0F;
++         BakedModel var7 = this.getModel(var2, (Level)null, var1, var5);
++         this.blitOffset = var7.isGui3d() ? this.blitOffset + 50.0F + (float)var6 : this.blitOffset + 50.0F;
  
           try {
 -            this.renderGuiItem(var2, var3, var4, this.getModel(var2, (Level)null, var1));
@@ -251,33 +261,37 @@
 -            CrashReport var6 = CrashReport.forThrowable(var8, "Rendering item");
 -            CrashReportCategory var7 = var6.addCategory("Item being rendered");
 -            var7.setDetail("Item Type", () -> {
-+            this.renderGuiItem(var2, var3, var4, this.getModel(var2, (Level)null, var1, var5));
-+         } catch (Throwable var9) {
-+            CrashReport var7 = CrashReport.forThrowable(var9, "Rendering item");
-+            CrashReportCategory var8 = var7.addCategory("Item being rendered");
-+            var8.setDetail("Item Type", () -> {
++            this.renderGuiItem(var2, var3, var4, var7);
++         } catch (Throwable var11) {
++            CrashReport var9 = CrashReport.forThrowable(var11, "Rendering item");
++            CrashReportCategory var10 = var9.addCategory("Item being rendered");
++            var10.setDetail("Item Type", () -> {
                 return String.valueOf(var2.getItem());
              });
 -            var7.setDetail("Item Damage", () -> {
-+            var8.setDetail("Item Damage", () -> {
++            var10.setDetail("Item Damage", () -> {
                 return String.valueOf(var2.getDamageValue());
              });
 -            var7.setDetail("Item NBT", () -> {
-+            var8.setDetail("Item NBT", () -> {
++            var10.setDetail("Item NBT", () -> {
                 return String.valueOf(var2.getTag());
              });
 -            var7.setDetail("Item Foil", () -> {
-+            var8.setDetail("Item Foil", () -> {
++            var10.setDetail("Item Foil", () -> {
                 return String.valueOf(var2.hasFoil());
              });
 -            throw new ReportedException(var6);
-+            throw new ReportedException(var7);
++            throw new ReportedException(var9);
           }
  
-          this.blitOffset -= 50.0F;
+-         this.blitOffset -= 50.0F;
++         this.blitOffset = var7.isGui3d() ? this.blitOffset - 50.0F - (float)var6 : this.blitOffset - 50.0F;
        }
     }
-@@ -309,54 +326,51 @@
+ 
+    public void renderGuiItemDecorations(Font var1, ItemStack var2, int var3, int var4) {
+       this.renderGuiItemDecorations(var1, var2, var3, var4, (String)null);
+@@ -309,54 +335,51 @@
              MultiBufferSource.BufferSource var8 = MultiBufferSource.immediate(Tesselator.getInstance().getBuilder());
              var1.drawInBatch((String)var7, (float)(var3 + 19 - 2 - var1.width(var7)), (float)(var4 + 6 + 3), 16777215, true, var6.last().pose(), var8, false, 0, 15728880);
              var8.endBatch();

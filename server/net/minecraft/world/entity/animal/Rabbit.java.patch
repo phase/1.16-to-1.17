@@ -25,7 +25,7 @@
  import net.minecraft.world.item.crafting.Ingredient;
  import net.minecraft.world.level.GameRules;
  import net.minecraft.world.level.Level;
-@@ -57,12 +56,27 @@
+@@ -57,17 +56,32 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.pathfinder.Path;
  import net.minecraft.world.phys.Vec3;
@@ -52,7 +52,26 @@
     private int jumpDuration;
     private boolean wasOnGround;
     private int jumpDelayTicks;
-    private int moreCarrotTicks;
+-   private int moreCarrotTicks;
++   int moreCarrotTicks;
+ 
+    public Rabbit(EntityType<? extends Rabbit> var1, Level var2) {
+       super(var1, var2);
+       this.jumpControl = new Rabbit.RabbitJumpControl(this);
+       this.moveControl = new Rabbit.RabbitMoveControl(this);
+@@ -105,11 +119,11 @@
+ 
+    protected void jumpFromGround() {
+       super.jumpFromGround();
+       double var1 = this.moveControl.getSpeedModifier();
+       if (var1 > 0.0D) {
+-         double var3 = getHorizontalDistanceSqr(this.getDeltaMovement());
++         double var3 = this.getDeltaMovement().horizontalDistanceSqr();
+          if (var3 < 0.01D) {
+             this.moveRelative(0.1F, new Vec3(0.0D, 0.0D, 1.0D));
+          }
+       }
+ 
 @@ -117,10 +131,14 @@
           this.level.broadcastEntityEvent(this, (byte)1);
        }
@@ -68,6 +87,19 @@
        this.moveControl.setWantedPosition(this.moveControl.getWantedX(), this.moveControl.getWantedY(), this.moveControl.getWantedZ(), var1);
     }
  
+@@ -194,11 +212,11 @@
+    public boolean canSpawnSprintParticle() {
+       return false;
+    }
+ 
+    private void facePoint(double var1, double var3) {
+-      this.yRot = (float)(Mth.atan2(var3 - this.getZ(), var1 - this.getX()) * 57.2957763671875D) - 90.0F;
++      this.setYRot((float)(Mth.atan2(var3 - this.getZ(), var1 - this.getX()) * 57.2957763671875D) - 90.0F);
+    }
+ 
+    private void enableJumpControl() {
+       ((Rabbit.RabbitJumpControl)this.jumpControl).setCanJump(true);
+    }
 @@ -276,19 +294,15 @@
  
     public SoundSource getSoundSource() {
@@ -104,9 +136,14 @@
     public int getRabbitType() {
        return (Integer)this.entityData.get(DATA_TYPE_ID);
     }
-@@ -356,10 +370,25 @@
+@@ -352,32 +366,99 @@
+    public static boolean checkRabbitSpawnRules(EntityType<Rabbit> var0, LevelAccessor var1, MobSpawnType var2, BlockPos var3, Random var4) {
+       BlockState var5 = var1.getBlockState(var3.below());
+       return (var5.is(Blocks.GRASS_BLOCK) || var5.is(Blocks.SNOW) || var5.is(Blocks.SAND)) && var1.getRawBrightness(var3, 0) > 8;
+    }
  
-    private boolean wantsMoreFood() {
+-   private boolean wantsMoreFood() {
++   boolean wantsMoreFood() {
        return this.moreCarrotTicks == 0;
     }
  
@@ -130,7 +167,110 @@
        KILLER_BUNNY = new ResourceLocation("killer_bunny");
     }
  
-@@ -422,11 +451,11 @@
+-   static class EvilRabbitAttackGoal extends MeleeAttackGoal {
+-      public EvilRabbitAttackGoal(Rabbit var1) {
+-         super(var1, 1.4D, true);
++   public class RabbitJumpControl extends JumpControl {
++      private final Rabbit rabbit;
++      private boolean canJump;
++
++      public RabbitJumpControl(Rabbit var2) {
++         super(var2);
++         this.rabbit = var2;
+       }
+ 
+-      protected double getAttackReachSqr(LivingEntity var1) {
+-         return (double)(4.0F + var1.getBbWidth());
++      public boolean wantJump() {
++         return this.jump;
+       }
++
++      public boolean canJump() {
++         return this.canJump;
++      }
++
++      public void setCanJump(boolean var1) {
++         this.canJump = var1;
++      }
++
++      public void tick() {
++         if (this.jump) {
++            this.rabbit.startJumping();
++            this.jump = false;
++         }
++
++      }
+    }
+ 
+-   static class RabbitPanicGoal extends PanicGoal {
++   private static class RabbitMoveControl extends MoveControl {
+       private final Rabbit rabbit;
++      private double nextJumpSpeed;
+ 
++      public RabbitMoveControl(Rabbit var1) {
++         super(var1);
++         this.rabbit = var1;
++      }
++
++      public void tick() {
++         if (this.rabbit.onGround && !this.rabbit.jumping && !((Rabbit.RabbitJumpControl)this.rabbit.jumpControl).wantJump()) {
++            this.rabbit.setSpeedModifier(0.0D);
++         } else if (this.hasWanted()) {
++            this.rabbit.setSpeedModifier(this.nextJumpSpeed);
++         }
++
++         super.tick();
++      }
++
++      public void setWantedPosition(double var1, double var3, double var5, double var7) {
++         if (this.rabbit.isInWater()) {
++            var7 = 1.5D;
++         }
++
++         super.setWantedPosition(var1, var3, var5, var7);
++         if (var7 > 0.0D) {
++            this.nextJumpSpeed = var7;
++         }
++
++      }
++   }
++
++   private static class RabbitPanicGoal extends PanicGoal {
++      private final Rabbit rabbit;
++
+       public RabbitPanicGoal(Rabbit var1, double var2) {
+          super(var1, var2);
+          this.rabbit = var1;
+       }
+ 
+@@ -385,12 +466,25 @@
+          super.tick();
+          this.rabbit.setSpeedModifier(this.speedModifier);
+       }
+    }
+ 
+-   static class RaidGardenGoal extends MoveToBlockGoal {
++   private static class RabbitAvoidEntityGoal<T extends LivingEntity> extends AvoidEntityGoal<T> {
+       private final Rabbit rabbit;
++
++      public RabbitAvoidEntityGoal(Rabbit var1, Class<T> var2, float var3, double var4, double var6) {
++         super(var1, var2, var3, var4, var6);
++         this.rabbit = var1;
++      }
++
++      public boolean canUse() {
++         return this.rabbit.getRabbitType() != 99 && super.canUse();
++      }
++   }
++
++   private static class RaidGardenGoal extends MoveToBlockGoal {
++      private final Rabbit rabbit;
+       private boolean wantsToRaid;
+       private boolean canRaid;
+ 
+       public RaidGardenGoal(Rabbit var1) {
+          super(var1, 0.699999988079071D, 16);
+@@ -422,11 +516,11 @@
              Level var1 = this.rabbit.level;
              BlockPos var2 = this.blockPos.above();
              BlockState var3 = var1.getBlockState(var2);
@@ -143,7 +283,7 @@
                    var1.destroyBlock(var2, true, this.rabbit);
                 } else {
                    var1.setBlock(var2, (BlockState)var3.setValue(CarrotBlock.AGE, var5 - 1), 2);
-@@ -441,16 +470,14 @@
+@@ -441,101 +535,34 @@
           }
  
        }
@@ -164,12 +304,90 @@
              }
           }
  
-@@ -531,11 +558,11 @@
-          }
- 
+          return false;
        }
     }
  
+-   static class RabbitAvoidEntityGoal<T extends LivingEntity> extends AvoidEntityGoal<T> {
+-      private final Rabbit rabbit;
+-
+-      public RabbitAvoidEntityGoal(Rabbit var1, Class<T> var2, float var3, double var4, double var6) {
+-         super(var1, var2, var3, var4, var6);
+-         this.rabbit = var1;
++   private static class EvilRabbitAttackGoal extends MeleeAttackGoal {
++      public EvilRabbitAttackGoal(Rabbit var1) {
++         super(var1, 1.4D, true);
+       }
+ 
+-      public boolean canUse() {
+-         return this.rabbit.getRabbitType() != 99 && super.canUse();
++      protected double getAttackReachSqr(LivingEntity var1) {
++         return (double)(4.0F + var1.getBbWidth());
+       }
+    }
+ 
+-   static class RabbitMoveControl extends MoveControl {
+-      private final Rabbit rabbit;
+-      private double nextJumpSpeed;
+-
+-      public RabbitMoveControl(Rabbit var1) {
+-         super(var1);
+-         this.rabbit = var1;
+-      }
+-
+-      public void tick() {
+-         if (this.rabbit.onGround && !this.rabbit.jumping && !((Rabbit.RabbitJumpControl)this.rabbit.jumpControl).wantJump()) {
+-            this.rabbit.setSpeedModifier(0.0D);
+-         } else if (this.hasWanted()) {
+-            this.rabbit.setSpeedModifier(this.nextJumpSpeed);
+-         }
+-
+-         super.tick();
+-      }
+-
+-      public void setWantedPosition(double var1, double var3, double var5, double var7) {
+-         if (this.rabbit.isInWater()) {
+-            var7 = 1.5D;
+-         }
+-
+-         super.setWantedPosition(var1, var3, var5, var7);
+-         if (var7 > 0.0D) {
+-            this.nextJumpSpeed = var7;
+-         }
+-
+-      }
+-   }
+-
+-   public class RabbitJumpControl extends JumpControl {
+-      private final Rabbit rabbit;
+-      private boolean canJump;
+-
+-      public RabbitJumpControl(Rabbit var2) {
+-         super(var2);
+-         this.rabbit = var2;
+-      }
+-
+-      public boolean wantJump() {
+-         return this.jump;
+-      }
+-
+-      public boolean canJump() {
+-         return this.canJump;
+-      }
+-
+-      public void setCanJump(boolean var1) {
+-         this.canJump = var1;
+-      }
+-
+-      public void tick() {
+-         if (this.jump) {
+-            this.rabbit.startJumping();
+-            this.jump = false;
+-         }
+-
+-      }
+-   }
+-
 -   public static class RabbitGroupData extends AgableMob.AgableMobGroupData {
 +   public static class RabbitGroupData extends AgeableMob.AgeableMobGroupData {
        public final int rabbitType;

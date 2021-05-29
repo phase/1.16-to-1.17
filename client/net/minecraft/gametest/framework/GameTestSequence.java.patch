@@ -1,16 +1,18 @@
 --- net/minecraft/gametest/framework/GameTestSequence.java
 +++ net/minecraft/gametest/framework/GameTestSequence.java
-@@ -1,32 +1,112 @@
+@@ -1,32 +1,113 @@
  package net.minecraft.gametest.framework;
  
 +import com.google.common.collect.Lists;
  import java.util.Iterator;
  import java.util.List;
++import java.util.Objects;
 +import java.util.function.Supplier;
  
  public class GameTestSequence {
-    private final GameTestInfo parent;
+-   private final GameTestInfo parent;
 -   private final List<GameTestEvent> events;
++   final GameTestInfo parent;
 +   private final List<GameTestEvent> events = Lists.newArrayList();
     private long lastTick;
  
@@ -65,7 +67,7 @@
 +   public void thenSucceed() {
 +      List var10000 = this.events;
 +      GameTestInfo var10001 = this.parent;
-+      var10001.getClass();
++      Objects.requireNonNull(var10001);
 +      var10000.add(GameTestEvent.create(var10001::succeed));
 +   }
 +
@@ -116,7 +118,16 @@
  
        while(var3.hasNext()) {
           GameTestEvent var4 = (GameTestEvent)var3.next();
-@@ -40,6 +120,33 @@
+@@ -34,12 +115,41 @@
+          var3.remove();
+          long var5 = var1 - this.lastTick;
+          long var7 = this.lastTick;
+          this.lastTick = var1;
+          if (var4.expectedDelay != null && var4.expectedDelay != var5) {
+-            this.parent.fail(new GameTestAssertException("Succeeded in invalid tick: expected " + (var7 + var4.expectedDelay) + ", but current tick is " + var1));
++            GameTestInfo var10000 = this.parent;
++            long var10003 = var7 + var4.expectedDelay;
++            var10000.fail(new GameTestAssertException("Succeeded in invalid tick: expected " + var10003 + ", but current tick is " + var1));
              break;
           }
        }

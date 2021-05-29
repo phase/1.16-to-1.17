@@ -1,6 +1,6 @@
 --- net/minecraft/client/gui/components/AbstractSelectionList.java
 +++ net/minecraft/client/gui/components/AbstractSelectionList.java
-@@ -5,23 +5,27 @@
+@@ -5,23 +5,30 @@
  import com.mojang.blaze3d.systems.RenderSystem;
  import com.mojang.blaze3d.vertex.BufferBuilder;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -17,24 +17,46 @@
  import net.minecraft.client.gui.GuiComponent;
  import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
  import net.minecraft.client.gui.components.events.GuiEventListener;
++import net.minecraft.client.gui.narration.NarratableEntry;
++import net.minecraft.client.gui.narration.NarratedElementType;
++import net.minecraft.client.gui.narration.NarrationElementOutput;
 +import net.minecraft.client.renderer.GameRenderer;
-+import net.minecraft.resources.ResourceLocation;
++import net.minecraft.network.chat.Component;
++import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.util.Mth;
  
- public abstract class AbstractSelectionList<E extends AbstractSelectionList.Entry<E>> extends AbstractContainerEventHandler implements Widget {
-+   public static final ResourceLocation WHITE_TEXTURE_LOCATION = new ResourceLocation("textures/misc/white.png");
+-public abstract class AbstractSelectionList<E extends AbstractSelectionList.Entry<E>> extends AbstractContainerEventHandler implements Widget {
++public abstract class AbstractSelectionList<E extends AbstractSelectionList.Entry<E>> extends AbstractContainerEventHandler implements Widget, NarratableEntry {
     protected final Minecraft minecraft;
     protected final int itemHeight;
     private final List<E> children = new AbstractSelectionList.TrackedList();
     protected int width;
     protected int height;
-@@ -164,15 +168,16 @@
+@@ -33,13 +40,16 @@
+    private double scrollAmount;
+    private boolean renderSelection = true;
+    private boolean renderHeader;
+    protected int headerHeight;
+    private boolean scrolling;
++   @Nullable
+    private E selected;
+    private boolean renderBackground = true;
+    private boolean renderTopAndBottom = true;
++   @Nullable
++   private E hovered;
+ 
+    public AbstractSelectionList(Minecraft var1, int var2, int var3, int var4, int var5, int var6) {
+       this.minecraft = var1;
+       this.width = var2;
+       this.height = var3;
+@@ -164,15 +174,17 @@
        this.renderBackground(var1);
        int var5 = this.getScrollbarPosition();
        int var6 = var5 + 6;
        Tesselator var7 = Tesselator.getInstance();
        BufferBuilder var8 = var7.getBuilder();
 +      RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
++      this.hovered = this.isMouseOver((double)var2, (double)var3) ? this.getEntryAtPosition((double)var2, (double)var3) : null;
        if (this.renderBackground) {
 -         this.minecraft.getTextureManager().bind(GuiComponent.BACKGROUND_LOCATION);
 -         RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
@@ -48,7 +70,7 @@
           var8.vertex((double)this.x1, (double)this.y0, 0.0D).uv((float)this.x1 / 32.0F, (float)(this.y0 + (int)this.getScrollAmount()) / 32.0F).color(32, 32, 32, 255).endVertex();
           var8.vertex((double)this.x0, (double)this.y0, 0.0D).uv((float)this.x0 / 32.0F, (float)(this.y0 + (int)this.getScrollAmount()) / 32.0F).color(32, 32, 32, 255).endVertex();
           var7.end();
-@@ -184,16 +189,17 @@
+@@ -184,16 +196,17 @@
           this.renderHeader(var1, var14, var10, var7);
        }
  
@@ -68,7 +90,7 @@
           var8.vertex((double)(this.x0 + this.width), 0.0D, -100.0D).uv((float)this.width / 32.0F, 0.0F).color(64, 64, 64, 255).endVertex();
           var8.vertex((double)this.x0, 0.0D, -100.0D).uv(0.0F, 0.0F).color(64, 64, 64, 255).endVertex();
           var8.vertex((double)this.x0, (double)this.height, -100.0D).uv(0.0F, (float)this.height / 32.0F).color(64, 64, 64, 255).endVertex();
-@@ -203,56 +209,54 @@
+@@ -203,56 +216,54 @@
           var7.end();
           RenderSystem.depthFunc(515);
           RenderSystem.disableDepthTest();
@@ -150,7 +172,7 @@
  
     protected void centerScrollOn(E var1) {
        this.setScrollAmount((double)(this.children().indexOf(var1) * this.itemHeight + this.itemHeight / 2 - (this.y1 - this.y0) / 2));
-@@ -286,10 +290,14 @@
+@@ -286,10 +297,14 @@
  
     public int getMaxScroll() {
        return Math.max(0, this.getMaxPosition() - (this.y1 - this.y0 - 4));
@@ -165,7 +187,7 @@
     }
  
     protected int getScrollbarPosition() {
-@@ -334,11 +342,11 @@
+@@ -334,11 +349,11 @@
           } else if (var3 > (double)this.y1) {
              this.setScrollAmount((double)this.getMaxScroll());
           } else {
@@ -178,7 +200,7 @@
           }
  
           return true;
-@@ -385,11 +393,11 @@
+@@ -385,11 +400,11 @@
        int var3 = var1 == AbstractSelectionList.SelectionDirection.UP ? -1 : 1;
        if (!this.children().isEmpty()) {
           int var4 = this.children().indexOf(this.getSelected());
@@ -191,7 +213,7 @@
              }
  
              AbstractSelectionList.Entry var6 = (AbstractSelectionList.Entry)this.children().get(var5);
-@@ -425,20 +433,21 @@
+@@ -425,30 +440,31 @@
              int var17;
              if (this.renderSelection && this.isSelectedItem(var10)) {
                 var17 = this.x0 + this.width / 2 - var16 / 2;
@@ -217,3 +239,99 @@
                 var9.vertex((double)(var18 - 1), (double)(var13 - 1), 0.0D).endVertex();
                 var9.vertex((double)(var17 + 1), (double)(var13 - 1), 0.0D).endVertex();
                 var8.end();
+                RenderSystem.enableTexture();
+             }
+ 
+             var17 = this.getRowLeft();
+-            var15.render(var1, var10, var11, var17, var16, var14, var4, var5, this.isMouseOver((double)var4, (double)var5) && Objects.equals(this.getEntryAtPosition((double)var4, (double)var5), var15), var6);
++            var15.render(var1, var10, var11, var17, var16, var14, var4, var5, Objects.equals(this.hovered, var15), var6);
+          }
+       }
+ 
+    }
+ 
+@@ -470,10 +486,19 @@
+ 
+    protected boolean isFocused() {
+       return false;
+    }
+ 
++   public NarratableEntry.NarrationPriority narrationPriority() {
++      if (this.isFocused()) {
++         return NarratableEntry.NarrationPriority.FOCUSED;
++      } else {
++         return this.hovered != null ? NarratableEntry.NarrationPriority.HOVERED : NarratableEntry.NarrationPriority.NONE;
++      }
++   }
++
++   @Nullable
+    protected E remove(int var1) {
+       AbstractSelectionList.Entry var2 = (AbstractSelectionList.Entry)this.children.get(var1);
+       return this.removeEntry((AbstractSelectionList.Entry)this.children.get(var1)) ? var2 : null;
+    }
+ 
+@@ -484,19 +509,34 @@
+       }
+ 
+       return var2;
+    }
+ 
+-   private void bindEntryToSelf(AbstractSelectionList.Entry<E> var1) {
++   @Nullable
++   protected E getHovered() {
++      return this.hovered;
++   }
++
++   void bindEntryToSelf(AbstractSelectionList.Entry<E> var1) {
+       var1.list = this;
+    }
+ 
++   protected void narrateListElementPosition(NarrationElementOutput var1, E var2) {
++      List var3 = this.children();
++      if (var3.size() > 1) {
++         int var4 = var3.indexOf(var2);
++         if (var4 != -1) {
++            var1.add(NarratedElementType.POSITION, (Component)(new TranslatableComponent("narrator.position.list", new Object[]{var4 + 1, var3.size()})));
++         }
++      }
++
++   }
++
+    class TrackedList extends AbstractList<E> {
+-      private final List<E> delegate;
++      private final List<E> delegate = Lists.newArrayList();
+ 
+-      private TrackedList() {
+-         this.delegate = Lists.newArrayList();
++      TrackedList() {
+       }
+ 
+       public E get(int var1) {
+          return (AbstractSelectionList.Entry)this.delegate.get(var1);
+       }
+@@ -521,11 +561,11 @@
+       }
+    }
+ 
+    public abstract static class Entry<E extends AbstractSelectionList.Entry<E>> implements GuiEventListener {
+       @Deprecated
+-      private AbstractSelectionList<E> list;
++      AbstractSelectionList<E> list;
+ 
+       public Entry() {
+       }
+ 
+       public abstract void render(PoseStack var1, int var2, int var3, int var4, int var5, int var6, int var7, int var8, boolean var9, float var10);
+@@ -533,11 +573,11 @@
+       public boolean isMouseOver(double var1, double var3) {
+          return Objects.equals(this.list.getEntryAtPosition(var1, var3), this);
+       }
+    }
+ 
+-   public static enum SelectionDirection {
++   protected static enum SelectionDirection {
+       UP,
+       DOWN;
+ 
+       private SelectionDirection() {
+       }

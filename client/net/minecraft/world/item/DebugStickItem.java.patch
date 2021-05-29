@@ -1,0 +1,47 @@
+--- net/minecraft/world/item/DebugStickItem.java
++++ net/minecraft/world/item/DebugStickItem.java
+@@ -41,24 +41,29 @@
+    public InteractionResult useOn(UseOnContext var1) {
+       Player var2 = var1.getPlayer();
+       Level var3 = var1.getLevel();
+       if (!var3.isClientSide && var2 != null) {
+          BlockPos var4 = var1.getClickedPos();
+-         this.handleInteraction(var2, var3.getBlockState(var4), var3, var4, true, var1.getItemInHand());
++         if (!this.handleInteraction(var2, var3.getBlockState(var4), var3, var4, true, var1.getItemInHand())) {
++            return InteractionResult.FAIL;
++         }
+       }
+ 
+       return InteractionResult.sidedSuccess(var3.isClientSide);
+    }
+ 
+-   private void handleInteraction(Player var1, BlockState var2, LevelAccessor var3, BlockPos var4, boolean var5, ItemStack var6) {
+-      if (var1.canUseGameMasterBlocks()) {
++   private boolean handleInteraction(Player var1, BlockState var2, LevelAccessor var3, BlockPos var4, boolean var5, ItemStack var6) {
++      if (!var1.canUseGameMasterBlocks()) {
++         return false;
++      } else {
+          Block var7 = var2.getBlock();
+          StateDefinition var8 = var7.getStateDefinition();
+          Collection var9 = var8.getProperties();
+          String var10 = Registry.BLOCK.getKey(var7).toString();
+          if (var9.isEmpty()) {
+             message(var1, new TranslatableComponent(this.getDescriptionId() + ".empty", new Object[]{var10}));
++            return false;
+          } else {
+             CompoundTag var11 = var6.getOrCreateTagElement("DebugProperty");
+             String var12 = var11.getString(var10);
+             Property var13 = var8.getProperty(var12);
+             if (var5) {
+@@ -74,10 +79,11 @@
+                String var15 = var13.getName();
+                var11.putString(var10, var15);
+                message(var1, new TranslatableComponent(this.getDescriptionId() + ".select", new Object[]{var15, getNameHelper(var2, var13)}));
+             }
+ 
++            return true;
+          }
+       }
+    }
+ 
+    private static <T extends Comparable<T>> BlockState cycleState(BlockState var0, Property<T> var1, boolean var2) {

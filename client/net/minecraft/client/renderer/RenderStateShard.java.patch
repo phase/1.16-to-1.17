@@ -30,7 +30,7 @@
     private final Runnable clearState;
     protected static final RenderStateShard.TransparencyStateShard NO_TRANSPARENCY = new RenderStateShard.TransparencyStateShard("no_transparency", () -> {
        RenderSystem.disableBlend();
-@@ -54,28 +60,69 @@
+@@ -54,28 +60,71 @@
        RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
     }, () -> {
        RenderSystem.disableBlend();
@@ -84,7 +84,9 @@
 +   protected static final RenderStateShard.ShaderStateShard RENDERTYPE_ENTITY_GLINT_DIRECT_SHADER = new RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeEntityGlintDirectShader);
 +   protected static final RenderStateShard.ShaderStateShard RENDERTYPE_CRUMBLING_SHADER = new RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeCrumblingShader);
 +   protected static final RenderStateShard.ShaderStateShard RENDERTYPE_TEXT_SHADER = new RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeTextShader);
++   protected static final RenderStateShard.ShaderStateShard RENDERTYPE_TEXT_INTENSITY_SHADER = new RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeTextIntensityShader);
 +   protected static final RenderStateShard.ShaderStateShard RENDERTYPE_TEXT_SEE_THROUGH_SHADER = new RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeTextSeeThroughShader);
++   protected static final RenderStateShard.ShaderStateShard RENDERTYPE_TEXT_INTENSITY_SEE_THROUGH_SHADER = new RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeTextIntensitySeeThroughShader);
 +   protected static final RenderStateShard.ShaderStateShard RENDERTYPE_LIGHTNING_SHADER = new RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeLightningShader);
 +   protected static final RenderStateShard.ShaderStateShard RENDERTYPE_TRIPWIRE_SHADER = new RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeTripwireShader);
 +   protected static final RenderStateShard.ShaderStateShard RENDERTYPE_END_PORTAL_SHADER = new RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeEndPortalShader);
@@ -109,7 +111,7 @@
     protected static final RenderStateShard.DepthTestStateShard NO_DEPTH_TEST;
     protected static final RenderStateShard.DepthTestStateShard EQUAL_DEPTH_TEST;
     protected static final RenderStateShard.DepthTestStateShard LEQUAL_DEPTH_TEST;
-@@ -83,13 +130,10 @@
+@@ -83,13 +132,10 @@
     protected static final RenderStateShard.WriteMaskStateShard COLOR_WRITE;
     protected static final RenderStateShard.WriteMaskStateShard DEPTH_WRITE;
     protected static final RenderStateShard.LayeringStateShard NO_LAYERING;
@@ -123,7 +125,7 @@
     protected static final RenderStateShard.OutputStateShard TRANSLUCENT_TARGET;
     protected static final RenderStateShard.OutputStateShard PARTICLES_TARGET;
     protected static final RenderStateShard.OutputStateShard WEATHER_TARGET;
-@@ -109,74 +153,45 @@
+@@ -109,74 +155,45 @@
  
     public void clearRenderState() {
        this.clearState.run();
@@ -205,7 +207,7 @@
        NO_DEPTH_TEST = new RenderStateShard.DepthTestStateShard("always", 519);
        EQUAL_DEPTH_TEST = new RenderStateShard.DepthTestStateShard("==", 514);
        LEQUAL_DEPTH_TEST = new RenderStateShard.DepthTestStateShard("<=", 515);
-@@ -192,29 +207,19 @@
+@@ -192,29 +209,19 @@
        }, () -> {
           RenderSystem.polygonOffset(0.0F, 0.0F);
           RenderSystem.disablePolygonOffset();
@@ -242,10 +244,43 @@
        });
        OUTLINE_TARGET = new RenderStateShard.OutputStateShard("outline_target", () -> {
           Minecraft.getInstance().levelRenderer.entityTarget().bindWrite(false);
-@@ -299,24 +304,10 @@
+@@ -277,192 +284,108 @@
  
+       });
+       DEFAULT_LINE = new RenderStateShard.LineStateShard(OptionalDouble.of(1.0D));
+    }
+ 
+-   public static class LineStateShard extends RenderStateShard {
+-      private final OptionalDouble width;
++   protected static class TransparencyStateShard extends RenderStateShard {
++      public TransparencyStateShard(String var1, Runnable var2, Runnable var3) {
++         super(var1, var2, var3);
++      }
++   }
+ 
+-      public LineStateShard(OptionalDouble var1) {
+-         super("line_width", () -> {
+-            if (!Objects.equals(var1, OptionalDouble.of(1.0D))) {
+-               if (var1.isPresent()) {
+-                  RenderSystem.lineWidth((float)var1.getAsDouble());
+-               } else {
+-                  RenderSystem.lineWidth(Math.max(2.5F, (float)Minecraft.getInstance().getWindow().getWidth() / 1920.0F * 2.5F));
+-               }
+-            }
++   protected static class ShaderStateShard extends RenderStateShard {
++      private final Optional<Supplier<ShaderInstance>> shader;
+ 
++      public ShaderStateShard(Supplier<ShaderInstance> var1) {
++         super("shader", () -> {
++            RenderSystem.setShader(var1);
+          }, () -> {
+-            if (!Objects.equals(var1, OptionalDouble.of(1.0D))) {
+-               RenderSystem.lineWidth(1.0F);
+-            }
+-
           });
-          this.width = var1;
+-         this.width = var1;
++         this.shader = Optional.of(var1);
        }
  
 -      public boolean equals(@Nullable Object var1) {
@@ -256,22 +291,35 @@
 -         } else {
 -            return false;
 -         }
--      }
--
++      public ShaderStateShard() {
++         super("shader", () -> {
++            RenderSystem.setShader(() -> {
++               return null;
++            });
++         }, () -> {
++         });
++         this.shader = Optional.empty();
+       }
+ 
 -      public int hashCode() {
 -         return Objects.hash(new Object[]{super.hashCode(), this.width});
 -      }
 -
        public String toString() {
-          return this.name + '[' + (this.width.isPresent() ? this.width.getAsDouble() : "window_scale") + ']';
+-         return this.name + '[' + (this.width.isPresent() ? this.width.getAsDouble() : "window_scale") + ']';
++         return this.name + "[" + this.shader + "]";
        }
     }
  
-@@ -324,16 +315,10 @@
-       public OutputStateShard(String var1, Runnable var2, Runnable var3) {
-          super(var1, var2, var3);
-       }
-    }
+-   public static class OutputStateShard extends RenderStateShard {
+-      public OutputStateShard(String var1, Runnable var2, Runnable var3) {
+-         super(var1, var2, var3);
+-      }
+-   }
++   protected static class TextureStateShard extends RenderStateShard.EmptyTextureStateShard {
++      private final Optional<ResourceLocation> texture;
++      private final boolean blur;
++      private final boolean mipmap;
  
 -   public static class FogStateShard extends RenderStateShard {
 -      public FogStateShard(String var1, Runnable var2, Runnable var3) {
@@ -279,15 +327,47 @@
 -      }
 -   }
 -
-    public static class LayeringStateShard extends RenderStateShard {
-       public LayeringStateShard(String var1, Runnable var2, Runnable var3) {
-          super(var1, var2, var3);
-       }
-    }
-@@ -364,33 +349,17 @@
+-   public static class LayeringStateShard extends RenderStateShard {
+-      public LayeringStateShard(String var1, Runnable var2, Runnable var3) {
+-         super(var1, var2, var3);
+-      }
+-   }
+-
+-   public static class WriteMaskStateShard extends RenderStateShard {
+-      private final boolean writeColor;
+-      private final boolean writeDepth;
+-
+-      public WriteMaskStateShard(boolean var1, boolean var2) {
+-         super("write_mask_state", () -> {
+-            if (!var2) {
+-               RenderSystem.depthMask(var2);
+-            }
+-
+-            if (!var1) {
+-               RenderSystem.colorMask(var1, var1, var1, var1);
+-            }
+-
++      public TextureStateShard(ResourceLocation var1, boolean var2, boolean var3) {
++         super(() -> {
++            RenderSystem.enableTexture();
++            TextureManager var3x = Minecraft.getInstance().getTextureManager();
++            var3x.getTexture(var1).setFilter(var2, var3);
++            RenderSystem.setShaderTexture(0, var1);
+          }, () -> {
+-            if (!var2) {
+-               RenderSystem.depthMask(true);
+-            }
+-
+-            if (!var1) {
+-               RenderSystem.colorMask(true, true, true, true);
+-            }
+-
           });
-          this.writeColor = var1;
-          this.writeDepth = var2;
+-         this.writeColor = var1;
+-         this.writeDepth = var2;
++         this.texture = Optional.of(var1);
++         this.blur = var2;
++         this.mipmap = var3;
        }
  
 -      public boolean equals(Object var1) {
@@ -299,31 +379,46 @@
 -         } else {
 -            return false;
 -         }
--      }
--
++      public String toString() {
++         return this.name + "[" + this.texture + "(blur=" + this.blur + ", mipmap=" + this.mipmap + ")]";
+       }
+ 
 -      public int hashCode() {
 -         return Objects.hash(new Object[]{this.writeColor, this.writeDepth});
--      }
--
-       public String toString() {
-          return this.name + "[writeColor=" + this.writeColor + ", writeDepth=" + this.writeDepth + ']';
++      protected Optional<ResourceLocation> cutoutTexture() {
++         return this.texture;
        }
-    }
++   }
  
-    public static class DepthTestStateShard extends RenderStateShard {
-       private final String functionName;
+-      public String toString() {
+-         return this.name + "[writeColor=" + this.writeColor + ", writeDepth=" + this.writeDepth + ']';
++   protected static class EmptyTextureStateShard extends RenderStateShard {
++      public EmptyTextureStateShard(Runnable var1, Runnable var2) {
++         super("texture", var1, var2);
+       }
+-   }
+ 
+-   public static class DepthTestStateShard extends RenderStateShard {
+-      private final String functionName;
 -      private final int function;
- 
-       public DepthTestStateShard(String var1, int var2) {
-          super("depth_test", () -> {
-             if (var2 != 519) {
-                RenderSystem.enableDepthTest();
-@@ -403,28 +372,12 @@
-                RenderSystem.depthFunc(515);
-             }
- 
+-
+-      public DepthTestStateShard(String var1, int var2) {
+-         super("depth_test", () -> {
+-            if (var2 != 519) {
+-               RenderSystem.enableDepthTest();
+-               RenderSystem.depthFunc(var2);
+-            }
+-
++      EmptyTextureStateShard() {
++         super("texture", () -> {
+          }, () -> {
+-            if (var2 != 519) {
+-               RenderSystem.disableDepthTest();
+-               RenderSystem.depthFunc(515);
+-            }
+-
           });
-          this.functionName = var1;
+-         this.functionName = var1;
 -         this.function = var2;
        }
  
@@ -336,49 +431,110 @@
 -         } else {
 -            return false;
 -         }
--      }
++      protected Optional<ResourceLocation> cutoutTexture() {
++         return Optional.empty();
+       }
 -
 -      public int hashCode() {
 -         return Integer.hashCode(this.function);
 -      }
 -
-       public String toString() {
-          return this.name + '[' + this.functionName + ']';
-       }
+-      public String toString() {
+-         return this.name + '[' + this.functionName + ']';
+-      }
     }
  
-@@ -442,26 +395,10 @@
- 
-          }, var1);
+-   public static class CullStateShard extends RenderStateShard.BooleanStateShard {
+-      public CullStateShard(boolean var1) {
+-         super("cull", () -> {
+-            if (!var1) {
+-               RenderSystem.disableCull();
+-            }
+-
+-         }, () -> {
+-            if (!var1) {
+-               RenderSystem.enableCull();
+-            }
+-
+-         }, var1);
++   protected static class TexturingStateShard extends RenderStateShard {
++      public TexturingStateShard(String var1, Runnable var2, Runnable var3) {
++         super(var1, var2, var3);
        }
     }
  
 -   public static class DiffuseLightingStateShard extends RenderStateShard.BooleanStateShard {
 -      public DiffuseLightingStateShard(boolean var1) {
 -         super("diffuse_lighting", () -> {
--            if (var1) {
++   protected static class LightmapStateShard extends RenderStateShard.BooleanStateShard {
++      public LightmapStateShard(boolean var1) {
++         super("lightmap", () -> {
+             if (var1) {
 -               Lighting.turnBackOn();
--            }
--
--         }, () -> {
--            if (var1) {
++               Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer();
+             }
+ 
+          }, () -> {
+             if (var1) {
 -               Lighting.turnOff();
--            }
--
--         }, var1);
--      }
--   }
--
-    public static class OverlayStateShard extends RenderStateShard.BooleanStateShard {
++               Minecraft.getInstance().gameRenderer.lightTexture().turnOffLightLayer();
+             }
+ 
+          }, var1);
+       }
+    }
+ 
+-   public static class OverlayStateShard extends RenderStateShard.BooleanStateShard {
++   protected static class OverlayStateShard extends RenderStateShard.BooleanStateShard {
        public OverlayStateShard(boolean var1) {
           super("overlay", () -> {
              if (var1) {
                 Minecraft.getInstance().gameRenderer.overlayTexture().setupOverlayColor();
-@@ -498,237 +435,142 @@
-       public BooleanStateShard(String var1, Runnable var2, Runnable var3, boolean var4) {
-          super(var1, var2, var3);
-          this.enabled = var4;
+             }
+@@ -474,265 +397,187 @@
+ 
+          }, var1);
        }
+    }
+ 
+-   public static class LightmapStateShard extends RenderStateShard.BooleanStateShard {
+-      public LightmapStateShard(boolean var1) {
+-         super("lightmap", () -> {
+-            if (var1) {
+-               Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer();
++   protected static class CullStateShard extends RenderStateShard.BooleanStateShard {
++      public CullStateShard(boolean var1) {
++         super("cull", () -> {
++            if (!var1) {
++               RenderSystem.disableCull();
+             }
+ 
+          }, () -> {
+-            if (var1) {
+-               Minecraft.getInstance().gameRenderer.lightTexture().turnOffLightLayer();
++            if (!var1) {
++               RenderSystem.enableCull();
+             }
+ 
+          }, var1);
+       }
+    }
+ 
+-   static class BooleanStateShard extends RenderStateShard {
+-      private final boolean enabled;
++   protected static class DepthTestStateShard extends RenderStateShard {
++      private final String functionName;
+ 
+-      public BooleanStateShard(String var1, Runnable var2, Runnable var3, boolean var4) {
+-         super(var1, var2, var3);
+-         this.enabled = var4;
+-      }
++      public DepthTestStateShard(String var1, int var2) {
++         super("depth_test", () -> {
++            if (var2 != 519) {
++               RenderSystem.enableDepthTest();
++               RenderSystem.depthFunc(var2);
++            }
  
 -      public boolean equals(Object var1) {
 -         if (this == var1) {
@@ -390,19 +546,30 @@
 -            return false;
 -         }
 -      }
--
++         }, () -> {
++            if (var2 != 519) {
++               RenderSystem.disableDepthTest();
++               RenderSystem.depthFunc(515);
++            }
+ 
 -      public int hashCode() {
 -         return Boolean.hashCode(this.enabled);
--      }
--
++         });
++         this.functionName = var1;
+       }
+ 
        public String toString() {
-          return this.name + '[' + this.enabled + ']';
+-         return this.name + '[' + this.enabled + ']';
++         return this.name + "[" + this.functionName + "]";
        }
     }
  
 -   public static final class PortalTexturingStateShard extends RenderStateShard.TexturingStateShard {
 -      private final int iteration;
--
++   protected static class WriteMaskStateShard extends RenderStateShard {
++      private final boolean writeColor;
++      private final boolean writeDepth;
+ 
 -      public PortalTexturingStateShard(int var1) {
 -         super("portal_texturing", () -> {
 -            RenderSystem.matrixMode(5890);
@@ -424,7 +591,12 @@
 -         });
 -         this.iteration = var1;
 -      }
--
++      public WriteMaskStateShard(boolean var1, boolean var2) {
++         super("write_mask_state", () -> {
++            if (!var2) {
++               RenderSystem.depthMask(var2);
++            }
+ 
 -      public boolean equals(Object var1) {
 -         if (this == var1) {
 -            return true;
@@ -435,34 +607,44 @@
 -            return false;
 -         }
 -      }
--
++            if (!var1) {
++               RenderSystem.colorMask(var1, var1, var1, var1);
++            }
+ 
 -      public int hashCode() {
 -         return Integer.hashCode(this.iteration);
 -      }
 -   }
--
-    public static final class OffsetTexturingStateShard extends RenderStateShard.TexturingStateShard {
++         }, () -> {
++            if (!var2) {
++               RenderSystem.depthMask(true);
++            }
+ 
+-   public static final class OffsetTexturingStateShard extends RenderStateShard.TexturingStateShard {
 -      private final float uOffset;
 -      private final float vOffset;
--
-       public OffsetTexturingStateShard(float var1, float var2) {
-          super("offset_texturing", () -> {
++            if (!var1) {
++               RenderSystem.colorMask(true, true, true, true);
++            }
+ 
+-      public OffsetTexturingStateShard(float var1, float var2) {
+-         super("offset_texturing", () -> {
 -            RenderSystem.matrixMode(5890);
 -            RenderSystem.pushMatrix();
 -            RenderSystem.loadIdentity();
 -            RenderSystem.translatef(var1, var2, 0.0F);
 -            RenderSystem.matrixMode(5888);
-+            RenderSystem.setTextureMatrix(Matrix4f.createTranslateMatrix(var1, var2, 0.0F));
-          }, () -> {
+-         }, () -> {
 -            RenderSystem.matrixMode(5890);
 -            RenderSystem.popMatrix();
 -            RenderSystem.matrixMode(5888);
-+            RenderSystem.resetTextureMatrix();
           });
 -         this.uOffset = var1;
 -         this.vOffset = var2;
++         this.writeColor = var1;
++         this.writeDepth = var2;
        }
--
+ 
 -      public boolean equals(Object var1) {
 -         if (this == var1) {
 -            return true;
@@ -472,51 +654,72 @@
 -         } else {
 -            return false;
 -         }
--      }
--
++      public String toString() {
++         return this.name + "[writeColor=" + this.writeColor + ", writeDepth=" + this.writeDepth + "]";
+       }
++   }
+ 
 -      public int hashCode() {
 -         return Objects.hash(new Object[]{this.uOffset, this.vOffset});
--      }
++   protected static class LayeringStateShard extends RenderStateShard {
++      public LayeringStateShard(String var1, Runnable var2, Runnable var3) {
++         super(var1, var2, var3);
+       }
     }
  
-    public static class TexturingStateShard extends RenderStateShard {
-       public TexturingStateShard(String var1, Runnable var2, Runnable var3) {
+-   public static class TexturingStateShard extends RenderStateShard {
+-      public TexturingStateShard(String var1, Runnable var2, Runnable var3) {
++   protected static class OutputStateShard extends RenderStateShard {
++      public OutputStateShard(String var1, Runnable var2, Runnable var3) {
           super(var1, var2, var3);
        }
     }
  
 -   public static class TextureStateShard extends RenderStateShard {
-+   public static class TextureStateShard extends RenderStateShard.EmptyTextureStateShard {
-       private final Optional<ResourceLocation> texture;
-       private final boolean blur;
-       private final boolean mipmap;
+-      private final Optional<ResourceLocation> texture;
+-      private final boolean blur;
+-      private final boolean mipmap;
++   protected static class LineStateShard extends RenderStateShard {
++      private final OptionalDouble width;
  
-       public TextureStateShard(ResourceLocation var1, boolean var2, boolean var3) {
+-      public TextureStateShard(ResourceLocation var1, boolean var2, boolean var3) {
 -         super("texture", () -> {
-+         super(() -> {
-             RenderSystem.enableTexture();
-             TextureManager var3x = Minecraft.getInstance().getTextureManager();
+-            RenderSystem.enableTexture();
+-            TextureManager var3x = Minecraft.getInstance().getTextureManager();
 -            var3x.bind(var1);
-             var3x.getTexture(var1).setFilter(var2, var3);
-+            RenderSystem.setShaderTexture(0, var1);
-          }, () -> {
-          });
-          this.texture = Optional.of(var1);
-          this.blur = var2;
-          this.mipmap = var3;
-       }
+-            var3x.getTexture(var1).setFilter(var2, var3);
+-         }, () -> {
+-         });
+-         this.texture = Optional.of(var1);
+-         this.blur = var2;
+-         this.mipmap = var3;
+-      }
++      public LineStateShard(OptionalDouble var1) {
++         super("line_width", () -> {
++            if (!Objects.equals(var1, OptionalDouble.of(1.0D))) {
++               if (var1.isPresent()) {
++                  RenderSystem.lineWidth((float)var1.getAsDouble());
++               } else {
++                  RenderSystem.lineWidth(Math.max(2.5F, (float)Minecraft.getInstance().getWindow().getWidth() / 1920.0F * 2.5F));
++               }
++            }
  
 -      public TextureStateShard() {
 -         super("texture", () -> {
 -            RenderSystem.disableTexture();
--         }, () -> {
+          }, () -> {
 -            RenderSystem.enableTexture();
--         });
++            if (!Objects.equals(var1, OptionalDouble.of(1.0D))) {
++               RenderSystem.lineWidth(1.0F);
++            }
++
+          });
 -         this.texture = Optional.empty();
 -         this.blur = false;
 -         this.mipmap = false;
--      }
--
++         this.width = var1;
+       }
+ 
 -      public boolean equals(Object var1) {
 -         if (this == var1) {
 -            return true;
@@ -526,49 +729,49 @@
 -         } else {
 -            return false;
 -         }
--      }
--
++      public String toString() {
++         String var10000 = this.name;
++         return var10000 + "[" + (this.width.isPresent() ? this.width.getAsDouble() : "window_scale") + "]";
+       }
++   }
+ 
 -      public int hashCode() {
 -         return this.texture.hashCode();
--      }
--
-       public String toString() {
-          return this.name + '[' + this.texture + "(blur=" + this.blur + ", mipmap=" + this.mipmap + ")]";
++   private static class BooleanStateShard extends RenderStateShard {
++      private final boolean enabled;
++
++      public BooleanStateShard(String var1, Runnable var2, Runnable var3, boolean var4) {
++         super(var1, var2, var3);
++         this.enabled = var4;
        }
  
--      protected Optional<ResourceLocation> texture() {
-+      protected Optional<ResourceLocation> cutoutTexture() {
-          return this.texture;
+       public String toString() {
+-         return this.name + '[' + this.texture + "(blur=" + this.blur + ", mipmap=" + this.mipmap + ")]";
++         return this.name + "[" + this.enabled + "]";
        }
+-
+-      protected Optional<ResourceLocation> texture() {
+-         return this.texture;
+-      }
     }
  
 -   public static class ShadeModelStateShard extends RenderStateShard {
 -      private final boolean smooth;
-+   public static class MultiTextureStateShard extends RenderStateShard.EmptyTextureStateShard {
-+      private final Optional<ResourceLocation> cutoutTexture;
- 
+-
 -      public ShadeModelStateShard(boolean var1) {
 -         super("shade_model", () -> {
 -            RenderSystem.shadeModel(var1 ? 7425 : 7424);
-+      private MultiTextureStateShard(ImmutableList<Triple<ResourceLocation, Boolean, Boolean>> var1) {
-+         super(() -> {
-+            int var1x = 0;
-+            UnmodifiableIterator var2 = var1.iterator();
-+
-+            while(var2.hasNext()) {
-+               Triple var3 = (Triple)var2.next();
-+               TextureManager var4 = Minecraft.getInstance().getTextureManager();
-+               var4.getTexture((ResourceLocation)var3.getLeft()).setFilter((Boolean)var3.getMiddle(), (Boolean)var3.getRight());
-+               RenderSystem.setShaderTexture(var1x++, (ResourceLocation)var3.getLeft());
-+            }
-+
++   protected static final class OffsetTexturingStateShard extends RenderStateShard.TexturingStateShard {
++      public OffsetTexturingStateShard(float var1, float var2) {
++         super("offset_texturing", () -> {
++            RenderSystem.setTextureMatrix(Matrix4f.createTranslateMatrix(var1, var2, 0.0F));
           }, () -> {
 -            RenderSystem.shadeModel(7424);
++            RenderSystem.resetTextureMatrix();
           });
 -         this.smooth = var1;
-+         this.cutoutTexture = var1.stream().findFirst().map(Triple::getLeft);
        }
- 
+-
 -      public boolean equals(Object var1) {
 -         if (this == var1) {
 -            return true;
@@ -578,41 +781,21 @@
 -         } else {
 -            return false;
 -         }
-+      protected Optional<ResourceLocation> cutoutTexture() {
-+         return this.cutoutTexture;
-       }
- 
+-      }
+-
 -      public int hashCode() {
 -         return Boolean.hashCode(this.smooth);
-+      public static RenderStateShard.MultiTextureStateShard.Builder builder() {
-+         return new RenderStateShard.MultiTextureStateShard.Builder();
-       }
- 
+-      }
+-
 -      public String toString() {
 -         return this.name + '[' + (this.smooth ? "smooth" : "flat") + ']';
-+      public static final class Builder {
-+         private final com.google.common.collect.ImmutableList.Builder<Triple<ResourceLocation, Boolean, Boolean>> builder = new com.google.common.collect.ImmutableList.Builder();
-+
-+         public Builder() {
-+         }
-+
-+         public RenderStateShard.MultiTextureStateShard.Builder add(ResourceLocation var1, boolean var2, boolean var3) {
-+            this.builder.add(Triple.of(var1, var2, var3));
-+            return this;
-+         }
-+
-+         public RenderStateShard.MultiTextureStateShard build() {
-+            return new RenderStateShard.MultiTextureStateShard(this.builder.build());
-+         }
-       }
+-      }
     }
  
 -   public static class AlphaStateShard extends RenderStateShard {
 -      private final float cutoff;
-+   public static class EmptyTextureStateShard extends RenderStateShard {
-+      public EmptyTextureStateShard(Runnable var1, Runnable var2) {
-+         super("texture", var1, var2);
-+      }
++   protected static class MultiTextureStateShard extends RenderStateShard.EmptyTextureStateShard {
++      private final Optional<ResourceLocation> cutoutTexture;
  
 -      public AlphaStateShard(float var1) {
 -         super("alpha", () -> {
@@ -621,15 +804,24 @@
 -               RenderSystem.alphaFunc(516, var1);
 -            } else {
 -               RenderSystem.disableAlphaTest();
--            }
--
-+      private EmptyTextureStateShard() {
-+         super("texture", () -> {
++      MultiTextureStateShard(ImmutableList<Triple<ResourceLocation, Boolean, Boolean>> var1) {
++         super(() -> {
++            int var1x = 0;
++            UnmodifiableIterator var2 = var1.iterator();
++
++            while(var2.hasNext()) {
++               Triple var3 = (Triple)var2.next();
++               TextureManager var4 = Minecraft.getInstance().getTextureManager();
++               var4.getTexture((ResourceLocation)var3.getLeft()).setFilter((Boolean)var3.getMiddle(), (Boolean)var3.getRight());
++               RenderSystem.setShaderTexture(var1x++, (ResourceLocation)var3.getLeft());
+             }
+ 
           }, () -> {
 -            RenderSystem.disableAlphaTest();
 -            RenderSystem.defaultAlphaFunc();
           });
 -         this.cutoff = var1;
++         this.cutoutTexture = var1.stream().findFirst().map(Triple::getLeft);
        }
  
 -      public boolean equals(@Nullable Object var1) {
@@ -645,38 +837,36 @@
 -            return false;
 -         }
 +      protected Optional<ResourceLocation> cutoutTexture() {
-+         return Optional.empty();
++         return this.cutoutTexture;
        }
-+   }
  
 -      public int hashCode() {
 -         return Objects.hash(new Object[]{super.hashCode(), this.cutoff});
-+   public static class ShaderStateShard extends RenderStateShard {
-+      private final Optional<Supplier<ShaderInstance>> shader;
-+
-+      public ShaderStateShard(Supplier<ShaderInstance> var1) {
-+         super("shader", () -> {
-+            RenderSystem.setShader(var1);
-+         }, () -> {
-+         });
-+         this.shader = Optional.of(var1);
++      public static RenderStateShard.MultiTextureStateShard.Builder builder() {
++         return new RenderStateShard.MultiTextureStateShard.Builder();
        }
  
-+      public ShaderStateShard() {
-+         super("shader", () -> {
-+            RenderSystem.setShader(() -> {
-+               return null;
-+            });
-+         }, () -> {
-+         });
-+         this.shader = Optional.empty();
-+      }
-+
-       public String toString() {
+-      public String toString() {
 -         return this.name + '[' + this.cutoff + ']';
-+         return this.name + '[' + this.shader + "]";
+-      }
+-   }
++      public static final class Builder {
++         private final com.google.common.collect.ImmutableList.Builder<Triple<ResourceLocation, Boolean, Boolean>> builder = new com.google.common.collect.ImmutableList.Builder();
+ 
+-   public static class TransparencyStateShard extends RenderStateShard {
+-      public TransparencyStateShard(String var1, Runnable var2, Runnable var3) {
+-         super(var1, var2, var3);
++         public Builder() {
++         }
++
++         public RenderStateShard.MultiTextureStateShard.Builder add(ResourceLocation var1, boolean var2, boolean var3) {
++            this.builder.add(Triple.of(var1, var2, var3));
++            return this;
++         }
++
++         public RenderStateShard.MultiTextureStateShard build() {
++            return new RenderStateShard.MultiTextureStateShard(this.builder.build());
++         }
        }
     }
- 
-    public static class TransparencyStateShard extends RenderStateShard {
-       public TransparencyStateShard(String var1, Runnable var2, Runnable var3) {
+ }

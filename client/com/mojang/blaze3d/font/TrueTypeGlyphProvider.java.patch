@@ -1,56 +1,204 @@
 --- com/mojang/blaze3d/font/TrueTypeGlyphProvider.java
 +++ com/mojang/blaze3d/font/TrueTypeGlyphProvider.java
-@@ -69,11 +69,11 @@
+@@ -5,118 +5,131 @@
+ import it.unimi.dsi.fastutil.ints.IntCollection;
+ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+ import it.unimi.dsi.fastutil.ints.IntSet;
+ import java.nio.ByteBuffer;
+ import java.nio.IntBuffer;
++import java.util.Objects;
+ import java.util.stream.IntStream;
+ import javax.annotation.Nullable;
+ import org.lwjgl.stb.STBTTFontinfo;
+ import org.lwjgl.stb.STBTruetype;
+ import org.lwjgl.system.MemoryStack;
+ import org.lwjgl.system.MemoryUtil;
+ 
+ public class TrueTypeGlyphProvider implements GlyphProvider {
+    private final ByteBuffer fontMemory;
+-   private final STBTTFontinfo font;
+-   private final float oversample;
++   final STBTTFontinfo font;
++   final float oversample;
+    private final IntSet skip = new IntArraySet();
+-   private final float shiftX;
+-   private final float shiftY;
+-   private final float pointScale;
+-   private final float ascent;
++   final float shiftX;
++   final float shiftY;
++   final float pointScale;
++   final float ascent;
+ 
+    public TrueTypeGlyphProvider(ByteBuffer var1, STBTTFontinfo var2, float var3, float var4, float var5, float var6, String var7) {
+       this.fontMemory = var1;
+       this.font = var2;
+       this.oversample = var4;
+       IntStream var10000 = var7.codePoints();
+       IntSet var10001 = this.skip;
++      Objects.requireNonNull(var10001);
+       var10000.forEach(var10001::add);
+       this.shiftX = var5 * var4;
+       this.shiftY = var6 * var4;
+       this.pointScale = STBTruetype.stbtt_ScaleForPixelHeight(var2, var3 * var4);
+       MemoryStack var8 = MemoryStack.stackPush();
+-      Throwable var9 = null;
+ 
+       try {
++         IntBuffer var9 = var8.mallocInt(1);
+          IntBuffer var10 = var8.mallocInt(1);
+          IntBuffer var11 = var8.mallocInt(1);
+-         IntBuffer var12 = var8.mallocInt(1);
+-         STBTruetype.stbtt_GetFontVMetrics(var2, var10, var11, var12);
+-         this.ascent = (float)var10.get(0) * this.pointScale;
+-      } catch (Throwable var20) {
+-         var9 = var20;
+-         throw var20;
+-      } finally {
++         STBTruetype.stbtt_GetFontVMetrics(var2, var9, var10, var11);
++         this.ascent = (float)var9.get(0) * this.pointScale;
++      } catch (Throwable var13) {
+          if (var8 != null) {
+-            if (var9 != null) {
+-               try {
+-                  var8.close();
+-               } catch (Throwable var19) {
+-                  var9.addSuppressed(var19);
+-               }
+-            } else {
++            try {
+                var8.close();
++            } catch (Throwable var12) {
++               var13.addSuppressed(var12);
+             }
+          }
+ 
++         throw var13;
+       }
+ 
++      if (var8 != null) {
++         var8.close();
++      }
++
+    }
+ 
+    @Nullable
+    public TrueTypeGlyphProvider.Glyph getGlyph(int var1) {
+       if (this.skip.contains(var1)) {
           return null;
        } else {
           MemoryStack var2 = MemoryStack.stackPush();
-          Throwable var3 = null;
+-         Throwable var3 = null;
  
 -         TrueTypeGlyphProvider.Glyph var13;
-+         IntBuffer var11;
-          try {
-             IntBuffer var4 = var2.mallocInt(1);
-             IntBuffer var5 = var2.mallocInt(1);
-             IntBuffer var6 = var2.mallocInt(1);
-             IntBuffer var7 = var2.mallocInt(1);
-@@ -84,20 +84,19 @@
-             }
+-         try {
+-            IntBuffer var4 = var2.mallocInt(1);
+-            IntBuffer var5 = var2.mallocInt(1);
+-            IntBuffer var6 = var2.mallocInt(1);
+-            IntBuffer var7 = var2.mallocInt(1);
+-            int var8 = STBTruetype.stbtt_FindGlyphIndex(this.font, var1);
+-            if (var8 == 0) {
+-               Object var26 = null;
+-               return (TrueTypeGlyphProvider.Glyph)var26;
+-            }
++         Object var15;
++         label61: {
++            TrueTypeGlyphProvider.Glyph var12;
++            label62: {
++               IntBuffer var10;
++               try {
++                  IntBuffer var3 = var2.mallocInt(1);
++                  IntBuffer var4 = var2.mallocInt(1);
++                  IntBuffer var5 = var2.mallocInt(1);
++                  IntBuffer var6 = var2.mallocInt(1);
++                  int var7 = STBTruetype.stbtt_FindGlyphIndex(this.font, var1);
++                  if (var7 == 0) {
++                     var15 = null;
++                     break label61;
++                  }
  
-             STBTruetype.stbtt_GetGlyphBitmapBoxSubpixel(this.font, var8, this.pointScale, this.pointScale, this.shiftX, this.shiftY, var4, var5, var6, var7);
-             int var9 = var6.get(0) - var4.get(0);
-             int var10 = var7.get(0) - var5.get(0);
+-            STBTruetype.stbtt_GetGlyphBitmapBoxSubpixel(this.font, var8, this.pointScale, this.pointScale, this.shiftX, this.shiftY, var4, var5, var6, var7);
+-            int var9 = var6.get(0) - var4.get(0);
+-            int var10 = var7.get(0) - var5.get(0);
 -            IntBuffer var11;
 -            if (var9 == 0 || var10 == 0) {
 -               var11 = null;
 -               return var11;
-+            if (var9 != 0 && var10 != 0) {
-+               var11 = var2.mallocInt(1);
-+               IntBuffer var12 = var2.mallocInt(1);
-+               STBTruetype.stbtt_GetGlyphHMetrics(this.font, var8, var11, var12);
-+               TrueTypeGlyphProvider.Glyph var13 = new TrueTypeGlyphProvider.Glyph(var4.get(0), var6.get(0), -var5.get(0), -var7.get(0), (float)var11.get(0) * this.pointScale, (float)var12.get(0) * this.pointScale, var8);
-+               return var13;
-             }
+-            }
++                  STBTruetype.stbtt_GetGlyphBitmapBoxSubpixel(this.font, var7, this.pointScale, this.pointScale, this.shiftX, this.shiftY, var3, var4, var5, var6);
++                  int var8 = var5.get(0) - var3.get(0);
++                  int var9 = var6.get(0) - var4.get(0);
++                  if (var8 > 0 && var9 > 0) {
++                     var10 = var2.mallocInt(1);
++                     IntBuffer var11 = var2.mallocInt(1);
++                     STBTruetype.stbtt_GetGlyphHMetrics(this.font, var7, var10, var11);
++                     var12 = new TrueTypeGlyphProvider.Glyph(var3.get(0), var5.get(0), -var4.get(0), -var6.get(0), (float)var10.get(0) * this.pointScale, (float)var11.get(0) * this.pointScale, var7);
++                     break label62;
++                  }
  
 -            var11 = var2.mallocInt(1);
 -            IntBuffer var12 = var2.mallocInt(1);
 -            STBTruetype.stbtt_GetGlyphHMetrics(this.font, var8, var11, var12);
 -            var13 = new TrueTypeGlyphProvider.Glyph(var4.get(0), var6.get(0), -var5.get(0), -var7.get(0), (float)var11.get(0) * this.pointScale, (float)var12.get(0) * this.pointScale, var8);
-+            var11 = null;
-          } catch (Throwable var24) {
-             var3 = var24;
-             throw var24;
-          } finally {
-             if (var2 != null) {
-@@ -112,11 +111,11 @@
+-         } catch (Throwable var24) {
+-            var3 = var24;
+-            throw var24;
+-         } finally {
+-            if (var2 != null) {
+-               if (var3 != null) {
+-                  try {
+-                     var2.close();
+-                  } catch (Throwable var23) {
+-                     var3.addSuppressed(var23);
++                  var10 = null;
++               } catch (Throwable var14) {
++                  if (var2 != null) {
++                     try {
++                        var2.close();
++                     } catch (Throwable var13) {
++                        var14.addSuppressed(var13);
++                     }
+                   }
+-               } else {
++
++                  throw var14;
++               }
++
++               if (var2 != null) {
+                   var2.close();
                 }
++
++               return var10;
              }
  
++            if (var2 != null) {
++               var2.close();
++            }
++
++            return var12;
           }
  
 -         return var13;
-+         return var11;
++         if (var2 != null) {
++            var2.close();
++         }
++
++         return (TrueTypeGlyphProvider.Glyph)var15;
        }
     }
  
     public void close() {
        this.font.free();
+@@ -135,11 +148,11 @@
+       private final float bearingX;
+       private final float bearingY;
+       private final float advance;
+       private final int index;
+ 
+-      private Glyph(int var2, int var3, int var4, int var5, float var6, float var7, int var8) {
++      Glyph(int var2, int var3, int var4, int var5, float var6, float var7, int var8) {
+          this.width = var3 - var2;
+          this.height = var4 - var5;
+          this.advance = var6 / TrueTypeGlyphProvider.this.oversample;
+          this.bearingX = (var7 + (float)var2 + TrueTypeGlyphProvider.this.shiftX) / TrueTypeGlyphProvider.this.oversample;
+          this.bearingY = (TrueTypeGlyphProvider.this.ascent - (float)var4 + TrueTypeGlyphProvider.this.shiftY) / TrueTypeGlyphProvider.this.oversample;

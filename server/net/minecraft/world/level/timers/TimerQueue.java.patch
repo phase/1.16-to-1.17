@@ -1,6 +1,18 @@
 --- net/minecraft/world/level/timers/TimerQueue.java
 +++ net/minecraft/world/level/timers/TimerQueue.java
-@@ -17,10 +17,13 @@
+@@ -5,10 +5,11 @@
+ import com.google.common.primitives.UnsignedLong;
+ import com.mojang.serialization.Dynamic;
+ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.Comparator;
++import java.util.Objects;
+ import java.util.PriorityQueue;
+ import java.util.Queue;
+ import java.util.Set;
+ import java.util.stream.Stream;
+ import net.minecraft.nbt.CompoundTag;
+@@ -17,10 +18,13 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -14,3 +26,41 @@
     private UnsignedLong sequentialId;
     private final Table<String, Long, TimerQueue.Event<T>> events;
  
+@@ -76,10 +80,11 @@
+    }
+ 
+    public int remove(String var1) {
+       Collection var2 = this.events.row(var1).values();
+       Queue var10001 = this.queue;
++      Objects.requireNonNull(var10001);
+       var2.forEach(var10001::remove);
+       int var3 = var2.size();
+       var2.clear();
+       return var3;
+    }
+@@ -107,21 +112,23 @@
+       return var2;
+    }
+ 
+    public ListTag store() {
+       ListTag var1 = new ListTag();
+-      this.queue.stream().sorted(createComparator()).map(this::storeEvent).forEach(var1::add);
++      Stream var10000 = this.queue.stream().sorted(createComparator()).map(this::storeEvent);
++      Objects.requireNonNull(var1);
++      var10000.forEach(var1::add);
+       return var1;
+    }
+ 
+    public static class Event<T> {
+       public final long triggerTime;
+       public final UnsignedLong sequentialId;
+       public final String id;
+       public final TimerCallback<T> callback;
+ 
+-      private Event(long var1, UnsignedLong var3, String var4, TimerCallback<T> var5) {
++      Event(long var1, UnsignedLong var3, String var4, TimerCallback<T> var5) {
+          this.triggerTime = var1;
+          this.sequentialId = var3;
+          this.id = var4;
+          this.callback = var5;
+       }

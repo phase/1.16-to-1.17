@@ -12,19 +12,66 @@
  import com.mojang.realmsclient.client.RealmsClient;
  import com.mojang.realmsclient.client.UploadStatus;
  import com.mojang.realmsclient.dto.UploadInfo;
-@@ -26,10 +27,11 @@
- import java.util.stream.Stream;
+@@ -18,23 +19,26 @@
+ import java.io.File;
+ import java.io.FileInputStream;
+ import java.io.FileOutputStream;
+ import java.io.IOException;
+ import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Collection;
+ import java.util.Locale;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.locks.ReentrantLock;
+-import java.util.stream.Stream;
  import java.util.zip.GZIPOutputStream;
  import net.minecraft.SharedConstants;
  import net.minecraft.Util;
++import net.minecraft.client.gui.chat.NarratorChatListener;
  import net.minecraft.client.gui.components.Button;
 +import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.network.chat.CommonComponents;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.FormattedText;
++import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
- import net.minecraft.realms.NarrationHelper;
-@@ -162,17 +164,18 @@
+-import net.minecraft.realms.NarrationHelper;
+ import net.minecraft.realms.RealmsScreen;
+ import net.minecraft.world.level.storage.LevelSummary;
+ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
+ import org.apache.commons.compress.utils.IOUtils;
+@@ -66,10 +70,11 @@
+    private Long previousTimeSnapshot;
+    private long bytesPersSecond;
+    private final Runnable callback;
+ 
+    public RealmsUploadScreen(long var1, int var3, RealmsResetWorldScreen var4, LevelSummary var5, Runnable var6) {
++      super(NarratorChatListener.NO_TITLE);
+       this.worldId = var1;
+       this.slotId = var3;
+       this.lastScreen = var4;
+       this.selectedLevel = var5;
+       this.uploadStatus = new UploadStatus();
+@@ -77,15 +82,15 @@
+       this.callback = var6;
+    }
+ 
+    public void init() {
+       this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
+-      this.backButton = (Button)this.addButton(new Button(this.width / 2 - 100, this.height - 42, 200, 20, CommonComponents.GUI_BACK, (var1) -> {
++      this.backButton = (Button)this.addRenderableWidget(new Button(this.width / 2 - 100, this.height - 42, 200, 20, CommonComponents.GUI_BACK, (var1) -> {
+          this.onBack();
+       }));
+       this.backButton.visible = false;
+-      this.cancelButton = (Button)this.addButton(new Button(this.width / 2 - 100, this.height - 42, 200, 20, CommonComponents.GUI_CANCEL, (var1) -> {
++      this.cancelButton = (Button)this.addRenderableWidget(new Button(this.width / 2 - 100, this.height - 42, 200, 20, CommonComponents.GUI_CANCEL, (var1) -> {
+          this.onCancel();
+       }));
+       if (!this.uploadStarted) {
+          if (this.lastScreen.slot == -1) {
+             this.upload();
+@@ -162,17 +167,18 @@
     }
  
     private void drawProgressBar(PoseStack var1) {
@@ -45,7 +92,44 @@
        var9.vertex(var4 + 200.0D * var2 + 0.5D, 79.5D, 0.0D).color(217, 210, 210, 255).endVertex();
        var9.vertex(var4 - 0.5D, 79.5D, 0.0D).color(217, 210, 210, 255).endVertex();
        var9.vertex(var4, 95.0D, 0.0D).color(128, 128, 128, 255).endVertex();
-@@ -238,74 +241,60 @@
+@@ -215,39 +221,39 @@
+ 
+    public void tick() {
+       super.tick();
+       ++this.tickCount;
+       if (this.status != null && this.narrationRateLimiter.tryAcquire(1)) {
+-         ArrayList var1 = Lists.newArrayList();
+-         var1.add(this.status.getString());
+-         if (this.progress != null) {
+-            var1.add(this.progress + "%");
+-         }
++         Component var1 = this.createProgressNarrationMessage();
++         NarratorChatListener.INSTANCE.sayNow(var1);
++      }
+ 
+-         if (this.errorMessage != null) {
+-            Stream.of(this.errorMessage).map(Component::getString).forEach(var1::add);
+-         }
++   }
+ 
+-         NarrationHelper.now(String.join(System.lineSeparator(), var1));
++   private Component createProgressNarrationMessage() {
++      ArrayList var1 = Lists.newArrayList();
++      var1.add(this.status);
++      if (this.progress != null) {
++         var1.add(new TextComponent(this.progress + "%"));
+       }
+ 
++      if (this.errorMessage != null) {
++         var1.addAll(Arrays.asList(this.errorMessage));
++      }
++
++      return CommonComponents.joinLines((Collection)var1);
+    }
+ 
+    private void upload() {
+       this.uploadStarted = true;
+       (new Thread(() -> {
           File var1 = null;
           RealmsClient var2 = RealmsClient.create();
           long var3 = this.worldId;
@@ -56,126 +140,36 @@
 -                  this.status = new TranslatableComponent("mco.upload.close.failure");
 -                  return;
 -               }
-+            if (!UPLOAD_LOCK.tryLock(1L, TimeUnit.SECONDS)) {
-+               this.status = new TranslatableComponent("mco.upload.close.failure");
-+               return;
-+            }
+-
++            if (UPLOAD_LOCK.tryLock(1L, TimeUnit.SECONDS)) {
+                UploadInfo var5 = null;
  
--               UploadInfo var5 = null;
-+            UploadInfo var5 = null;
+                for(int var6 = 0; var6 < 20; ++var6) {
+                   try {
+                      if (this.cancelled) {
+@@ -289,17 +295,17 @@
  
--               for(int var6 = 0; var6 < 20; ++var6) {
--                  try {
--                     if (this.cancelled) {
--                        this.uploadCancelled();
--                        return;
--                     }
-+            for(int var6 = 0; var6 < 20; ++var6) {
-+               try {
-+                  if (this.cancelled) {
-+                     this.uploadCancelled();
-+                     return;
-+                  }
- 
--                     var5 = var2.requestUploadInfo(var3, UploadTokenCache.get(var3));
--                     if (var5 != null) {
--                        break;
--                     }
--                  } catch (RetryCallException var20) {
--                     Thread.sleep((long)(var20.delaySeconds * 1000));
-+                  var5 = var2.requestUploadInfo(var3, UploadTokenCache.get(var3));
-+                  if (var5 != null) {
-+                     break;
-                   }
-+               } catch (RetryCallException var20) {
-+                  Thread.sleep((long)(var20.delaySeconds * 1000));
-                }
-+            }
- 
--               if (var5 == null) {
--                  this.status = new TranslatableComponent("mco.upload.close.failure");
--                  return;
--               }
-+            if (var5 == null) {
-+               this.status = new TranslatableComponent("mco.upload.close.failure");
-+               return;
-+            }
- 
--               UploadTokenCache.put(var3, var5.getToken());
--               if (!var5.isWorldClosed()) {
--                  this.status = new TranslatableComponent("mco.upload.close.failure");
--                  return;
--               }
-+            UploadTokenCache.put(var3, var5.getToken());
-+            if (!var5.isWorldClosed()) {
-+               this.status = new TranslatableComponent("mco.upload.close.failure");
-+               return;
-+            }
- 
--               if (this.cancelled) {
--                  this.uploadCancelled();
--                  return;
--               }
-+            if (this.cancelled) {
-+               this.uploadCancelled();
-+               return;
-+            }
- 
--               File var25 = new File(this.minecraft.gameDirectory.getAbsolutePath(), "saves");
--               var1 = this.tarGzipArchive(new File(var25, this.selectedLevel.getLevelId()));
--               if (this.cancelled) {
--                  this.uploadCancelled();
--                  return;
--               }
-+            File var25 = new File(this.minecraft.gameDirectory.getAbsolutePath(), "saves");
-+            var1 = this.tarGzipArchive(new File(var25, this.selectedLevel.getLevelId()));
-+            if (this.cancelled) {
-+               this.uploadCancelled();
-+               return;
-+            }
- 
--               if (!this.verify(var1)) {
--                  long var26 = var1.length();
--                  Unit var9 = Unit.getLargest(var26);
--                  Unit var10 = Unit.getLargest(5368709120L);
+                if (!this.verify(var1)) {
+                   long var26 = var1.length();
+                   Unit var9 = Unit.getLargest(var26);
+                   Unit var10 = Unit.getLargest(5368709120L);
 -                  if (Unit.humanReadable(var26, var9).equals(Unit.humanReadable(5368709120L, var10)) && var9 != Unit.B) {
 -                     Unit var11 = Unit.values()[var9.ordinal() - 1];
 -                     this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var11), Unit.humanReadable(5368709120L, var11)}));
--                     return;
--                  }
--
--                  this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var9), Unit.humanReadable(5368709120L, var10)}));
--                  return;
--               }
--
-+            if (this.verify(var1)) {
-                this.status = new TranslatableComponent("mco.upload.uploading", new Object[]{this.selectedLevel.getLevelName()});
--               FileUpload var7 = new FileUpload(var1, this.worldId, this.slotId, var5, this.minecraft.getUser(), SharedConstants.getCurrentVersion().getName(), this.uploadStatus);
--               var7.upload((var3x) -> {
-+               FileUpload var26 = new FileUpload(var1, this.worldId, this.slotId, var5, this.minecraft.getUser(), SharedConstants.getCurrentVersion().getName(), this.uploadStatus);
-+               var26.upload((var3x) -> {
-                   if (var3x.statusCode >= 200 && var3x.statusCode < 300) {
-                      this.uploadFinished = true;
-                      this.status = new TranslatableComponent("mco.upload.done");
-                      this.backButton.setMessage(CommonComponents.GUI_DONE);
-                      UploadTokenCache.invalidate(var3);
-@@ -315,13 +304,13 @@
-                      this.setErrorMessage(new TranslatableComponent("mco.upload.failed", new Object[]{var3x.statusCode}));
-                   }
- 
-                });
- 
--               while(!var7.isFinished()) {
-+               while(!var26.isFinished()) {
-                   if (this.cancelled) {
--                     var7.cancel();
-+                     var26.cancel();
-                      this.uploadCancelled();
++                  if (!Unit.humanReadable(var26, var9).equals(Unit.humanReadable(5368709120L, var10)) || var9 == Unit.B) {
++                     this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var9), Unit.humanReadable(5368709120L, var10)}));
                       return;
                    }
  
-                   try {
-@@ -330,34 +319,48 @@
+-                  this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var9), Unit.humanReadable(5368709120L, var10)}));
++                  Unit var11 = Unit.values()[var9.ordinal() - 1];
++                  this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var26, var11), Unit.humanReadable(5368709120L, var11)}));
+                   return;
+                }
+ 
+                this.status = new TranslatableComponent("mco.upload.uploading", new Object[]{this.selectedLevel.getLevelName()});
+                FileUpload var7 = new FileUpload(var1, this.worldId, this.slotId, var5, this.minecraft.getUser(), SharedConstants.getCurrentVersion().getName(), this.uploadStatus);
+@@ -330,34 +336,39 @@
                       LOGGER.error("Failed to check Realms file upload status");
                    }
                 }
@@ -189,16 +183,7 @@
 -               LOGGER.error("Could not acquire upload lock");
              }
  
-+            long var7 = var1.length();
-+            Unit var9 = Unit.getLargest(var7);
-+            Unit var10 = Unit.getLargest(5368709120L);
-+            if (Unit.humanReadable(var7, var9).equals(Unit.humanReadable(5368709120L, var10)) && var9 != Unit.B) {
-+               Unit var11 = Unit.values()[var9.ordinal() - 1];
-+               this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var7, var11), Unit.humanReadable(5368709120L, var11)}));
-+               return;
-+            }
-+
-+            this.setErrorMessage(new TranslatableComponent("mco.upload.size.failure.line1", new Object[]{this.selectedLevel.getLevelName()}), new TranslatableComponent("mco.upload.size.failure.line2", new Object[]{Unit.humanReadable(var7, var9), Unit.humanReadable(5368709120L, var10)}));
++            this.status = new TranslatableComponent("mco.upload.close.failure");
 +         } catch (IOException var21) {
 +            this.setErrorMessage(new TranslatableComponent("mco.upload.failed", new Object[]{var21.getMessage()}));
 +            return;

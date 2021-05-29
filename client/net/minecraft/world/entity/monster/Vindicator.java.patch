@@ -1,14 +1,83 @@
 --- net/minecraft/world/entity/monster/Vindicator.java
 +++ net/minecraft/world/entity/monster/Vindicator.java
-@@ -44,10 +44,11 @@
+@@ -44,14 +44,15 @@
  import net.minecraft.world.item.enchantment.Enchantments;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.ServerLevelAccessor;
  
  public class Vindicator extends AbstractIllager {
+-   private static final Predicate<Difficulty> DOOR_BREAKING_PREDICATE = (var0) -> {
 +   private static final String TAG_JOHNNY = "Johnny";
-    private static final Predicate<Difficulty> DOOR_BREAKING_PREDICATE = (var0) -> {
++   static final Predicate<Difficulty> DOOR_BREAKING_PREDICATE = (var0) -> {
        return var0 == Difficulty.NORMAL || var0 == Difficulty.HARD;
     };
-    private boolean isJohnny;
+-   private boolean isJohnny;
++   boolean isJohnny;
  
+    public Vindicator(EntityType<? extends Vindicator> var1, Level var2) {
+       super(var1, var2);
+    }
+ 
+@@ -175,26 +176,11 @@
+       }
+ 
+       this.setItemSlot(EquipmentSlot.MAINHAND, var3);
+    }
+ 
+-   static class VindicatorJohnnyAttackGoal extends NearestAttackableTargetGoal<LivingEntity> {
+-      public VindicatorJohnnyAttackGoal(Vindicator var1) {
+-         super(var1, LivingEntity.class, 0, true, true, LivingEntity::attackable);
+-      }
+-
+-      public boolean canUse() {
+-         return ((Vindicator)this.mob).isJohnny && super.canUse();
+-      }
+-
+-      public void start() {
+-         super.start();
+-         this.mob.setNoActionTime(0);
+-      }
+-   }
+-
+-   static class VindicatorBreakDoorGoal extends BreakDoorGoal {
++   private static class VindicatorBreakDoorGoal extends BreakDoorGoal {
+       public VindicatorBreakDoorGoal(Mob var1) {
+          super(var1, 6, Vindicator.DOOR_BREAKING_PREDICATE);
+          this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+       }
+ 
+@@ -212,11 +198,11 @@
+          super.start();
+          this.mob.setNoActionTime(0);
+       }
+    }
+ 
+-   class VindicatorMeleeAttackGoal extends MeleeAttackGoal {
++   private class VindicatorMeleeAttackGoal extends MeleeAttackGoal {
+       public VindicatorMeleeAttackGoal(Vindicator var2) {
+          super(var2, 1.0D, false);
+       }
+ 
+       protected double getAttackReachSqr(LivingEntity var1) {
+@@ -226,6 +212,21 @@
+          } else {
+             return super.getAttackReachSqr(var1);
+          }
+       }
+    }
++
++   private static class VindicatorJohnnyAttackGoal extends NearestAttackableTargetGoal<LivingEntity> {
++      public VindicatorJohnnyAttackGoal(Vindicator var1) {
++         super(var1, LivingEntity.class, 0, true, true, LivingEntity::attackable);
++      }
++
++      public boolean canUse() {
++         return ((Vindicator)this.mob).isJohnny && super.canUse();
++      }
++
++      public void start() {
++         super.start();
++         this.mob.setNoActionTime(0);
++      }
++   }
+ }

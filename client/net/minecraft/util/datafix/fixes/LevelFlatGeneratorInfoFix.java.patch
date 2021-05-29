@@ -1,6 +1,12 @@
 --- net/minecraft/util/datafix/fixes/LevelFlatGeneratorInfoFix.java
 +++ net/minecraft/util/datafix/fixes/LevelFlatGeneratorInfoFix.java
-@@ -14,10 +14,13 @@
+@@ -9,15 +9,19 @@
+ import com.mojang.datafixers.schemas.Schema;
+ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.Dynamic;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.Objects;
  import java.util.stream.Collectors;
  import java.util.stream.StreamSupport;
  import org.apache.commons.lang3.math.NumberUtils;
@@ -14,3 +20,30 @@
     private static final Splitter OLD_AMOUNT_SPLITTER = Splitter.on('x').limit(2);
     private static final Splitter AMOUNT_SPLITTER = Splitter.on('*').limit(2);
     private static final Splitter BLOCK_SPLITTER = Splitter.on(':').limit(3);
+@@ -33,11 +37,11 @@
+    }
+ 
+    private Dynamic<?> fix(Dynamic<?> var1) {
+       return var1.get("generatorName").asString("").equalsIgnoreCase("flat") ? var1.update("generatorOptions", (var1x) -> {
+          DataResult var10000 = var1x.asString().map(this::fixString);
+-         var1x.getClass();
++         Objects.requireNonNull(var1x);
+          return (Dynamic)DataFixUtils.orElse(var10000.map(var1x::createString).result(), var1x);
+       }) : var1;
+    }
+ 
+    @VisibleForTesting
+@@ -76,11 +80,12 @@
+                int var7x = ((String)var6.get(0)).equals("minecraft") ? 1 : 0;
+                String var8 = (String)var6.get(var7x);
+                int var9 = var4 == 3 ? EntityBlockStateFix.getBlockId("minecraft:" + var8) : NumberUtils.toInt(var8, 0);
+                int var10 = var7x + 1;
+                int var11 = var6.size() > var10 ? NumberUtils.toInt((String)var6.get(var10), 0) : 0;
+-               return (var3 == 1 ? "" : var3 + "*") + BlockStateData.getTag(var9 << 4 | var11).get("Name").asString("");
++               String var10000 = var3 == 1 ? "" : var3 + "*";
++               return var10000 + BlockStateData.getTag(var9 << 4 | var11).get("Name").asString("");
+             }).collect(Collectors.joining(",")));
+ 
+             while(var2.hasNext()) {
+                var6.append(';').append((String)var2.next());
+             }

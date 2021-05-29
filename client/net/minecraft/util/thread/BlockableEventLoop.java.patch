@@ -1,6 +1,6 @@
 --- net/minecraft/util/thread/BlockableEventLoop.java
 +++ net/minecraft/util/thread/BlockableEventLoop.java
-@@ -1,25 +1,33 @@
+@@ -1,25 +1,32 @@
  package net.minecraft.util.thread;
  
 +import com.google.common.collect.ImmutableList;
@@ -12,11 +12,10 @@
  import java.util.concurrent.locks.LockSupport;
  import java.util.function.BooleanSupplier;
  import java.util.function.Supplier;
-+import net.minecraft.util.profiling.registry.MeasuredMetric;
-+import net.minecraft.util.profiling.registry.MeasurementCategory;
-+import net.minecraft.util.profiling.registry.MeasurementRegistry;
-+import net.minecraft.util.profiling.registry.Metric;
-+import net.minecraft.util.profiling.registry.ProfilerMeasured;
++import net.minecraft.util.profiling.metrics.MetricCategory;
++import net.minecraft.util.profiling.metrics.MetricSampler;
++import net.minecraft.util.profiling.metrics.MetricsRegistry;
++import net.minecraft.util.profiling.metrics.ProfilerMeasured;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -29,20 +28,33 @@
  
     protected BlockableEventLoop(String var1) {
        this.name = var1;
-+      MeasurementRegistry.INSTANCE.add(this);
++      MetricsRegistry.INSTANCE.add(this);
     }
  
     protected abstract R wrapRunnable(Runnable var1);
  
     protected abstract boolean shouldRun(R var1);
-@@ -133,6 +141,10 @@
+@@ -93,11 +100,11 @@
+       while(this.pollTask()) {
+       }
+ 
+    }
+ 
+-   protected boolean pollTask() {
++   public boolean pollTask() {
+       Runnable var1 = (Runnable)this.pendingRunnables.peek();
+       if (var1 == null) {
+          return false;
+       } else if (this.blockingCount == 0 && !this.shouldRun(var1)) {
+          return false;
+@@ -133,6 +140,10 @@
        } catch (Exception var3) {
           LOGGER.fatal("Error executing task on {}", this.name(), var3);
        }
  
     }
 +
-+   public List<MeasuredMetric> metrics() {
-+      return ImmutableList.of(new MeasuredMetric(new Metric(this.name + "-tasks-pending"), this::getPendingTasksCount, MeasurementCategory.EVENT_LOOP));
++   public List<MetricSampler> profiledMetrics() {
++      return ImmutableList.of(MetricSampler.create(this.name + "-pending-tasks", MetricCategory.EVENT_LOOPS, this::getPendingTasksCount));
 +   }
  }

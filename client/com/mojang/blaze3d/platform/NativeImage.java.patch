@@ -27,11 +27,123 @@
     private final int width;
     private final int height;
     private final boolean useStbFree;
-@@ -135,22 +140,10 @@
- 
-          return var8;
-       }
+@@ -43,36 +48,48 @@
+    public NativeImage(int var1, int var2, boolean var3) {
+       this(NativeImage.Format.RGBA, var1, var2, var3);
     }
+ 
+    public NativeImage(NativeImage.Format var1, int var2, int var3, boolean var4) {
+-      this.format = var1;
+-      this.width = var2;
+-      this.height = var3;
+-      this.size = (long)var2 * (long)var3 * (long)var1.components();
+-      this.useStbFree = false;
+-      if (var4) {
+-         this.pixels = MemoryUtil.nmemCalloc(1L, this.size);
++      if (var2 > 0 && var3 > 0) {
++         this.format = var1;
++         this.width = var2;
++         this.height = var3;
++         this.size = (long)var2 * (long)var3 * (long)var1.components();
++         this.useStbFree = false;
++         if (var4) {
++            this.pixels = MemoryUtil.nmemCalloc(1L, this.size);
++         } else {
++            this.pixels = MemoryUtil.nmemAlloc(this.size);
++         }
++
+       } else {
+-         this.pixels = MemoryUtil.nmemAlloc(this.size);
++         throw new IllegalArgumentException("Invalid texture size: " + var2 + "x" + var3);
+       }
+-
+    }
+ 
+    private NativeImage(NativeImage.Format var1, int var2, int var3, boolean var4, long var5) {
+-      this.format = var1;
+-      this.width = var2;
+-      this.height = var3;
+-      this.useStbFree = var4;
+-      this.pixels = var5;
+-      this.size = (long)(var2 * var3 * var1.components());
++      if (var2 > 0 && var3 > 0) {
++         this.format = var1;
++         this.width = var2;
++         this.height = var3;
++         this.useStbFree = var4;
++         this.pixels = var5;
++         this.size = (long)var2 * (long)var3 * (long)var1.components();
++      } else {
++         throw new IllegalArgumentException("Invalid texture size: " + var2 + "x" + var3);
++      }
+    }
+ 
+    public String toString() {
+       return "NativeImage[" + this.format + " " + this.width + "x" + this.height + "@" + this.pixels + (this.useStbFree ? "S" : "N") + "]";
+    }
+ 
++   private boolean isOutsideBounds(int var1, int var2) {
++      return var1 < 0 || var1 >= this.width || var2 < 0 || var2 >= this.height;
++   }
++
+    public static NativeImage read(InputStream var0) throws IOException {
+       return read(NativeImage.Format.RGBA, var0);
+    }
+ 
+    public static NativeImage read(@Nullable NativeImage.Format var0, InputStream var1) throws IOException {
+@@ -100,55 +117,40 @@
+          throw new UnsupportedOperationException("Don't know how to read format " + var0);
+       } else if (MemoryUtil.memAddress(var1) == 0L) {
+          throw new IllegalArgumentException("Invalid buffer");
+       } else {
+          MemoryStack var2 = MemoryStack.stackPush();
+-         Throwable var3 = null;
+ 
+-         NativeImage var8;
++         NativeImage var7;
+          try {
++            IntBuffer var3 = var2.mallocInt(1);
+             IntBuffer var4 = var2.mallocInt(1);
+             IntBuffer var5 = var2.mallocInt(1);
+-            IntBuffer var6 = var2.mallocInt(1);
+-            ByteBuffer var7 = STBImage.stbi_load_from_memory(var1, var4, var5, var6, var0 == null ? 0 : var0.components);
+-            if (var7 == null) {
++            ByteBuffer var6 = STBImage.stbi_load_from_memory(var1, var3, var4, var5, var0 == null ? 0 : var0.components);
++            if (var6 == null) {
+                throw new IOException("Could not load image: " + STBImage.stbi_failure_reason());
+             }
+ 
+-            var8 = new NativeImage(var0 == null ? NativeImage.Format.getStbFormat(var6.get(0)) : var0, var4.get(0), var5.get(0), true, MemoryUtil.memAddress(var7));
+-         } catch (Throwable var17) {
+-            var3 = var17;
+-            throw var17;
+-         } finally {
++            var7 = new NativeImage(var0 == null ? NativeImage.Format.getStbFormat(var5.get(0)) : var0, var3.get(0), var4.get(0), true, MemoryUtil.memAddress(var6));
++         } catch (Throwable var9) {
+             if (var2 != null) {
+-               if (var3 != null) {
+-                  try {
+-                     var2.close();
+-                  } catch (Throwable var16) {
+-                     var3.addSuppressed(var16);
+-                  }
+-               } else {
++               try {
+                   var2.close();
++               } catch (Throwable var8) {
++                  var9.addSuppressed(var8);
+                }
+             }
+ 
++            throw var9;
+          }
+ 
+-         return var8;
+-      }
+-   }
++         if (var2 != null) {
++            var2.close();
++         }
  
 -   private static void setClamp(boolean var0) {
 -      RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
@@ -41,31 +153,57 @@
 -      } else {
 -         GlStateManager._texParameter(3553, 10242, 10497);
 -         GlStateManager._texParameter(3553, 10243, 10497);
--      }
++         return var7;
+       }
 -
--   }
--
+    }
+ 
     private static void setFilter(boolean var0, boolean var1) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
        if (var0) {
-          GlStateManager._texParameter(3553, 10241, var1 ? 9987 : 9729);
-          GlStateManager._texParameter(3553, 10240, 9729);
-@@ -213,10 +206,59 @@
-       } else {
-          throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
+@@ -192,39 +194,130 @@
+    }
+ 
+    public int getPixelRGBA(int var1, int var2) {
+       if (this.format != NativeImage.Format.RGBA) {
+          throw new IllegalArgumentException(String.format("getPixelRGBA only works on RGBA images; have %s", this.format));
+-      } else if (var1 <= this.width && var2 <= this.height) {
++      } else if (this.isOutsideBounds(var1, var2)) {
++         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      } else {
+          this.checkAllocated();
+-         long var3 = (long)((var1 + var2 * this.width) * 4);
++         long var3 = ((long)var1 + (long)var2 * (long)this.width) * 4L;
+          return MemoryUtil.memGetInt(this.pixels + var3);
+-      } else {
+-         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
        }
     }
  
+    public void setPixelRGBA(int var1, int var2, int var3) {
+       if (this.format != NativeImage.Format.RGBA) {
+          throw new IllegalArgumentException(String.format("getPixelRGBA only works on RGBA images; have %s", this.format));
+-      } else if (var1 <= this.width && var2 <= this.height) {
++      } else if (this.isOutsideBounds(var1, var2)) {
++         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      } else {
+          this.checkAllocated();
+-         long var4 = (long)((var1 + var2 * this.width) * 4);
++         long var4 = ((long)var1 + (long)var2 * (long)this.width) * 4L;
+          MemoryUtil.memPutInt(this.pixels + var4, var3);
++      }
++   }
++
 +   public void setPixelLuminance(int var1, int var2, byte var3) {
 +      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
 +      if (!this.format.hasLuminance()) {
 +         throw new IllegalArgumentException(String.format("setPixelLuminance only works on image with luminance; have %s", this.format));
-+      } else if (var1 <= this.width && var2 <= this.height) {
-+         this.checkAllocated();
-+         long var4 = (long)((var1 + var2 * this.width) * this.format.components() + this.format.luminanceOffset() / 8);
-+         MemoryUtil.memPutByte(this.pixels + var4, var3);
-+      } else {
++      } else if (this.isOutsideBounds(var1, var2)) {
 +         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
+       } else {
++         this.checkAllocated();
++         long var4 = ((long)var1 + (long)var2 * (long)this.width) * (long)this.format.components() + (long)(this.format.luminanceOffset() / 8);
++         MemoryUtil.memPutByte(this.pixels + var4, var3);
 +      }
 +   }
 +
@@ -73,23 +211,23 @@
 +      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
 +      if (!this.format.hasLuminanceOrRed()) {
 +         throw new IllegalArgumentException(String.format("no red or luminance in %s", this.format));
-+      } else if (var1 <= this.width && var2 <= this.height) {
++      } else if (this.isOutsideBounds(var1, var2)) {
+          throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      } else {
 +         int var3 = (var1 + var2 * this.width) * this.format.components() + this.format.luminanceOrRedOffset() / 8;
 +         return MemoryUtil.memGetByte(this.pixels + (long)var3);
-+      } else {
-+         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
-+      }
-+   }
-+
+       }
+    }
+ 
 +   public byte getGreenOrLuminance(int var1, int var2) {
 +      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
 +      if (!this.format.hasLuminanceOrGreen()) {
 +         throw new IllegalArgumentException(String.format("no green or luminance in %s", this.format));
-+      } else if (var1 <= this.width && var2 <= this.height) {
++      } else if (this.isOutsideBounds(var1, var2)) {
++         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      } else {
 +         int var3 = (var1 + var2 * this.width) * this.format.components() + this.format.luminanceOrGreenOffset() / 8;
 +         return MemoryUtil.memGetByte(this.pixels + (long)var3);
-+      } else {
-+         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
 +      }
 +   }
 +
@@ -97,29 +235,31 @@
 +      RenderSystem.assertThread(RenderSystem::isOnRenderThread);
 +      if (!this.format.hasLuminanceOrBlue()) {
 +         throw new IllegalArgumentException(String.format("no blue or luminance in %s", this.format));
-+      } else if (var1 <= this.width && var2 <= this.height) {
++      } else if (this.isOutsideBounds(var1, var2)) {
++         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      } else {
 +         int var3 = (var1 + var2 * this.width) * this.format.components() + this.format.luminanceOrBlueOffset() / 8;
 +         return MemoryUtil.memGetByte(this.pixels + (long)var3);
-+      } else {
-+         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
 +      }
 +   }
 +
     public byte getLuminanceOrAlpha(int var1, int var2) {
        if (!this.format.hasLuminanceOrAlpha()) {
           throw new IllegalArgumentException(String.format("no luminance or alpha in %s", this.format));
-       } else if (var1 <= this.width && var2 <= this.height) {
+-      } else if (var1 <= this.width && var2 <= this.height) {
++      } else if (this.isOutsideBounds(var1, var2)) {
++         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
++      } else {
           int var3 = (var1 + var2 * this.width) * this.format.components() + this.format.luminanceOrAlphaOffset() / 8;
-@@ -224,10 +266,52 @@
-       } else {
-          throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
-       }
-    }
- 
+          return MemoryUtil.memGetByte(this.pixels + (long)var3);
++      }
++   }
++
 +   public void blendPixel(int var1, int var2, int var3) {
 +      if (this.format != NativeImage.Format.RGBA) {
 +         throw new UnsupportedOperationException("Can only call blendPixel with RGBA format");
-+      } else {
+       } else {
+-         throw new IllegalArgumentException(String.format("(%s, %s) outside of image bounds (%s, %s)", var1, var2, this.width, this.height));
 +         int var4 = this.getPixelRGBA(var1, var2);
 +         float var5 = (float)getA(var3) / 255.0F;
 +         float var6 = (float)getB(var3) / 255.0F;
@@ -155,15 +295,12 @@
 +         int var21 = (int)(var17 * 255.0F);
 +         int var22 = (int)(var18 * 255.0F);
 +         this.setPixelRGBA(var1, var2, combine(var19, var20, var21, var22));
-+      }
-+   }
-+
+       }
+    }
+ 
     @Deprecated
     public int[] makePixelArray() {
-       if (this.format != NativeImage.Format.RGBA) {
-          throw new UnsupportedOperationException("can only call makePixelArray for RGBA images.");
-       } else {
-@@ -271,21 +355,25 @@
+@@ -271,21 +364,25 @@
  
     private void _upload(int var1, int var2, int var3, int var4, int var5, int var6, int var7, boolean var8, boolean var9, boolean var10, boolean var11) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
@@ -190,7 +327,7 @@
        }
  
     }
-@@ -303,10 +391,31 @@
+@@ -303,10 +400,31 @@
           }
        }
  
@@ -222,7 +359,131 @@
     }
  
     public void copyFromFont(STBTTFontinfo var1, int var2, int var3, int var4, float var5, float var6, float var7, float var8, int var9, int var10) {
-@@ -416,17 +525,17 @@
+@@ -325,89 +443,75 @@
+       if (!this.format.supportedByStb()) {
+          throw new UnsupportedOperationException("Don't know how to write format " + this.format);
+       } else {
+          this.checkAllocated();
+          SeekableByteChannel var2 = Files.newByteChannel(var1, OPEN_OPTIONS);
+-         Throwable var3 = null;
+ 
+          try {
+             if (!this.writeToChannel(var2)) {
+-               throw new IOException("Could not write image to the PNG file \"" + var1.toAbsolutePath() + "\": " + STBImage.stbi_failure_reason());
++               Path var10002 = var1.toAbsolutePath();
++               throw new IOException("Could not write image to the PNG file \"" + var10002 + "\": " + STBImage.stbi_failure_reason());
+             }
+-         } catch (Throwable var12) {
+-            var3 = var12;
+-            throw var12;
+-         } finally {
++         } catch (Throwable var6) {
+             if (var2 != null) {
+-               if (var3 != null) {
+-                  try {
+-                     var2.close();
+-                  } catch (Throwable var11) {
+-                     var3.addSuppressed(var11);
+-                  }
+-               } else {
++               try {
+                   var2.close();
++               } catch (Throwable var5) {
++                  var6.addSuppressed(var5);
+                }
+             }
+ 
++            throw var6;
+          }
+ 
++         if (var2 != null) {
++            var2.close();
++         }
++
+       }
+    }
+ 
+    public byte[] asByteArray() throws IOException {
+       ByteArrayOutputStream var1 = new ByteArrayOutputStream();
+-      Throwable var2 = null;
+ 
+-      Object var5;
++      byte[] var3;
+       try {
+-         WritableByteChannel var3 = Channels.newChannel(var1);
+-         Throwable var4 = null;
++         WritableByteChannel var2 = Channels.newChannel(var1);
+ 
+          try {
+-            if (!this.writeToChannel(var3)) {
++            if (!this.writeToChannel(var2)) {
+                throw new IOException("Could not write image to byte array: " + STBImage.stbi_failure_reason());
+             }
+ 
+-            var5 = var1.toByteArray();
+-         } catch (Throwable var28) {
+-            var5 = var28;
+-            var4 = var28;
+-            throw var28;
+-         } finally {
+-            if (var3 != null) {
+-               if (var4 != null) {
+-                  try {
+-                     var3.close();
+-                  } catch (Throwable var27) {
+-                     var4.addSuppressed(var27);
+-                  }
+-               } else {
+-                  var3.close();
+-               }
+-            }
+-
+-         }
+-      } catch (Throwable var30) {
+-         var2 = var30;
+-         throw var30;
+-      } finally {
+-         if (var1 != null) {
++            var3 = var1.toByteArray();
++         } catch (Throwable var7) {
+             if (var2 != null) {
+                try {
+-                  var1.close();
+-               } catch (Throwable var26) {
+-                  var2.addSuppressed(var26);
++                  var2.close();
++               } catch (Throwable var6) {
++                  var7.addSuppressed(var6);
+                }
+-            } else {
+-               var1.close();
+             }
++
++            throw var7;
+          }
+ 
++         if (var2 != null) {
++            var2.close();
++         }
++      } catch (Throwable var8) {
++         try {
++            var1.close();
++         } catch (Throwable var5) {
++            var8.addSuppressed(var5);
++         }
++
++         throw var8;
+       }
+ 
+-      return (byte[])var5;
++      var1.close();
++      return var3;
+    }
+ 
+    private boolean writeToChannel(WritableByteChannel var1) throws IOException {
+       NativeImage.WriteCallback var2 = new NativeImage.WriteCallback(var1);
+ 
+@@ -416,17 +520,17 @@
           int var3 = Math.min(this.getHeight(), Integer.MAX_VALUE / this.getWidth() / this.format.components());
           if (var3 < this.getHeight()) {
              LOGGER.warn("Dropping image height from {} to {} to fit the size into 32-bit signed int", this.getHeight(), var3);
@@ -244,7 +505,139 @@
        }
  
        return var4;
-@@ -635,22 +744,78 @@
+@@ -477,42 +581,39 @@
+    }
+ 
+    public void flipY() {
+       this.checkAllocated();
+       MemoryStack var1 = MemoryStack.stackPush();
+-      Throwable var2 = null;
+ 
+       try {
+-         int var3 = this.format.components();
+-         int var4 = this.getWidth() * var3;
+-         long var5 = var1.nmalloc(var4);
++         int var2 = this.format.components();
++         int var3 = this.getWidth() * var2;
++         long var4 = var1.nmalloc(var3);
+ 
+-         for(int var7 = 0; var7 < this.getHeight() / 2; ++var7) {
+-            int var8 = var7 * this.getWidth() * var3;
+-            int var9 = (this.getHeight() - 1 - var7) * this.getWidth() * var3;
+-            MemoryUtil.memCopy(this.pixels + (long)var8, var5, (long)var4);
+-            MemoryUtil.memCopy(this.pixels + (long)var9, this.pixels + (long)var8, (long)var4);
+-            MemoryUtil.memCopy(var5, this.pixels + (long)var9, (long)var4);
++         for(int var6 = 0; var6 < this.getHeight() / 2; ++var6) {
++            int var7 = var6 * this.getWidth() * var2;
++            int var8 = (this.getHeight() - 1 - var6) * this.getWidth() * var2;
++            MemoryUtil.memCopy(this.pixels + (long)var7, var4, (long)var3);
++            MemoryUtil.memCopy(this.pixels + (long)var8, this.pixels + (long)var7, (long)var3);
++            MemoryUtil.memCopy(var4, this.pixels + (long)var8, (long)var3);
+          }
+-      } catch (Throwable var17) {
+-         var2 = var17;
+-         throw var17;
+-      } finally {
++      } catch (Throwable var10) {
+          if (var1 != null) {
+-            if (var2 != null) {
+-               try {
+-                  var1.close();
+-               } catch (Throwable var16) {
+-                  var2.addSuppressed(var16);
+-               }
+-            } else {
++            try {
+                var1.close();
++            } catch (Throwable var9) {
++               var10.addSuppressed(var9);
+             }
+          }
+ 
++         throw var10;
+       }
+ 
++      if (var1 != null) {
++         var1.close();
++      }
++
+    }
+ 
+    public void resizeSubRectTo(int var1, int var2, int var3, int var4, NativeImage var5) {
+       this.checkAllocated();
+       if (var5.format() != this.format) {
+@@ -528,37 +629,34 @@
+    }
+ 
+    public static NativeImage fromBase64(String var0) throws IOException {
+       byte[] var1 = Base64.getDecoder().decode(var0.replaceAll("\n", "").getBytes(Charsets.UTF_8));
+       MemoryStack var2 = MemoryStack.stackPush();
+-      Throwable var3 = null;
+ 
+-      NativeImage var5;
++      NativeImage var4;
+       try {
+-         ByteBuffer var4 = var2.malloc(var1.length);
+-         var4.put(var1);
+-         var4.rewind();
+-         var5 = read(var4);
+-      } catch (Throwable var14) {
+-         var3 = var14;
+-         throw var14;
+-      } finally {
++         ByteBuffer var3 = var2.malloc(var1.length);
++         var3.put(var1);
++         var3.rewind();
++         var4 = read(var3);
++      } catch (Throwable var6) {
+          if (var2 != null) {
+-            if (var3 != null) {
+-               try {
+-                  var2.close();
+-               } catch (Throwable var13) {
+-                  var3.addSuppressed(var13);
+-               }
+-            } else {
++            try {
+                var2.close();
++            } catch (Throwable var5) {
++               var6.addSuppressed(var5);
+             }
+          }
+ 
++         throw var6;
+       }
+ 
+-      return var5;
++      if (var2 != null) {
++         var2.close();
++      }
++
++      return var4;
+    }
+ 
+    public static int getA(int var0) {
+       return var0 >> 24 & 255;
+    }
+@@ -584,14 +682,14 @@
+    }
+ 
+    public static enum Format {
+       RGBA(4, 6408, true, true, true, false, true, 0, 8, 16, 255, 24, true),
+       RGB(3, 6407, true, true, true, false, false, 0, 8, 16, 255, 255, true),
+-      LUMINANCE_ALPHA(2, 6410, false, false, false, true, true, 255, 255, 255, 0, 8, true),
+-      LUMINANCE(1, 6409, false, false, false, true, false, 0, 0, 0, 0, 255, true);
++      LUMINANCE_ALPHA(2, 33319, false, false, false, true, true, 255, 255, 255, 0, 8, true),
++      LUMINANCE(1, 6403, false, false, false, true, false, 0, 0, 0, 0, 255, true);
+ 
+-      private final int components;
++      final int components;
+       private final int glFormat;
+       private final boolean hasRed;
+       private final boolean hasGreen;
+       private final boolean hasBlue;
+       private final boolean hasLuminance;
+@@ -635,31 +733,87 @@
  
        public int glFormat() {
           return this.glFormat;
@@ -323,16 +716,74 @@
        }
  
        public boolean supportedByStb() {
-@@ -683,11 +848,11 @@
- 
-       private InternalGlFormat(int var3) {
-          this.glFormat = var3;
+          return this.supportedByStb;
        }
  
--      int glFormat() {
-+      public int glFormat() {
-          return this.glFormat;
+-      private static NativeImage.Format getStbFormat(int var0) {
++      static NativeImage.Format getStbFormat(int var0) {
+          switch(var0) {
+          case 1:
+             return LUMINANCE;
+          case 2:
+             return LUMINANCE_ALPHA;
+@@ -670,34 +824,16 @@
+             return RGBA;
+          }
        }
     }
  
-    static class WriteCallback extends STBIWriteCallback {
+-   public static enum InternalGlFormat {
+-      RGBA(6408),
+-      RGB(6407),
+-      LUMINANCE_ALPHA(6410),
+-      LUMINANCE(6409),
+-      INTENSITY(32841);
+-
+-      private final int glFormat;
+-
+-      private InternalGlFormat(int var3) {
+-         this.glFormat = var3;
+-      }
+-
+-      int glFormat() {
+-         return this.glFormat;
+-      }
+-   }
+-
+-   static class WriteCallback extends STBIWriteCallback {
++   private static class WriteCallback extends STBIWriteCallback {
+       private final WritableByteChannel output;
+       @Nullable
+       private IOException exception;
+ 
+-      private WriteCallback(WritableByteChannel var1) {
++      WriteCallback(WritableByteChannel var1) {
+          this.output = var1;
+       }
+ 
+       public void invoke(long var1, long var3, int var5) {
+          ByteBuffer var6 = getData(var3, var5);
+@@ -714,6 +850,23 @@
+          if (this.exception != null) {
+             throw this.exception;
+          }
+       }
+    }
++
++   public static enum InternalGlFormat {
++      RGBA(6408),
++      RGB(6407),
++      RG(33319),
++      RED(6403);
++
++      private final int glFormat;
++
++      private InternalGlFormat(int var3) {
++         this.glFormat = var3;
++      }
++
++      public int glFormat() {
++         return this.glFormat;
++      }
++   }
+ }

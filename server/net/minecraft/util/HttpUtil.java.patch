@@ -1,6 +1,6 @@
 --- net/minecraft/util/HttpUtil.java
 +++ net/minecraft/util/HttpUtil.java
-@@ -1,21 +1,236 @@
+@@ -1,49 +1,256 @@
  package net.minecraft.util;
  
  import com.google.common.util.concurrent.ListeningExecutorService;
@@ -38,6 +38,7 @@
     private static final Logger LOGGER = LogManager.getLogger();
     public static final ListeningExecutorService DOWNLOAD_EXECUTOR;
  
+-   public static int getAvailablePort() {
 +   private HttpUtil() {
 +   }
 +
@@ -76,15 +77,18 @@
 +   }
 +
 +   private static String performPost(URL var0, String var1, boolean var2, @Nullable Proxy var3) {
-+      try {
+       try {
+-         ServerSocket var0 = new ServerSocket(0);
+-         Throwable var1 = null;
 +         if (var3 == null) {
 +            var3 = Proxy.NO_PROXY;
 +         }
-+
+ 
+-         int var2;
 +         HttpURLConnection var4 = (HttpURLConnection)var0.openConnection(var3);
 +         var4.setRequestMethod("POST");
 +         var4.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-+         var4.setRequestProperty("Content-Length", "" + var1.getBytes().length);
++         var4.setRequestProperty("Content-Length", var1.getBytes().length.makeConcatWithConstants<invokedynamic>(var1.getBytes().length));
 +         var4.setRequestProperty("Content-Language", "en-US");
 +         var4.setUseCaches(false);
 +         var4.setDoInput(true);
@@ -123,7 +127,14 @@
 +            var4.progressStage(new TranslatableComponent("resourcepack.requesting"));
 +         }
 +
-+         try {
+          try {
+-            var2 = var0.getLocalPort();
+-         } catch (Throwable var12) {
+-            var1 = var12;
+-            throw var12;
+-         } finally {
+-            if (var0 != null) {
+-               if (var1 != null) {
 +            try {
 +               byte[] var9 = new byte[4096];
 +               URL var24 = new URL(var1);
@@ -211,29 +222,56 @@
 +               if (var6 != null) {
 +                  InputStream var10 = var6.getErrorStream();
 +
-+                  try {
+                   try {
+-                     var0.close();
+-                  } catch (Throwable var11) {
+-                     var1.addSuppressed(var11);
 +                     LOGGER.error(IOUtils.toString(var10));
 +                  } catch (IOException var21) {
 +                     var21.printStackTrace();
-+                  }
-+               }
+                   }
+-               } else {
+-                  var0.close();
+                }
 +
 +               if (var4 != null) {
 +                  var4.stop();
 +                  return null;
 +               }
-+            }
-+
+             }
+ 
 +            return null;
 +         } finally {
 +            IOUtils.closeQuietly(var7);
 +            IOUtils.closeQuietly((OutputStream)var8);
-+         }
+          }
 +      }, DOWNLOAD_EXECUTOR);
 +   }
-+
-    public static int getAvailablePort() {
-       try {
-          ServerSocket var0 = new ServerSocket(0);
-          Throwable var1 = null;
  
+-         return var2;
+-      } catch (IOException var14) {
++   public static int getAvailablePort() {
++      try {
++         ServerSocket var0 = new ServerSocket(0);
++
++         int var1;
++         try {
++            var1 = var0.getLocalPort();
++         } catch (Throwable var4) {
++            try {
++               var0.close();
++            } catch (Throwable var3) {
++               var4.addSuppressed(var3);
++            }
++
++            throw var4;
++         }
++
++         var0.close();
++         return var1;
++      } catch (IOException var5) {
+          return 25564;
+       }
+    }
+ 
+    static {

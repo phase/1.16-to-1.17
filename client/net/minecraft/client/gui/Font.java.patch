@@ -12,7 +12,7 @@
  import com.mojang.blaze3d.vertex.VertexConsumer;
  import com.mojang.math.Matrix4f;
  import com.mojang.math.Transformation;
-@@ -32,10 +31,11 @@
+@@ -32,11 +31,13 @@
  import net.minecraft.util.FormattedCharSink;
  import net.minecraft.util.Mth;
  import net.minecraft.util.StringDecomposer;
@@ -20,11 +20,23 @@
  public class Font {
 +   private static final float EFFECT_DEPTH = 0.01F;
     private static final Vector3f SHADOW_OFFSET = new Vector3f(0.0F, 0.0F, 0.03F);
++   private static final Vector3f OUTLINE_OFFSET = new Vector3f(0.0F, 0.0F, 0.0025F);
     public final int lineHeight = 9;
     public final Random random = new Random();
     private final Function<ResourceLocation, FontSet> fonts;
     private final StringSplitter splitter;
-@@ -54,36 +54,30 @@
+ 
+@@ -45,45 +46,39 @@
+       this.splitter = new StringSplitter((var1x, var2) -> {
+          return this.getFontSet(var2.getFont()).getGlyphInfo(var1x).getAdvance(var2.isBold());
+       });
+    }
+ 
+-   private FontSet getFontSet(ResourceLocation var1) {
++   FontSet getFontSet(ResourceLocation var1) {
+       return (FontSet)this.fonts.apply(var1);
+    }
+ 
     public int drawShadow(PoseStack var1, String var2, float var3, float var4, int var5) {
        return this.drawInternal(var2, var3, var4, var5, var1.last().pose(), true, this.isBidirectional());
     }
@@ -61,14 +73,66 @@
  
     public String bidirectionalShaping(String var1) {
        try {
-@@ -241,11 +235,11 @@
+@@ -127,10 +122,36 @@
+ 
+    public int drawInBatch(FormattedCharSequence var1, float var2, float var3, int var4, boolean var5, Matrix4f var6, MultiBufferSource var7, boolean var8, int var9, int var10) {
+       return this.drawInternal(var1, var2, var3, var4, var5, var6, var7, var8, var9, var10);
+    }
+ 
++   public void drawInBatch8xOutline(FormattedCharSequence var1, float var2, float var3, int var4, int var5, Matrix4f var6, MultiBufferSource var7, int var8) {
++      int var9 = adjustColor(var5);
++      Font.StringRenderOutput var10 = new Font.StringRenderOutput(var7, 0.0F, 0.0F, var9, false, var6, false, var8);
++
++      for(int var11 = -1; var11 <= 1; ++var11) {
++         for(int var12 = -1; var12 <= 1; ++var12) {
++            if (var11 != 0 || var12 != 0) {
++               float[] var13 = new float[]{var2};
++               var1.accept((var7x, var8x, var9x) -> {
++                  boolean var10x = var8x.isBold();
++                  FontSet var11x = this.getFontSet(var8x.getFont());
++                  GlyphInfo var12x = var11x.getGlyphInfo(var9x);
++                  var10.x = var13[0] + (float)var11 * var12x.getShadowOffset();
++                  var10.y = var3 + (float)var12 * var12x.getShadowOffset();
++                  var13[0] += var12x.getAdvance(var10x);
++                  return var10.accept(var7x, var8x.withColor(var9), var9x);
++               });
++            }
++         }
++      }
++
++      Matrix4f var16 = var6.copy();
++      var16.translate(OUTLINE_OFFSET);
++      this.renderText((FormattedCharSequence)var1, var2, var3, adjustColor(var4), false, var16, var7, false, 0, var8);
++   }
++
+    private static int adjustColor(int var0) {
+       return (var0 & -67108864) == 0 ? var0 | -16777216 : var0;
+    }
+ 
+    private int drawInternal(String var1, float var2, float var3, int var4, boolean var5, Matrix4f var6, MultiBufferSource var7, boolean var8, int var9, int var10, boolean var11) {
+@@ -171,11 +192,11 @@
+       Font.StringRenderOutput var11 = new Font.StringRenderOutput(var7, var2, var3, var4, var5, var6, var8, var10);
+       var1.accept(var11);
+       return var11.finish(var9, var2);
+    }
+ 
+-   private void renderChar(BakedGlyph var1, boolean var2, boolean var3, float var4, float var5, float var6, Matrix4f var7, VertexConsumer var8, float var9, float var10, float var11, float var12, int var13) {
++   void renderChar(BakedGlyph var1, boolean var2, boolean var3, float var4, float var5, float var6, Matrix4f var7, VertexConsumer var8, float var9, float var10, float var11, float var12, int var13) {
+       var1.render(var3, var5, var6, var7, var8, var9, var10, var11, var12, var13);
+       if (var2) {
+          var1.render(var3, var5 + var4, var6, var7, var8, var9, var10, var11, var12, var13);
+       }
+ 
+@@ -240,12 +261,12 @@
+       private final float b;
        private final float a;
        private final Matrix4f pose;
        private final boolean seeThrough;
        private final int packedLightCoords;
-       private float x;
+-      private float x;
 -      private float y;
-+      private final float y;
++      float x;
++      float y;
        @Nullable
        private List<BakedGlyph.Effect> effects;
  

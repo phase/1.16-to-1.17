@@ -1,10 +1,12 @@
 --- net/minecraft/world/level/block/entity/SkullBlockEntity.java
 +++ net/minecraft/world/level/block/entity/SkullBlockEntity.java
-@@ -4,30 +4,32 @@
+@@ -3,31 +3,34 @@
+ import com.google.common.collect.Iterables;
  import com.mojang.authlib.GameProfile;
  import com.mojang.authlib.minecraft.MinecraftSessionService;
  import com.mojang.authlib.properties.Property;
  import java.util.UUID;
++import java.util.function.Consumer;
  import javax.annotation.Nullable;
 +import net.minecraft.core.BlockPos;
  import net.minecraft.nbt.CompoundTag;
@@ -37,7 +39,7 @@
     public static void setProfileCache(GameProfileCache var0) {
        profileCache = var0;
     }
-@@ -45,37 +47,43 @@
+@@ -45,75 +48,77 @@
        }
  
        return var1;
@@ -98,3 +100,60 @@
     }
  
     public CompoundTag getUpdateTag() {
+       return this.save(new CompoundTag());
+    }
+ 
+    public void setOwner(@Nullable GameProfile var1) {
+-      this.owner = var1;
++      synchronized(this) {
++         this.owner = var1;
++      }
++
+       this.updateOwnerProfile();
+    }
+ 
+    private void updateOwnerProfile() {
+-      this.owner = updateGameprofile(this.owner);
+-      this.setChanged();
++      updateGameprofile(this.owner, (var1) -> {
++         this.owner = var1;
++         this.setChanged();
++      });
+    }
+ 
+-   @Nullable
+-   public static GameProfile updateGameprofile(@Nullable GameProfile var0) {
+-      if (var0 != null && !StringUtil.isNullOrEmpty(var0.getName())) {
+-         if (var0.isComplete() && var0.getProperties().containsKey("textures")) {
+-            return var0;
+-         } else if (profileCache != null && sessionService != null) {
+-            GameProfile var1 = profileCache.get(var0.getName());
+-            if (var1 == null) {
+-               return var0;
+-            } else {
+-               Property var2 = (Property)Iterables.getFirst(var1.getProperties().get("textures"), (Object)null);
+-               if (var2 == null) {
+-                  var1 = sessionService.fillProfileProperties(var1, true);
+-               }
+-
+-               return var1;
++   public static void updateGameprofile(@Nullable GameProfile var0, Consumer<GameProfile> var1) {
++      if (var0 != null && !StringUtil.isNullOrEmpty(var0.getName()) && (!var0.isComplete() || !var0.getProperties().containsKey("textures")) && profileCache != null && sessionService != null) {
++         profileCache.getAsync(var0.getName(), (var1x) -> {
++            Property var2 = (Property)Iterables.getFirst(var1x.getProperties().get("textures"), (Object)null);
++            if (var2 == null) {
++               var1x = sessionService.fillProfileProperties(var1x, true);
+             }
+-         } else {
+-            return var0;
+-         }
++
++            profileCache.add(var1x);
++            var1.accept(var1x);
++         });
+       } else {
+-         return var0;
++         var1.accept(var0);
+       }
+    }
+ }

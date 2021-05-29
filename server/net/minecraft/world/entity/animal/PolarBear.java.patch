@@ -70,7 +70,7 @@
     public void setRemainingPersistentAngerTime(int var1) {
        this.remainingPersistentAngerTime = var1;
     }
-@@ -211,17 +212,21 @@
+@@ -211,38 +212,32 @@
  
     public void setStanding(boolean var1) {
        this.entityData.set(DATA_STANDING_ID, var1);
@@ -93,3 +93,97 @@
        return super.finalizeSpawn(var1, var2, var3, (SpawnGroupData)var4, var5);
     }
  
+    static {
+       DATA_STANDING_ID = SynchedEntityData.defineId(PolarBear.class, EntityDataSerializers.BOOLEAN);
+       PERSISTENT_ANGER_TIME = TimeUtil.rangeOfSeconds(20, 39);
+    }
+ 
+-   class PolarBearPanicGoal extends PanicGoal {
+-      public PolarBearPanicGoal() {
+-         super(PolarBear.this, 2.0D);
+-      }
+-
+-      public boolean canUse() {
+-         return !PolarBear.this.isBaby() && !PolarBear.this.isOnFire() ? false : super.canUse();
+-      }
+-   }
+-
+-   class PolarBearMeleeAttackGoal extends MeleeAttackGoal {
++   private class PolarBearMeleeAttackGoal extends MeleeAttackGoal {
+       public PolarBearMeleeAttackGoal() {
+          super(PolarBear.this, 1.25D, true);
+       }
+ 
+       protected void checkAndPerformAttack(LivingEntity var1, double var2) {
+@@ -276,10 +271,42 @@
+       protected double getAttackReachSqr(LivingEntity var1) {
+          return (double)(4.0F + var1.getBbWidth());
+       }
+    }
+ 
++   class PolarBearPanicGoal extends PanicGoal {
++      public PolarBearPanicGoal() {
++         super(PolarBear.this, 2.0D);
++      }
++
++      public boolean canUse() {
++         return !PolarBear.this.isBaby() && !PolarBear.this.isOnFire() ? false : super.canUse();
++      }
++   }
++
++   class PolarBearHurtByTargetGoal extends HurtByTargetGoal {
++      public PolarBearHurtByTargetGoal() {
++         super(PolarBear.this);
++      }
++
++      public void start() {
++         super.start();
++         if (PolarBear.this.isBaby()) {
++            this.alertOthers();
++            this.stop();
++         }
++
++      }
++
++      protected void alertOther(Mob var1, LivingEntity var2) {
++         if (var1 instanceof PolarBear && !var1.isBaby()) {
++            super.alertOther(var1, var2);
++         }
++
++      }
++   }
++
+    class PolarBearAttackPlayersGoal extends NearestAttackableTargetGoal<Player> {
+       public PolarBearAttackPlayersGoal() {
+          super(PolarBear.this, Player.class, 20, true, true, (Predicate)null);
+       }
+ 
+@@ -305,28 +332,6 @@
+ 
+       protected double getFollowDistance() {
+          return super.getFollowDistance() * 0.5D;
+       }
+    }
+-
+-   class PolarBearHurtByTargetGoal extends HurtByTargetGoal {
+-      public PolarBearHurtByTargetGoal() {
+-         super(PolarBear.this);
+-      }
+-
+-      public void start() {
+-         super.start();
+-         if (PolarBear.this.isBaby()) {
+-            this.alertOthers();
+-            this.stop();
+-         }
+-
+-      }
+-
+-      protected void alertOther(Mob var1, LivingEntity var2) {
+-         if (var1 instanceof PolarBear && !var1.isBaby()) {
+-            super.alertOther(var1, var2);
+-         }
+-
+-      }
+-   }
+ }

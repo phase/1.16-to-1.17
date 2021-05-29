@@ -1,6 +1,6 @@
 --- net/minecraft/client/MouseHandler.java
 +++ net/minecraft/client/MouseHandler.java
-@@ -64,11 +64,11 @@
+@@ -64,31 +64,33 @@
  
              this.activeButton = -1;
           }
@@ -13,8 +13,22 @@
                    this.grabMouse();
                 }
              } else {
-@@ -84,11 +84,11 @@
-                   }, "mouseReleased event handler", this.minecraft.screen.getClass().getCanonicalName());
+                double var9 = this.xpos * (double)this.minecraft.getWindow().getGuiScaledWidth() / (double)this.minecraft.getWindow().getScreenWidth();
+                double var11 = this.ypos * (double)this.minecraft.getWindow().getGuiScaledHeight() / (double)this.minecraft.getWindow().getScreenHeight();
++               Screen var13 = this.minecraft.screen;
+                if (var6) {
++                  var13.afterMouseAction();
+                   Screen.wrapScreenError(() -> {
+-                     var8[0] = this.minecraft.screen.mouseClicked(var9, var11, var3);
+-                  }, "mouseClicked event handler", this.minecraft.screen.getClass().getCanonicalName());
++                     var8[0] = var13.mouseClicked(var9, var11, var3);
++                  }, "mouseClicked event handler", var13.getClass().getCanonicalName());
+                } else {
+                   Screen.wrapScreenError(() -> {
+-                     var8[0] = this.minecraft.screen.mouseReleased(var9, var11, var3);
+-                  }, "mouseReleased event handler", this.minecraft.screen.getClass().getCanonicalName());
++                     var8[0] = var13.mouseReleased(var9, var11, var3);
++                  }, "mouseReleased event handler", var13.getClass().getCanonicalName());
                 }
              }
           }
@@ -26,7 +40,7 @@
              } else if (var3 == 2) {
                 this.isMiddlePressed = var6;
              } else if (var3 == 1) {
-@@ -109,11 +109,11 @@
+@@ -109,15 +111,16 @@
     }
  
     private void onScroll(long var1, double var3, double var5) {
@@ -38,8 +52,13 @@
                 double var9 = this.xpos * (double)this.minecraft.getWindow().getGuiScaledWidth() / (double)this.minecraft.getWindow().getScreenWidth();
                 double var11 = this.ypos * (double)this.minecraft.getWindow().getGuiScaledHeight() / (double)this.minecraft.getWindow().getScreenHeight();
                 this.minecraft.screen.mouseScrolled(var9, var11, var7);
++               this.minecraft.screen.afterMouseAction();
              } else if (this.minecraft.player != null) {
-@@ -130,15 +130,15 @@
+                if (this.accumulatedScroll != 0.0D && Math.signum(var7) != Math.signum(this.accumulatedScroll)) {
+                   this.accumulatedScroll = 0.0D;
+                }
+ 
+@@ -130,15 +133,15 @@
                 this.accumulatedScroll -= (double)var13;
                 if (this.minecraft.player.isSpectator()) {
                    if (this.minecraft.gui.getSpectatorGui().isMenuActive()) {
@@ -58,7 +77,7 @@
           }
        }
  
-@@ -184,11 +184,11 @@
+@@ -184,11 +187,11 @@
              this.ypos = var5;
              this.ignoreFirstMove = false;
           }
@@ -71,7 +90,20 @@
              Screen.wrapScreenError(() -> {
                 var7.mouseMoved(var8, var10);
              }, "mouseMoved event handler", var7.getClass().getCanonicalName());
-@@ -218,35 +218,41 @@
+@@ -197,10 +200,12 @@
+                double var14 = (var5 - this.ypos) * (double)this.minecraft.getWindow().getGuiScaledHeight() / (double)this.minecraft.getWindow().getScreenHeight();
+                Screen.wrapScreenError(() -> {
+                   var7.mouseDragged(var8, var10, this.activeButton, var12, var14);
+                }, "mouseDragged event handler", var7.getClass().getCanonicalName());
+             }
++
++            var7.afterMouseMove();
+          }
+ 
+          this.minecraft.getProfiler().push("mouse");
+          if (this.isMouseGrabbed() && this.minecraft.isWindowActive()) {
+             this.accumulatedDX += var3 - this.xpos;
+@@ -218,35 +223,41 @@
        double var1 = Blaze3D.getTime();
        double var3 = var1 - this.lastMouseEventTime;
        this.lastMouseEventTime = var1;
@@ -122,7 +154,7 @@
        } else {
           this.accumulatedDX = 0.0D;
           this.accumulatedDY = 0.0D;
-@@ -255,10 +261,14 @@
+@@ -255,10 +266,14 @@
  
     public boolean isLeftPressed() {
        return this.isLeftPressed;

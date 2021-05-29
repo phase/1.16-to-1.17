@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/structure/NetherFossilFeature.java
 +++ net/minecraft/world/level/levelgen/structure/NetherFossilFeature.java
-@@ -2,12 +2,14 @@
+@@ -2,53 +2,63 @@
  
  import com.mojang.serialization.Codec;
  import net.minecraft.core.BlockPos;
@@ -15,18 +15,29 @@
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.ChunkGenerator;
++import net.minecraft.world.level.levelgen.WorldGenerationContext;
  import net.minecraft.world.level.levelgen.feature.StructureFeature;
-@@ -21,34 +23,32 @@
+-import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.RangeDecoratorConfiguration;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
  
-    public StructureFeature.StructureStartFactory<NoneFeatureConfiguration> getStartFactory() {
+-public class NetherFossilFeature extends StructureFeature<NoneFeatureConfiguration> {
+-   public NetherFossilFeature(Codec<NoneFeatureConfiguration> var1) {
++public class NetherFossilFeature extends StructureFeature<RangeDecoratorConfiguration> {
++   public NetherFossilFeature(Codec<RangeDecoratorConfiguration> var1) {
+       super(var1);
+    }
+ 
+-   public StructureFeature.StructureStartFactory<NoneFeatureConfiguration> getStartFactory() {
++   public StructureFeature.StructureStartFactory<RangeDecoratorConfiguration> getStartFactory() {
        return NetherFossilFeature.FeatureStart::new;
     }
  
 -   public static class FeatureStart extends BeardedStructureStart<NoneFeatureConfiguration> {
 -      public FeatureStart(StructureFeature<NoneFeatureConfiguration> var1, int var2, int var3, BoundingBox var4, int var5, long var6) {
 -         super(var1, var2, var3, var4, var5, var6);
-+   public static class FeatureStart extends NoiseAffectingStructureStart<NoneFeatureConfiguration> {
-+      public FeatureStart(StructureFeature<NoneFeatureConfiguration> var1, ChunkPos var2, int var3, long var4) {
++   public static class FeatureStart extends NoiseAffectingStructureStart<RangeDecoratorConfiguration> {
++      public FeatureStart(StructureFeature<RangeDecoratorConfiguration> var1, ChunkPos var2, int var3, long var4) {
 +         super(var1, var2, var3, var4);
        }
  
@@ -37,23 +48,29 @@
 -         int var11 = var2.getSeaLevel();
 -         int var12 = var11 + this.random.nextInt(var2.getGenDepth() - 2 - var11);
 -         BlockGetter var13 = var2.getBaseColumn(var9, var10);
-+      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, ChunkPos var4, Biome var5, NoneFeatureConfiguration var6, LevelHeightAccessor var7) {
++      public void generatePieces(RegistryAccess var1, ChunkGenerator var2, StructureManager var3, ChunkPos var4, Biome var5, RangeDecoratorConfiguration var6, final LevelHeightAccessor var7) {
 +         int var8 = var4.getMinBlockX() + this.random.nextInt(16);
 +         int var9 = var4.getMinBlockZ() + this.random.nextInt(16);
 +         int var10 = var2.getSeaLevel();
-+         int var11 = var10 + this.random.nextInt(var2.getGenDepth() - 2 - var10);
-+         NoiseColumn var12 = var2.getBaseColumn(var8, var9, var7);
++         WorldGenerationContext var11 = new WorldGenerationContext() {
++            public int getMinGenY() {
++               return var7.getMinBuildHeight();
++            }
  
 -         for(BlockPos.MutableBlockPos var14 = new BlockPos.MutableBlockPos(var9, var12, var10); var12 > var11; --var12) {
--            BlockState var15 = var13.getBlockState(var14);
--            var14.move(Direction.DOWN);
--            BlockState var16 = var13.getBlockState(var14);
++            public int getGenDepth() {
++               return var7.getHeight();
++            }
++         };
++         int var12 = var6.height.sample(this.random, var11);
++         NoiseColumn var13 = var2.getBaseColumn(var8, var9, var7);
++
++         for(BlockPos.MutableBlockPos var14 = new BlockPos.MutableBlockPos(var8, var12, var9); var12 > var10; --var12) {
+             BlockState var15 = var13.getBlockState(var14);
+             var14.move(Direction.DOWN);
+             BlockState var16 = var13.getBlockState(var14);
 -            if (var15.isAir() && (var16.is(Blocks.SOUL_SAND) || var16.isFaceSturdy(var13, var14, Direction.UP))) {
-+         for(BlockPos.MutableBlockPos var13 = new BlockPos.MutableBlockPos(var8, var11, var9); var11 > var10; --var11) {
-+            BlockState var14 = var12.getBlockState(var13);
-+            var13.move(Direction.DOWN);
-+            BlockState var15 = var12.getBlockState(var13);
-+            if (var14.isAir() && (var15.is(Blocks.SOUL_SAND) || var15.isFaceSturdy(EmptyBlockGetter.INSTANCE, var13, Direction.UP))) {
++            if (var15.isAir() && (var16.is(Blocks.SOUL_SAND) || var16.isFaceSturdy(EmptyBlockGetter.INSTANCE, var14, Direction.UP))) {
                 break;
              }
           }
@@ -61,8 +78,8 @@
 -         if (var12 > var11) {
 -            NetherFossilPieces.addPieces(var3, this.pieces, this.random, new BlockPos(var9, var12, var10));
 -            this.calculateBoundingBox();
-+         if (var11 > var10) {
-+            NetherFossilPieces.addPieces(var3, this, this.random, new BlockPos(var8, var11, var9));
++         if (var12 > var10) {
++            NetherFossilPieces.addPieces(var3, this, this.random, new BlockPos(var8, var12, var9));
           }
        }
     }

@@ -18,7 +18,7 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.biome.Biomes;
-@@ -19,10 +19,14 @@
+@@ -19,30 +19,34 @@
  import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.block.BonemealableBlock;
  import net.minecraft.world.level.block.state.BlockState;
@@ -33,6 +33,28 @@
     }
  
     public InteractionResult useOn(UseOnContext var1) {
+       Level var2 = var1.getLevel();
+       BlockPos var3 = var1.getClickedPos();
+       BlockPos var4 = var3.relative(var1.getClickedFace());
+       if (growCrop(var1.getItemInHand(), var2, var3)) {
+          if (!var2.isClientSide) {
+-            var2.levelEvent(2005, var3, 0);
++            var2.levelEvent(1505, var3, 0);
+          }
+ 
+          return InteractionResult.sidedSuccess(var2.isClientSide);
+       } else {
+          BlockState var5 = var2.getBlockState(var3);
+          boolean var6 = var5.isFaceSturdy(var2, var3, var1.getClickedFace());
+          if (var6 && growWaterPlant(var1.getItemInHand(), var2, var4, var1.getClickedFace())) {
+             if (!var2.isClientSide) {
+-               var2.levelEvent(2005, var4, 0);
++               var2.levelEvent(1505, var4, 0);
+             }
+ 
+             return InteractionResult.sidedSuccess(var2.isClientSide);
+          } else {
+             return InteractionResult.PASS;
 @@ -73,43 +77,45 @@
     public static boolean growWaterPlant(ItemStack var0, Level var1, BlockPos var2, @Nullable Direction var3) {
        if (var1.getBlockState(var2).is(Blocks.WATER) && var1.getFluidState(var2).getAmount() == 8) {

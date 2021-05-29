@@ -1,7 +1,12 @@
 --- net/minecraft/world/entity/monster/hoglin/HoglinAi.java
 +++ net/minecraft/world/entity/monster/hoglin/HoglinAi.java
-@@ -6,13 +6,13 @@
+@@ -2,18 +2,18 @@
+ 
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableSet;
+ import com.mojang.datafixers.util.Pair;
  import java.util.List;
++import java.util.Objects;
  import java.util.Optional;
  import net.minecraft.core.BlockPos;
  import net.minecraft.sounds.SoundEvent;
@@ -9,16 +14,21 @@
 -import net.minecraft.util.IntRange;
  import net.minecraft.util.TimeUtil;
 -import net.minecraft.world.entity.AgableMob;
+-import net.minecraft.world.entity.EntitySelector;
 +import net.minecraft.util.valueproviders.UniformInt;
 +import net.minecraft.world.entity.AgeableMob;
- import net.minecraft.world.entity.EntitySelector;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.ai.Brain;
  import net.minecraft.world.entity.ai.behavior.AnimalMakeLove;
-@@ -36,13 +36,29 @@
+ import net.minecraft.world.entity.ai.behavior.BabyFollowAdult;
+@@ -33,16 +33,33 @@
+ import net.minecraft.world.entity.ai.behavior.SetWalkTargetFromAttackTargetIfTargetOutOfReach;
+ import net.minecraft.world.entity.ai.behavior.SetWalkTargetFromLookTarget;
+ import net.minecraft.world.entity.ai.behavior.StartAttacking;
  import net.minecraft.world.entity.ai.behavior.StopAttackingIfTargetInvalid;
  import net.minecraft.world.entity.ai.memory.MemoryModuleType;
++import net.minecraft.world.entity.ai.sensing.Sensor;
  import net.minecraft.world.entity.schedule.Activity;
  
  public class HoglinAi {
@@ -48,7 +58,7 @@
        initIdleActivity(var0);
        initFightActivity(var0);
        initRetreatActivity(var0);
-@@ -55,19 +71,19 @@
+@@ -55,19 +72,19 @@
     private static void initCoreActivity(Brain<Hoglin> var0) {
        var0.addActivity(Activity.CORE, 0, ImmutableList.of(new LookAtTargetSink(45, 90), new MoveToTargetSink()));
     }
@@ -71,7 +81,22 @@
     private static RunOne<Hoglin> createIdleMovementBehaviors() {
        return new RunOne(ImmutableList.of(Pair.of(new RandomStroll(0.4F), 2), Pair.of(new SetWalkTargetFromLookTarget(0.4F, 3), 2), Pair.of(new DoNothing(30, 60), 1)));
     }
-@@ -109,11 +125,11 @@
+@@ -76,11 +93,13 @@
+       Brain var1 = var0.getBrain();
+       Activity var2 = (Activity)var1.getActiveNonCoreActivity().orElse((Object)null);
+       var1.setActiveActivityToFirstValid(ImmutableList.of(Activity.FIGHT, Activity.AVOID, Activity.IDLE));
+       Activity var3 = (Activity)var1.getActiveNonCoreActivity().orElse((Object)null);
+       if (var2 != var3) {
+-         getSoundForCurrentActivity(var0).ifPresent(var0::playSound);
++         Optional var10000 = getSoundForCurrentActivity(var0);
++         Objects.requireNonNull(var0);
++         var10000.ifPresent(var0::playSound);
+       }
+ 
+       var0.setAggressive(var1.hasMemoryValue(MemoryModuleType.ATTACK_TARGET));
+    }
+ 
+@@ -109,15 +128,15 @@
     }
  
     private static void setAvoidTarget(Hoglin var0, LivingEntity var1) {
@@ -82,5 +107,23 @@
     }
  
     private static Optional<? extends LivingEntity> findNearestValidAttackTarget(Hoglin var0) {
-       return !isPacified(var0) && !isBreeding(var0) ? var0.getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER) : Optional.empty();
+-      return !isPacified(var0) && !isBreeding(var0) ? var0.getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER) : Optional.empty();
++      return !isPacified(var0) && !isBreeding(var0) ? var0.getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_ATTACKABLE_PLAYER) : Optional.empty();
     }
+ 
+    static boolean isPosNearNearestRepellent(Hoglin var0, BlockPos var1) {
+       Optional var2 = var0.getBrain().getMemory(MemoryModuleType.NEAREST_REPELLENT);
+       return var2.isPresent() && ((BlockPos)var2.get()).closerThan(var1, 8.0D);
+@@ -148,11 +167,11 @@
+       }
+    }
+ 
+    private static void maybeRetaliate(Hoglin var0, LivingEntity var1) {
+       if (!var0.getBrain().isActive(Activity.AVOID) || var1.getType() != EntityType.PIGLIN) {
+-         if (EntitySelector.ATTACK_ALLOWED.test(var1)) {
++         if (Sensor.isEntityAttackable(var0, var1)) {
+             if (var1.getType() != EntityType.HOGLIN) {
+                if (!BehaviorUtils.isOtherTargetMuchFurtherAwayThanCurrentAttackTarget(var0, var1, 4.0D)) {
+                   setAttackTarget(var0, var1);
+                   broadcastAttackTarget(var0, var1);
+                }

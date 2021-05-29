@@ -1,8 +1,9 @@
 --- net/minecraft/world/entity/animal/AbstractFish.java
 +++ net/minecraft/world/entity/animal/AbstractFish.java
-@@ -1,16 +1,14 @@
+@@ -1,16 +1,15 @@
  package net.minecraft.world.entity.animal;
  
++import java.util.Objects;
  import java.util.Random;
  import java.util.function.Predicate;
 -import net.minecraft.advancements.CriteriaTriggers;
@@ -17,7 +18,7 @@
  import net.minecraft.tags.FluidTags;
  import net.minecraft.util.Mth;
  import net.minecraft.world.InteractionHand;
-@@ -31,18 +29,17 @@
+@@ -31,18 +30,17 @@
  import net.minecraft.world.entity.ai.goal.RandomSwimmingGoal;
  import net.minecraft.world.entity.ai.navigation.PathNavigation;
  import net.minecraft.world.entity.ai.navigation.WaterBoundPathNavigation;
@@ -37,7 +38,7 @@
     public AbstractFish(EntityType<? extends AbstractFish> var1, Level var2) {
        super(var1, var2);
        this.moveControl = new AbstractFish.FishMoveControl(this);
-@@ -75,11 +72,11 @@
+@@ -75,11 +73,11 @@
     protected void defineSynchedData() {
        super.defineSynchedData();
        this.entityData.define(FROM_BUCKET, false);
@@ -50,7 +51,20 @@
  
     public void setFromBucket(boolean var1) {
        this.entityData.set(FROM_BUCKET, var1);
-@@ -133,42 +130,25 @@
+@@ -98,11 +96,11 @@
+    protected void registerGoals() {
+       super.registerGoals();
+       this.goalSelector.addGoal(0, new PanicGoal(this, 1.25D));
+       GoalSelector var10000 = this.goalSelector;
+       Predicate var10009 = EntitySelector.NO_SPECTATORS;
+-      var10009.getClass();
++      Objects.requireNonNull(var10009);
+       var10000.addGoal(2, new AvoidEntityGoal(this, Player.class, 8.0F, 1.6D, 1.4D, var10009::test));
+       this.goalSelector.addGoal(4, new AbstractFish.FishSwimGoal(this));
+    }
+ 
+    protected PathNavigation createNavigation(Level var1) {
+@@ -133,42 +131,25 @@
  
        super.aiStep();
     }
@@ -102,3 +116,48 @@
     }
  
     protected abstract SoundEvent getFlopSound();
+@@ -182,11 +163,11 @@
+ 
+    static {
+       FROM_BUCKET = SynchedEntityData.defineId(AbstractFish.class, EntityDataSerializers.BOOLEAN);
+    }
+ 
+-   static class FishMoveControl extends MoveControl {
++   private static class FishMoveControl extends MoveControl {
+       private final AbstractFish fish;
+ 
+       FishMoveControl(AbstractFish var1) {
+          super(var1);
+          this.fish = var1;
+@@ -202,27 +183,27 @@
+             this.fish.setSpeed(Mth.lerp(0.125F, this.fish.getSpeed(), var1));
+             double var2 = this.wantedX - this.fish.getX();
+             double var4 = this.wantedY - this.fish.getY();
+             double var6 = this.wantedZ - this.fish.getZ();
+             if (var4 != 0.0D) {
+-               double var8 = (double)Mth.sqrt(var2 * var2 + var4 * var4 + var6 * var6);
++               double var8 = Math.sqrt(var2 * var2 + var4 * var4 + var6 * var6);
+                this.fish.setDeltaMovement(this.fish.getDeltaMovement().add(0.0D, (double)this.fish.getSpeed() * (var4 / var8) * 0.1D, 0.0D));
+             }
+ 
+             if (var2 != 0.0D || var6 != 0.0D) {
+                float var10 = (float)(Mth.atan2(var6, var2) * 57.2957763671875D) - 90.0F;
+-               this.fish.yRot = this.rotlerp(this.fish.yRot, var10, 90.0F);
+-               this.fish.yBodyRot = this.fish.yRot;
++               this.fish.setYRot(this.rotlerp(this.fish.getYRot(), var10, 90.0F));
++               this.fish.yBodyRot = this.fish.getYRot();
+             }
+ 
+          } else {
+             this.fish.setSpeed(0.0F);
+          }
+       }
+    }
+ 
+-   static class FishSwimGoal extends RandomSwimmingGoal {
++   private static class FishSwimGoal extends RandomSwimmingGoal {
+       private final AbstractFish fish;
+ 
+       public FishSwimGoal(AbstractFish var1) {
+          super(var1, 1.0D, 40);
+          this.fish = var1;

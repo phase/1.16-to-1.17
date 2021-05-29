@@ -40,7 +40,7 @@
        this.goalSelector.addGoal(5, new FollowParentGoal(this, 1.1D));
        this.goalSelector.addGoal(7, new RandomStrollGoal(this, 1.0D, 60));
        this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));
-@@ -176,21 +179,21 @@
+@@ -176,25 +179,25 @@
        Entity var1 = this.getControllingPassenger();
        if (!(var1 instanceof Player)) {
           return false;
@@ -62,8 +62,13 @@
     }
  
     public Vec3 getDismountLocationForPassenger(LivingEntity var1) {
-       Vec3[] var2 = new Vec3[]{getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot - 22.5F), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot + 22.5F), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot - 45.0F), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot + 45.0F)};
+-      Vec3[] var2 = new Vec3[]{getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot - 22.5F), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot + 22.5F), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot - 45.0F), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.yRot + 45.0F)};
++      Vec3[] var2 = new Vec3[]{getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.getYRot()), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.getYRot() - 22.5F), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.getYRot() + 22.5F), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.getYRot() - 45.0F), getCollisionHorizontalEscapeVector((double)this.getBbWidth(), (double)var1.getBbWidth(), var1.getYRot() + 45.0F)};
        LinkedHashSet var3 = Sets.newLinkedHashSet();
+       double var4 = this.getBoundingBox().maxY;
+       double var6 = this.getBoundingBox().minY - 0.5D;
+       BlockPos.MutableBlockPos var8 = new BlockPos.MutableBlockPos();
+       Vec3[] var9 = var2;
 @@ -334,11 +337,11 @@
     protected SoundEvent getDeathSound() {
        return SoundEvents.STRIDER_DEATH;
@@ -103,7 +108,7 @@
                 this.level.playSound((Player)null, this.getX(), this.getY(), this.getZ(), SoundEvents.STRIDER_EAT, this.getSoundSource(), 1.0F, 1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.2F);
              }
  
-@@ -412,26 +415,26 @@
+@@ -412,40 +415,40 @@
              Mob var6 = (Mob)EntityType.ZOMBIFIED_PIGLIN.create(var1.getLevel());
              var7 = this.spawnJockey(var1, var2, var6, new Zombie.ZombieGroupData(Zombie.getSpawnAsBabyOdds(this.random), false));
              var6.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.WARPED_FUNGUS_ON_A_STICK));
@@ -123,7 +128,8 @@
     }
  
     private SpawnGroupData spawnJockey(ServerLevelAccessor var1, DifficultyInstance var2, Mob var3, @Nullable SpawnGroupData var4) {
-       var3.moveTo(this.getX(), this.getY(), this.getZ(), this.yRot, 0.0F);
+-      var3.moveTo(this.getX(), this.getY(), this.getZ(), this.yRot, 0.0F);
++      var3.moveTo(this.getX(), this.getY(), this.getZ(), this.getYRot(), 0.0F);
        var3.finalizeSpawn(var1, var2, MobSpawnType.JOCKEY, var4, (CompoundTag)null);
        var3.startRiding(this, true);
 -      return new AgableMob.AgableMobGroupData(0.0F);
@@ -133,3 +139,19 @@
     static {
        FOOD_ITEMS = Ingredient.of(Items.WARPED_FUNGUS);
        TEMPT_ITEMS = Ingredient.of(Items.WARPED_FUNGUS, Items.WARPED_FUNGUS_ON_A_STICK);
+       DATA_BOOST_TIME = SynchedEntityData.defineId(Strider.class, EntityDataSerializers.INT);
+       DATA_SUFFOCATING = SynchedEntityData.defineId(Strider.class, EntityDataSerializers.BOOLEAN);
+       DATA_SADDLE_ID = SynchedEntityData.defineId(Strider.class, EntityDataSerializers.BOOLEAN);
+    }
+ 
+-   static class StriderGoToLavaGoal extends MoveToBlockGoal {
++   private static class StriderGoToLavaGoal extends MoveToBlockGoal {
+       private final Strider strider;
+ 
+-      private StriderGoToLavaGoal(Strider var1, double var2) {
++      StriderGoToLavaGoal(Strider var1, double var2) {
+          super(var1, var2, 8, 2);
+          this.strider = var1;
+       }
+ 
+       public BlockPos getMoveToTarget() {

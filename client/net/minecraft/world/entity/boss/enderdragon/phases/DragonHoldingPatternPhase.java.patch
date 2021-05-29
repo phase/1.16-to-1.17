@@ -1,13 +1,32 @@
 --- net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
 +++ net/minecraft/world/entity/boss/enderdragon/phases/DragonHoldingPatternPhase.java
-@@ -60,11 +60,11 @@
-          Player var5 = this.dragon.level.getNearestPlayer(NEW_TARGET_TARGETING, (double)var1.getX(), (double)var1.getY(), (double)var1.getZ());
+@@ -13,11 +13,11 @@
+ import net.minecraft.world.level.pathfinder.Node;
+ import net.minecraft.world.level.pathfinder.Path;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class DragonHoldingPatternPhase extends AbstractDragonPhaseInstance {
+-   private static final TargetingConditions NEW_TARGET_TARGETING = (new TargetingConditions()).range(64.0D);
++   private static final TargetingConditions NEW_TARGET_TARGETING = TargetingConditions.forCombat().ignoreLineOfSight();
+    private Path currentPath;
+    private Vec3 targetLocation;
+    private boolean clockwise;
+ 
+    public DragonHoldingPatternPhase(EnderDragon var1) {
+@@ -55,16 +55,16 @@
+             this.dragon.getPhaseManager().setPhase(EnderDragonPhase.LANDING_APPROACH);
+             return;
+          }
+ 
+          double var3 = 64.0D;
+-         Player var5 = this.dragon.level.getNearestPlayer(NEW_TARGET_TARGETING, (double)var1.getX(), (double)var1.getY(), (double)var1.getZ());
++         Player var5 = this.dragon.level.getNearestPlayer(NEW_TARGET_TARGETING, this.dragon, (double)var1.getX(), (double)var1.getY(), (double)var1.getZ());
           if (var5 != null) {
              var3 = var1.distSqr(var5.position(), true) / 512.0D;
           }
  
 -         if (var5 != null && !var5.abilities.invulnerable && (this.dragon.getRandom().nextInt(Mth.abs((int)var3) + 2) == 0 || this.dragon.getRandom().nextInt(var2 + 2) == 0)) {
-+         if (var5 != null && !var5.getAbilities().invulnerable && (this.dragon.getRandom().nextInt(Mth.abs((int)var3) + 2) == 0 || this.dragon.getRandom().nextInt(var2 + 2) == 0)) {
++         if (var5 != null && (this.dragon.getRandom().nextInt(Mth.abs((int)var3) + 2) == 0 || this.dragon.getRandom().nextInt(var2 + 2) == 0)) {
              this.strafePlayer(var5);
              return;
           }
@@ -20,7 +39,7 @@
  
     public void onCrystalDestroyed(EndCrystal var1, BlockPos var2, DamageSource var3, @Nullable Player var4) {
 -      if (var4 != null && !var4.abilities.invulnerable) {
-+      if (var4 != null && !var4.getAbilities().invulnerable) {
++      if (var4 != null && this.dragon.canAttack(var4)) {
           this.strafePlayer(var4);
        }
  

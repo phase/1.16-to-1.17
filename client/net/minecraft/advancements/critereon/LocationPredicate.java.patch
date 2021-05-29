@@ -1,50 +1,211 @@
 --- net/minecraft/advancements/critereon/LocationPredicate.java
 +++ net/minecraft/advancements/critereon/LocationPredicate.java
-@@ -83,18 +83,20 @@
-          if (!var7.isPresent()) {
+@@ -3,10 +3,11 @@
+ import com.google.gson.JsonElement;
+ import com.google.gson.JsonNull;
+ import com.google.gson.JsonObject;
+ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.JsonOps;
++import java.util.Objects;
+ import java.util.Optional;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Registry;
+ import net.minecraft.resources.ResourceKey;
+@@ -21,13 +22,13 @@
+ import org.apache.logging.log4j.Logger;
+ 
+ public class LocationPredicate {
+    private static final Logger LOGGER = LogManager.getLogger();
+    public static final LocationPredicate ANY;
+-   private final MinMaxBounds.Floats x;
+-   private final MinMaxBounds.Floats y;
+-   private final MinMaxBounds.Floats z;
++   private final MinMaxBounds.Doubles x;
++   private final MinMaxBounds.Doubles y;
++   private final MinMaxBounds.Doubles z;
+    @Nullable
+    private final ResourceKey<Biome> biome;
+    @Nullable
+    private final StructureFeature<?> feature;
+    @Nullable
+@@ -36,11 +37,11 @@
+    private final Boolean smokey;
+    private final LightPredicate light;
+    private final BlockPredicate block;
+    private final FluidPredicate fluid;
+ 
+-   public LocationPredicate(MinMaxBounds.Floats var1, MinMaxBounds.Floats var2, MinMaxBounds.Floats var3, @Nullable ResourceKey<Biome> var4, @Nullable StructureFeature<?> var5, @Nullable ResourceKey<Level> var6, @Nullable Boolean var7, LightPredicate var8, BlockPredicate var9, FluidPredicate var10) {
++   public LocationPredicate(MinMaxBounds.Doubles var1, MinMaxBounds.Doubles var2, MinMaxBounds.Doubles var3, @Nullable ResourceKey<Biome> var4, @Nullable StructureFeature<?> var5, @Nullable ResourceKey<Level> var6, @Nullable Boolean var7, LightPredicate var8, BlockPredicate var9, FluidPredicate var10) {
+       this.x = var1;
+       this.y = var2;
+       this.z = var3;
+       this.biome = var4;
+       this.feature = var5;
+@@ -50,54 +51,48 @@
+       this.block = var9;
+       this.fluid = var10;
+    }
+ 
+    public static LocationPredicate inBiome(ResourceKey<Biome> var0) {
+-      return new LocationPredicate(MinMaxBounds.Floats.ANY, MinMaxBounds.Floats.ANY, MinMaxBounds.Floats.ANY, var0, (StructureFeature)null, (ResourceKey)null, (Boolean)null, LightPredicate.ANY, BlockPredicate.ANY, FluidPredicate.ANY);
++      return new LocationPredicate(MinMaxBounds.Doubles.ANY, MinMaxBounds.Doubles.ANY, MinMaxBounds.Doubles.ANY, var0, (StructureFeature)null, (ResourceKey)null, (Boolean)null, LightPredicate.ANY, BlockPredicate.ANY, FluidPredicate.ANY);
+    }
+ 
+    public static LocationPredicate inDimension(ResourceKey<Level> var0) {
+-      return new LocationPredicate(MinMaxBounds.Floats.ANY, MinMaxBounds.Floats.ANY, MinMaxBounds.Floats.ANY, (ResourceKey)null, (StructureFeature)null, var0, (Boolean)null, LightPredicate.ANY, BlockPredicate.ANY, FluidPredicate.ANY);
++      return new LocationPredicate(MinMaxBounds.Doubles.ANY, MinMaxBounds.Doubles.ANY, MinMaxBounds.Doubles.ANY, (ResourceKey)null, (StructureFeature)null, var0, (Boolean)null, LightPredicate.ANY, BlockPredicate.ANY, FluidPredicate.ANY);
+    }
+ 
+    public static LocationPredicate inFeature(StructureFeature<?> var0) {
+-      return new LocationPredicate(MinMaxBounds.Floats.ANY, MinMaxBounds.Floats.ANY, MinMaxBounds.Floats.ANY, (ResourceKey)null, var0, (ResourceKey)null, (Boolean)null, LightPredicate.ANY, BlockPredicate.ANY, FluidPredicate.ANY);
++      return new LocationPredicate(MinMaxBounds.Doubles.ANY, MinMaxBounds.Doubles.ANY, MinMaxBounds.Doubles.ANY, (ResourceKey)null, var0, (ResourceKey)null, (Boolean)null, LightPredicate.ANY, BlockPredicate.ANY, FluidPredicate.ANY);
+    }
+ 
+    public boolean matches(ServerLevel var1, double var2, double var4, double var6) {
+-      return this.matches(var1, (float)var2, (float)var4, (float)var6);
+-   }
+-
+-   public boolean matches(ServerLevel var1, float var2, float var3, float var4) {
+       if (!this.x.matches(var2)) {
+          return false;
+-      } else if (!this.y.matches(var3)) {
++      } else if (!this.y.matches(var4)) {
+          return false;
+-      } else if (!this.z.matches(var4)) {
++      } else if (!this.z.matches(var6)) {
+          return false;
+       } else if (this.dimension != null && this.dimension != var1.dimension()) {
+          return false;
+       } else {
+-         BlockPos var5 = new BlockPos((double)var2, (double)var3, (double)var4);
+-         boolean var6 = var1.isLoaded(var5);
+-         Optional var7 = var1.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY).getResourceKey(var1.getBiome(var5));
+-         if (!var7.isPresent()) {
++         BlockPos var8 = new BlockPos(var2, var4, var6);
++         boolean var9 = var1.isLoaded(var8);
++         Optional var10 = var1.registryAccess().registryOrThrow(Registry.BIOME_REGISTRY).getResourceKey(var1.getBiome(var8));
++         if (!var10.isPresent()) {
              return false;
-          } else if (this.biome != null && (!var6 || this.biome != var7.get())) {
+-         } else if (this.biome != null && (!var6 || this.biome != var7.get())) {
++         } else if (this.biome != null && (!var9 || this.biome != var10.get())) {
              return false;
-          } else if (this.feature == null || var6 && var1.structureFeatureManager().getStructureAt(var5, true, this.feature).isValid()) {
+-         } else if (this.feature == null || var6 && var1.structureFeatureManager().getStructureAt(var5, true, this.feature).isValid()) {
 -            if (this.smokey != null && (!var6 || this.smokey != CampfireBlock.isSmokeyPos(var1, var5))) {
 -               return false;
 -            } else if (!this.light.matches(var1, var5)) {
 -               return false;
 -            } else if (!this.block.matches(var1, var5)) {
 -               return false;
-+            if (this.smokey == null || var6 && this.smokey == CampfireBlock.isSmokeyPos(var1, var5)) {
-+               if (!this.light.matches(var1, var5)) {
-+                  return false;
-+               } else if (!this.block.matches(var1, var5)) {
-+                  return false;
-+               } else {
-+                  return this.fluid.matches(var1, var5);
-+               }
-             } else {
+-            } else {
 -               return this.fluid.matches(var1, var5);
-+               return false;
-             }
-          } else {
+-            }
+-         } else {
++         } else if (this.feature != null && (!var9 || !var1.structureFeatureManager().getStructureAt(var8, true, this.feature).isValid())) {
              return false;
++         } else if (this.smokey != null && (!var9 || this.smokey != CampfireBlock.isSmokeyPos(var1, var8))) {
++            return false;
++         } else if (!this.light.matches(var1, var8)) {
++            return false;
++         } else if (!this.block.matches(var1, var8)) {
++            return false;
++         } else {
++            return this.fluid.matches(var1, var8);
           }
        }
-@@ -209,20 +211,55 @@
+    }
+ 
+    public JsonElement serializeToJson() {
+@@ -114,11 +109,11 @@
+          }
+ 
+          if (this.dimension != null) {
+             DataResult var10000 = Level.RESOURCE_KEY_CODEC.encodeStart(JsonOps.INSTANCE, this.dimension);
+             Logger var10001 = LOGGER;
+-            var10001.getClass();
++            Objects.requireNonNull(var10001);
+             var10000.resultOrPartial(var10001::error).ifPresent((var1x) -> {
+                var1.add("dimension", var1x);
+             });
+          }
+ 
+@@ -143,18 +138,18 @@
+ 
+    public static LocationPredicate fromJson(@Nullable JsonElement var0) {
+       if (var0 != null && !var0.isJsonNull()) {
+          JsonObject var1 = GsonHelper.convertToJsonObject(var0, "location");
+          JsonObject var2 = GsonHelper.getAsJsonObject(var1, "position", new JsonObject());
+-         MinMaxBounds.Floats var3 = MinMaxBounds.Floats.fromJson(var2.get("x"));
+-         MinMaxBounds.Floats var4 = MinMaxBounds.Floats.fromJson(var2.get("y"));
+-         MinMaxBounds.Floats var5 = MinMaxBounds.Floats.fromJson(var2.get("z"));
++         MinMaxBounds.Doubles var3 = MinMaxBounds.Doubles.fromJson(var2.get("x"));
++         MinMaxBounds.Doubles var4 = MinMaxBounds.Doubles.fromJson(var2.get("y"));
++         MinMaxBounds.Doubles var5 = MinMaxBounds.Doubles.fromJson(var2.get("z"));
+          ResourceKey var13;
+          if (var1.has("dimension")) {
+             DataResult var10000 = ResourceLocation.CODEC.parse(JsonOps.INSTANCE, var1.get("dimension"));
+             Logger var10001 = LOGGER;
+-            var10001.getClass();
++            Objects.requireNonNull(var10001);
+             var13 = (ResourceKey)var10000.resultOrPartial(var10001::error).map((var0x) -> {
+                return ResourceKey.create(Registry.DIMENSION_REGISTRY, var0x);
+             }).orElse((Object)null);
+          } else {
+             var13 = null;
+@@ -177,17 +172,17 @@
+          return ANY;
+       }
+    }
+ 
+    static {
+-      ANY = new LocationPredicate(MinMaxBounds.Floats.ANY, MinMaxBounds.Floats.ANY, MinMaxBounds.Floats.ANY, (ResourceKey)null, (StructureFeature)null, (ResourceKey)null, (Boolean)null, LightPredicate.ANY, BlockPredicate.ANY, FluidPredicate.ANY);
++      ANY = new LocationPredicate(MinMaxBounds.Doubles.ANY, MinMaxBounds.Doubles.ANY, MinMaxBounds.Doubles.ANY, (ResourceKey)null, (StructureFeature)null, (ResourceKey)null, (Boolean)null, LightPredicate.ANY, BlockPredicate.ANY, FluidPredicate.ANY);
+    }
+ 
+    public static class Builder {
+-      private MinMaxBounds.Floats x;
+-      private MinMaxBounds.Floats y;
+-      private MinMaxBounds.Floats z;
++      private MinMaxBounds.Doubles x;
++      private MinMaxBounds.Doubles y;
++      private MinMaxBounds.Doubles z;
+       @Nullable
+       private ResourceKey<Biome> biome;
+       @Nullable
+       private StructureFeature<?> feature;
+       @Nullable
+@@ -197,32 +192,67 @@
+       private LightPredicate light;
+       private BlockPredicate block;
+       private FluidPredicate fluid;
+ 
+       public Builder() {
+-         this.x = MinMaxBounds.Floats.ANY;
+-         this.y = MinMaxBounds.Floats.ANY;
+-         this.z = MinMaxBounds.Floats.ANY;
++         this.x = MinMaxBounds.Doubles.ANY;
++         this.y = MinMaxBounds.Doubles.ANY;
++         this.z = MinMaxBounds.Doubles.ANY;
+          this.light = LightPredicate.ANY;
+          this.block = BlockPredicate.ANY;
+          this.fluid = FluidPredicate.ANY;
+       }
  
        public static LocationPredicate.Builder location() {
           return new LocationPredicate.Builder();
        }
  
-+      public LocationPredicate.Builder setX(MinMaxBounds.Floats var1) {
++      public LocationPredicate.Builder setX(MinMaxBounds.Doubles var1) {
 +         this.x = var1;
 +         return this;
 +      }
 +
-+      public LocationPredicate.Builder setY(MinMaxBounds.Floats var1) {
++      public LocationPredicate.Builder setY(MinMaxBounds.Doubles var1) {
 +         this.y = var1;
 +         return this;
 +      }
 +
-+      public LocationPredicate.Builder setZ(MinMaxBounds.Floats var1) {
++      public LocationPredicate.Builder setZ(MinMaxBounds.Doubles var1) {
 +         this.z = var1;
 +         return this;
 +      }

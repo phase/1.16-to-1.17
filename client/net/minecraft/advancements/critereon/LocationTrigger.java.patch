@@ -1,0 +1,46 @@
+--- net/minecraft/advancements/critereon/LocationTrigger.java
++++ net/minecraft/advancements/critereon/LocationTrigger.java
+@@ -4,13 +4,15 @@
+ import net.minecraft.advancements.CriteriaTriggers;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.util.GsonHelper;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.level.block.Block;
+ 
+ public class LocationTrigger extends SimpleCriterionTrigger<LocationTrigger.TriggerInstance> {
+-   private final ResourceLocation id;
++   final ResourceLocation id;
+ 
+    public LocationTrigger(ResourceLocation var1) {
+       this.id = var1;
+    }
+ 
+@@ -40,18 +42,26 @@
+ 
+       public static LocationTrigger.TriggerInstance located(LocationPredicate var0) {
+          return new LocationTrigger.TriggerInstance(CriteriaTriggers.LOCATION.id, EntityPredicate.Composite.ANY, var0);
+       }
+ 
++      public static LocationTrigger.TriggerInstance located(EntityPredicate var0) {
++         return new LocationTrigger.TriggerInstance(CriteriaTriggers.LOCATION.id, EntityPredicate.Composite.wrap(var0), LocationPredicate.ANY);
++      }
++
+       public static LocationTrigger.TriggerInstance sleptInBed() {
+          return new LocationTrigger.TriggerInstance(CriteriaTriggers.SLEPT_IN_BED.id, EntityPredicate.Composite.ANY, LocationPredicate.ANY);
+       }
+ 
+       public static LocationTrigger.TriggerInstance raidWon() {
+          return new LocationTrigger.TriggerInstance(CriteriaTriggers.RAID_WIN.id, EntityPredicate.Composite.ANY, LocationPredicate.ANY);
+       }
+ 
++      public static LocationTrigger.TriggerInstance walkOnBlockWithEquipment(Block var0, Item var1) {
++         return located(EntityPredicate.Builder.entity().equipment(EntityEquipmentPredicate.Builder.equipment().feet(ItemPredicate.Builder.item().of(var1).build()).build()).steppingOn(LocationPredicate.Builder.location().setBlock(BlockPredicate.Builder.block().of(var0).build()).build()).build());
++      }
++
+       public boolean matches(ServerLevel var1, double var2, double var4, double var6) {
+          return this.location.matches(var1, var2, var4, var6);
+       }
+ 
+       public JsonObject serializeToJson(SerializationContext var1) {

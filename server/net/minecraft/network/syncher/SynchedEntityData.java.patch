@@ -41,7 +41,7 @@
     private boolean isDirty;
  
     public SynchedEntityData(Entity var1) {
-@@ -45,19 +50,19 @@
+@@ -45,42 +50,43 @@
           }
        }
  
@@ -63,7 +63,34 @@
           }
  
           var6 = var3;
-@@ -127,16 +132,17 @@
+       }
+ 
+       if (var6 > 254) {
+-         throw new IllegalArgumentException("Data value id is too big with " + var6 + "! (Max is " + 254 + ")");
++         throw new IllegalArgumentException("Data value id is too big with " + var6 + "! (Max is 254)");
+       } else {
+          ENTITY_ID_POOL.put(var0, var6);
+          return var1.createAccessor(var6);
+       }
+    }
+ 
+    public <T> void define(EntityDataAccessor<T> var1, T var2) {
+       int var3 = var1.getId();
+       if (var3 > 254) {
+-         throw new IllegalArgumentException("Data value id is too big with " + var3 + "! (Max is " + 254 + ")");
++         throw new IllegalArgumentException("Data value id is too big with " + var3 + "! (Max is 254)");
+       } else if (this.itemsById.containsKey(var3)) {
+          throw new IllegalArgumentException("Duplicate id value for " + var3 + "!");
+       } else if (EntityDataSerializers.getSerializedId(var1.getSerializer()) < 0) {
+-         throw new IllegalArgumentException("Unregistered serializer " + var1.getSerializer() + " for " + var3 + "!");
++         EntityDataSerializer var10002 = var1.getSerializer();
++         throw new IllegalArgumentException("Unregistered serializer " + var10002 + " for " + var3 + "!");
+       } else {
+          this.createDataItem(var1, var2);
+       }
+    }
+ 
+@@ -127,16 +133,17 @@
  
     public boolean isDirty() {
        return this.isDirty;
@@ -85,7 +112,7 @@
  
        var1.writeByte(255);
     }
-@@ -144,11 +150,11 @@
+@@ -144,11 +151,11 @@
     @Nullable
     public List<SynchedEntityData.DataItem<?>> packDirty() {
        ArrayList var1 = null;
@@ -98,7 +125,7 @@
              SynchedEntityData.DataItem var3 = (SynchedEntityData.DataItem)var2.next();
              if (var3.isDirty()) {
                 var3.setDirty(false);
-@@ -171,22 +177,22 @@
+@@ -171,22 +178,22 @@
     public List<SynchedEntityData.DataItem<?>> getAll() {
        ArrayList var1 = null;
        this.lock.readLock().lock();
@@ -123,7 +150,7 @@
        if (var3 < 0) {
           throw new EncoderException("Unknown serializer type " + var2.getSerializer());
        } else {
-@@ -195,11 +201,11 @@
+@@ -195,11 +202,11 @@
           var2.getSerializer().write(var0, var1.getValue());
        }
     }
@@ -136,7 +163,7 @@
        short var2;
        while((var2 = var0.readUnsignedByte()) != 255) {
           if (var1 == null) {
-@@ -220,18 +226,43 @@
+@@ -220,30 +227,59 @@
  
     private static <T> SynchedEntityData.DataItem<T> genericHelper(FriendlyByteBuf var0, int var1, EntityDataSerializer<T> var2) {
        return new SynchedEntityData.DataItem(var2.createAccessor(var1), var2.read(var0));
@@ -144,18 +171,22 @@
  
 +   public void assignValues(List<SynchedEntityData.DataItem<?>> var1) {
 +      this.lock.writeLock().lock();
-+      Iterator var2 = var1.iterator();
 +
-+      while(var2.hasNext()) {
-+         SynchedEntityData.DataItem var3 = (SynchedEntityData.DataItem)var2.next();
-+         SynchedEntityData.DataItem var4 = (SynchedEntityData.DataItem)this.itemsById.get(var3.getAccessor().getId());
-+         if (var4 != null) {
-+            this.assignValue(var4, var3);
-+            this.entity.onSyncedDataUpdated(var3.getAccessor());
++      try {
++         Iterator var2 = var1.iterator();
++
++         while(var2.hasNext()) {
++            SynchedEntityData.DataItem var3 = (SynchedEntityData.DataItem)var2.next();
++            SynchedEntityData.DataItem var4 = (SynchedEntityData.DataItem)this.itemsById.get(var3.getAccessor().getId());
++            if (var4 != null) {
++               this.assignValue(var4, var3);
++               this.entity.onSyncedDataUpdated(var3.getAccessor());
++            }
 +         }
++      } finally {
++         this.lock.writeLock().unlock();
 +      }
 +
-+      this.lock.writeLock().unlock();
 +      this.isDirty = true;
 +   }
 +
@@ -181,3 +212,17 @@
           SynchedEntityData.DataItem var2 = (SynchedEntityData.DataItem)var1.next();
           var2.setDirty(false);
        }
+ 
+       this.lock.readLock().unlock();
+    }
+ 
+    public static class DataItem<T> {
+-      private final EntityDataAccessor<T> accessor;
+-      private T value;
++      final EntityDataAccessor<T> accessor;
++      T value;
+       private boolean dirty;
+ 
+       public DataItem(EntityDataAccessor<T> var1, T var2) {
+          this.accessor = var1;
+          this.value = var2;

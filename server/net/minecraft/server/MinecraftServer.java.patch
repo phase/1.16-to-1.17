@@ -12,7 +12,27 @@
  import java.io.File;
  import java.io.IOException;
  import java.io.UnsupportedEncodingException;
-@@ -71,24 +72,28 @@
+@@ -48,17 +49,19 @@
+ import java.util.Map.Entry;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.Executor;
+ import java.util.concurrent.atomic.AtomicReference;
+ import java.util.function.BooleanSupplier;
++import java.util.function.Consumer;
+ import java.util.function.Function;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import javax.imageio.ImageIO;
+ import net.minecraft.CrashReport;
+ import net.minecraft.ReportedException;
+ import net.minecraft.SharedConstants;
++import net.minecraft.SystemReport;
+ import net.minecraft.Util;
+ import net.minecraft.commands.CommandSource;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.commands.Commands;
+ import net.minecraft.core.BlockPos;
+@@ -71,24 +74,28 @@
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
@@ -41,7 +61,30 @@
  import net.minecraft.server.players.ServerOpListEntry;
  import net.minecraft.server.players.UserWhiteList;
  import net.minecraft.tags.BlockTags;
-@@ -127,38 +132,55 @@
+@@ -97,15 +104,20 @@
+ import net.minecraft.util.CryptException;
+ import net.minecraft.util.FrameTimer;
+ import net.minecraft.util.Mth;
+ import net.minecraft.util.ProgressListener;
+ import net.minecraft.util.Unit;
+-import net.minecraft.util.profiling.ContinuousProfiler;
+-import net.minecraft.util.profiling.InactiveProfiler;
++import net.minecraft.util.profiling.EmptyProfileResults;
+ import net.minecraft.util.profiling.ProfileResults;
+ import net.minecraft.util.profiling.ProfilerFiller;
++import net.minecraft.util.profiling.ResultField;
+ import net.minecraft.util.profiling.SingleTickProfiler;
++import net.minecraft.util.profiling.metrics.profiling.ActiveMetricsRecorder;
++import net.minecraft.util.profiling.metrics.profiling.InactiveMetricsRecorder;
++import net.minecraft.util.profiling.metrics.profiling.MetricsRecorder;
++import net.minecraft.util.profiling.metrics.profiling.ServerMetricsSamplersProvider;
++import net.minecraft.util.profiling.metrics.storage.MetricsPersister;
+ import net.minecraft.util.thread.ReentrantBlockableEventLoop;
+ import net.minecraft.world.Difficulty;
+ import net.minecraft.world.Snooper;
+ import net.minecraft.world.SnooperPopulator;
+ import net.minecraft.world.entity.Entity;
+@@ -127,44 +139,67 @@
  import net.minecraft.world.level.border.BorderChangeListener;
  import net.minecraft.world.level.border.WorldBorder;
  import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -74,7 +117,8 @@
  import org.apache.logging.log4j.Logger;
  
  public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTask> implements SnooperPopulator, CommandSource, AutoCloseable {
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   private static final float AVERAGE_TICK_TIME_SMOOTHING = 0.8F;
 +   private static final int TICK_STATS_SPAN = 100;
 +   public static final int MS_PER_TICK = 50;
@@ -98,8 +142,21 @@
     protected final PlayerDataStorage playerDataStorage;
     private final Snooper snooper = new Snooper("server", this, Util.getMillis());
     private final List<Runnable> tickables = Lists.newArrayList();
-    private final ContinuousProfiler continousProfiler;
-@@ -181,11 +203,10 @@
+-   private final ContinuousProfiler continousProfiler;
++   private MetricsRecorder metricsRecorder;
+    private ProfilerFiller profiler;
++   private Consumer<ProfileResults> onMetricsRecordingStopped;
++   private Consumer<Path> onMetricsRecordingFinished;
++   private boolean willStartRecordingMetrics;
++   @Nullable
++   private MinecraftServer.TimeProfiler debugCommandProfiler;
++   private boolean debugCommandProfilerDelayStart;
+    private final ServerConnectionListener connection;
+    private final ChunkProgressListenerFactory progressListenerFactory;
+    private final ServerStatus status;
+    private final Random random;
+    private final DataFixer fixerUpper;
+@@ -181,11 +216,10 @@
     private boolean preventProxyConnections;
     private boolean pvp;
     private boolean allowFlight;
@@ -111,15 +168,18 @@
     @Nullable
     private KeyPair keyPair;
     @Nullable
-@@ -194,19 +215,19 @@
+@@ -193,20 +227,21 @@
+    private boolean isDemo;
     private String resourcePack;
     private String resourcePackHash;
     private volatile boolean isReady;
     private long lastOverloadWarning;
-    private boolean delayProfilerStart;
+-   private boolean delayProfilerStart;
 -   private boolean forceGameType;
     private final MinecraftSessionService sessionService;
++   @Nullable
     private final GameProfileRepository profileRepository;
++   @Nullable
     private final GameProfileCache profileCache;
     private long lastServerStatus;
     private final Thread serverThread;
@@ -132,7 +192,45 @@
     @Nullable
     private CommandStorage commandStorage;
     private final CustomBossEvents customBossEvents;
-@@ -269,13 +290,11 @@
+@@ -233,14 +268,19 @@
+       var1.set(var3);
+       var2.start();
+       return var3;
+    }
+ 
+-   public MinecraftServer(Thread var1, RegistryAccess.RegistryHolder var2, LevelStorageSource.LevelStorageAccess var3, WorldData var4, PackRepository var5, Proxy var6, DataFixer var7, ServerResources var8, MinecraftSessionService var9, GameProfileRepository var10, GameProfileCache var11, ChunkProgressListenerFactory var12) {
++   public MinecraftServer(Thread var1, RegistryAccess.RegistryHolder var2, LevelStorageSource.LevelStorageAccess var3, WorldData var4, PackRepository var5, Proxy var6, DataFixer var7, ServerResources var8, @Nullable MinecraftSessionService var9, @Nullable GameProfileRepository var10, @Nullable GameProfileCache var11, ChunkProgressListenerFactory var12) {
+       super("Server");
+-      this.continousProfiler = new ContinuousProfiler(Util.timeSource, this::getTickCount);
+-      this.profiler = InactiveProfiler.INSTANCE;
++      this.metricsRecorder = InactiveMetricsRecorder.INSTANCE;
++      this.profiler = this.metricsRecorder.getProfiler();
++      this.onMetricsRecordingStopped = (var1x) -> {
++         this.stopRecordingMetrics();
++      };
++      this.onMetricsRecordingFinished = (var0) -> {
++      };
+       this.status = new ServerStatus();
+       this.random = new Random();
+       this.port = -1;
+       this.levels = Maps.newLinkedHashMap();
+       this.running = true;
+@@ -257,10 +297,14 @@
+       this.packRepository = var5;
+       this.resources = var8;
+       this.sessionService = var9;
+       this.profileRepository = var10;
+       this.profileCache = var11;
++      if (var11 != null) {
++         var11.setExecutor(this);
++      }
++
+       this.connection = new ServerConnectionListener(this);
+       this.progressListenerFactory = var12;
+       this.storageSource = var3;
+       this.playerDataStorage = var3.createPlayerStorage();
+       this.fixerUpper = var7;
+@@ -269,13 +313,16 @@
        this.serverThread = var1;
        this.executor = Util.backgroundExecutor();
     }
@@ -141,13 +239,18 @@
 -      ScoreboardSaveData var2 = (ScoreboardSaveData)var1.computeIfAbsent(ScoreboardSaveData::new, "scoreboard");
 -      var2.setScoreboard(this.getScoreboard());
 -      this.getScoreboard().addDirtyListener(new SaveDataDirtyRunnable(var2));
-+      var1.computeIfAbsent(this.getScoreboard()::createData, this.getScoreboard()::createData, "scoreboard");
++      ServerScoreboard var10001 = this.getScoreboard();
++      Objects.requireNonNull(var10001);
++      Function var2 = var10001::createData;
++      ServerScoreboard var10002 = this.getScoreboard();
++      Objects.requireNonNull(var10002);
++      var1.computeIfAbsent(var2, var10002::createData, "scoreboard");
     }
  
     protected abstract boolean initServer() throws IOException;
  
     public static void convertFromRegionFormatIfNeeded(LevelStorageSource.LevelStorageAccess var0) {
-@@ -285,18 +304,24 @@
+@@ -285,18 +332,24 @@
              private long timeStamp = Util.getMillis();
  
              public void progressStartNoAbort(Component var1) {
@@ -172,7 +275,7 @@
           });
        }
  
-@@ -324,11 +349,11 @@
+@@ -324,11 +377,11 @@
        MappedRegistry var10 = var3.dimensions();
        LevelStem var12 = (LevelStem)var10.get(LevelStem.OVERWORLD);
        Object var11;
@@ -185,7 +288,7 @@
           var13 = var12.type();
           var11 = var12.generator();
        }
-@@ -340,11 +365,11 @@
+@@ -340,11 +393,11 @@
        this.commandStorage = new CommandStorage(var15);
        WorldBorder var16 = var14.getWorldBorder();
        var16.applySettings(var2.getWorldBorder());
@@ -198,7 +301,7 @@
                 this.setupDebugLevel(this.worldData);
              }
           } catch (Throwable var26) {
-@@ -382,67 +407,71 @@
+@@ -382,67 +435,71 @@
           }
        }
  
@@ -300,7 +403,7 @@
        }
     }
  
-@@ -488,11 +517,11 @@
+@@ -488,11 +545,11 @@
                 this.updateMobSpawningFlags();
                 return;
              }
@@ -313,7 +416,86 @@
           LongIterator var8 = var7.getChunks().iterator();
  
           while(var8.hasNext()) {
-@@ -768,10 +797,19 @@
+@@ -507,11 +564,11 @@
+       File var1 = this.storageSource.getLevelPath(LevelResource.MAP_RESOURCE_FILE).toFile();
+       if (var1.isFile()) {
+          String var2 = this.storageSource.getLevelId();
+ 
+          try {
+-            this.setResourcePack("level://" + URLEncoder.encode(var2, StandardCharsets.UTF_8.toString()) + "/" + "resources.zip", "");
++            this.setResourcePack("level://" + URLEncoder.encode(var2, StandardCharsets.UTF_8.toString()) + "/resources.zip", "");
+          } catch (UnsupportedEncodingException var4) {
+             LOGGER.warn((String)"Something went wrong url encoding {}", (Object)var2);
+          }
+       }
+ 
+@@ -553,11 +610,11 @@
+ 
+    public void close() {
+       this.stopServer();
+    }
+ 
+-   protected void stopServer() {
++   public void stopServer() {
+       LOGGER.info("Stopping server");
+       if (this.getConnection() != null) {
+          this.getConnection().stop();
+       }
+ 
+@@ -645,38 +702,44 @@
+                   LOGGER.warn((String)"Can't keep up! Is the server overloaded? Running {}ms or {} ticks behind", (Object)var1, (Object)var46);
+                   this.nextTickTime += var46 * 50L;
+                   this.lastOverloadWarning = this.nextTickTime;
+                }
+ 
++               if (this.debugCommandProfilerDelayStart) {
++                  this.debugCommandProfilerDelayStart = false;
++                  this.debugCommandProfiler = new MinecraftServer.TimeProfiler(Util.getNanos(), this.tickCount);
++               }
++
+                this.nextTickTime += 50L;
+-               SingleTickProfiler var47 = SingleTickProfiler.createTickProfiler("Server");
+-               this.startProfilerTick(var47);
+-               this.profiler.startTick();
++               this.startMetricsRecordingTick();
+                this.profiler.push("tick");
+                this.tickServer(this::haveTime);
+                this.profiler.popPush("nextTickWait");
+                this.mayHaveDelayedTasks = true;
+                this.delayedTasksMaxNextTickTime = Math.max(Util.getMillis() + 50L, this.nextTickTime);
+                this.waitUntilNextTick();
+                this.profiler.pop();
+-               this.profiler.endTick();
+-               this.endProfilerTick(var47);
++               this.endMetricsRecordingTick();
+                this.isReady = true;
+             }
+          } else {
+             this.onServerCrash((CrashReport)null);
+          }
+       } catch (Throwable var44) {
+          LOGGER.error("Encountered an unexpected exception", var44);
+          CrashReport var2;
+          if (var44 instanceof ReportedException) {
+-            var2 = this.fillReport(((ReportedException)var44).getReport());
++            var2 = ((ReportedException)var44).getReport();
+          } else {
+-            var2 = this.fillReport(new CrashReport("Exception in server tick loop", var44));
++            var2 = new CrashReport("Exception in server tick loop", var44);
+          }
+ 
+-         File var3 = new File(new File(this.getServerDirectory(), "crash-reports"), "crash-" + (new SimpleDateFormat("yyyy-MM-dd_HH.mm.ss")).format(new Date()) + "-server.txt");
++         this.fillSystemReport(var2.getSystemReport());
++         File var10002 = new File(this.getServerDirectory(), "crash-reports");
++         SimpleDateFormat var10003 = new SimpleDateFormat("yyyy-MM-dd_HH.mm.ss");
++         Date var10004 = new Date();
++         File var3 = new File(var10002, "crash-" + var10003.format(var10004) + "-server.txt");
+          if (var2.saveToFile(var3)) {
+             LOGGER.error((String)"This crash report has been saved to: {}", (Object)var3.getAbsolutePath());
+          } else {
+             LOGGER.error("We were unable to save this crash report to disk.");
+          }
+@@ -768,21 +831,30 @@
           }
        }
  
@@ -333,7 +515,33 @@
     }
  
     protected void onServerCrash(CrashReport var1) {
-@@ -859,11 +897,11 @@
+    }
+ 
+-   protected void onServerExit() {
++   public void onServerExit() {
+    }
+ 
+-   protected void tickServer(BooleanSupplier var1) {
++   public void tickServer(BooleanSupplier var1) {
+       long var2 = Util.getNanos();
+       ++this.tickCount;
+       this.tickChildren(var1);
+       if (var2 - this.lastServerStatus >= 5000000000L) {
+          this.lastServerStatus = var2;
+@@ -823,11 +895,11 @@
+       long var9 = Util.getNanos();
+       this.frameTimer.logFrameDuration(var9 - var2);
+       this.profiler.pop();
+    }
+ 
+-   protected void tickChildren(BooleanSupplier var1) {
++   public void tickChildren(BooleanSupplier var1) {
+       this.profiler.push("commandFunctions");
+       this.getFunctions().tick();
+       this.profiler.popPush("levels");
+       Iterator var2 = this.getAllLevels().iterator();
+ 
+@@ -859,11 +931,11 @@
        this.profiler.popPush("connection");
        this.getConnection().tick();
        this.profiler.popPush("players");
@@ -346,7 +554,7 @@
        this.profiler.popPush("server gui refresh");
  
        for(int var7 = 0; var7 < this.tickables.size(); ++var7) {
-@@ -883,10 +921,14 @@
+@@ -883,10 +955,14 @@
  
     protected void setId(String var1) {
        this.serverId = var1;
@@ -361,7 +569,7 @@
     }
  
     public final ServerLevel overworld() {
-@@ -920,10 +962,11 @@
+@@ -920,22 +996,24 @@
  
     public String[] getPlayerNames() {
        return this.playerList.getPlayerNamesArray();
@@ -372,8 +580,61 @@
        return "vanilla";
     }
  
-    public CrashReport fillReport(CrashReport var1) {
-@@ -1078,19 +1121,30 @@
+-   public CrashReport fillReport(CrashReport var1) {
++   public SystemReport fillSystemReport(SystemReport var1) {
+       if (this.playerList != null) {
+-         var1.getSystemDetails().setDetail("Player Count", () -> {
+-            return this.playerList.getPlayerCount() + " / " + this.playerList.getMaxPlayers() + "; " + this.playerList.getPlayers();
++         var1.setDetail("Player Count", () -> {
++            int var10000 = this.playerList.getPlayerCount();
++            return var10000 + " / " + this.playerList.getMaxPlayers() + "; " + this.playerList.getPlayers();
+          });
+       }
+ 
+-      var1.getSystemDetails().setDetail("Data Packs", () -> {
++      var1.setDetail("Data Packs", () -> {
+          StringBuilder var1 = new StringBuilder();
+          Iterator var2 = this.packRepository.getSelectedPacks().iterator();
+ 
+          while(var2.hasNext()) {
+             Pack var3 = (Pack)var2.next();
+@@ -950,18 +1028,20 @@
+          }
+ 
+          return var1.toString();
+       });
+       if (this.serverId != null) {
+-         var1.getSystemDetails().setDetail("Server Id", () -> {
++         var1.setDetail("Server Id", () -> {
+             return this.serverId;
+          });
+       }
+ 
+-      return var1;
++      return this.fillServerSystemReport(var1);
+    }
+ 
++   public abstract SystemReport fillServerSystemReport(SystemReport var1);
++
+    public abstract Optional<String> getModdedStatus();
+ 
+    public void sendMessage(Component var1, UUID var2) {
+       LOGGER.info(var1.getString());
+    }
+@@ -1030,11 +1110,11 @@
+    private void sendDifficultyUpdate(ServerPlayer var1) {
+       LevelData var2 = var1.getLevel().getLevelData();
+       var1.connection.send(new ClientboundChangeDifficultyPacket(var2.getDifficulty(), var2.isDifficultyLocked()));
+    }
+ 
+-   protected boolean isSpawningMonsters() {
++   public boolean isSpawningMonsters() {
+       return this.worldData.getDifficulty() != Difficulty.PEACEFUL;
+    }
+ 
+    public boolean isDemo() {
+       return this.isDemo;
+@@ -1078,19 +1158,30 @@
           if (var4 != null) {
              var1.setDynamicData("world[" + var2 + "][dimension]", var4.dimension().location());
              var1.setDynamicData("world[" + var2 + "][mode]", this.worldData.getGameType());
@@ -405,7 +666,7 @@
     public abstract int getRateLimitPacketsPerSecond();
  
     public boolean usesAuthentication() {
-@@ -1143,18 +1197,10 @@
+@@ -1143,18 +1234,10 @@
  
     public void setMotd(String var1) {
        this.motd = var1;
@@ -424,7 +685,7 @@
     }
  
     public PlayerList getPlayerList() {
-@@ -1174,40 +1220,46 @@
+@@ -1174,40 +1257,46 @@
     @Nullable
     public ServerConnectionListener getConnection() {
        return this.connection;
@@ -480,10 +741,14 @@
     }
  
     public void setPlayerIdleTimeout(int var1) {
-@@ -1275,11 +1327,11 @@
+@@ -1272,14 +1361,14 @@
+ 
+    public CompletableFuture<Void> reloadResources(Collection<String> var1) {
+       CompletableFuture var2 = CompletableFuture.supplyAsync(() -> {
           Stream var10000 = var1.stream();
           PackRepository var10001 = this.packRepository;
-          var10001.getClass();
+-         var10001.getClass();
++         Objects.requireNonNull(var10001);
           return (ImmutableList)var10000.map(var10001::getPack).filter(Objects::nonNull).map(Pack::open).collect(ImmutableList.toImmutableList());
        }, this).thenCompose((var1x) -> {
 -         return ServerResources.loadResources(var1x, this.isDedicatedServer() ? Commands.CommandSelection.DEDICATED : Commands.CommandSelection.INTEGRATED, this.getFunctionCompilationLevel(), this.executor, this);
@@ -493,7 +758,19 @@
           this.resources = var2x;
           this.packRepository.setSelected(var1);
           this.worldData.setDataPackConfig(getSelectedPacks(this.packRepository));
-@@ -1380,10 +1432,12 @@
+@@ -1288,10 +1377,11 @@
+          this.getPlayerList().reloadResources();
+          this.functionManager.replaceLibrary(this.resources.getFunctionLibrary());
+          this.structureManager.onResourceManagerReload(this.resources.getResourceManager());
+       }, this);
+       if (this.isSameThread()) {
++         Objects.requireNonNull(var2);
+          this.managedBlock(var2::isDone);
+       }
+ 
+       return var2;
+    }
+@@ -1380,10 +1470,12 @@
  
     public boolean acceptsFailure() {
        return true;
@@ -506,7 +783,7 @@
     }
  
     public TagContainer getTags() {
-@@ -1408,10 +1462,14 @@
+@@ -1408,10 +1500,14 @@
  
     public PredicateManager getPredicateManager() {
        return this.resources.getPredicateManager();
@@ -521,7 +798,7 @@
     }
  
     public CustomBossEvents getCustomBossEvents() {
-@@ -1445,10 +1503,14 @@
+@@ -1445,229 +1541,211 @@
        } else {
           return 0;
        }
@@ -536,20 +813,327 @@
     }
  
     public abstract boolean isSingleplayerOwner(GameProfile var1);
-@@ -1536,11 +1598,11 @@
+ 
+-   public void saveDebugReport(Path var1) throws IOException {
++   public void dumpServerProperties(Path var1) throws IOException {
++   }
++
++   private void saveDebugReport(Path var1) {
+       Path var2 = var1.resolve("levels");
+-      Iterator var3 = this.levels.entrySet().iterator();
+ 
+-      while(var3.hasNext()) {
+-         Entry var4 = (Entry)var3.next();
+-         ResourceLocation var5 = ((ResourceKey)var4.getKey()).location();
+-         Path var6 = var2.resolve(var5.getNamespace()).resolve(var5.getPath());
+-         Files.createDirectories(var6);
+-         ((ServerLevel)var4.getValue()).saveDebugReport(var6);
++      try {
++         Iterator var3 = this.levels.entrySet().iterator();
++
++         while(var3.hasNext()) {
++            Entry var4 = (Entry)var3.next();
++            ResourceLocation var5 = ((ResourceKey)var4.getKey()).location();
++            Path var6 = var2.resolve(var5.getNamespace()).resolve(var5.getPath());
++            Files.createDirectories(var6);
++            ((ServerLevel)var4.getValue()).saveDebugReport(var6);
++         }
++
++         this.dumpGameRules(var1.resolve("gamerules.txt"));
++         this.dumpClasspath(var1.resolve("classpath.txt"));
++         this.dumpMiscStats(var1.resolve("stats.txt"));
++         this.dumpThreads(var1.resolve("threads.txt"));
++         this.dumpServerProperties(var1.resolve("server.properties.txt"));
++      } catch (IOException var7) {
++         LOGGER.warn((String)"Failed to save debug report", (Throwable)var7);
+       }
+ 
+-      this.dumpGameRules(var1.resolve("gamerules.txt"));
+-      this.dumpClasspath(var1.resolve("classpath.txt"));
+-      this.dumpCrashCategory(var1.resolve("example_crash.txt"));
+-      this.dumpMiscStats(var1.resolve("stats.txt"));
+-      this.dumpThreads(var1.resolve("threads.txt"));
+    }
+ 
+    private void dumpMiscStats(Path var1) throws IOException {
+       BufferedWriter var2 = Files.newBufferedWriter(var1);
+-      Throwable var3 = null;
+ 
        try {
-          final ArrayList var4 = Lists.newArrayList();
-          final GameRules var5 = this.getGameRules();
+          var2.write(String.format("pending_tasks: %d\n", this.getPendingTasksCount()));
+          var2.write(String.format("average_tick_time: %f\n", this.getAverageTickTime()));
+          var2.write(String.format("tick_times: %s\n", Arrays.toString(this.tickTimes)));
+          var2.write(String.format("queue: %s\n", Util.backgroundExecutor()));
+-      } catch (Throwable var12) {
+-         var3 = var12;
+-         throw var12;
+-      } finally {
++      } catch (Throwable var6) {
+          if (var2 != null) {
+-            if (var3 != null) {
+-               try {
+-                  var2.close();
+-               } catch (Throwable var11) {
+-                  var3.addSuppressed(var11);
+-               }
+-            } else {
++            try {
+                var2.close();
++            } catch (Throwable var5) {
++               var6.addSuppressed(var5);
+             }
+          }
+ 
++         throw var6;
+       }
+ 
+-   }
+-
+-   private void dumpCrashCategory(Path var1) throws IOException {
+-      CrashReport var2 = new CrashReport("Server dump", new Exception("dummy"));
+-      this.fillReport(var2);
+-      BufferedWriter var3 = Files.newBufferedWriter(var1);
+-      Throwable var4 = null;
+-
+-      try {
+-         var3.write(var2.getFriendlyReport());
+-      } catch (Throwable var13) {
+-         var4 = var13;
+-         throw var13;
+-      } finally {
+-         if (var3 != null) {
+-            if (var4 != null) {
+-               try {
+-                  var3.close();
+-               } catch (Throwable var12) {
+-                  var4.addSuppressed(var12);
+-               }
+-            } else {
+-               var3.close();
+-            }
+-         }
+-
++      if (var2 != null) {
++         var2.close();
+       }
+ 
+    }
+ 
+    private void dumpGameRules(Path var1) throws IOException {
+       BufferedWriter var2 = Files.newBufferedWriter(var1);
+-      Throwable var3 = null;
+ 
+       try {
+-         final ArrayList var4 = Lists.newArrayList();
+-         final GameRules var5 = this.getGameRules();
++         final ArrayList var3 = Lists.newArrayList();
++         final GameRules var4 = this.getGameRules();
           GameRules.visitGameRuleTypes(new GameRules.GameRuleTypeVisitor() {
              public <T extends GameRules.Value<T>> void visit(GameRules.Key<T> var1, GameRules.Type<T> var2) {
 -               var4.add(String.format("%s=%s\n", var1.getId(), var5.getRule(var1).toString()));
-+               var4.add(String.format("%s=%s\n", var1.getId(), var5.getRule(var1)));
++               var3.add(String.format("%s=%s\n", var1.getId(), var4.getRule(var1)));
              }
           });
-          Iterator var6 = var4.iterator();
+-         Iterator var6 = var4.iterator();
++         Iterator var5 = var3.iterator();
  
-          while(var6.hasNext()) {
-@@ -1686,14 +1748,30 @@
+-         while(var6.hasNext()) {
+-            String var7 = (String)var6.next();
+-            var2.write(var7);
++         while(var5.hasNext()) {
++            String var6 = (String)var5.next();
++            var2.write(var6);
+          }
+-      } catch (Throwable var15) {
+-         var3 = var15;
+-         throw var15;
+-      } finally {
++      } catch (Throwable var8) {
+          if (var2 != null) {
+-            if (var3 != null) {
+-               try {
+-                  var2.close();
+-               } catch (Throwable var14) {
+-                  var3.addSuppressed(var14);
+-               }
+-            } else {
++            try {
+                var2.close();
++            } catch (Throwable var7) {
++               var8.addSuppressed(var7);
+             }
+          }
+ 
++         throw var8;
+       }
+ 
++      if (var2 != null) {
++         var2.close();
++      }
++
+    }
+ 
+    private void dumpClasspath(Path var1) throws IOException {
+       BufferedWriter var2 = Files.newBufferedWriter(var1);
+-      Throwable var3 = null;
+ 
+       try {
+-         String var4 = System.getProperty("java.class.path");
+-         String var5 = System.getProperty("path.separator");
+-         Iterator var6 = Splitter.on(var5).split(var4).iterator();
++         String var3 = System.getProperty("java.class.path");
++         String var4 = System.getProperty("path.separator");
++         Iterator var5 = Splitter.on(var4).split(var3).iterator();
+ 
+-         while(var6.hasNext()) {
+-            String var7 = (String)var6.next();
+-            var2.write(var7);
++         while(var5.hasNext()) {
++            String var6 = (String)var5.next();
++            var2.write(var6);
+             var2.write("\n");
+          }
+-      } catch (Throwable var15) {
+-         var3 = var15;
+-         throw var15;
+-      } finally {
++      } catch (Throwable var8) {
+          if (var2 != null) {
+-            if (var3 != null) {
+-               try {
+-                  var2.close();
+-               } catch (Throwable var14) {
+-                  var3.addSuppressed(var14);
+-               }
+-            } else {
++            try {
+                var2.close();
++            } catch (Throwable var7) {
++               var8.addSuppressed(var7);
+             }
+          }
+ 
++         throw var8;
+       }
+ 
++      if (var2 != null) {
++         var2.close();
++      }
++
+    }
+ 
+    private void dumpThreads(Path var1) throws IOException {
+       ThreadMXBean var2 = ManagementFactory.getThreadMXBean();
+       ThreadInfo[] var3 = var2.dumpAllThreads(true, true);
+       Arrays.sort(var3, Comparator.comparing(ThreadInfo::getThreadName));
+       BufferedWriter var4 = Files.newBufferedWriter(var1);
+-      Throwable var5 = null;
+ 
+       try {
+-         ThreadInfo[] var6 = var3;
+-         int var7 = var3.length;
++         ThreadInfo[] var5 = var3;
++         int var6 = var3.length;
+ 
+-         for(int var8 = 0; var8 < var7; ++var8) {
+-            ThreadInfo var9 = var6[var8];
+-            var4.write(var9.toString());
++         for(int var7 = 0; var7 < var6; ++var7) {
++            ThreadInfo var8 = var5[var7];
++            var4.write(var8.toString());
+             var4.write(10);
+          }
+-      } catch (Throwable var17) {
+-         var5 = var17;
+-         throw var17;
+-      } finally {
++      } catch (Throwable var10) {
+          if (var4 != null) {
+-            if (var5 != null) {
+-               try {
+-                  var4.close();
+-               } catch (Throwable var16) {
+-                  var5.addSuppressed(var16);
+-               }
+-            } else {
++            try {
+                var4.close();
++            } catch (Throwable var9) {
++               var10.addSuppressed(var9);
+             }
+          }
+ 
++         throw var10;
+       }
+ 
++      if (var4 != null) {
++         var4.close();
++      }
++
+    }
+ 
+-   private void startProfilerTick(@Nullable SingleTickProfiler var1) {
+-      if (this.delayProfilerStart) {
+-         this.delayProfilerStart = false;
+-         this.continousProfiler.enable();
++   private void startMetricsRecordingTick() {
++      if (this.willStartRecordingMetrics) {
++         this.metricsRecorder = ActiveMetricsRecorder.createStarted(new ServerMetricsSamplersProvider(Util.timeSource, this.isDedicatedServer()), Util.timeSource, Util.ioPool(), new MetricsPersister("server"), this.onMetricsRecordingStopped, (var1) -> {
++            this.saveDebugReport(var1.resolve("server"));
++            this.onMetricsRecordingFinished.accept(var1);
++         });
++         this.willStartRecordingMetrics = false;
+       }
+ 
+-      this.profiler = SingleTickProfiler.decorateFiller(this.continousProfiler.getFiller(), var1);
++      this.profiler = SingleTickProfiler.decorateFiller(this.metricsRecorder.getProfiler(), SingleTickProfiler.createTickProfiler("Server"));
++      this.metricsRecorder.startTick();
++      this.profiler.startTick();
+    }
+ 
+-   private void endProfilerTick(@Nullable SingleTickProfiler var1) {
+-      if (var1 != null) {
+-         var1.endTick();
+-      }
++   private void endMetricsRecordingTick() {
++      this.profiler.endTick();
++      this.metricsRecorder.endTick();
++   }
+ 
+-      this.profiler = this.continousProfiler.getFiller();
++   public boolean isRecordingMetrics() {
++      return this.metricsRecorder.isRecording();
+    }
+ 
+-   public boolean isProfiling() {
+-      return this.continousProfiler.isEnabled();
++   public void startRecordingMetrics(Consumer<ProfileResults> var1, Consumer<Path> var2) {
++      this.onMetricsRecordingStopped = (var2x) -> {
++         this.stopRecordingMetrics();
++         var1.accept(var2x);
++      };
++      this.onMetricsRecordingFinished = var2;
++      this.willStartRecordingMetrics = true;
+    }
+ 
+-   public void startProfiling() {
+-      this.delayProfilerStart = true;
++   public void stopRecordingMetrics() {
++      this.metricsRecorder = InactiveMetricsRecorder.INSTANCE;
+    }
+ 
+-   public ProfileResults finishProfiling() {
+-      ProfileResults var1 = this.continousProfiler.getResults();
+-      this.continousProfiler.disable();
+-      return var1;
++   public void finishRecordingMetrics() {
++      this.metricsRecorder.end();
+    }
+ 
+    public Path getWorldPath(LevelResource var1) {
+       return this.storageSource.getLevelPath(var1);
+    }
+@@ -1686,14 +1764,95 @@
  
     public RegistryAccess registryAccess() {
        return this.registryHolder;
@@ -577,7 +1161,72 @@
 +      return this.resources.getResourceManager();
 +   }
 +
++   @Nullable
++   public Component getResourcePackPrompt() {
++      return null;
++   }
++
++   public boolean isTimeProfilerRunning() {
++      return this.debugCommandProfilerDelayStart || this.debugCommandProfiler != null;
++   }
++
++   public void startTimeProfiler() {
++      this.debugCommandProfilerDelayStart = true;
++   }
++
++   public ProfileResults stopTimeProfiler() {
++      if (this.debugCommandProfiler == null) {
++         return EmptyProfileResults.EMPTY;
++      } else {
++         ProfileResults var1 = this.debugCommandProfiler.stop(Util.getNanos(), this.tickCount);
++         this.debugCommandProfiler = null;
++         return var1;
++      }
++   }
++
     static {
        DEMO_SETTINGS = new LevelSettings("Demo World", GameType.SURVIVAL, false, Difficulty.NORMAL, false, new GameRules(), DataPackConfig.DEFAULT);
     }
++
++   private static class TimeProfiler {
++      final long startNanos;
++      final int startTick;
++
++      TimeProfiler(long var1, int var3) {
++         this.startNanos = var1;
++         this.startTick = var3;
++      }
++
++      ProfileResults stop(final long var1, final int var3) {
++         return new ProfileResults() {
++            public List<ResultField> getTimes(String var1x) {
++               return Collections.emptyList();
++            }
++
++            public boolean saveResults(Path var1x) {
++               return false;
++            }
++
++            public long getStartTimeNano() {
++               return TimeProfiler.this.startNanos;
++            }
++
++            public int getStartTimeTicks() {
++               return TimeProfiler.this.startTick;
++            }
++
++            public long getEndTimeNano() {
++               return var1;
++            }
++
++            public int getEndTimeTicks() {
++               return var3;
++            }
++
++            public String getProfilerResults() {
++               return "";
++            }
++         };
++      }
++   }
  }

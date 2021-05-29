@@ -1,6 +1,6 @@
 --- net/minecraft/util/datafix/fixes/LeavesFix.java
 +++ net/minecraft/util/datafix/fixes/LeavesFix.java
-@@ -32,11 +32,22 @@
+@@ -32,20 +32,31 @@
  import java.util.stream.Collectors;
  import javax.annotation.Nullable;
  import net.minecraft.util.datafix.PackedBitStorage;
@@ -15,14 +15,25 @@
 +   private static final int NORTH_EAST_MASK = 2;
 +   private static final int NORTH_MASK = 1;
     private static final int[][] DIRECTIONS = new int[][]{{-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}};
+-   private static final Object2IntMap<String> LEAVES = (Object2IntMap)DataFixUtils.make(new Object2IntOpenHashMap(), (var0) -> {
 +   private static final int DECAY_DISTANCE = 7;
 +   private static final int SIZE_BITS = 12;
 +   private static final int SIZE = 4096;
-    private static final Object2IntMap<String> LEAVES = (Object2IntMap)DataFixUtils.make(new Object2IntOpenHashMap(), (var0) -> {
++   static final Object2IntMap<String> LEAVES = (Object2IntMap)DataFixUtils.make(new Object2IntOpenHashMap(), (var0) -> {
        var0.put("minecraft:acacia_leaves", 0);
        var0.put("minecraft:birch_leaves", 1);
        var0.put("minecraft:dark_oak_leaves", 2);
        var0.put("minecraft:jungle_leaves", 3);
+       var0.put("minecraft:oak_leaves", 4);
+       var0.put("minecraft:spruce_leaves", 5);
+    });
+-   private static final Set<String> LOGS = ImmutableSet.of("minecraft:acacia_bark", "minecraft:birch_bark", "minecraft:dark_oak_bark", "minecraft:jungle_bark", "minecraft:oak_bark", "minecraft:spruce_bark", "minecraft:acacia_log", "minecraft:birch_log", "minecraft:dark_oak_log", "minecraft:jungle_log", "minecraft:oak_log", "minecraft:spruce_log", "minecraft:stripped_acacia_log", "minecraft:stripped_birch_log", "minecraft:stripped_dark_oak_log", "minecraft:stripped_jungle_log", "minecraft:stripped_oak_log", "minecraft:stripped_spruce_log");
++   static final Set<String> LOGS = ImmutableSet.of("minecraft:acacia_bark", "minecraft:birch_bark", "minecraft:dark_oak_bark", "minecraft:jungle_bark", "minecraft:oak_bark", "minecraft:spruce_bark", "minecraft:acacia_log", "minecraft:birch_log", "minecraft:dark_oak_log", "minecraft:jungle_log", "minecraft:oak_log", "minecraft:spruce_log", "minecraft:stripped_acacia_log", "minecraft:stripped_birch_log", "minecraft:stripped_dark_oak_log", "minecraft:stripped_jungle_log", "minecraft:stripped_oak_log", "minecraft:stripped_spruce_log");
+ 
+    public LeavesFix(Schema var1, boolean var2) {
+       super(var1, var2);
+    }
+ 
 @@ -198,10 +209,13 @@
  
        return var4;
@@ -37,6 +48,24 @@
        @Nullable
        private IntSet logIds;
        @Nullable
+@@ -250,15 +264,15 @@
+ 
+       public boolean isLeaf(int var1) {
+          return this.leaveIds.contains(var1);
+       }
+ 
+-      private int getDistance(int var1) {
++      int getDistance(int var1) {
+          return this.isLog(var1) ? 0 : Integer.parseInt(((Dynamic)this.palette.get(var1)).get("Properties").get("distance").asString(""));
+       }
+ 
+-      private void setDistance(int var1, int var2, int var3) {
++      void setDistance(int var1, int var2, int var3) {
+          Dynamic var4 = (Dynamic)this.palette.get(var2);
+          String var5 = var4.get("Name").asString("");
+          boolean var6 = Objects.equals(var4.get("Properties").get("persistent").asString(""), "true");
+          int var7 = this.getStateId(var5, var6, var3);
+          int var8;
 @@ -283,10 +297,13 @@
           this.storage.set(var1, var8);
        }
@@ -51,3 +80,19 @@
        protected final java.util.List<Dynamic<?>> palette;
        protected final int index;
        @Nullable
+@@ -320,13 +337,13 @@
+       }
+ 
+       public Typed<?> write(Typed<?> var1) {
+          return this.isSkippable() ? var1 : var1.update(DSL.remainderFinder(), (var1x) -> {
+             return var1x.set("BlockStates", var1x.createLongList(Arrays.stream(this.storage.getRaw())));
+-         }).set(this.paletteFinder, this.palette.stream().map((var0) -> {
++         }).set(this.paletteFinder, (Object)((java.util.List)this.palette.stream().map((var0) -> {
+             return Pair.of(References.BLOCK_STATE.typeName(), var0);
+-         }).collect(Collectors.toList()));
++         }).collect(Collectors.toList())));
+       }
+ 
+       public boolean isSkippable() {
+          return this.storage == null;
+       }

@@ -1,6 +1,6 @@
 --- net/minecraft/server/packs/AbstractPackResources.java
 +++ net/minecraft/server/packs/AbstractPackResources.java
-@@ -40,10 +40,18 @@
+@@ -40,83 +40,81 @@
        return this.hasResource(getPathFromLocation(var1, var2));
     }
  
@@ -19,3 +19,100 @@
     protected void logWarning(String var1) {
        LOGGER.warn((String)"ResourcePack: ignored non-lowercase namespace: {} in {}", (Object)var1, (Object)this.file);
     }
+ 
+    @Nullable
+    public <T> T getMetadataSection(MetadataSectionSerializer<T> var1) throws IOException {
+       InputStream var2 = this.getResource("pack.mcmeta");
+-      Throwable var3 = null;
+ 
+-      Object var4;
++      Object var3;
+       try {
+-         var4 = getMetadataFromStream(var1, var2);
+-      } catch (Throwable var13) {
+-         var3 = var13;
+-         throw var13;
+-      } finally {
++         var3 = getMetadataFromStream(var1, var2);
++      } catch (Throwable var6) {
+          if (var2 != null) {
+-            if (var3 != null) {
+-               try {
+-                  var2.close();
+-               } catch (Throwable var12) {
+-                  var3.addSuppressed(var12);
+-               }
+-            } else {
++            try {
+                var2.close();
++            } catch (Throwable var5) {
++               var6.addSuppressed(var5);
+             }
+          }
+ 
++         throw var6;
+       }
+ 
+-      return var4;
++      if (var2 != null) {
++         var2.close();
++      }
++
++      return var3;
+    }
+ 
+    @Nullable
+    public static <T> T getMetadataFromStream(MetadataSectionSerializer<T> var0, InputStream var1) {
+       JsonObject var2;
+       try {
+          BufferedReader var3 = new BufferedReader(new InputStreamReader(var1, StandardCharsets.UTF_8));
+-         Throwable var4 = null;
+ 
+          try {
+             var2 = GsonHelper.parse((Reader)var3);
+-         } catch (Throwable var16) {
+-            var4 = var16;
+-            throw var16;
+-         } finally {
+-            if (var3 != null) {
+-               if (var4 != null) {
+-                  try {
+-                     var3.close();
+-                  } catch (Throwable var14) {
+-                     var4.addSuppressed(var14);
+-                  }
+-               } else {
+-                  var3.close();
+-               }
++         } catch (Throwable var8) {
++            try {
++               var3.close();
++            } catch (Throwable var6) {
++               var8.addSuppressed(var6);
+             }
+ 
++            throw var8;
+          }
+-      } catch (JsonParseException | IOException var18) {
+-         LOGGER.error((String)"Couldn't load {} metadata", (Object)var0.getMetadataSectionName(), (Object)var18);
++
++         var3.close();
++      } catch (JsonParseException | IOException var9) {
++         LOGGER.error((String)"Couldn't load {} metadata", (Object)var0.getMetadataSectionName(), (Object)var9);
+          return null;
+       }
+ 
+       if (!var2.has(var0.getMetadataSectionName())) {
+          return null;
+       } else {
+          try {
+             return var0.fromJson(GsonHelper.getAsJsonObject(var2, var0.getMetadataSectionName()));
+-         } catch (JsonParseException var15) {
+-            LOGGER.error((String)"Couldn't load {} metadata", (Object)var0.getMetadataSectionName(), (Object)var15);
++         } catch (JsonParseException var7) {
++            LOGGER.error((String)"Couldn't load {} metadata", (Object)var0.getMetadataSectionName(), (Object)var7);
+             return null;
+          }
+       }
+    }
+ 

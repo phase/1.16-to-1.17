@@ -1,7 +1,14 @@
 --- net/minecraft/client/renderer/texture/TextureManager.java
 +++ net/minecraft/client/renderer/texture/TextureManager.java
-@@ -10,11 +10,10 @@
+@@ -5,16 +5,17 @@
+ import com.mojang.blaze3d.platform.TextureUtil;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.realmsclient.RealmsMainScreen;
+ import java.io.IOException;
+ import java.util.Iterator;
++import java.util.Locale;
  import java.util.Map;
++import java.util.Objects;
  import java.util.Set;
  import java.util.Map.Entry;
  import java.util.concurrent.CompletableFuture;
@@ -12,7 +19,7 @@
  import net.minecraft.ReportedException;
  import net.minecraft.client.Minecraft;
  import net.minecraft.client.gui.components.AbstractWidget;
-@@ -36,11 +35,11 @@
+@@ -36,11 +37,11 @@
  
     public TextureManager(ResourceManager var1) {
        this.resourceManager = var1;
@@ -25,7 +32,7 @@
              this._bind(var1);
           });
        } else {
-@@ -106,15 +105,24 @@
+@@ -106,25 +107,34 @@
           });
           throw new ReportedException(var4);
        }
@@ -52,7 +59,30 @@
        if (var3 == null) {
           var3 = 1;
        } else {
-@@ -154,12 +162,12 @@
+          var3 = var3 + 1;
+       }
+ 
+       this.prefixRegister.put(var1, var3);
+-      ResourceLocation var4 = new ResourceLocation(String.format("dynamic/%s_%d", var1, var3));
++      ResourceLocation var4 = new ResourceLocation(String.format(Locale.ROOT, "dynamic/%s_%d", var1, var3));
+       this.register((ResourceLocation)var4, (AbstractTexture)var2);
+       return var4;
+    }
+ 
+    public CompletableFuture<Void> preload(ResourceLocation var1, Executor var2) {
+@@ -139,10 +149,11 @@
+       }
+    }
+ 
+    private static void execute(Runnable var0) {
+       Minecraft.getInstance().execute(() -> {
++         Objects.requireNonNull(var0);
+          RenderSystem.recordRenderCall(var0::run);
+       });
+    }
+ 
+    public void tick() {
+@@ -154,12 +165,12 @@
        }
  
     }
@@ -67,3 +97,27 @@
  
     }
  
+@@ -170,11 +181,11 @@
+       this.prefixRegister.clear();
+    }
+ 
+    public CompletableFuture<Void> reload(PreparableReloadListener.PreparationBarrier var1, ResourceManager var2, ProfilerFiller var3, ProfilerFiller var4, Executor var5, Executor var6) {
+       CompletableFuture var10000 = CompletableFuture.allOf(TitleScreen.preloadResources(this, var5), this.preload(AbstractWidget.WIDGETS_LOCATION, var5));
+-      var1.getClass();
++      Objects.requireNonNull(var1);
+       return var10000.thenCompose(var1::wait).thenAcceptAsync((var3x) -> {
+          MissingTextureAtlasSprite.getTexture();
+          RealmsMainScreen.updateTeaserImages(this.resourceManager);
+          Iterator var4 = this.byPath.entrySet().iterator();
+ 
+@@ -191,9 +202,10 @@
+             }
+ 
+             return;
+          }
+       }, (var0) -> {
++         Objects.requireNonNull(var0);
+          RenderSystem.recordRenderCall(var0::run);
+       });
+    }
+ }

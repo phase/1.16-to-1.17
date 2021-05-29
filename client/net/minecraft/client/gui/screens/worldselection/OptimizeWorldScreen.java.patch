@@ -1,0 +1,130 @@
+--- net/minecraft/client/gui/screens/worldselection/OptimizeWorldScreen.java
++++ net/minecraft/client/gui/screens/worldselection/OptimizeWorldScreen.java
+@@ -5,10 +5,11 @@
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.datafixers.DataFixer;
+ import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
+ import it.unimi.dsi.fastutil.objects.Object2IntMap;
+ import it.unimi.dsi.fastutil.objects.Object2IntOpenCustomHashMap;
++import java.util.Objects;
+ import javax.annotation.Nullable;
+ import net.minecraft.Util;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.components.Button;
+@@ -42,39 +43,36 @@
+    public static OptimizeWorldScreen create(Minecraft var0, BooleanConsumer var1, DataFixer var2, LevelStorageSource.LevelStorageAccess var3, boolean var4) {
+       RegistryAccess.RegistryHolder var5 = RegistryAccess.builtin();
+ 
+       try {
+          Minecraft.ServerStem var6 = var0.makeServerStem(var5, Minecraft::loadDataPacks, Minecraft::loadWorldData, false, var3);
+-         Throwable var7 = null;
+ 
+-         OptimizeWorldScreen var10;
++         OptimizeWorldScreen var9;
+          try {
+-            WorldData var8 = var6.worldData();
+-            var3.saveDataTag(var5, var8);
+-            ImmutableSet var9 = var8.worldGenSettings().levels();
+-            var10 = new OptimizeWorldScreen(var1, var2, var3, var8.getLevelSettings(), var4, var9);
+-         } catch (Throwable var20) {
+-            var7 = var20;
+-            throw var20;
+-         } finally {
++            WorldData var7 = var6.worldData();
++            var3.saveDataTag(var5, var7);
++            ImmutableSet var8 = var7.worldGenSettings().levels();
++            var9 = new OptimizeWorldScreen(var1, var2, var3, var7.getLevelSettings(), var4, var8);
++         } catch (Throwable var11) {
+             if (var6 != null) {
+-               if (var7 != null) {
+-                  try {
+-                     var6.close();
+-                  } catch (Throwable var19) {
+-                     var7.addSuppressed(var19);
+-                  }
+-               } else {
++               try {
+                   var6.close();
++               } catch (Throwable var10) {
++                  var11.addSuppressed(var10);
+                }
+             }
+ 
++            throw var11;
+          }
+ 
+-         return var10;
+-      } catch (Exception var22) {
+-         LOGGER.warn("Failed to load datapacks, can't optimize world", var22);
++         if (var6 != null) {
++            var6.close();
++         }
++
++         return var9;
++      } catch (Exception var12) {
++         LOGGER.warn("Failed to load datapacks, can't optimize world", var12);
+          return null;
+       }
+    }
+ 
+    private OptimizeWorldScreen(BooleanConsumer var1, DataFixer var2, LevelStorageSource.LevelStorageAccess var3, LevelSettings var4, boolean var5, ImmutableSet<ResourceKey<Level>> var6) {
+@@ -83,11 +81,11 @@
+       this.upgrader = new WorldUpgrader(var3, var2, var6, var5);
+    }
+ 
+    protected void init() {
+       super.init();
+-      this.addButton(new Button(this.width / 2 - 100, this.height / 4 + 150, 200, 20, CommonComponents.GUI_CANCEL, (var1) -> {
++      this.addRenderableWidget(new Button(this.width / 2 - 100, this.height / 4 + 150, 200, 20, CommonComponents.GUI_CANCEL, (var1) -> {
+          this.upgrader.cancel();
+          this.callback.accept(false);
+       }));
+    }
+ 
+@@ -114,22 +112,22 @@
+       int var7 = this.height / 4 + 100;
+       int var8 = var7 + 10;
+       Font var10001 = this.font;
+       Component var10002 = this.upgrader.getStatus();
+       int var10003 = this.width / 2;
+-      this.font.getClass();
++      Objects.requireNonNull(this.font);
+       drawCenteredString(var1, var10001, var10002, var10003, var7 - 9 - 2, 10526880);
+       if (this.upgrader.getTotalChunks() > 0) {
+          fill(var1, var5 - 1, var7 - 1, var6 + 1, var8 + 1, -16777216);
+          drawString(var1, this.font, new TranslatableComponent("optimizeWorld.info.converted", new Object[]{this.upgrader.getConverted()}), var5, 40, 10526880);
+          var10001 = this.font;
+          TranslatableComponent var14 = new TranslatableComponent("optimizeWorld.info.skipped", new Object[]{this.upgrader.getSkipped()});
+-         this.font.getClass();
++         Objects.requireNonNull(this.font);
+          drawString(var1, var10001, var14, var5, 40 + 9 + 3, 10526880);
+          var10001 = this.font;
+          var14 = new TranslatableComponent("optimizeWorld.info.total", new Object[]{this.upgrader.getTotalChunks()});
+-         this.font.getClass();
++         Objects.requireNonNull(this.font);
+          drawString(var1, var10001, var14, var5, 40 + (9 + 3) * 2, 10526880);
+          int var9 = 0;
+ 
+          int var12;
+          for(UnmodifiableIterator var10 = this.upgrader.levels().iterator(); var10.hasNext(); var9 += var12) {
+@@ -140,17 +138,17 @@
+ 
+          int var13 = this.upgrader.getConverted() + this.upgrader.getSkipped();
+          var10001 = this.font;
+          String var15 = var13 + " / " + this.upgrader.getTotalChunks();
+          var10003 = this.width / 2;
+-         this.font.getClass();
++         Objects.requireNonNull(this.font);
+          drawCenteredString(var1, var10001, var15, var10003, var7 + 2 * 9 + 2, 10526880);
+          var10001 = this.font;
+          var15 = Mth.floor(this.upgrader.getProgress() * 100.0F) + "%";
+          var10003 = this.width / 2;
+          int var10004 = var7 + (var8 - var7) / 2;
+-         this.font.getClass();
++         Objects.requireNonNull(this.font);
+          drawCenteredString(var1, var10001, var15, var10003, var10004 - 9 / 2, 10526880);
+       }
+ 
+       super.render(var1, var2, var3, var4);
+    }

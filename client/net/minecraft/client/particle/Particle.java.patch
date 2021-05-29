@@ -1,6 +1,6 @@
 --- net/minecraft/client/particle/Particle.java
 +++ net/minecraft/client/particle/Particle.java
-@@ -1,14 +1,16 @@
+@@ -1,15 +1,16 @@
  package net.minecraft.client.particle;
  
  import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -11,13 +11,14 @@
  import net.minecraft.client.multiplayer.ClientLevel;
  import net.minecraft.client.renderer.LevelRenderer;
  import net.minecraft.core.BlockPos;
+-import net.minecraft.util.Mth;
 +import net.minecraft.core.particles.ParticleGroup;
- import net.minecraft.util.Mth;
  import net.minecraft.util.RewindableStream;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.Vec3;
-@@ -41,10 +43,12 @@
+ import net.minecraft.world.phys.shapes.CollisionContext;
+@@ -41,10 +42,12 @@
     protected float gCol;
     protected float bCol;
     protected float alpha;
@@ -30,7 +31,7 @@
        this.bb = INITIAL_AABB;
        this.hasPhysics = true;
        this.bbWidth = 0.6F;
-@@ -52,10 +56,12 @@
+@@ -52,10 +55,12 @@
        this.random = new Random();
        this.rCol = 1.0F;
        this.gCol = 1.0F;
@@ -43,7 +44,26 @@
        this.setPos(var2, var4, var6);
        this.xo = var2;
        this.yo = var4;
-@@ -80,10 +86,16 @@
+@@ -66,24 +71,30 @@
+    public Particle(ClientLevel var1, double var2, double var4, double var6, double var8, double var10, double var12) {
+       this(var1, var2, var4, var6);
+       this.xd = var8 + (Math.random() * 2.0D - 1.0D) * 0.4000000059604645D;
+       this.yd = var10 + (Math.random() * 2.0D - 1.0D) * 0.4000000059604645D;
+       this.zd = var12 + (Math.random() * 2.0D - 1.0D) * 0.4000000059604645D;
+-      float var14 = (float)(Math.random() + Math.random() + 1.0D) * 0.15F;
+-      float var15 = Mth.sqrt(this.xd * this.xd + this.yd * this.yd + this.zd * this.zd);
+-      this.xd = this.xd / (double)var15 * (double)var14 * 0.4000000059604645D;
+-      this.yd = this.yd / (double)var15 * (double)var14 * 0.4000000059604645D + 0.10000000149011612D;
+-      this.zd = this.zd / (double)var15 * (double)var14 * 0.4000000059604645D;
++      double var14 = (Math.random() + Math.random() + 1.0D) * 0.15000000596046448D;
++      double var16 = Math.sqrt(this.xd * this.xd + this.yd * this.yd + this.zd * this.zd);
++      this.xd = this.xd / var16 * var14 * 0.4000000059604645D;
++      this.yd = this.yd / var16 * var14 * 0.4000000059604645D + 0.10000000149011612D;
++      this.zd = this.zd / var16 * var14 * 0.4000000059604645D;
+    }
+ 
+    public Particle setPower(float var1) {
+       this.xd *= (double)var1;
        this.yd = (this.yd - 0.10000000149011612D) * (double)var1 + 0.10000000149011612D;
        this.zd *= (double)var1;
        return this;
@@ -60,7 +80,7 @@
        return this;
     }
  
-@@ -112,13 +124,18 @@
+@@ -112,13 +123,18 @@
        if (this.age++ >= this.lifetime) {
           this.remove();
        } else {
@@ -82,6 +102,20 @@
              this.zd *= 0.699999988079071D;
           }
  
+@@ -128,11 +144,12 @@
+    public abstract void render(VertexConsumer var1, Camera var2, float var3);
+ 
+    public abstract ParticleRenderType getRenderType();
+ 
+    public String toString() {
+-      return this.getClass().getSimpleName() + ", Pos (" + this.x + "," + this.y + "," + this.z + "), RGBA (" + this.rCol + "," + this.gCol + "," + this.bCol + "," + this.alpha + "), Age " + this.age;
++      String var10000 = this.getClass().getSimpleName();
++      return var10000 + ", Pos (" + this.x + "," + this.y + "," + this.z + "), RGBA (" + this.rCol + "," + this.gCol + "," + this.bCol + "," + this.alpha + "), Age " + this.age;
+    }
+ 
+    public void remove() {
+       this.removed = true;
+    }
 @@ -211,6 +228,10 @@
     }
  

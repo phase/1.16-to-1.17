@@ -1,0 +1,40 @@
+--- com/mojang/authlib/minecraft/client/ObjectMapper.java
++++ com/mojang/authlib/minecraft/client/ObjectMapper.java
+@@ -1,0 +1,37 @@
++package com.mojang.authlib.minecraft.client;
++
++import com.google.gson.Gson;
++import com.google.gson.GsonBuilder;
++import com.google.gson.JsonParseException;
++import com.mojang.authlib.exceptions.MinecraftClientException;
++import com.mojang.util.UUIDTypeAdapter;
++import java.util.Objects;
++import java.util.UUID;
++
++public class ObjectMapper {
++   private final Gson gson;
++
++   public ObjectMapper(Gson var1) {
++      this.gson = (Gson)Objects.requireNonNull(var1);
++   }
++
++   public <T> T readValue(String var1, Class<T> var2) {
++      try {
++         return this.gson.fromJson(var1, var2);
++      } catch (JsonParseException var4) {
++         throw new MinecraftClientException(MinecraftClientException.ErrorType.JSON_ERROR, "Failed to read value " + var1, var4);
++      }
++   }
++
++   public String writeValueAsString(Object var1) {
++      try {
++         return this.gson.toJson(var1);
++      } catch (RuntimeException var3) {
++         throw new MinecraftClientException(MinecraftClientException.ErrorType.JSON_ERROR, "Failed to write value", var3);
++      }
++   }
++
++   public static ObjectMapper create() {
++      return new ObjectMapper((new GsonBuilder()).registerTypeAdapter(UUID.class, new UUIDTypeAdapter()).create());
++   }
++}

@@ -1,12 +1,13 @@
 --- net/minecraft/world/level/levelgen/structure/StructurePiece.java
 +++ net/minecraft/world/level/levelgen/structure/StructurePiece.java
-@@ -1,18 +1,20 @@
+@@ -1,18 +1,21 @@
  package net.minecraft.world.level.levelgen.structure;
  
  import com.google.common.collect.ImmutableSet;
 +import com.mojang.serialization.DataResult;
  import java.util.Iterator;
 -import java.util.List;
++import java.util.Objects;
  import java.util.Random;
  import java.util.Set;
  import javax.annotation.Nullable;
@@ -22,7 +23,7 @@
  import net.minecraft.world.level.LevelReader;
  import net.minecraft.world.level.ServerLevelAccessor;
  import net.minecraft.world.level.StructureFeatureManager;
-@@ -27,55 +29,79 @@
+@@ -27,55 +30,79 @@
  import net.minecraft.world.level.block.entity.ChestBlockEntity;
  import net.minecraft.world.level.block.entity.DispenserBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
@@ -62,7 +63,7 @@
 +      int var10002 = var2.getInt("GD");
 +      DataResult var10003 = BoundingBox.CODEC.parse(NbtOps.INSTANCE, var2.get("BB"));
 +      Logger var10004 = LOGGER;
-+      var10004.getClass();
++      Objects.requireNonNull(var10004);
 +      this(var1, var10002, (BoundingBox)var10003.resultOrPartial(var10004::error).orElseThrow(() -> {
 +         return new IllegalArgumentException("Invalid boundingbox");
 +      }));
@@ -94,7 +95,7 @@
 +      var2.putString("id", Registry.STRUCTURE_PIECE.getKey(this.getType()).toString());
 +      DataResult var10000 = BoundingBox.CODEC.encodeStart(NbtOps.INSTANCE, this.boundingBox);
 +      Logger var10001 = LOGGER;
-+      var10001.getClass();
++      Objects.requireNonNull(var10001);
 +      var10000.resultOrPartial(var10001::error).ifPresent((var1x) -> {
 +         var2.put("BB", var1x);
 +      });
@@ -119,7 +120,7 @@
     public BoundingBox getBoundingBox() {
        return this.boundingBox;
     }
-@@ -83,163 +109,106 @@
+@@ -83,163 +110,106 @@
     public int getGenDepth() {
        return this.genDepth;
     }
@@ -322,7 +323,7 @@
  
     protected void generateAirBox(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5, int var6, int var7, int var8) {
        for(int var9 = var4; var9 <= var7; ++var9) {
-@@ -267,10 +236,14 @@
+@@ -267,10 +237,14 @@
           }
        }
  
@@ -337,7 +338,7 @@
           for(int var13 = var3; var13 <= var6; ++var13) {
              for(int var14 = var5; var14 <= var8; ++var14) {
                 if (!var9 || !this.getBlock(var1, var13, var12, var14, var2).isAir()) {
-@@ -281,10 +254,14 @@
+@@ -281,10 +255,14 @@
           }
        }
  
@@ -352,42 +353,7 @@
           for(int var16 = var5; var16 <= var8; ++var16) {
              for(int var17 = var7; var17 <= var10; ++var17) {
                 if (var3.nextFloat() <= var4 && (!var13 || !this.getBlock(var1, var16, var15, var17, var2).isAir()) && (!var14 || this.isInterior(var1, var16, var15, var17, var2))) {
-@@ -298,13 +275,32 @@
-          }
-       }
- 
-    }
- 
--   protected void maybeGenerateBlock(WorldGenLevel var1, BoundingBox var2, Random var3, float var4, int var5, int var6, int var7, BlockState var8) {
-+   protected void maybeGenerateBlock(WorldGenLevel var1, BoundingBox var2, Random var3, float var4, int var5, int var6, int var7, BlockState var8, boolean var9) {
-       if (var3.nextFloat() < var4) {
--         this.placeBlock(var1, var8, var5, var6, var7, var2);
-+         if (!var9) {
-+            this.placeBlock(var1, var8, var5, var6, var7, var2);
-+            return;
-+         }
-+
-+         Direction[] var10 = Direction.values();
-+         BlockPos.MutableBlockPos var11 = this.getWorldPos(var5, var6, var7).mutable();
-+         Direction[] var12 = var10;
-+         int var13 = var10.length;
-+
-+         for(int var14 = 0; var14 < var13; ++var14) {
-+            Direction var15 = var12[var14];
-+            var11.move(var15);
-+            if (var2.isInside(var11) && !var1.isEmptyBlock(var11)) {
-+               this.placeBlock(var1, var8, var5, var6, var7, var2);
-+               return;
-+            }
-+
-+            var11.move(var15.getOpposite());
-+         }
-       }
- 
-    }
- 
-    protected void generateUpperHalfSphere(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5, int var6, int var7, int var8, BlockState var9, boolean var10) {
-@@ -333,25 +329,26 @@
+@@ -333,25 +311,26 @@
        }
  
     }
@@ -423,7 +389,7 @@
     public static BlockState reorient(BlockGetter var0, BlockPos var1, BlockState var2) {
        Direction var3 = null;
        Iterator var4 = Direction.Plane.HORIZONTAL.iterator();
-@@ -415,11 +412,11 @@
+@@ -415,11 +394,11 @@
           return false;
        }
     }
@@ -436,7 +402,7 @@
           BlockEntity var10 = var1.getBlockEntity(var9);
           if (var10 instanceof DispenserBlockEntity) {
              ((DispenserBlockEntity)var10).setLootTable(var8, var3.nextLong());
-@@ -469,10 +466,14 @@
+@@ -469,20 +448,24 @@
  
     public Rotation getRotation() {
        return this.rotation;
@@ -451,3 +417,14 @@
     }
  
     static {
+       CAVE_AIR = Blocks.CAVE_AIR.defaultBlockState();
+       SHAPE_CHECK_BLOCKS = ImmutableSet.builder().add(Blocks.NETHER_BRICK_FENCE).add(Blocks.TORCH).add(Blocks.WALL_TORCH).add(Blocks.OAK_FENCE).add(Blocks.SPRUCE_FENCE).add(Blocks.DARK_OAK_FENCE).add(Blocks.ACACIA_FENCE).add(Blocks.BIRCH_FENCE).add(Blocks.JUNGLE_FENCE).add(Blocks.LADDER).add(Blocks.IRON_BARS).build();
+    }
+ 
+-   public abstract static class BlockSelector {
++   protected abstract static class BlockSelector {
+       protected BlockState next;
+ 
+       protected BlockSelector() {
+          this.next = Blocks.AIR.defaultBlockState();
+       }

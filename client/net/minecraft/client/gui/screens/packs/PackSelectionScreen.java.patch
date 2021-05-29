@@ -1,25 +1,127 @@
 --- net/minecraft/client/gui/screens/packs/PackSelectionScreen.java
 +++ net/minecraft/client/gui/screens/packs/PackSelectionScreen.java
-@@ -45,12 +45,14 @@
+@@ -44,13 +44,15 @@
+ import org.apache.commons.lang3.mutable.MutableBoolean;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class PackSelectionScreen extends Screen {
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   private static final int LIST_WIDTH = 200;
     private static final Component DRAG_AND_DROP;
-    private static final Component DIRECTORY_BUTTON_TOOLTIP;
+-   private static final Component DIRECTORY_BUTTON_TOOLTIP;
++   static final Component DIRECTORY_BUTTON_TOOLTIP;
 +   private static final int RELOAD_COOLDOWN = 20;
     private static final ResourceLocation DEFAULT_ICON;
     private final PackSelectionModel model;
     private final Screen lastScreen;
     @Nullable
     private PackSelectionScreen.Watcher watcher;
-@@ -218,54 +220,63 @@
-          try {
-             InputStream var5 = var3.getRootResource("pack.png");
-             Throwable var6 = null;
+@@ -85,24 +87,30 @@
+       }
  
+    }
+ 
+    protected void init() {
+-      this.doneButton = (Button)this.addButton(new Button(this.width / 2 + 4, this.height - 48, 150, 20, CommonComponents.GUI_DONE, (var1) -> {
++      this.doneButton = (Button)this.addRenderableWidget(new Button(this.width / 2 + 4, this.height - 48, 150, 20, CommonComponents.GUI_DONE, (var1) -> {
+          this.onClose();
+       }));
+-      this.addButton(new Button(this.width / 2 - 154, this.height - 48, 150, 20, new TranslatableComponent("pack.openFolder"), (var1) -> {
++      this.addRenderableWidget(new Button(this.width / 2 - 154, this.height - 48, 150, 20, new TranslatableComponent("pack.openFolder"), (var1) -> {
+          Util.getPlatform().openFile(this.packDir);
+-      }, (var1, var2, var3, var4) -> {
+-         this.renderTooltip(var2, DIRECTORY_BUTTON_TOOLTIP, var3, var4);
++      }, new Button.OnTooltip() {
++         public void onTooltip(Button var1, PoseStack var2, int var3, int var4) {
++            PackSelectionScreen.this.renderTooltip(var2, PackSelectionScreen.DIRECTORY_BUTTON_TOOLTIP, var3, var4);
++         }
++
++         public void narrateTooltip(Consumer<Component> var1) {
++            var1.accept(PackSelectionScreen.DIRECTORY_BUTTON_TOOLTIP);
++         }
+       }));
+       this.availablePackList = new TransferableSelectionList(this.minecraft, 200, this.height, new TranslatableComponent("pack.available.title"));
+       this.availablePackList.setLeftPos(this.width / 2 - 4 - 200);
+-      this.children.add(this.availablePackList);
++      this.addWidget(this.availablePackList);
+       this.selectedPackList = new TransferableSelectionList(this.minecraft, 200, this.height, new TranslatableComponent("pack.selected.title"));
+       this.selectedPackList.setLeftPos(this.width / 2 + 4);
+-      this.children.add(this.selectedPackList);
++      this.addWidget(this.selectedPackList);
+       this.reload();
+    }
+ 
+    public void tick() {
+       if (this.watcher != null) {
+@@ -154,11 +162,10 @@
+    protected static void copyPacks(Minecraft var0, List<Path> var1, Path var2) {
+       MutableBoolean var3 = new MutableBoolean();
+       var1.forEach((var2x) -> {
+          try {
+             Stream var3x = Files.walk(var2x);
+-            Throwable var4 = null;
+ 
+             try {
+                var3x.forEach((var3xx) -> {
+                   try {
+                      Util.copyBetweenDirs(var2x.getParent(), var2, var3xx);
+@@ -166,28 +173,26 @@
+                      LOGGER.warn("Failed to copy datapack file  from {} to {}", var3xx, var2, var5);
+                      var3.setTrue();
+                   }
+ 
+                });
+-            } catch (Throwable var14) {
+-               var4 = var14;
+-               throw var14;
+-            } finally {
++            } catch (Throwable var7) {
+                if (var3x != null) {
+-                  if (var4 != null) {
+-                     try {
+-                        var3x.close();
+-                     } catch (Throwable var13) {
+-                        var4.addSuppressed(var13);
+-                     }
+-                  } else {
++                  try {
+                      var3x.close();
++                  } catch (Throwable var6) {
++                     var7.addSuppressed(var6);
+                   }
+                }
+ 
++               throw var7;
+             }
+-         } catch (IOException var16) {
++
++            if (var3x != null) {
++               var3x.close();
++            }
++         } catch (IOException var8) {
+             LOGGER.warn("Failed to copy datapack file from {} to {}", var2x, var2);
+             var3.setTrue();
+          }
+ 
+       });
+@@ -210,62 +215,78 @@
+    }
+ 
+    private ResourceLocation loadPackIcon(TextureManager var1, Pack var2) {
+       try {
+          PackResources var3 = var2.open();
+-         Throwable var4 = null;
+ 
+-         ResourceLocation var10;
+-         try {
+-            InputStream var5 = var3.getRootResource("pack.png");
+-            Throwable var6 = null;
+-
++         ResourceLocation var5;
++         label84: {
++            ResourceLocation var8;
              try {
 -               String var7 = var2.getId();
 -               ResourceLocation var8 = new ResourceLocation("minecraft", "pack/" + Util.sanitizeName(var7, ResourceLocation::validPathChar) + "/" + Hashing.sha1().hashUnencodedChars(var7) + "/icon");
@@ -29,71 +131,153 @@
 -            } catch (Throwable var37) {
 -               var6 = var37;
 -               throw var37;
-+               Object var7;
-+               try {
-+                  if (var5 == null) {
-+                     var7 = DEFAULT_ICON;
-+                     return (ResourceLocation)var7;
-+                  }
-+
-+                  var7 = var2.getId();
-+                  ResourceLocation var8 = new ResourceLocation("minecraft", "pack/" + Util.sanitizeName((String)var7, ResourceLocation::validPathChar) + "/" + Hashing.sha1().hashUnencodedChars((CharSequence)var7) + "/icon");
-+                  NativeImage var9 = NativeImage.read(var5);
-+                  var1.register((ResourceLocation)var8, (AbstractTexture)(new DynamicTexture(var9)));
-+                  var10 = var8;
-+               } catch (Throwable var40) {
-+                  var7 = var40;
-+                  var6 = var40;
-+                  throw var40;
-+               }
-             } finally {
-                if (var5 != null) {
-                   if (var6 != null) {
-                      try {
-                         var5.close();
+-            } finally {
+-               if (var5 != null) {
+-                  if (var6 != null) {
+-                     try {
+-                        var5.close();
 -                     } catch (Throwable var36) {
 -                        var6.addSuppressed(var36);
-+                     } catch (Throwable var39) {
-+                        var6.addSuppressed(var39);
++               InputStream var4 = var3.getRootResource("pack.png");
++
++               label86: {
++                  try {
++                     if (var4 != null) {
++                        String var15 = var2.getId();
++                        String var10003 = Util.sanitizeName(var15, ResourceLocation::validPathChar);
++                        ResourceLocation var6 = new ResourceLocation("minecraft", "pack/" + var10003 + "/" + Hashing.sha1().hashUnencodedChars(var15) + "/icon");
++                        NativeImage var7 = NativeImage.read(var4);
++                        var1.register((ResourceLocation)var6, (AbstractTexture)(new DynamicTexture(var7)));
++                        var8 = var6;
++                        break label86;
                       }
-                   } else {
-                      var5.close();
+-                  } else {
+-                     var5.close();
++
++                     var5 = DEFAULT_ICON;
++                  } catch (Throwable var11) {
++                     if (var4 != null) {
++                        try {
++                           var4.close();
++                        } catch (Throwable var10) {
++                           var11.addSuppressed(var10);
++                        }
++                     }
++
++                     throw var11;
                    }
++
++                  if (var4 != null) {
++                     var4.close();
++                  }
++                  break label84;
                 }
  
-             }
+-            }
 -         } catch (Throwable var39) {
 -            var4 = var39;
 -            throw var39;
-+         } catch (Throwable var42) {
-+            var4 = var42;
-+            throw var42;
-          } finally {
-             if (var3 != null) {
+-         } finally {
+-            if (var3 != null) {
                 if (var4 != null) {
++                  var4.close();
++               }
++            } catch (Throwable var12) {
++               if (var3 != null) {
                    try {
                       var3.close();
 -                  } catch (Throwable var35) {
 -                     var4.addSuppressed(var35);
-+                  } catch (Throwable var38) {
-+                     var4.addSuppressed(var38);
++                  } catch (Throwable var9) {
++                     var12.addSuppressed(var9);
                    }
-                } else {
-                   var3.close();
+-               } else {
+-                  var3.close();
                 }
++
++               throw var12;
              }
  
++            if (var3 != null) {
++               var3.close();
++            }
++
++            return var8;
           }
  
-          return var10;
+-         return var10;
 -      } catch (FileNotFoundException var41) {
 -      } catch (Exception var42) {
 -         LOGGER.warn("Failed to load icon from pack {}", var2.getId(), var42);
-+      } catch (FileNotFoundException var44) {
-+      } catch (Exception var45) {
-+         LOGGER.warn("Failed to load icon from pack {}", var2.getId(), var45);
++         if (var3 != null) {
++            var3.close();
++         }
++
++         return var5;
++      } catch (FileNotFoundException var13) {
++      } catch (Exception var14) {
++         LOGGER.warn("Failed to load icon from pack {}", var2.getId(), var14);
        }
  
        return DEFAULT_ICON;
     }
  
+@@ -290,42 +311,39 @@
+          this.watcher = this.packPath.getFileSystem().newWatchService();
+ 
+          try {
+             this.watchDir(this.packPath);
+             DirectoryStream var2 = Files.newDirectoryStream(this.packPath);
+-            Throwable var3 = null;
+ 
+             try {
+-               Iterator var4 = var2.iterator();
++               Iterator var3 = var2.iterator();
+ 
+-               while(var4.hasNext()) {
+-                  Path var5 = (Path)var4.next();
+-                  if (Files.isDirectory(var5, new LinkOption[]{LinkOption.NOFOLLOW_LINKS})) {
+-                     this.watchDir(var5);
++               while(var3.hasNext()) {
++                  Path var4 = (Path)var3.next();
++                  if (Files.isDirectory(var4, new LinkOption[]{LinkOption.NOFOLLOW_LINKS})) {
++                     this.watchDir(var4);
+                   }
+                }
+-            } catch (Throwable var14) {
+-               var3 = var14;
+-               throw var14;
+-            } finally {
++            } catch (Throwable var6) {
+                if (var2 != null) {
+-                  if (var3 != null) {
+-                     try {
+-                        var2.close();
+-                     } catch (Throwable var13) {
+-                        var3.addSuppressed(var13);
+-                     }
+-                  } else {
++                  try {
+                      var2.close();
++                  } catch (Throwable var5) {
++                     var6.addSuppressed(var5);
+                   }
+                }
+ 
++               throw var6;
+             }
+ 
+-         } catch (Exception var16) {
++            if (var2 != null) {
++               var2.close();
++            }
++
++         } catch (Exception var7) {
+             this.watcher.close();
+-            throw var16;
++            throw var7;
+          }
+       }
+ 
+       @Nullable
+       public static PackSelectionScreen.Watcher create(File var0) {

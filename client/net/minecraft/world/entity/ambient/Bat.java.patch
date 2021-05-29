@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/ambient/Bat.java
 +++ net/minecraft/world/entity/ambient/Bat.java
-@@ -27,19 +27,26 @@
+@@ -27,29 +27,36 @@
  import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.Vec3;
@@ -27,6 +27,17 @@
        this.entityData.define(DATA_ID_FLAGS, (byte)0);
     }
  
+    protected float getSoundVolume() {
+       return 0.1F;
+    }
+ 
+-   protected float getVoicePitch() {
++   public float getVoicePitch() {
+       return super.getVoicePitch() * 0.95F;
+    }
+ 
+    @Nullable
+    public SoundEvent getAmbientSound() {
 @@ -125,11 +132,11 @@
              if (!var3) {
                 this.level.levelEvent((Player)null, 1025, var1, 0);
@@ -40,7 +51,19 @@
  
           if (this.targetPosition == null || this.random.nextInt(30) == 0 || this.targetPosition.closerThan(this.position(), 2.0D)) {
              this.targetPosition = new BlockPos(this.getX() + (double)this.random.nextInt(7) - (double)this.random.nextInt(7), this.getY() + (double)this.random.nextInt(6) - 2.0D, this.getZ() + (double)this.random.nextInt(7) - (double)this.random.nextInt(7));
-@@ -150,15 +157,15 @@
+@@ -140,25 +147,25 @@
+          double var7 = (double)this.targetPosition.getZ() + 0.5D - this.getZ();
+          Vec3 var9 = this.getDeltaMovement();
+          Vec3 var10 = var9.add((Math.signum(var13) * 0.5D - var9.x) * 0.10000000149011612D, (Math.signum(var5) * 0.699999988079071D - var9.y) * 0.10000000149011612D, (Math.signum(var7) * 0.5D - var9.z) * 0.10000000149011612D);
+          this.setDeltaMovement(var10);
+          float var11 = (float)(Mth.atan2(var10.z, var10.x) * 57.2957763671875D) - 90.0F;
+-         float var12 = Mth.wrapDegrees(var11 - this.yRot);
++         float var12 = Mth.wrapDegrees(var11 - this.getYRot());
+          this.zza = 0.5F;
+-         this.yRot += var12;
++         this.setYRot(this.getYRot() + var12);
+          if (this.random.nextInt(100) == 0 && this.level.getBlockState(var2).isRedstoneConductor(this.level, var2)) {
+             this.setResting(true);
           }
        }
  
@@ -59,3 +82,13 @@
  
     protected void checkFallDamage(double var1, boolean var3, BlockState var4, BlockPos var5) {
     }
+@@ -216,8 +223,8 @@
+       return var2.height / 2.0F;
+    }
+ 
+    static {
+       DATA_ID_FLAGS = SynchedEntityData.defineId(Bat.class, EntityDataSerializers.BYTE);
+-      BAT_RESTING_TARGETING = (new TargetingConditions()).range(4.0D).allowSameTeam();
++      BAT_RESTING_TARGETING = TargetingConditions.forNonCombat().range(4.0D);
+    }
+ }

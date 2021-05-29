@@ -1,6 +1,6 @@
 --- net/minecraft/network/protocol/game/ClientboundPlayerInfoPacket.java
 +++ net/minecraft/network/protocol/game/ClientboundPlayerInfoPacket.java
-@@ -2,185 +2,106 @@
+@@ -2,185 +2,205 @@
  
  import com.google.common.base.MoreObjects;
  import com.google.common.collect.Lists;
@@ -11,6 +11,7 @@
 +import java.util.Collection;
  import java.util.Iterator;
  import java.util.List;
++import java.util.Objects;
  import javax.annotation.Nullable;
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.chat.Component;
@@ -57,7 +58,11 @@
 +   public ClientboundPlayerInfoPacket(FriendlyByteBuf var1) {
        this.action = (ClientboundPlayerInfoPacket.Action)var1.readEnum(ClientboundPlayerInfoPacket.Action.class);
 -      int var2 = var1.readVarInt();
--
++      ClientboundPlayerInfoPacket.Action var10002 = this.action;
++      Objects.requireNonNull(var10002);
++      this.entries = var1.readList(var10002::read);
++   }
+ 
 -      for(int var3 = 0; var3 < var2; ++var3) {
 -         GameProfile var4 = null;
 -         int var5 = 0;
@@ -68,7 +73,14 @@
 -            var4 = new GameProfile(var1.readUUID(), var1.readUtf(16));
 -            int var8 = var1.readVarInt();
 -            int var9 = 0;
--
++   public void write(FriendlyByteBuf var1) {
++      var1.writeEnum(this.action);
++      List var10001 = this.entries;
++      ClientboundPlayerInfoPacket.Action var10002 = this.action;
++      Objects.requireNonNull(var10002);
++      var1.writeCollection(var10001, var10002::write);
++   }
+ 
 -            for(; var9 < var8; ++var9) {
 -               String var10 = var1.readUtf(32767);
 -               String var11 = var1.readUtf(32767);
@@ -78,7 +90,10 @@
 -                  var4.getProperties().put(var10, new Property(var10, var11));
 -               }
 -            }
--
++   public void handle(ClientGamePacketListener var1) {
++      var1.handlePlayerInfo(this);
++   }
+ 
 -            var6 = GameType.byId(var1.readVarInt());
 -            var5 = var1.readVarInt();
 -            if (var1.readBoolean()) {
@@ -102,23 +117,32 @@
 -         case REMOVE_PLAYER:
 -            var4 = new GameProfile(var1.readUUID(), (String)null);
 -         }
--
++   public List<ClientboundPlayerInfoPacket.PlayerUpdate> getEntries() {
++      return this.entries;
++   }
+ 
 -         this.entries.add(new ClientboundPlayerInfoPacket.PlayerUpdate(var4, var5, var6, var7));
 -      }
--
-+      ClientboundPlayerInfoPacket.Action var10002 = this.action;
-+      var10002.getClass();
-+      this.entries = var1.readList(var10002::read);
++   public ClientboundPlayerInfoPacket.Action getAction() {
++      return this.action;
++   }
+ 
++   @Nullable
++   static Component readDisplayName(FriendlyByteBuf var0) {
++      return var0.readBoolean() ? var0.readComponent() : null;
     }
  
 -   public void write(FriendlyByteBuf var1) throws IOException {
-+   public void write(FriendlyByteBuf var1) {
-       var1.writeEnum(this.action);
+-      var1.writeEnum(this.action);
 -      var1.writeVarInt(this.entries.size());
 -      Iterator var2 = this.entries.iterator();
-+      ClientboundPlayerInfoPacket.Action var10002 = this.action;
-+      var1.writeCollection(this.entries, var10002::write);
-+   }
++   static void writeDisplayName(FriendlyByteBuf var0, @Nullable Component var1) {
++      if (var1 == null) {
++         var0.writeBoolean(false);
++      } else {
++         var0.writeBoolean(true);
++         var0.writeComponent(var1);
++      }
  
 -      while(true) {
 -         while(var2.hasNext()) {
@@ -129,8 +153,6 @@
 -               var1.writeUtf(var3.getProfile().getName());
 -               var1.writeVarInt(var3.getProfile().getProperties().size());
 -               Iterator var4 = var3.getProfile().getProperties().values().iterator();
-+   public void handle(ClientGamePacketListener var1) {
-+      var1.handlePlayerInfo(this);
 +   }
  
 -               while(var4.hasNext()) {
@@ -144,18 +166,30 @@
 -                     var1.writeBoolean(false);
 -                  }
 -               }
-+   public List<ClientboundPlayerInfoPacket.PlayerUpdate> getEntries() {
-+      return this.entries;
++   public String toString() {
++      return MoreObjects.toStringHelper((Object)this).add("action", this.action).add("entries", this.entries).toString();
 +   }
  
 -               var1.writeVarInt(var3.getGameMode().getId());
 -               var1.writeVarInt(var3.getLatency());
 -               if (var3.getDisplayName() == null) {
 -                  var1.writeBoolean(false);
--               } else {
++   public static enum Action {
++      ADD_PLAYER {
++         protected ClientboundPlayerInfoPacket.PlayerUpdate read(FriendlyByteBuf var1) {
++            GameProfile var2 = new GameProfile(var1.readUUID(), var1.readUtf(16));
++            PropertyMap var3 = var2.getProperties();
++            var1.readWithCount((var1x) -> {
++               String var2 = var1x.readUtf();
++               String var3x = var1x.readUtf();
++               if (var1x.readBoolean()) {
++                  String var4 = var1x.readUtf();
++                  var3.put(var2, new Property(var2, var3x, var4));
+                } else {
 -                  var1.writeBoolean(true);
 -                  var1.writeComponent(var3.getDisplayName());
--               }
++                  var3.put(var2, new Property(var2, var3x));
+                }
 -               break;
 -            case UPDATE_GAME_MODE:
 -               var1.writeUUID(var3.getProfile().getId());
@@ -169,90 +203,7 @@
 -               var1.writeUUID(var3.getProfile().getId());
 -               if (var3.getDisplayName() == null) {
 -                  var1.writeBoolean(false);
--               } else {
--                  var1.writeBoolean(true);
--                  var1.writeComponent(var3.getDisplayName());
--               }
--               break;
--            case REMOVE_PLAYER:
--               var1.writeUUID(var3.getProfile().getId());
--            }
--         }
-+   public ClientboundPlayerInfoPacket.Action getAction() {
-+      return this.action;
-+   }
- 
--         return;
--      }
-+   @Nullable
-+   private static Component readDisplayName(FriendlyByteBuf var0) {
-+      return var0.readBoolean() ? var0.readComponent() : null;
-    }
- 
--   public void handle(ClientGamePacketListener var1) {
--      var1.handlePlayerInfo(this);
-+   private static void writeDisplayName(FriendlyByteBuf var0, @Nullable Component var1) {
-+      if (var1 == null) {
-+         var0.writeBoolean(false);
-+      } else {
-+         var0.writeBoolean(true);
-+         var0.writeComponent(var1);
-+      }
 +
-    }
- 
-    public String toString() {
-       return MoreObjects.toStringHelper((Object)this).add("action", this.action).add("entries", this.entries).toString();
-    }
- 
--   public class PlayerUpdate {
-+   public static class PlayerUpdate {
-       private final int latency;
-       private final GameType gameMode;
-       private final GameProfile profile;
-+      @Nullable
-       private final Component displayName;
- 
--      public PlayerUpdate(GameProfile var2, int var3, GameType var4, @Nullable Component var5) {
--         this.profile = var2;
--         this.latency = var3;
--         this.gameMode = var4;
--         this.displayName = var5;
-+      public PlayerUpdate(GameProfile var1, int var2, @Nullable GameType var3, @Nullable Component var4) {
-+         this.profile = var1;
-+         this.latency = var2;
-+         this.gameMode = var3;
-+         this.displayName = var4;
-       }
- 
-       public GameProfile getProfile() {
-          return this.profile;
-       }
-@@ -202,15 +123,100 @@
-          return MoreObjects.toStringHelper((Object)this).add("latency", this.latency).add("gameMode", this.gameMode).add("profile", this.profile).add("displayName", this.displayName == null ? null : Component.Serializer.toJson(this.displayName)).toString();
-       }
-    }
- 
-    public static enum Action {
--      ADD_PLAYER,
--      UPDATE_GAME_MODE,
--      UPDATE_LATENCY,
--      UPDATE_DISPLAY_NAME,
--      REMOVE_PLAYER;
-+      ADD_PLAYER {
-+         protected ClientboundPlayerInfoPacket.PlayerUpdate read(FriendlyByteBuf var1) {
-+            GameProfile var2 = new GameProfile(var1.readUUID(), var1.readUtf(16));
-+            PropertyMap var3 = var2.getProperties();
-+            var1.readWithCount((var1x) -> {
-+               String var2 = var1x.readUtf();
-+               String var3x = var1x.readUtf();
-+               if (var1x.readBoolean()) {
-+                  String var4 = var1x.readUtf();
-+                  var3.put(var2, new Property(var2, var3x, var4));
-+               } else {
-+                  var3.put(var2, new Property(var2, var3x));
-+               }
- 
 +            });
 +            GameType var4 = GameType.byId(var1.readVarInt());
 +            int var5 = var1.readVarInt();
@@ -269,15 +220,21 @@
 +               if (var1x.hasSignature()) {
 +                  var0.writeBoolean(true);
 +                  var0.writeUtf(var1x.getSignature());
-+               } else {
+                } else {
+-                  var1.writeBoolean(true);
+-                  var1.writeComponent(var3.getDisplayName());
 +                  var0.writeBoolean(false);
-+               }
+                }
+-               break;
+-            case REMOVE_PLAYER:
+-               var1.writeUUID(var3.getProfile().getId());
+-            }
 +
 +            });
 +            var1.writeVarInt(var2.getGameMode().getId());
 +            var1.writeVarInt(var2.getLatency());
 +            ClientboundPlayerInfoPacket.writeDisplayName(var1, var2.getDisplayName());
-+         }
+          }
 +      },
 +      UPDATE_GAME_MODE {
 +         protected ClientboundPlayerInfoPacket.PlayerUpdate read(FriendlyByteBuf var1) {
@@ -285,7 +242,8 @@
 +            GameType var3 = GameType.byId(var1.readVarInt());
 +            return new ClientboundPlayerInfoPacket.PlayerUpdate(var2, 0, var3, (Component)null);
 +         }
-+
+ 
+-         return;
 +         protected void write(FriendlyByteBuf var1, ClientboundPlayerInfoPacket.PlayerUpdate var2) {
 +            var1.writeUUID(var2.getProfile().getId());
 +            var1.writeVarInt(var2.getGameMode().getId());
@@ -326,11 +284,58 @@
 +         }
 +      };
 +
-       private Action() {
++      Action() {
        }
-+
+-   }
+ 
+-   public void handle(ClientGamePacketListener var1) {
+-      var1.handlePlayerInfo(this);
+-   }
 +      protected abstract ClientboundPlayerInfoPacket.PlayerUpdate read(FriendlyByteBuf var1);
-+
+ 
+-   public String toString() {
+-      return MoreObjects.toStringHelper((Object)this).add("action", this.action).add("entries", this.entries).toString();
 +      protected abstract void write(FriendlyByteBuf var1, ClientboundPlayerInfoPacket.PlayerUpdate var2);
     }
+ 
+-   public class PlayerUpdate {
++   public static class PlayerUpdate {
+       private final int latency;
+       private final GameType gameMode;
+       private final GameProfile profile;
++      @Nullable
+       private final Component displayName;
+ 
+-      public PlayerUpdate(GameProfile var2, int var3, GameType var4, @Nullable Component var5) {
+-         this.profile = var2;
+-         this.latency = var3;
+-         this.gameMode = var4;
+-         this.displayName = var5;
++      public PlayerUpdate(GameProfile var1, int var2, @Nullable GameType var3, @Nullable Component var4) {
++         this.profile = var1;
++         this.latency = var2;
++         this.gameMode = var3;
++         this.displayName = var4;
+       }
+ 
+       public GameProfile getProfile() {
+          return this.profile;
+       }
+@@ -200,17 +220,6 @@
+ 
+       public String toString() {
+          return MoreObjects.toStringHelper((Object)this).add("latency", this.latency).add("gameMode", this.gameMode).add("profile", this.profile).add("displayName", this.displayName == null ? null : Component.Serializer.toJson(this.displayName)).toString();
+       }
+    }
+-
+-   public static enum Action {
+-      ADD_PLAYER,
+-      UPDATE_GAME_MODE,
+-      UPDATE_LATENCY,
+-      UPDATE_DISPLAY_NAME,
+-      REMOVE_PLAYER;
+-
+-      private Action() {
+-      }
+-   }
  }

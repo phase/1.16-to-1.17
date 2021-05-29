@@ -1,0 +1,94 @@
+--- net/minecraft/world/entity/ai/behavior/RamTarget.java
++++ net/minecraft/world/entity/ai/behavior/RamTarget.java
+@@ -1,0 +1,91 @@
++package net.minecraft.world.entity.ai.behavior;
++
++import com.google.common.collect.ImmutableMap;
++import java.util.List;
++import java.util.Optional;
++import java.util.function.Function;
++import java.util.function.ToDoubleFunction;
++import java.util.function.ToIntFunction;
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.sounds.SoundEvent;
++import net.minecraft.sounds.SoundSource;
++import net.minecraft.util.Mth;
++import net.minecraft.util.valueproviders.UniformInt;
++import net.minecraft.world.damagesource.DamageSource;
++import net.minecraft.world.entity.LivingEntity;
++import net.minecraft.world.entity.PathfinderMob;
++import net.minecraft.world.entity.ai.Brain;
++import net.minecraft.world.entity.ai.memory.MemoryModuleType;
++import net.minecraft.world.entity.ai.memory.MemoryStatus;
++import net.minecraft.world.entity.ai.memory.WalkTarget;
++import net.minecraft.world.entity.ai.targeting.TargetingConditions;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.phys.Vec3;
++
++public class RamTarget<E extends PathfinderMob> extends Behavior<E> {
++   public static final int TIME_OUT_DURATION = 200;
++   public static final float RAM_SPEED_FORCE_FACTOR = 1.65F;
++   private final Function<E, UniformInt> getTimeBetweenRams;
++   private final TargetingConditions ramTargeting;
++   private final ToIntFunction<E> getDamage;
++   private final float speed;
++   private final ToDoubleFunction<E> getKnockbackForce;
++   private Vec3 ramDirection;
++   private final Function<E, SoundEvent> getImpactSound;
++
++   public RamTarget(Function<E, UniformInt> var1, TargetingConditions var2, ToIntFunction<E> var3, float var4, ToDoubleFunction<E> var5, Function<E, SoundEvent> var6) {
++      super(ImmutableMap.of(MemoryModuleType.RAM_COOLDOWN_TICKS, MemoryStatus.VALUE_ABSENT, MemoryModuleType.RAM_TARGET, MemoryStatus.VALUE_PRESENT), 200);
++      this.getTimeBetweenRams = var1;
++      this.ramTargeting = var2;
++      this.getDamage = var3;
++      this.speed = var4;
++      this.getKnockbackForce = var5;
++      this.getImpactSound = var6;
++      this.ramDirection = Vec3.ZERO;
++   }
++
++   protected boolean checkExtraStartConditions(ServerLevel var1, PathfinderMob var2) {
++      return var2.getBrain().hasMemoryValue(MemoryModuleType.RAM_TARGET);
++   }
++
++   protected boolean canStillUse(ServerLevel var1, PathfinderMob var2, long var3) {
++      return var2.getBrain().hasMemoryValue(MemoryModuleType.RAM_TARGET);
++   }
++
++   protected void start(ServerLevel var1, PathfinderMob var2, long var3) {
++      BlockPos var5 = var2.blockPosition();
++      Brain var6 = var2.getBrain();
++      Vec3 var7 = (Vec3)var6.getMemory(MemoryModuleType.RAM_TARGET).get();
++      this.ramDirection = (new Vec3((double)var5.getX() - var7.x(), 0.0D, (double)var5.getZ() - var7.z())).normalize();
++      var6.setMemory(MemoryModuleType.WALK_TARGET, (Object)(new WalkTarget(var7, this.speed, 0)));
++   }
++
++   protected void tick(ServerLevel var1, E var2, long var3) {
++      List var5 = var1.getNearbyEntities(LivingEntity.class, this.ramTargeting, var2, var2.getBoundingBox());
++      Brain var6 = var2.getBrain();
++      if (!var5.isEmpty()) {
++         LivingEntity var7 = (LivingEntity)var5.get(0);
++         var7.hurt(DamageSource.mobAttack(var2), (float)this.getDamage.applyAsInt(var2));
++         float var8 = var7.isDamageSourceBlocked(DamageSource.mobAttack(var2)) ? 0.5F : 1.0F;
++         float var9 = Mth.clamp(var2.getSpeed() * 1.65F, 0.2F, 3.0F);
++         var7.knockback((double)(var8 * var9) * this.getKnockbackForce.applyAsDouble(var2), this.ramDirection.x(), this.ramDirection.z());
++         this.finishRam(var1, var2);
++         var1.playSound((Player)null, var2, (SoundEvent)this.getImpactSound.apply(var2), SoundSource.HOSTILE, 1.0F, 1.0F);
++      } else {
++         Optional var10 = var6.getMemory(MemoryModuleType.WALK_TARGET);
++         Optional var11 = var6.getMemory(MemoryModuleType.RAM_TARGET);
++         boolean var12 = !var10.isPresent() || !var11.isPresent() || ((WalkTarget)var10.get()).getTarget().currentPosition().distanceTo((Vec3)var11.get()) < 0.25D;
++         if (var12) {
++            this.finishRam(var1, var2);
++         }
++      }
++
++   }
++
++   protected void finishRam(ServerLevel var1, E var2) {
++      var1.broadcastEntityEvent(var2, (byte)59);
++      var2.getBrain().setMemory(MemoryModuleType.RAM_COOLDOWN_TICKS, (Object)((UniformInt)this.getTimeBetweenRams.apply(var2)).sample(var1.random));
++      var2.getBrain().eraseMemory(MemoryModuleType.RAM_TARGET);
++   }
++}

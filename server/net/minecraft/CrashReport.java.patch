@@ -1,6 +1,70 @@
 --- net/minecraft/CrashReport.java
 +++ net/minecraft/CrashReport.java
-@@ -74,10 +74,16 @@
+@@ -11,73 +11,44 @@
+ import java.text.SimpleDateFormat;
+ import java.util.Date;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.concurrent.CompletionException;
+-import java.util.stream.Collectors;
+ import org.apache.commons.io.IOUtils;
+ import org.apache.commons.lang3.ArrayUtils;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class CrashReport {
+    private static final Logger LOGGER = LogManager.getLogger();
+    private final String title;
+    private final Throwable exception;
+-   private final CrashReportCategory systemDetails = new CrashReportCategory(this, "System Details");
+    private final List<CrashReportCategory> details = Lists.newArrayList();
+    private File saveFile;
+    private boolean trackingStackTrace = true;
+    private StackTraceElement[] uncategorizedStackTrace = new StackTraceElement[0];
++   private final SystemReport systemReport = new SystemReport();
+ 
+    public CrashReport(String var1, Throwable var2) {
+       this.title = var1;
+       this.exception = var2;
+-      this.initDetails();
+    }
+ 
+-   private void initDetails() {
+-      this.systemDetails.setDetail("Minecraft Version", () -> {
+-         return SharedConstants.getCurrentVersion().getName();
+-      });
+-      this.systemDetails.setDetail("Minecraft Version ID", () -> {
+-         return SharedConstants.getCurrentVersion().getId();
+-      });
+-      this.systemDetails.setDetail("Operating System", () -> {
+-         return System.getProperty("os.name") + " (" + System.getProperty("os.arch") + ") version " + System.getProperty("os.version");
+-      });
+-      this.systemDetails.setDetail("Java Version", () -> {
+-         return System.getProperty("java.version") + ", " + System.getProperty("java.vendor");
+-      });
+-      this.systemDetails.setDetail("Java VM Version", () -> {
+-         return System.getProperty("java.vm.name") + " (" + System.getProperty("java.vm.info") + "), " + System.getProperty("java.vm.vendor");
+-      });
+-      this.systemDetails.setDetail("Memory", () -> {
+-         Runtime var0 = Runtime.getRuntime();
+-         long var1 = var0.maxMemory();
+-         long var3 = var0.totalMemory();
+-         long var5 = var0.freeMemory();
+-         long var7 = var1 / 1024L / 1024L;
+-         long var9 = var3 / 1024L / 1024L;
+-         long var11 = var5 / 1024L / 1024L;
+-         return var5 + " bytes (" + var11 + " MB) / " + var3 + " bytes (" + var9 + " MB) up to " + var1 + " bytes (" + var7 + " MB)";
+-      });
+-      this.systemDetails.setDetail("CPUs", (Object)Runtime.getRuntime().availableProcessors());
+-      this.systemDetails.setDetail("JVM Flags", () -> {
+-         List var0 = (List)Util.getVmArguments().collect(Collectors.toList());
+-         return String.format("%d total; %s", var0.size(), var0.stream().collect(Collectors.joining(" ")));
+-      });
+-   }
+-
+    public String getTitle() {
+       return this.title;
+    }
  
     public Throwable getException() {
        return this.exception;
@@ -17,7 +81,20 @@
           this.uncategorizedStackTrace = (StackTraceElement[])ArrayUtils.subarray((Object[])((CrashReportCategory)this.details.get(0)).getStacktrace(), 0, 1);
        }
  
-@@ -160,10 +166,14 @@
+@@ -103,11 +74,11 @@
+          CrashReportCategory var7 = (CrashReportCategory)var6.next();
+          var7.getDetails(var1);
+          var1.append("\n\n");
+       }
+ 
+-      this.systemDetails.getDetails(var1);
++      this.systemReport.appendToCrashReportString(var1);
+    }
+ 
+    public String getExceptionMessage() {
+       StringWriter var1 = null;
+       PrintWriter var2 = null;
+@@ -160,10 +131,14 @@
        var1.append("\n\n");
        this.getDetails(var1);
        return var1.toString();
@@ -32,3 +109,27 @@
           return false;
        } else {
           if (var1.getParentFile() != null) {
+@@ -188,20 +163,20 @@
+ 
+          return var4;
+       }
+    }
+ 
+-   public CrashReportCategory getSystemDetails() {
+-      return this.systemDetails;
++   public SystemReport getSystemReport() {
++      return this.systemReport;
+    }
+ 
+    public CrashReportCategory addCategory(String var1) {
+       return this.addCategory(var1, 1);
+    }
+ 
+    public CrashReportCategory addCategory(String var1, int var2) {
+-      CrashReportCategory var3 = new CrashReportCategory(this, var1);
++      CrashReportCategory var3 = new CrashReportCategory(var1);
+       if (this.trackingStackTrace) {
+          int var4 = var3.fillInStackTrace(var2);
+          StackTraceElement[] var5 = this.exception.getStackTrace();
+          StackTraceElement var6 = null;
+          StackTraceElement var7 = null;

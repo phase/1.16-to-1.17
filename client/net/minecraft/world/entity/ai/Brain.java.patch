@@ -9,7 +9,17 @@
  import com.google.common.collect.Maps;
  import com.google.common.collect.Sets;
  import com.google.common.collect.UnmodifiableIterator;
-@@ -26,10 +27,11 @@
+@@ -17,19 +18,21 @@
+ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+ import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.Optional;
+ import java.util.Set;
+ import java.util.Map.Entry;
+ import java.util.function.Supplier;
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  import net.minecraft.Util;
@@ -21,11 +31,14 @@
  import net.minecraft.world.entity.ai.memory.ExpirableValue;
  import net.minecraft.world.entity.ai.memory.MemoryModuleType;
  import net.minecraft.world.entity.ai.memory.MemoryStatus;
-@@ -42,10 +44,11 @@
+@@ -40,12 +43,13 @@
+ import org.apache.commons.lang3.mutable.MutableObject;
+ import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class Brain<E extends LivingEntity> {
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
     private final Supplier<Codec<Brain<E>>> codec;
 +   private static final int SCHEDULE_UPDATE_DELAY = 20;
     private final Map<MemoryModuleType<?>, Optional<? extends ExpirableValue<?>>> memories = Maps.newHashMap();
@@ -33,12 +46,62 @@
     private final Map<Integer, Map<Activity, Set<Behavior<? super E>>>> availableBehaviorsByPriority = Maps.newTreeMap();
     private Schedule schedule;
     private final Map<Activity, Set<Pair<MemoryModuleType<?>, MemoryStatus>>> activityRequirements;
-@@ -199,10 +202,16 @@
+@@ -81,16 +85,16 @@
+                });
+                var3.setValue(((DataResult)var3.getValue()).apply2(Builder::add, var5));
+             });
+             DataResult var10000 = (DataResult)var3.getValue();
+             Logger var10001 = Brain.LOGGER;
+-            var10001.getClass();
++            Objects.requireNonNull(var10001);
+             ImmutableList var4 = (ImmutableList)var10000.resultOrPartial(var10001::error).map(Builder::build).orElseGet(ImmutableList::of);
+             Collection var10002 = var0;
+             Collection var10003 = var1;
+             MutableObject var10005 = var2;
+-            var10005.getClass();
++            Objects.requireNonNull(var10005);
+             return DataResult.success(new Brain(var10002, var10003, var4, var10005::getValue));
+          }
+ 
+          private <T, U> DataResult<Brain.MemoryValue<U>> captureRead(MemoryModuleType<U> var1x, DynamicOps<T> var2x, T var3) {
+             return ((DataResult)var1x.getCodec().map(DataResult::success).orElseGet(() -> {
+@@ -158,11 +162,11 @@
+ 
+    public <T> DataResult<T> serializeStart(DynamicOps<T> var1) {
+       return ((Codec)this.codec.get()).encodeStart(var1, this);
+    }
+ 
+-   private Stream<Brain.MemoryValue<?>> memories() {
++   Stream<Brain.MemoryValue<?>> memories() {
+       return this.memories.entrySet().stream().map((var0) -> {
+          return Brain.MemoryValue.createUnchecked((MemoryModuleType)var0.getKey(), (Optional)var0.getValue());
+       });
+    }
+ 
+@@ -184,11 +188,11 @@
+ 
+    public <U> void setMemory(MemoryModuleType<U> var1, Optional<? extends U> var2) {
+       this.setMemoryInternal(var1, var2.map(ExpirableValue::of));
+    }
+ 
+-   private <U> void setMemoryInternal(MemoryModuleType<U> var1, Optional<? extends ExpirableValue<?>> var2) {
++   <U> void setMemoryInternal(MemoryModuleType<U> var1, Optional<? extends ExpirableValue<?>> var2) {
+       if (this.memories.containsKey(var1)) {
+          if (var2.isPresent() && this.isEmptyCollection(((ExpirableValue)var2.get()).getValue())) {
+             this.eraseMemory(var1);
+          } else {
+             this.memories.put(var1, var2);
+@@ -199,10 +203,21 @@
  
     public <U> Optional<U> getMemory(MemoryModuleType<U> var1) {
        return ((Optional)this.memories.get(var1)).map(ExpirableValue::getValue);
     }
  
++   public <U> long getTimeUntilExpiry(MemoryModuleType<U> var1) {
++      Optional var2 = (Optional)this.memories.get(var1);
++      return (Long)var2.map(ExpirableValue::getTimeToLive).orElse(0L);
++   }
++
 +   @Deprecated
 +   @VisibleForDebug
 +   public Map<MemoryModuleType<?>, Optional<? extends ExpirableValue<?>>> getMemories() {
@@ -50,7 +113,7 @@
           return var1x.equals(var2);
        }).isPresent();
     }
-@@ -227,10 +236,17 @@
+@@ -227,10 +242,17 @@
     public void setCoreActivities(Set<Activity> var1) {
        this.coreActivities = var1;
     }
@@ -68,7 +131,7 @@
        Iterator var2 = this.availableBehaviorsByPriority.values().iterator();
  
        while(var2.hasNext()) {
-@@ -361,11 +377,11 @@
+@@ -361,29 +383,34 @@
  
     public void addActivityWithConditions(Activity var1, ImmutableList<? extends Pair<Integer, ? extends Behavior<? super E>>> var2, Set<Pair<MemoryModuleType<?>, MemoryStatus>> var3) {
        this.addActivityAndRemoveMemoriesWhenStopped(var1, var2, var3, Sets.newHashSet());
@@ -81,8 +144,17 @@
           this.activityMemoriesToEraseWhenStopped.put(var1, var4);
        }
  
-@@ -380,10 +396,15 @@
-          })).add(var6.getSecond());
+       UnmodifiableIterator var5 = var2.iterator();
+ 
+       while(var5.hasNext()) {
+          Pair var6 = (Pair)var5.next();
+-         ((Set)((Map)this.availableBehaviorsByPriority.computeIfAbsent(var6.getFirst(), (var0) -> {
++         ((Set)((Map)this.availableBehaviorsByPriority.computeIfAbsent((Integer)var6.getFirst(), (var0) -> {
+             return Maps.newHashMap();
+          })).computeIfAbsent(var1, (var0) -> {
+             return Sets.newLinkedHashSet();
+-         })).add(var6.getSecond());
++         })).add((Behavior)var6.getSecond());
        }
  
     }
@@ -97,3 +169,97 @@
     }
  
     public Brain<E> copyWithoutBehaviors() {
+@@ -392,11 +419,11 @@
+ 
+       while(var2.hasNext()) {
+          Entry var3 = (Entry)var2.next();
+          MemoryModuleType var4 = (MemoryModuleType)var3.getKey();
+          if (((Optional)var3.getValue()).isPresent()) {
+-            var1.memories.put(var4, var3.getValue());
++            var1.memories.put(var4, (Optional)var3.getValue());
+          }
+       }
+ 
+       return var1;
+    }
+@@ -528,24 +555,47 @@
+       }
+ 
+       return var4.build();
+    }
+ 
++   public static final class Provider<E extends LivingEntity> {
++      private final Collection<? extends MemoryModuleType<?>> memoryTypes;
++      private final Collection<? extends SensorType<? extends Sensor<? super E>>> sensorTypes;
++      private final Codec<Brain<E>> codec;
++
++      Provider(Collection<? extends MemoryModuleType<?>> var1, Collection<? extends SensorType<? extends Sensor<? super E>>> var2) {
++         this.memoryTypes = var1;
++         this.sensorTypes = var2;
++         this.codec = Brain.codec(var1, var2);
++      }
++
++      public Brain<E> makeBrain(Dynamic<?> var1) {
++         DataResult var10000 = this.codec.parse(var1);
++         Logger var10001 = Brain.LOGGER;
++         Objects.requireNonNull(var10001);
++         return (Brain)var10000.resultOrPartial(var10001::error).orElseGet(() -> {
++            return new Brain(this.memoryTypes, this.sensorTypes, ImmutableList.of(), () -> {
++               return this.codec;
++            });
++         });
++      }
++   }
++
+    static final class MemoryValue<U> {
+       private final MemoryModuleType<U> type;
+       private final Optional<? extends ExpirableValue<U>> value;
+ 
+-      private static <U> Brain.MemoryValue<U> createUnchecked(MemoryModuleType<U> var0, Optional<? extends ExpirableValue<?>> var1) {
++      static <U> Brain.MemoryValue<U> createUnchecked(MemoryModuleType<U> var0, Optional<? extends ExpirableValue<?>> var1) {
+          return new Brain.MemoryValue(var0, var1);
+       }
+ 
+-      private MemoryValue(MemoryModuleType<U> var1, Optional<? extends ExpirableValue<U>> var2) {
++      MemoryValue(MemoryModuleType<U> var1, Optional<? extends ExpirableValue<U>> var2) {
+          this.type = var1;
+          this.value = var2;
+       }
+ 
+-      private void setMemoryInternal(Brain<?> var1) {
++      void setMemoryInternal(Brain<?> var1) {
+          var1.setMemoryInternal(this.type, this.value);
+       }
+ 
+       public <T> void serialize(DynamicOps<T> var1, RecordBuilder<T> var2) {
+          this.type.getCodec().ifPresent((var3) -> {
+@@ -553,29 +603,6 @@
+                var2.add(Registry.MEMORY_MODULE_TYPE.encodeStart(var1, this.type), var3.encodeStart(var1, var4));
+             });
+          });
+       }
+    }
+-
+-   public static final class Provider<E extends LivingEntity> {
+-      private final Collection<? extends MemoryModuleType<?>> memoryTypes;
+-      private final Collection<? extends SensorType<? extends Sensor<? super E>>> sensorTypes;
+-      private final Codec<Brain<E>> codec;
+-
+-      private Provider(Collection<? extends MemoryModuleType<?>> var1, Collection<? extends SensorType<? extends Sensor<? super E>>> var2) {
+-         this.memoryTypes = var1;
+-         this.sensorTypes = var2;
+-         this.codec = Brain.codec(var1, var2);
+-      }
+-
+-      public Brain<E> makeBrain(Dynamic<?> var1) {
+-         DataResult var10000 = this.codec.parse(var1);
+-         Logger var10001 = Brain.LOGGER;
+-         var10001.getClass();
+-         return (Brain)var10000.resultOrPartial(var10001::error).orElseGet(() -> {
+-            return new Brain(this.memoryTypes, this.sensorTypes, ImmutableList.of(), () -> {
+-               return this.codec;
+-            });
+-         });
+-      }
+-   }
+ }

@@ -1,6 +1,12 @@
 --- com/mojang/realmsclient/gui/screens/RealmsBrokenWorldScreen.java
 +++ com/mojang/realmsclient/gui/screens/RealmsBrokenWorldScreen.java
-@@ -16,10 +16,11 @@
+@@ -11,63 +11,69 @@
+ import com.mojang.realmsclient.exception.RealmsServiceException;
+ import com.mojang.realmsclient.gui.RealmsWorldSlotButton;
+ import com.mojang.realmsclient.util.RealmsTextureManager;
+ import com.mojang.realmsclient.util.task.OpenServerTask;
+ import com.mojang.realmsclient.util.task.SwitchSlotTask;
++import java.util.Collection;
  import java.util.Iterator;
  import java.util.List;
  import java.util.Map.Entry;
@@ -12,7 +18,12 @@
  import net.minecraft.client.gui.screens.Screen;
  import net.minecraft.network.chat.CommonComponents;
  import net.minecraft.network.chat.Component;
-@@ -30,10 +31,11 @@
++import net.minecraft.network.chat.ComponentUtils;
++import net.minecraft.network.chat.TextComponent;
+ import net.minecraft.network.chat.TranslatableComponent;
+-import net.minecraft.realms.NarrationHelper;
+ import net.minecraft.realms.RealmsScreen;
+ import net.minecraft.util.Mth;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -23,8 +34,89 @@
     private final RealmsMainScreen mainScreen;
     private RealmsServer serverData;
     private final long serverId;
-    private final Component header;
-@@ -238,38 +240,38 @@
+-   private final Component header;
+    private final Component[] message = new Component[]{new TranslatableComponent("mco.brokenworld.message.line1"), new TranslatableComponent("mco.brokenworld.message.line2")};
+    private int leftX;
+    private int rightX;
+    private final List<Integer> slotsThatHasBeenDownloaded = Lists.newArrayList();
+    private int animTick;
+ 
+    public RealmsBrokenWorldScreen(Screen var1, RealmsMainScreen var2, long var3, boolean var5) {
++      super(var5 ? new TranslatableComponent("mco.brokenworld.minigame.title") : new TranslatableComponent("mco.brokenworld.title"));
+       this.lastScreen = var1;
+       this.mainScreen = var2;
+       this.serverId = var3;
+-      this.header = var5 ? new TranslatableComponent("mco.brokenworld.minigame.title") : new TranslatableComponent("mco.brokenworld.title");
+    }
+ 
+    public void init() {
+       this.leftX = this.width / 2 - 150;
+       this.rightX = this.width / 2 + 190;
+-      this.addButton(new Button(this.rightX - 80 + 8, row(13) - 5, 70, 20, CommonComponents.GUI_BACK, (var1) -> {
++      this.addRenderableWidget(new Button(this.rightX - 80 + 8, row(13) - 5, 70, 20, CommonComponents.GUI_BACK, (var1) -> {
+          this.backButtonClicked();
+       }));
+       if (this.serverData == null) {
+          this.fetchServerData(this.serverId);
+       } else {
+          this.addButtons();
+       }
+ 
+       this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
+-      NarrationHelper.now((String)Stream.concat(Stream.of(this.header), Stream.of(this.message)).map(Component::getString).collect(Collectors.joining(" ")));
+    }
+ 
++   public Component getNarrationMessage() {
++      return ComponentUtils.formatList((Collection)Stream.concat(Stream.of(this.title), Stream.of(this.message)).collect(Collectors.toList()), (Component)(new TextComponent(" ")));
++   }
++
+    private void addButtons() {
+       Iterator var1 = this.serverData.slots.entrySet().iterator();
+ 
+       while(var1.hasNext()) {
+          Entry var2 = (Entry)var1.next();
+@@ -107,12 +113,12 @@
+          if (this.slotsThatHasBeenDownloaded.contains(var3)) {
+             var5.active = false;
+             var5.setMessage(new TranslatableComponent("mco.brokenworld.downloaded"));
+          }
+ 
+-         this.addButton(var5);
+-         this.addButton(new Button(this.getFramePositionX(var3), row(10), 80, 20, new TranslatableComponent("mco.brokenworld.reset"), (var2x) -> {
++         this.addRenderableWidget(var5);
++         this.addRenderableWidget(new Button(this.getFramePositionX(var3), row(10), 80, 20, new TranslatableComponent("mco.brokenworld.reset"), (var2x) -> {
+             RealmsResetWorldScreen var3x = new RealmsResetWorldScreen(this, this.serverData, this::doSwitchOrReset, () -> {
+                this.minecraft.setScreen(this);
+                this.doSwitchOrReset();
+             });
+             if (var3 != this.serverData.activeSlot || this.serverData.worldType == RealmsServer.WorldType.MINIGAME) {
+@@ -130,11 +136,11 @@
+    }
+ 
+    public void render(PoseStack var1, int var2, int var3, float var4) {
+       this.renderBackground(var1);
+       super.render(var1, var2, var3, var4);
+-      drawCenteredString(var1, this.font, this.header, this.width / 2, 17, 16777215);
++      drawCenteredString(var1, this.font, this.title, this.width / 2, 17, 16777215);
+ 
+       for(int var5 = 0; var5 < this.message.length; ++var5) {
+          drawCenteredString(var1, this.font, this.message[var5], this.width / 2, row(-1) + 3 + var5 * 12, 10526880);
+       }
+ 
+@@ -219,11 +225,11 @@
+       try {
+          WorldDownload var3 = var2.requestDownloadInfo(this.serverData.id, var1);
+          RealmsDownloadLatestWorldScreen var4 = new RealmsDownloadLatestWorldScreen(this, var3, this.serverData.getWorldName(var1), (var2x) -> {
+             if (var2x) {
+                this.slotsThatHasBeenDownloaded.add(var1);
+-               this.children.clear();
++               this.clearWidgets();
+                this.addButtons();
+             } else {
+                this.minecraft.setScreen(this);
+             }
+ 
+@@ -238,38 +244,38 @@
  
     private boolean isMinigame() {
        return this.serverData != null && this.serverData.worldType == RealmsServer.WorldType.MINIGAME;

@@ -1,9 +1,12 @@
 --- net/minecraft/server/commands/data/DataCommands.java
 +++ net/minecraft/server/commands/data/DataCommands.java
-@@ -15,10 +15,11 @@
+@@ -13,12 +13,14 @@
+ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
  import java.util.Collections;
  import java.util.Iterator;
  import java.util.List;
++import java.util.Objects;
  import java.util.function.BiConsumer;
  import java.util.function.Function;
 +import java.util.function.Supplier;
@@ -12,7 +15,7 @@
  import net.minecraft.commands.arguments.CompoundTagArgument;
  import net.minecraft.commands.arguments.NbtPathArgument;
  import net.minecraft.commands.arguments.NbtTagArgument;
-@@ -51,10 +52,13 @@
+@@ -51,10 +53,13 @@
     });
     public static final List<Function<String, DataCommands.DataProvider>> ALL_PROVIDERS;
     public static final List<DataCommands.DataProvider> TARGET_PROVIDERS;
@@ -26,16 +29,49 @@
           return var0x.hasPermission(2);
        });
        Iterator var2 = TARGET_PROVIDERS.iterator();
-@@ -86,11 +90,11 @@
+@@ -85,12 +90,12 @@
+                return insertAtIndex(0, var1, var2, var3);
              }))).then(Commands.literal("append").then(var1x.create((var0, var1, var2, var3) -> {
                 return insertAtIndex(-1, var1, var2, var3);
              }))).then(Commands.literal("set").then(var1x.create((var0, var1, var2, var3) -> {
                 Tag var10002 = (Tag)Iterables.getLast(var3);
-                var10002.getClass();
+-               var10002.getClass();
 -               return var2.set(var1, var10002::copy);
++               Objects.requireNonNull(var10002);
 +               return var2.set(var1, (Supplier)(var10002::copy));
              }))).then(Commands.literal("merge").then(var1x.create((var0, var1, var2, var3) -> {
                 List var4 = var2.getOrCreate(var1, CompoundTag::new);
                 int var5 = 0;
  
                 CompoundTag var8;
+@@ -182,11 +187,11 @@
+                   });
+                });
+             }
+ 
+             var0.accept(var3x, (var1) -> {
+-               return (LiteralArgumentBuilder)Commands.literal("value").then(Commands.argument("value", NbtTagArgument.nbtTag()).executes((var2) -> {
++               return Commands.literal("value").then(Commands.argument("value", NbtTagArgument.nbtTag()).executes((var2) -> {
+                   List var3x = Collections.singletonList(NbtTagArgument.getNbtTag(var2, "value"));
+                   return manipulateData(var2, var3, var1, var3x);
+                }));
+             });
+             return var2x.then((ArgumentBuilder)var3x);
+@@ -296,13 +301,13 @@
+       DataAccessor access(CommandContext<CommandSourceStack> var1) throws CommandSyntaxException;
+ 
+       ArgumentBuilder<CommandSourceStack, ?> wrap(ArgumentBuilder<CommandSourceStack, ?> var1, Function<ArgumentBuilder<CommandSourceStack, ?>, ArgumentBuilder<CommandSourceStack, ?>> var2);
+    }
+ 
+-   interface DataManipulatorDecorator {
+-      ArgumentBuilder<CommandSourceStack, ?> create(DataCommands.DataManipulator var1);
++   private interface DataManipulator {
++      int modify(CommandContext<CommandSourceStack> var1, CompoundTag var2, NbtPathArgument.NbtPath var3, List<Tag> var4) throws CommandSyntaxException;
+    }
+ 
+-   interface DataManipulator {
+-      int modify(CommandContext<CommandSourceStack> var1, CompoundTag var2, NbtPathArgument.NbtPath var3, List<Tag> var4) throws CommandSyntaxException;
++   private interface DataManipulatorDecorator {
++      ArgumentBuilder<CommandSourceStack, ?> create(DataCommands.DataManipulator var1);
+    }
+ }

@@ -1,7 +1,12 @@
 --- net/minecraft/world/level/levelgen/structure/RuinedPortalPiece.java
 +++ net/minecraft/world/level/levelgen/structure/RuinedPortalPiece.java
-@@ -10,14 +10,14 @@
+@@ -6,18 +6,20 @@
+ import com.mojang.serialization.Dynamic;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import java.util.ArrayList;
+ import java.util.Arrays;
  import java.util.Map;
++import java.util.Objects;
  import java.util.Random;
  import java.util.stream.Collectors;
  import net.minecraft.core.BlockPos;
@@ -11,12 +16,24 @@
  import net.minecraft.nbt.NbtOps;
  import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.level.ServerLevel;
++import net.minecraft.tags.BlockTags;
  import net.minecraft.world.level.ChunkPos;
  import net.minecraft.world.level.LevelAccessor;
  import net.minecraft.world.level.ServerLevelAccessor;
  import net.minecraft.world.level.StructureFeatureManager;
  import net.minecraft.world.level.WorldGenLevel;
-@@ -47,85 +47,89 @@
+@@ -37,95 +39,100 @@
+ import net.minecraft.world.level.levelgen.structure.templatesystem.BlockAgeProcessor;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnoreProcessor;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.BlockMatchTest;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.LavaSubmergedBlockProcessor;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.ProcessorRule;
++import net.minecraft.world.level.levelgen.structure.templatesystem.ProtectedBlockProcessor;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.RandomBlockMatchTest;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.RuleProcessor;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -59,7 +76,8 @@
        this.verticalPlacement = RuinedPortalPiece.VerticalPlacement.byName(var2.getString("VerticalPlacement"));
        DataResult var10001 = RuinedPortalPiece.Properties.CODEC.parse(new Dynamic(NbtOps.INSTANCE, var2.get("Properties")));
        Logger var10003 = LOGGER;
-       var10003.getClass();
+-      var10003.getClass();
++      Objects.requireNonNull(var10003);
        this.properties = (RuinedPortalPiece.Properties)var10001.getOrThrow(true, var10003::error);
 -      StructureTemplate var3 = var1.getOrCreate(this.templateLocation);
 -      this.loadTemplate(var3, new BlockPos(var3.getSize().getX() / 2, 0, var3.getSize().getZ() / 2));
@@ -78,7 +96,8 @@
 +      var2.putString("VerticalPlacement", this.verticalPlacement.getName());
        DataResult var10000 = RuinedPortalPiece.Properties.CODEC.encodeStart(NbtOps.INSTANCE, this.properties);
        Logger var10001 = LOGGER;
-       var10001.getClass();
+-      var10001.getClass();
++      Objects.requireNonNull(var10001);
        var10000.resultOrPartial(var10001::error).ifPresent((var1x) -> {
 -         var1.put("Properties", var1x);
 +         var2.put("Properties", var1x);
@@ -100,7 +119,7 @@
 +      RuinedPortalPiece.VerticalPlacement var10002 = RuinedPortalPiece.VerticalPlacement.byName(var1.getString("VerticalPlacement"));
 +      DataResult var10004 = RuinedPortalPiece.Properties.CODEC.parse(new Dynamic(NbtOps.INSTANCE, var1.get("Properties")));
 +      Logger var10006 = LOGGER;
-+      var10006.getClass();
++      Objects.requireNonNull(var10006);
 +      return makeSettings(var10000, var10001, var10002, var4, (RuinedPortalPiece.Properties)var10004.getOrThrow(true, var10006::error));
 +   }
 +
@@ -116,7 +135,7 @@
 -      StructurePlaceSettings var5 = (new StructurePlaceSettings()).setRotation(this.rotation).setMirror(this.mirror).setRotationPivot(var2).addProcessor(var3).addProcessor(new RuleProcessor(var4)).addProcessor(new BlockAgeProcessor(this.properties.mossiness)).addProcessor(new LavaSubmergedBlockProcessor());
 -      if (this.properties.replaceWithBlackstone) {
 -         var5.addProcessor(BlackstoneReplaceProcessor.INSTANCE);
-+      StructurePlaceSettings var7 = (new StructurePlaceSettings()).setRotation(var1).setMirror(var0).setRotationPivot(var3).addProcessor(var5).addProcessor(new RuleProcessor(var6)).addProcessor(new BlockAgeProcessor(var4.mossiness)).addProcessor(new LavaSubmergedBlockProcessor());
++      StructurePlaceSettings var7 = (new StructurePlaceSettings()).setRotation(var1).setMirror(var0).setRotationPivot(var3).addProcessor(var5).addProcessor(new RuleProcessor(var6)).addProcessor(new BlockAgeProcessor(var4.mossiness)).addProcessor(new ProtectedBlockProcessor(BlockTags.FEATURES_CANNOT_REPLACE.getName())).addProcessor(new LavaSubmergedBlockProcessor());
 +      if (var4.replaceWithBlackstone) {
 +         var7.addProcessor(BlackstoneReplaceProcessor.INSTANCE);
        }
@@ -147,7 +166,7 @@
           this.addNetherrackDripColumnsBelowPortal(var4, var1);
           if (this.properties.vines || this.properties.overgrown) {
              BlockPos.betweenClosedStream(this.getBoundingBox()).forEach((var3x) -> {
-@@ -148,11 +152,11 @@
+@@ -148,11 +155,11 @@
     }
  
     private void maybeAddVines(Random var1, LevelAccessor var2, BlockPos var3) {
@@ -160,7 +179,7 @@
           if (var7.isAir()) {
              if (Block.isFaceFull(var4.getCollisionShape(var2, var3), var5)) {
                 BooleanProperty var8 = VineBlock.getPropertyForFace(var5.getOpposite());
-@@ -168,13 +172,13 @@
+@@ -168,13 +175,13 @@
        }
  
     }
@@ -177,7 +196,7 @@
              }
           }
        }
-@@ -194,11 +198,11 @@
+@@ -194,11 +201,11 @@
  
     }
  
@@ -190,7 +209,7 @@
        float[] var7 = new float[]{1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 0.9F, 0.9F, 0.8F, 0.7F, 0.6F, 0.4F, 0.2F};
        int var8 = var7.length;
        int var9 = (this.boundingBox.getXSpan() + this.boundingBox.getZSpan()) / 2;
-@@ -212,13 +216,13 @@
+@@ -212,13 +219,13 @@
              int var16 = Math.max(0, var15 + var10);
              if (var16 < var8) {
                 float var17 = var7[var16];
@@ -206,3 +225,16 @@
                          this.maybeAddLeavesAbove(var1, var2, var12);
                       }
  
+@@ -231,11 +238,11 @@
+ 
+    }
+ 
+    private boolean canBlockBeReplacedByNetherrackOrMagma(LevelAccessor var1, BlockPos var2) {
+       BlockState var3 = var1.getBlockState(var2);
+-      return !var3.is(Blocks.AIR) && !var3.is(Blocks.OBSIDIAN) && !var3.is(Blocks.CHEST) && (this.verticalPlacement == RuinedPortalPiece.VerticalPlacement.IN_NETHER || !var3.is(Blocks.LAVA));
++      return !var3.is(Blocks.AIR) && !var3.is(Blocks.OBSIDIAN) && !var3.is(BlockTags.FEATURES_CANNOT_REPLACE) && (this.verticalPlacement == RuinedPortalPiece.VerticalPlacement.IN_NETHER || !var3.is(Blocks.LAVA));
+    }
+ 
+    private void placeNetherrackOrMagma(Random var1, LevelAccessor var2, BlockPos var3) {
+       if (!this.properties.cold && var1.nextFloat() < 0.07F) {
+          var2.setBlock(var3, Blocks.MAGMA_BLOCK.defaultBlockState(), 3);

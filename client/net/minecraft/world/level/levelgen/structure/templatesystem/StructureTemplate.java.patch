@@ -341,6 +341,21 @@
                 }
              }
           } else {
+@@ -444,12 +450,12 @@
+          var14.add(DoubleTag.valueOf(var13.z));
+          var11.put("Pos", var14);
+          var11.remove("UUID");
+          createEntityIgnoreException(var1, var11).ifPresent((var6x) -> {
+             float var7x = var6x.mirror(var3);
+-            var7x += var6x.yRot - var6x.rotate(var4);
+-            var6x.moveTo(var13.x, var13.y, var13.z, var7x, var6x.xRot);
++            var7x += var6x.getYRot() - var6x.rotate(var4);
++            var6x.moveTo(var13.x, var13.y, var13.z, var7x, var6x.getXRot());
+             if (var7 && var6x instanceof Mob) {
+                ((Mob)var6x).finalizeSpawn(var1, var1.getCurrentDifficultyAt(new BlockPos(var13)), MobSpawnType.STRUCTURE, (SpawnGroupData)null, var11);
+             }
+ 
+             var1.addFreshEntityWithPassengers(var6x);
 @@ -463,15 +469,15 @@
        } catch (Exception var3) {
           return Optional.empty();
@@ -437,3 +452,75 @@
        int var5;
        if (var1.contains("palettes", 9)) {
           var4 = var1.getList("palettes", 9);
+@@ -792,16 +760,31 @@
+       }
+ 
+       return var2;
+    }
+ 
++   public static class StructureBlockInfo {
++      public final BlockPos pos;
++      public final BlockState state;
++      public final CompoundTag nbt;
++
++      public StructureBlockInfo(BlockPos var1, BlockState var2, @Nullable CompoundTag var3) {
++         this.pos = var1;
++         this.state = var2;
++         this.nbt = var3;
++      }
++
++      public String toString() {
++         return String.format("<StructureBlockInfo | %s | %s | %s>", this.pos, this.state, this.nbt);
++      }
++   }
++
+    public static final class Palette {
+       private final List<StructureTemplate.StructureBlockInfo> blocks;
+-      private final Map<Block, List<StructureTemplate.StructureBlockInfo>> cache;
++      private final Map<Block, List<StructureTemplate.StructureBlockInfo>> cache = Maps.newHashMap();
+ 
+-      private Palette(List<StructureTemplate.StructureBlockInfo> var1) {
+-         this.cache = Maps.newHashMap();
++      Palette(List<StructureTemplate.StructureBlockInfo> var1) {
+          this.blocks = var1;
+       }
+ 
+       public List<StructureTemplate.StructureBlockInfo> blocks() {
+          return this.blocks;
+@@ -826,33 +809,16 @@
+          this.blockPos = var2;
+          this.nbt = var3;
+       }
+    }
+ 
+-   public static class StructureBlockInfo {
+-      public final BlockPos pos;
+-      public final BlockState state;
+-      public final CompoundTag nbt;
+-
+-      public StructureBlockInfo(BlockPos var1, BlockState var2, @Nullable CompoundTag var3) {
+-         this.pos = var1;
+-         this.state = var2;
+-         this.nbt = var3;
+-      }
+-
+-      public String toString() {
+-         return String.format("<StructureBlockInfo | %s | %s | %s>", this.pos, this.state, this.nbt);
+-      }
+-   }
+-
+-   static class SimplePalette implements Iterable<BlockState> {
++   private static class SimplePalette implements Iterable<BlockState> {
+       public static final BlockState DEFAULT_BLOCK_STATE;
+-      private final IdMapper<BlockState> ids;
++      private final IdMapper<BlockState> ids = new IdMapper(16);
+       private int lastId;
+ 
+-      private SimplePalette() {
+-         this.ids = new IdMapper(16);
++      SimplePalette() {
+       }
+ 
+       public int idFor(BlockState var1) {
+          int var2 = this.ids.getId(var1);
+          if (var2 == -1) {

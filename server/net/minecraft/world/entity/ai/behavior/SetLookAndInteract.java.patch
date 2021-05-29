@@ -1,0 +1,38 @@
+--- net/minecraft/world/entity/ai/behavior/SetLookAndInteract.java
++++ net/minecraft/world/entity/ai/behavior/SetLookAndInteract.java
+@@ -15,11 +15,11 @@
+    private final int interactionRangeSqr;
+    private final Predicate<LivingEntity> targetFilter;
+    private final Predicate<LivingEntity> selfFilter;
+ 
+    public SetLookAndInteract(EntityType<?> var1, int var2, Predicate<LivingEntity> var3, Predicate<LivingEntity> var4) {
+-      super(ImmutableMap.of(MemoryModuleType.LOOK_TARGET, MemoryStatus.REGISTERED, MemoryModuleType.INTERACTION_TARGET, MemoryStatus.VALUE_ABSENT, MemoryModuleType.VISIBLE_LIVING_ENTITIES, MemoryStatus.VALUE_PRESENT));
++      super(ImmutableMap.of(MemoryModuleType.LOOK_TARGET, MemoryStatus.REGISTERED, MemoryModuleType.INTERACTION_TARGET, MemoryStatus.VALUE_ABSENT, MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES, MemoryStatus.VALUE_PRESENT));
+       this.type = var1;
+       this.interactionRangeSqr = var2 * var2;
+       this.targetFilter = var4;
+       this.selfFilter = var3;
+    }
+@@ -37,11 +37,11 @@
+    }
+ 
+    public void start(ServerLevel var1, LivingEntity var2, long var3) {
+       super.start(var1, var2, var3);
+       Brain var5 = var2.getBrain();
+-      var5.getMemory(MemoryModuleType.VISIBLE_LIVING_ENTITIES).ifPresent((var3x) -> {
++      var5.getMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES).ifPresent((var3x) -> {
+          var3x.stream().filter((var2x) -> {
+             return var2x.distanceToSqr(var2) <= (double)this.interactionRangeSqr;
+          }).filter(this::isMatchingTarget).findFirst().ifPresent((var1) -> {
+             var5.setMemory(MemoryModuleType.INTERACTION_TARGET, (Object)var1);
+             var5.setMemory(MemoryModuleType.LOOK_TARGET, (Object)(new EntityTracker(var1, true)));
+@@ -52,8 +52,8 @@
+    private boolean isMatchingTarget(LivingEntity var1) {
+       return this.type.equals(var1.getType()) && this.targetFilter.test(var1);
+    }
+ 
+    private List<LivingEntity> getVisibleEntities(LivingEntity var1) {
+-      return (List)var1.getBrain().getMemory(MemoryModuleType.VISIBLE_LIVING_ENTITIES).get();
++      return (List)var1.getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_LIVING_ENTITIES).get();
+    }
+ }

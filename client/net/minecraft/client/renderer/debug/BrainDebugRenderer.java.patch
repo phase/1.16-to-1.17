@@ -92,3 +92,110 @@
  
     private void doRender(double var1, double var3, double var5) {
        BlockPos var7 = new BlockPos(var1, var3, var5);
+@@ -131,29 +167,29 @@
+    private void renderGhostPoi(BlockPos var1, List<String> var2) {
+       float var3 = 0.05F;
+       RenderSystem.enableBlend();
+       RenderSystem.defaultBlendFunc();
+       DebugRenderer.renderFilledBox(var1, 0.05F, 0.2F, 0.2F, 1.0F, 0.3F);
+-      renderTextOverPos("" + var2, var1, 0, -256);
++      renderTextOverPos(var2.makeConcatWithConstants<invokedynamic>(var2), var1, 0, -256);
+       renderTextOverPos("Ghost POI", var1, 1, -65536);
+    }
+ 
+    private void renderPoiInfo(BrainDebugRenderer.PoiInfo var1) {
+       byte var2 = 0;
+       Set var3 = this.getTicketHolderNames(var1);
+       if (var3.size() < 4) {
+          renderTextOverPoi("Owners: " + var3, var1, var2, -256);
+       } else {
+-         renderTextOverPoi("" + var3.size() + " ticket holders", var1, var2, -256);
++         renderTextOverPoi(var3.size() + " ticket holders", var1, var2, -256);
+       }
+ 
+       int var5 = var2 + 1;
+       Set var4 = this.getPotentialTicketHolderNames(var1);
+       if (var4.size() < 4) {
+          renderTextOverPoi("Candidates: " + var4, var1, var5, -23296);
+       } else {
+-         renderTextOverPoi("" + var4.size() + " potential owners", var1, var5, -23296);
++         renderTextOverPoi(var4.size() + " potential owners", var1, var5, -23296);
+       }
+ 
+       ++var5;
+       renderTextOverPoi("Free tickets: " + var1.freeTicketCount, var1, var5, -256);
+       ++var5;
+@@ -177,11 +213,13 @@
+          ++var12;
+       }
+ 
+       if (var8) {
+          int var10 = var1.health < var1.maxHealth ? -23296 : -1;
+-         renderTextOverMob(var1.pos, var12, "health: " + String.format("%.1f", var1.health) + " / " + String.format("%.1f", var1.maxHealth), var10, 0.02F);
++         Position var10000 = var1.pos;
++         String var10002 = String.format("%.1f", var1.health);
++         renderTextOverMob(var10000, var12, "health: " + var10002 + " / " + String.format("%.1f", var1.maxHealth), var10, 0.02F);
+          ++var12;
+       }
+ 
+       if (var8 && !var1.inventory.equals("")) {
+          renderTextOverMob(var1.pos, var12, var1.inventory, -98404, 0.02F);
+@@ -314,10 +352,22 @@
+       DebugRenderer.getTargetedEntity(this.minecraft.getCameraEntity(), 8).ifPresent((var1) -> {
+          this.lastLookedAtUuid = var1.getUUID();
+       });
+    }
+ 
++   public static class PoiInfo {
++      public final BlockPos pos;
++      public String type;
++      public int freeTicketCount;
++
++      public PoiInfo(BlockPos var1, String var2, int var3) {
++         this.pos = var1;
++         this.type = var2;
++         this.freeTicketCount = var3;
++      }
++   }
++
+    public static class BrainDump {
+       public final UUID uuid;
+       public final int id;
+       public final String name;
+       public final String profession;
+@@ -347,32 +397,20 @@
+          this.inventory = var9;
+          this.path = var10;
+          this.wantsGolem = var11;
+       }
+ 
+-      private boolean hasPoi(BlockPos var1) {
++      boolean hasPoi(BlockPos var1) {
+          Stream var10000 = this.pois.stream();
+-         var1.getClass();
++         Objects.requireNonNull(var1);
+          return var10000.anyMatch(var1::equals);
+       }
+ 
+-      private boolean hasPotentialPoi(BlockPos var1) {
++      boolean hasPotentialPoi(BlockPos var1) {
+          return this.potentialPois.contains(var1);
+       }
+ 
+       public UUID getUuid() {
+          return this.uuid;
+       }
+    }
+-
+-   public static class PoiInfo {
+-      public final BlockPos pos;
+-      public String type;
+-      public int freeTicketCount;
+-
+-      public PoiInfo(BlockPos var1, String var2, int var3) {
+-         this.pos = var1;
+-         this.type = var2;
+-         this.freeTicketCount = var3;
+-      }
+-   }
+ }

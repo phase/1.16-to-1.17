@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/block/Block.java
 +++ net/minecraft/world/level/block/Block.java
-@@ -1,47 +1,58 @@
+@@ -1,47 +1,61 @@
  package net.minecraft.world.level.block;
  
  import com.google.common.cache.CacheBuilder;
@@ -12,6 +12,7 @@
  import java.util.List;
 +import java.util.Random;
 +import java.util.function.Function;
++import java.util.function.Supplier;
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
 +import net.minecraft.SharedConstants;
@@ -28,8 +29,10 @@
  import net.minecraft.stats.Stats;
  import net.minecraft.tags.BlockTags;
 -import net.minecraft.tags.Tag;
++import net.minecraft.util.Mth;
 +import net.minecraft.world.damagesource.DamageSource;
  import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.ExperienceOrb;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.item.ItemEntity;
@@ -60,7 +63,7 @@
  import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
-@@ -55,16 +66,31 @@
+@@ -55,16 +69,31 @@
     private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
        public Boolean load(VoxelShape var1) {
           return !Shapes.joinIsNotEmpty(Shapes.block(), var1, BooleanOp.NOT_SAME);
@@ -92,7 +95,7 @@
           protected void rehash(int var1) {
           }
        };
-@@ -90,43 +116,39 @@
+@@ -90,43 +119,39 @@
        return var0 instanceof BlockItem ? ((BlockItem)var0).getBlock() : Blocks.AIR;
     }
  
@@ -149,7 +152,7 @@
  
        return var3;
     }
-@@ -152,20 +174,57 @@
+@@ -152,20 +177,57 @@
        super(var1);
        StateDefinition.Builder var2 = new StateDefinition.Builder(this);
        this.createBlockStateDefinition(var2);
@@ -209,7 +212,7 @@
     }
  
     public static boolean canSupportCenter(LevelReader var0, BlockPos var1, Direction var2) {
-@@ -184,10 +243,13 @@
+@@ -184,10 +246,13 @@
  
     public boolean propagatesSkylightDown(BlockState var1, BlockGetter var2, BlockPos var3) {
        return !isShapeFullBlock(var1.getShape(var2, var3)) && var1.getFluidState().isEmpty();
@@ -223,7 +226,7 @@
  
     public static List<ItemStack> getDrops(BlockState var0, ServerLevel var1, BlockPos var2, @Nullable BlockEntity var3) {
        LootContext.Builder var4 = (new LootContext.Builder(var1)).withRandom(var1.random).withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(var2)).withParameter(LootContextParams.TOOL, ItemStack.EMPTY).withOptionalParameter(LootContextParams.BLOCK_ENTITY, var3);
-@@ -197,10 +259,19 @@
+@@ -197,10 +262,19 @@
     public static List<ItemStack> getDrops(BlockState var0, ServerLevel var1, BlockPos var2, @Nullable BlockEntity var3, @Nullable Entity var4, ItemStack var5) {
        LootContext.Builder var6 = (new LootContext.Builder(var1)).withRandom(var1.random).withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(var2)).withParameter(LootContextParams.TOOL, var5).withOptionalParameter(LootContextParams.THIS_ENTITY, var4).withOptionalParameter(LootContextParams.BLOCK_ENTITY, var3);
        return var0.getDrops(var6);
@@ -233,7 +236,7 @@
 +      ServerLevel var2 = var1.getLevel();
 +      BlockPos var3 = new BlockPos((Vec3)var1.getParameter(LootContextParams.ORIGIN));
 +      var0.getDrops(var1).forEach((var2x) -> {
-+         popResource(var2, var3, var2x);
++         popResource(var2, (BlockPos)var3, var2x);
 +      });
 +      var0.spawnAfterBreak(var2, var3, ItemStack.EMPTY);
 +   }
@@ -243,7 +246,63 @@
           getDrops(var0, (ServerLevel)var1, var2, (BlockEntity)null).forEach((var2x) -> {
              popResource(var1, var2, var2x);
           });
-@@ -241,15 +312,11 @@
+@@ -210,11 +284,11 @@
+    }
+ 
+    public static void dropResources(BlockState var0, LevelAccessor var1, BlockPos var2, @Nullable BlockEntity var3) {
+       if (var1 instanceof ServerLevel) {
+          getDrops(var0, (ServerLevel)var1, var2, var3).forEach((var2x) -> {
+-            popResource((ServerLevel)var1, var2, var2x);
++            popResource((ServerLevel)var1, (BlockPos)var2, var2x);
+          });
+          var0.spawnAfterBreak((ServerLevel)var1, var2, ItemStack.EMPTY);
+       }
+ 
+    }
+@@ -228,28 +302,47 @@
+       }
+ 
+    }
+ 
+    public static void popResource(Level var0, BlockPos var1, ItemStack var2) {
++      float var3 = EntityType.ITEM.getHeight() / 2.0F;
++      double var4 = (double)((float)var1.getX() + 0.5F) + Mth.nextDouble(var0.random, -0.25D, 0.25D);
++      double var6 = (double)((float)var1.getY() + 0.5F) + Mth.nextDouble(var0.random, -0.25D, 0.25D) - (double)var3;
++      double var8 = (double)((float)var1.getZ() + 0.5F) + Mth.nextDouble(var0.random, -0.25D, 0.25D);
++      popResource(var0, () -> {
++         return new ItemEntity(var0, var4, var6, var8, var2);
++      }, var2);
++   }
++
++   public static void popResourceFromFace(Level var0, BlockPos var1, Direction var2, ItemStack var3) {
++      int var4 = var2.getStepX();
++      int var5 = var2.getStepY();
++      int var6 = var2.getStepZ();
++      float var7 = EntityType.ITEM.getWidth() / 2.0F;
++      float var8 = EntityType.ITEM.getHeight() / 2.0F;
++      double var9 = (double)((float)var1.getX() + 0.5F) + (var4 == 0 ? Mth.nextDouble(var0.random, -0.25D, 0.25D) : (double)((float)var4 * (0.5F + var7)));
++      double var11 = (double)((float)var1.getY() + 0.5F) + (var5 == 0 ? Mth.nextDouble(var0.random, -0.25D, 0.25D) : (double)((float)var5 * (0.5F + var8))) - (double)var8;
++      double var13 = (double)((float)var1.getZ() + 0.5F) + (var6 == 0 ? Mth.nextDouble(var0.random, -0.25D, 0.25D) : (double)((float)var6 * (0.5F + var7)));
++      double var15 = var4 == 0 ? Mth.nextDouble(var0.random, -0.1D, 0.1D) : (double)var4 * 0.1D;
++      double var17 = var5 == 0 ? Mth.nextDouble(var0.random, 0.0D, 0.1D) : (double)var5 * 0.1D + 0.1D;
++      double var19 = var6 == 0 ? Mth.nextDouble(var0.random, -0.1D, 0.1D) : (double)var6 * 0.1D;
++      popResource(var0, () -> {
++         return new ItemEntity(var0, var9, var11, var13, var3, var15, var17, var19);
++      }, var3);
++   }
++
++   private static void popResource(Level var0, Supplier<ItemEntity> var1, ItemStack var2) {
+       if (!var0.isClientSide && !var2.isEmpty() && var0.getGameRules().getBoolean(GameRules.RULE_DOBLOCKDROPS)) {
+-         float var3 = 0.5F;
+-         double var4 = (double)(var0.random.nextFloat() * 0.5F) + 0.25D;
+-         double var6 = (double)(var0.random.nextFloat() * 0.5F) + 0.25D;
+-         double var8 = (double)(var0.random.nextFloat() * 0.5F) + 0.25D;
+-         ItemEntity var10 = new ItemEntity(var0, (double)var1.getX() + var4, (double)var1.getY() + var6, (double)var1.getZ() + var8, var2);
+-         var10.setDefaultPickUpDelay();
+-         var0.addFreshEntity(var10);
++         ItemEntity var3 = (ItemEntity)var1.get();
++         var3.setDefaultPickUpDelay();
++         var0.addFreshEntity(var3);
        }
     }
  
@@ -260,7 +319,20 @@
     }
  
     public float getExplosionResistance() {
-@@ -278,26 +345,34 @@
+@@ -257,11 +350,11 @@
+    }
+ 
+    public void wasExploded(Level var1, BlockPos var2, Explosion var3) {
+    }
+ 
+-   public void stepOn(Level var1, BlockPos var2, Entity var3) {
++   public void stepOn(Level var1, BlockPos var2, BlockState var3, Entity var4) {
+    }
+ 
+    @Nullable
+    public BlockState getStateForPlacement(BlockPlaceContext var1) {
+       return this.defaultBlockState();
+@@ -278,26 +371,34 @@
  
     public boolean isPossibleToRespawnInThis() {
        return !this.material.isSolid() && !this.material.isLiquid();
@@ -278,9 +350,10 @@
        return this.descriptionId;
     }
  
-    public void fallOn(Level var1, BlockPos var2, Entity var3, float var4) {
+-   public void fallOn(Level var1, BlockPos var2, Entity var3, float var4) {
 -      var3.causeFallDamage(var4, 1.0F);
-+      var3.causeFallDamage(var4, 1.0F, DamageSource.FALL);
++   public void fallOn(Level var1, BlockState var2, BlockPos var3, Entity var4, float var5) {
++      var4.causeFallDamage(var5, 1.0F, DamageSource.FALL);
     }
  
     public void updateEntityAfterFallOn(BlockGetter var1, Entity var2) {
@@ -296,7 +369,7 @@
     }
  
     public float getFriction() {
-@@ -310,19 +385,24 @@
+@@ -310,19 +411,24 @@
  
     public float getJumpFactor() {
        return this.jumpFactor;
@@ -324,7 +397,7 @@
     public boolean dropFromExplosion(Explosion var1) {
        return true;
     }
-@@ -340,10 +420,28 @@
+@@ -340,10 +446,28 @@
  
     public final BlockState defaultBlockState() {
        return this.defaultBlockState;
@@ -353,7 +426,7 @@
     }
  
     public Item asItem() {
-@@ -360,14 +458,21 @@
+@@ -360,14 +484,21 @@
  
     public String toString() {
        return "Block{" + Registry.BLOCK.getKey(this) + "}";

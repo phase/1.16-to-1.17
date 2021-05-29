@@ -1,18 +1,42 @@
 --- net/minecraft/world/level/storage/loot/LootContext.java
 +++ net/minecraft/world/level/storage/loot/LootContext.java
-@@ -6,10 +6,11 @@
+@@ -6,10 +6,12 @@
  import com.google.gson.TypeAdapter;
  import com.google.gson.stream.JsonReader;
  import com.google.gson.stream.JsonWriter;
  import java.io.IOException;
  import java.util.Map;
 +import java.util.NoSuchElementException;
++import java.util.Objects;
  import java.util.Random;
  import java.util.Set;
  import java.util.function.Consumer;
  import java.util.function.Function;
  import javax.annotation.Nullable;
-@@ -48,10 +49,19 @@
+@@ -26,19 +28,17 @@
+ public class LootContext {
+    private final Random random;
+    private final float luck;
+    private final ServerLevel level;
+    private final Function<ResourceLocation, LootTable> lootTables;
+-   private final Set<LootTable> visitedTables;
++   private final Set<LootTable> visitedTables = Sets.newLinkedHashSet();
+    private final Function<ResourceLocation, LootItemCondition> conditions;
+-   private final Set<LootItemCondition> visitedConditions;
++   private final Set<LootItemCondition> visitedConditions = Sets.newLinkedHashSet();
+    private final Map<LootContextParam<?>, Object> params;
+    private final Map<ResourceLocation, LootContext.DynamicDrop> dynamicDrops;
+ 
+-   private LootContext(Random var1, float var2, ServerLevel var3, Function<ResourceLocation, LootTable> var4, Function<ResourceLocation, LootItemCondition> var5, Map<LootContextParam<?>, Object> var6, Map<ResourceLocation, LootContext.DynamicDrop> var7) {
+-      this.visitedTables = Sets.newLinkedHashSet();
+-      this.visitedConditions = Sets.newLinkedHashSet();
++   LootContext(Random var1, float var2, ServerLevel var3, Function<ResourceLocation, LootTable> var4, Function<ResourceLocation, LootItemCondition> var5, Map<LootContextParam<?>, Object> var6, Map<ResourceLocation, LootContext.DynamicDrop> var7) {
+       this.random = var1;
+       this.luck = var2;
+       this.level = var3;
+       this.lootTables = var4;
+       this.conditions = var5;
+@@ -48,10 +48,19 @@
  
     public boolean hasParam(LootContextParam<?> var1) {
        return this.params.containsKey(var1);
@@ -32,3 +56,52 @@
        if (var3 != null) {
           var3.add(this, var2);
        }
+@@ -97,17 +106,22 @@
+ 
+    public ServerLevel getLevel() {
+       return this.level;
+    }
+ 
++   @FunctionalInterface
++   public interface DynamicDrop {
++      void add(LootContext var1, Consumer<ItemStack> var2);
++   }
++
+    public static enum EntityTarget {
+       THIS("this", LootContextParams.THIS_ENTITY),
+       KILLER("killer", LootContextParams.KILLER_ENTITY),
+       DIRECT_KILLER("direct_killer", LootContextParams.DIRECT_KILLER_ENTITY),
+       KILLER_PLAYER("killer_player", LootContextParams.LAST_DAMAGE_PLAYER);
+ 
+-      private final String name;
++      final String name;
+       private final LootContextParam<? extends Entity> param;
+ 
+       private EntityTarget(String var3, LootContextParam<? extends Entity> var4) {
+          this.name = var3;
+          this.param = var4;
+@@ -239,16 +253,18 @@
+                if (var4 == null) {
+                   var4 = new Random();
+                }
+ 
+                MinecraftServer var5 = this.level.getServer();
+-               return new LootContext(var4, this.luck, this.level, var5.getLootTables()::get, var5.getPredicateManager()::get, this.params, this.dynamicDrops);
++               float var10003 = this.luck;
++               ServerLevel var10004 = this.level;
++               LootTables var10005 = var5.getLootTables();
++               Objects.requireNonNull(var10005);
++               Function var6 = var10005::get;
++               PredicateManager var10006 = var5.getPredicateManager();
++               Objects.requireNonNull(var10006);
++               return new LootContext(var4, var10003, var10004, var6, var10006::get, this.params, this.dynamicDrops);
+             }
+          }
+       }
+    }
+-
+-   @FunctionalInterface
+-   public interface DynamicDrop {
+-      void add(LootContext var1, Consumer<ItemStack> var2);
+-   }
+ }

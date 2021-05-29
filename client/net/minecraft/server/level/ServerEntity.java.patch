@@ -1,6 +1,24 @@
 --- net/minecraft/server/level/ServerEntity.java
 +++ net/minecraft/server/level/ServerEntity.java
-@@ -38,10 +38,11 @@
+@@ -5,15 +5,17 @@
+ import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.Set;
+ import java.util.function.Consumer;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundAddMobPacket;
+ import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
++import net.minecraft.network.protocol.game.ClientboundRemoveEntityPacket;
+ import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
+@@ -38,10 +40,11 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -12,7 +30,22 @@
     private final int updateInterval;
     private final boolean trackDelta;
     private final Consumer<Packet<?>> broadcast;
-@@ -82,19 +83,22 @@
+@@ -65,12 +68,12 @@
+       this.broadcast = var5;
+       this.entity = var2;
+       this.updateInterval = var3;
+       this.trackDelta = var4;
+       this.updateSentPos();
+-      this.yRotp = Mth.floor(var2.yRot * 256.0F / 360.0F);
+-      this.xRotp = Mth.floor(var2.xRot * 256.0F / 360.0F);
++      this.yRotp = Mth.floor(var2.getYRot() * 256.0F / 360.0F);
++      this.xRotp = Mth.floor(var2.getXRot() * 256.0F / 360.0F);
+       this.yHeadRotp = Mth.floor(var2.getYHeadRot() * 256.0F / 360.0F);
+       this.wasOnGround = var2.isOnGround();
+    }
+ 
+    public void sendChanges() {
+@@ -82,19 +85,22 @@
  
        if (this.entity instanceof ItemFrame && this.tickCount % 10 == 0) {
           ItemFrame var2 = (ItemFrame)this.entity;
@@ -43,8 +76,31 @@
           }
  
           this.sendDirtyEntityData();
-@@ -122,21 +126,21 @@
-             var17 = Mth.floor(this.entity.xRot * 256.0F / 360.0F);
+@@ -102,12 +108,12 @@
+ 
+       if (this.tickCount % this.updateInterval == 0 || this.entity.hasImpulse || this.entity.getEntityData().isDirty()) {
+          int var16;
+          int var17;
+          if (this.entity.isPassenger()) {
+-            var16 = Mth.floor(this.entity.yRot * 256.0F / 360.0F);
+-            var17 = Mth.floor(this.entity.xRot * 256.0F / 360.0F);
++            var16 = Mth.floor(this.entity.getYRot() * 256.0F / 360.0F);
++            var17 = Mth.floor(this.entity.getXRot() * 256.0F / 360.0F);
+             boolean var19 = Math.abs(var16 - this.yRotp) >= 1 || Math.abs(var17 - this.xRotp) >= 1;
+             if (var19) {
+                this.broadcast.accept(new ClientboundMoveEntityPacket.Rot(this.entity.getId(), (byte)var16, (byte)var17, this.entity.isOnGround()));
+                this.yRotp = var16;
+                this.xRotp = var17;
+@@ -116,27 +122,27 @@
+             this.updateSentPos();
+             this.sendDirtyEntityData();
+             this.wasRiding = true;
+          } else {
+             ++this.teleportDelay;
+-            var16 = Mth.floor(this.entity.yRot * 256.0F / 360.0F);
+-            var17 = Mth.floor(this.entity.xRot * 256.0F / 360.0F);
++            var16 = Mth.floor(this.entity.getYRot() * 256.0F / 360.0F);
++            var17 = Mth.floor(this.entity.getXRot() * 256.0F / 360.0F);
              Vec3 var18 = this.entity.position().subtract(ClientboundMoveEntityPacket.packetToEntity(this.xp, this.yp, this.zp));
              boolean var20 = var18.lengthSqr() >= 7.62939453125E-6D;
              Object var21 = null;
@@ -68,7 +124,7 @@
                    } else {
                       var21 = new ClientboundMoveEntityPacket.PosRot(this.entity.getId(), (short)((int)var9), (short)((int)var11), (short)((int)var13), (byte)var16, (byte)var17, this.entity.isOnGround());
                    }
-@@ -146,14 +150,14 @@
+@@ -146,14 +152,14 @@
                    var21 = new ClientboundTeleportEntityPacket(this.entity);
                 }
              }
@@ -87,7 +143,7 @@
              }
  
              if (var21 != null) {
-@@ -163,11 +167,11 @@
+@@ -163,11 +169,11 @@
              this.sendDirtyEntityData();
              if (var22) {
                 this.updateSentPos();
@@ -100,9 +156,22 @@
              }
  
              this.wasRiding = false;
-@@ -201,12 +205,12 @@
+@@ -190,23 +196,23 @@
+ 
+    }
+ 
+    public void removePairing(ServerPlayer var1) {
+       this.entity.stopSeenByPlayer(var1);
+-      var1.sendRemoveEntity(this.entity);
++      var1.connection.send(new ClientboundRemoveEntityPacket(this.entity.getId()));
+    }
+ 
+    public void addPairing(ServerPlayer var1) {
+       ServerGamePacketListenerImpl var10001 = var1.connection;
++      Objects.requireNonNull(var10001);
+       this.sendPairingData(var10001::send);
        this.entity.startSeenByPlayer(var1);
-       var1.cancelRemoveEntity(this.entity);
+-      var1.cancelRemoveEntity(this.entity);
     }
  
     public void sendPairingData(Consumer<Packet<?>> var1) {

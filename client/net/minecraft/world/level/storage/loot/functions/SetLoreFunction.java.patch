@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/storage/loot/functions/SetLoreFunction.java
 +++ net/minecraft/world/level/storage/loot/functions/SetLoreFunction.java
-@@ -1,9 +1,10 @@
+@@ -1,18 +1,21 @@
  package net.minecraft.world.level.storage.loot.functions;
  
  import com.google.common.collect.ImmutableList;
@@ -11,7 +11,51 @@
  import com.google.gson.JsonDeserializationContext;
  import com.google.gson.JsonObject;
  import com.google.gson.JsonSerializationContext;
-@@ -92,10 +93,14 @@
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.Set;
+ import java.util.function.UnaryOperator;
++import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.ListTag;
+ import net.minecraft.nbt.StringTag;
+ import net.minecraft.network.chat.Component;
+@@ -21,14 +24,14 @@
+ import net.minecraft.world.level.storage.loot.LootContext;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParam;
+ import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
+ 
+ public class SetLoreFunction extends LootItemConditionalFunction {
+-   private final boolean replace;
+-   private final List<Component> lore;
++   final boolean replace;
++   final List<Component> lore;
+    @Nullable
+-   private final LootContext.EntityTarget resolutionContext;
++   final LootContext.EntityTarget resolutionContext;
+ 
+    public SetLoreFunction(LootItemCondition[] var1, boolean var2, List<Component> var3, @Nullable LootContext.EntityTarget var4) {
+       super(var1);
+       this.replace = var2;
+       this.lore = ImmutableList.copyOf(var3);
+@@ -49,11 +52,13 @@
+          if (this.replace) {
+             var3.clear();
+          }
+ 
+          UnaryOperator var4 = SetNameFunction.createResolver(var2, this.resolutionContext);
+-         this.lore.stream().map(var4).map(Component.Serializer::toJson).map(StringTag::valueOf).forEach(var3::add);
++         Stream var10000 = this.lore.stream().map(var4).map(Component.Serializer::toJson).map(StringTag::valueOf);
++         Objects.requireNonNull(var3);
++         var10000.forEach(var3::add);
+       }
+ 
+       return var1;
+    }
+ 
+@@ -92,10 +97,46 @@
        } else {
           return null;
        }
@@ -20,18 +64,6 @@
 +   public static SetLoreFunction.Builder setLore() {
 +      return new SetLoreFunction.Builder();
 +   }
-+
-    public static class Serializer extends LootItemConditionalFunction.Serializer<SetLoreFunction> {
-       public Serializer() {
-       }
- 
-       public void serialize(JsonObject var1, SetLoreFunction var2, JsonSerializationContext var3) {
-@@ -121,6 +126,38 @@
-          List var5 = (List)Streams.stream(GsonHelper.getAsJsonArray(var1, "lore")).map(Component.Serializer::fromJson).collect(ImmutableList.toImmutableList());
-          LootContext.EntityTarget var6 = (LootContext.EntityTarget)GsonHelper.getAsObject(var1, "entity", (Object)null, var2, LootContext.EntityTarget.class);
-          return new SetLoreFunction(var3, var4, var5, var6);
-       }
-    }
 +
 +   public static class Builder extends LootItemConditionalFunction.Builder<SetLoreFunction.Builder> {
 +      private boolean replace;
@@ -64,4 +96,9 @@
 +         return new SetLoreFunction(this.getConditions(), this.replace, this.lore, this.resolutionContext);
 +      }
 +   }
- }
++
+    public static class Serializer extends LootItemConditionalFunction.Serializer<SetLoreFunction> {
+       public Serializer() {
+       }
+ 
+       public void serialize(JsonObject var1, SetLoreFunction var2, JsonSerializationContext var3) {

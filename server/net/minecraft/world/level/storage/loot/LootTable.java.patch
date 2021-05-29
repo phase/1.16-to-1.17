@@ -1,6 +1,99 @@
 --- net/minecraft/world/level/storage/loot/LootTable.java
 +++ net/minecraft/world/level/storage/loot/LootTable.java
-@@ -210,11 +210,11 @@
+@@ -11,10 +11,11 @@
+ import java.lang.reflect.Type;
+ import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.Random;
+ import java.util.function.BiFunction;
+ import java.util.function.Consumer;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.GsonHelper;
+@@ -29,19 +30,19 @@
+ import org.apache.commons.lang3.ArrayUtils;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class LootTable {
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
+    public static final LootTable EMPTY;
+    public static final LootContextParamSet DEFAULT_PARAM_SET;
+-   private final LootContextParamSet paramSet;
+-   private final LootPool[] pools;
+-   private final LootItemFunction[] functions;
++   final LootContextParamSet paramSet;
++   final LootPool[] pools;
++   final LootItemFunction[] functions;
+    private final BiFunction<ItemStack, LootContext, ItemStack> compositeFunction;
+ 
+-   private LootTable(LootContextParamSet var1, LootPool[] var2, LootItemFunction[] var3) {
++   LootTable(LootContextParamSet var1, LootPool[] var2, LootItemFunction[] var3) {
+       this.paramSet = var1;
+       this.pools = var2;
+       this.functions = var3;
+       this.compositeFunction = LootItemFunctions.compose(var3);
+    }
+@@ -86,10 +87,11 @@
+       this.getRandomItemsRaw(var1, createStackSplitter(var2));
+    }
+ 
+    public List<ItemStack> getRandomItems(LootContext var1) {
+       ArrayList var2 = Lists.newArrayList();
++      Objects.requireNonNull(var2);
+       this.getRandomItems(var1, var2::add);
+       return var2;
+    }
+ 
+    public LootContextParamSet getParamSet() {
+@@ -186,10 +188,43 @@
+    static {
+       EMPTY = new LootTable(LootContextParamSets.EMPTY, new LootPool[0], new LootItemFunction[0]);
+       DEFAULT_PARAM_SET = LootContextParamSets.ALL_PARAMS;
+    }
+ 
++   public static class Builder implements FunctionUserBuilder<LootTable.Builder> {
++      private final List<LootPool> pools = Lists.newArrayList();
++      private final List<LootItemFunction> functions = Lists.newArrayList();
++      private LootContextParamSet paramSet;
++
++      public Builder() {
++         this.paramSet = LootTable.DEFAULT_PARAM_SET;
++      }
++
++      public LootTable.Builder withPool(LootPool.Builder var1) {
++         this.pools.add(var1.build());
++         return this;
++      }
++
++      public LootTable.Builder setParamSet(LootContextParamSet var1) {
++         this.paramSet = var1;
++         return this;
++      }
++
++      public LootTable.Builder apply(LootItemFunction.Builder var1) {
++         this.functions.add(var1.build());
++         return this;
++      }
++
++      public LootTable.Builder unwrap() {
++         return this;
++      }
++
++      public LootTable build() {
++         return new LootTable(this.paramSet, (LootPool[])this.pools.toArray(new LootPool[0]), (LootItemFunction[])this.functions.toArray(new LootItemFunction[0]));
++      }
++   }
++
+    public static class Serializer implements JsonDeserializer<LootTable>, JsonSerializer<LootTable> {
+       public Serializer() {
+       }
+ 
+       public LootTable deserialize(JsonElement var1, Type var2, JsonDeserializationContext var3) throws JsonParseException {
+@@ -210,11 +245,11 @@
           if (var1.paramSet != LootTable.DEFAULT_PARAM_SET) {
              ResourceLocation var5 = LootContextParamSets.getKey(var1.paramSet);
              if (var5 != null) {
@@ -13,3 +106,43 @@
  
           if (var1.pools.length > 0) {
              var4.add("pools", var3.serialize(var1.pools));
+@@ -225,39 +260,6 @@
+          }
+ 
+          return var4;
+       }
+    }
+-
+-   public static class Builder implements FunctionUserBuilder<LootTable.Builder> {
+-      private final List<LootPool> pools = Lists.newArrayList();
+-      private final List<LootItemFunction> functions = Lists.newArrayList();
+-      private LootContextParamSet paramSet;
+-
+-      public Builder() {
+-         this.paramSet = LootTable.DEFAULT_PARAM_SET;
+-      }
+-
+-      public LootTable.Builder withPool(LootPool.Builder var1) {
+-         this.pools.add(var1.build());
+-         return this;
+-      }
+-
+-      public LootTable.Builder setParamSet(LootContextParamSet var1) {
+-         this.paramSet = var1;
+-         return this;
+-      }
+-
+-      public LootTable.Builder apply(LootItemFunction.Builder var1) {
+-         this.functions.add(var1.build());
+-         return this;
+-      }
+-
+-      public LootTable.Builder unwrap() {
+-         return this;
+-      }
+-
+-      public LootTable build() {
+-         return new LootTable(this.paramSet, (LootPool[])this.pools.toArray(new LootPool[0]), (LootItemFunction[])this.functions.toArray(new LootItemFunction[0]));
+-      }
+-   }
+ }

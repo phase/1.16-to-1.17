@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ net/minecraft/world/entity/item/FallingBlockEntity.java
-@@ -1,10 +1,9 @@
+@@ -1,26 +1,28 @@
  package net.minecraft.world.entity.item;
  
 -import com.google.common.collect.Lists;
@@ -12,7 +12,14 @@
  import net.minecraft.core.Direction;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.NbtUtils;
-@@ -17,10 +16,11 @@
+ import net.minecraft.nbt.Tag;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
++import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+ import net.minecraft.network.syncher.EntityDataAccessor;
+ import net.minecraft.network.syncher.EntityDataSerializers;
+ import net.minecraft.network.syncher.SynchedEntityData;
++import net.minecraft.server.level.ServerLevel;
  import net.minecraft.tags.BlockTags;
  import net.minecraft.tags.FluidTags;
  import net.minecraft.util.Mth;
@@ -24,7 +31,7 @@
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.context.DirectionalPlaceContext;
  import net.minecraft.world.level.ClipContext;
-@@ -28,11 +28,11 @@
+@@ -28,11 +30,11 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.block.AnvilBlock;
  import net.minecraft.world.level.block.Block;
@@ -37,7 +44,7 @@
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.properties.BlockStateProperties;
  import net.minecraft.world.level.material.Fluids;
-@@ -45,20 +45,19 @@
+@@ -45,20 +47,19 @@
     public int time;
     public boolean dropItem;
     private boolean cancelDrop;
@@ -59,7 +66,7 @@
     public FallingBlockEntity(Level var1, double var2, double var4, double var6, BlockState var8) {
        this(EntityType.FALLING_BLOCK, var1);
        this.blockState = var8;
-@@ -77,34 +76,38 @@
+@@ -77,34 +78,38 @@
  
     public void setStartPos(BlockPos var1) {
        this.entityData.set(DATA_START_POS, var1);
@@ -103,7 +110,7 @@
           }
  
           if (!this.isNoGravity()) {
-@@ -124,37 +127,37 @@
+@@ -124,37 +129,38 @@
                    var4 = true;
                 }
              }
@@ -119,13 +126,15 @@
 +                  this.discard();
                 }
              } else {
-                BlockState var16 = this.level.getBlockState(var2);
+-               BlockState var16 = this.level.getBlockState(var2);
++               BlockState var17 = this.level.getBlockState(var2);
                 this.setDeltaMovement(this.getDeltaMovement().multiply(0.7D, -0.5D, 0.7D));
-                if (!var16.is(Blocks.MOVING_PISTON)) {
+-               if (!var16.is(Blocks.MOVING_PISTON)) {
 -                  this.remove();
-+                  this.discard();
++               if (!var17.is(Blocks.MOVING_PISTON)) {
                    if (!this.cancelDrop) {
-                      boolean var8 = var16.canBeReplaced(new DirectionalPlaceContext(this.level, var2, Direction.DOWN, ItemStack.EMPTY, Direction.UP));
+-                     boolean var8 = var16.canBeReplaced(new DirectionalPlaceContext(this.level, var2, Direction.DOWN, ItemStack.EMPTY, Direction.UP));
++                     boolean var8 = var17.canBeReplaced(new DirectionalPlaceContext(this.level, var2, Direction.DOWN, ItemStack.EMPTY, Direction.UP));
                       boolean var9 = FallingBlock.isFree(this.level.getBlockState(var2.below())) && (!var3 || !var4);
                       boolean var10 = this.blockState.canSurvive(this.level, var2) && !var9;
                       if (var8 && var10) {
@@ -136,8 +145,10 @@
                          if (this.level.setBlock(var2, this.blockState, 3)) {
 -                           if (var1 instanceof FallingBlock) {
 -                              ((FallingBlock)var1).onLand(this.level, var2, this.blockState, var16, this);
++                           ((ServerLevel)this.level).getChunkSource().chunkMap.broadcast(this, new ClientboundBlockUpdatePacket(var2, this.level.getBlockState(var2)));
++                           this.discard();
 +                           if (var1 instanceof Fallable) {
-+                              ((Fallable)var1).onLand(this.level, var2, this.blockState, var16, this);
++                              ((Fallable)var1).onLand(this.level, var2, this.blockState, var17, this);
                             }
  
 -                           if (this.blockData != null && var1 instanceof EntityBlock) {
@@ -147,28 +158,36 @@
                                   CompoundTag var12 = var11.save(new CompoundTag());
                                   Iterator var13 = this.blockData.getAllKeys().iterator();
  
-@@ -164,65 +167,84 @@
+@@ -164,65 +170,92 @@
                                      if (!"x".equals(var14) && !"y".equals(var14) && !"z".equals(var14)) {
                                         var12.put(var14, var15.copy());
                                      }
                                   }
  
 -                                 var11.load(this.blockState, var12);
-+                                 var11.load(var12);
++                                 try {
++                                    var11.load(var12);
++                                 } catch (Exception var16) {
++                                    LOGGER.error((String)"Failed to load block entity from falling block", (Throwable)var16);
++                                 }
++
                                   var11.setChanged();
                                }
                             }
                          } else if (this.dropItem && this.level.getGameRules().getBoolean(GameRules.RULE_DOENTITYDROPS)) {
++                           this.discard();
 +                           this.callOnBrokenAfterFall(var1, var2);
                             this.spawnAtLocation(var1);
                          }
                       } else if (this.dropItem && this.level.getGameRules().getBoolean(GameRules.RULE_DOENTITYDROPS)) {
++                        this.discard();
 +                        this.callOnBrokenAfterFall(var1, var2);
                          this.spawnAtLocation(var1);
                       }
 -                  } else if (var1 instanceof FallingBlock) {
 -                     ((FallingBlock)var1).onBroken(this.level, var2, this);
 +                  } else {
++                     this.discard();
 +                     this.callOnBrokenAfterFall(var1, var2);
                    }
                 }
@@ -222,7 +241,7 @@
 +               var2x.hurt(var6, var10);
 +            });
 +            boolean var8 = this.blockState.is(BlockTags.ANVIL);
-+            if (var8 && (double)this.random.nextFloat() < 0.05000000074505806D + (double)var4 * 0.05D) {
++            if (var8 && var10 > 0.0F && this.random.nextFloat() < 0.05F + (float)var4 * 0.05F) {
                 BlockState var9 = AnvilBlock.damage(this.blockState);
                 if (var9 == null) {
                    this.cancelDrop = true;
@@ -250,7 +269,7 @@
           var1.put("TileEntityData", this.blockData);
        }
  
-@@ -231,11 +253,11 @@
+@@ -231,11 +264,11 @@
     protected void readAdditionalSaveData(CompoundTag var1) {
        this.blockState = NbtUtils.readBlockState(var1.getCompound("BlockState"));
        this.time = var1.getInt("Time");
@@ -263,7 +282,7 @@
           this.hurtEntities = true;
        }
  
-@@ -251,14 +273,24 @@
+@@ -251,14 +284,24 @@
           this.blockState = Blocks.SAND.defaultBlockState();
        }
  
@@ -290,7 +309,7 @@
        var1.setDetail("Immitating BlockState", (Object)this.blockState.toString());
     }
  
-@@ -272,9 +304,20 @@
+@@ -272,9 +315,20 @@
  
     public Packet<?> getAddEntityPacket() {
        return new ClientboundAddEntityPacket(this, Block.getId(this.getBlockState()));

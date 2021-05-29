@@ -44,10 +44,14 @@
 +   public static final int BURN_TIME_STANDARD = 200;
 +   public static final int BURN_COOL_SPEED = 2;
     protected NonNullList<ItemStack> items;
-    private int litTime;
-    private int litDuration;
-    private int cookingProgress;
-    private int cookingTotalTime;
+-   private int litTime;
+-   private int litDuration;
+-   private int cookingProgress;
+-   private int cookingTotalTime;
++   int litTime;
++   int litDuration;
++   int cookingProgress;
++   int cookingTotalTime;
     protected final ContainerData dataAccess;
     private final Object2IntOpenHashMap<ResourceLocation> recipesUsed;
 -   protected final RecipeType<? extends AbstractCookingRecipe> recipeType;
@@ -124,7 +128,7 @@
     }
  
     public CompoundTag save(CompoundTag var1) {
-@@ -224,108 +240,108 @@
+@@ -224,108 +240,110 @@
        });
        var1.put("RecipesUsed", var2);
        return var1;
@@ -163,7 +167,11 @@
 -                        this.items.set(1, var6 == null ? ItemStack.EMPTY : new ItemStack(var6));
 -                     }
 +      ItemStack var6 = (ItemStack)var3.items.get(1);
-+      if (var3.isLit() || !var6.isEmpty() && !((ItemStack)var3.items.get(0)).isEmpty()) {
++      if (!var3.isLit() && (var6.isEmpty() || ((ItemStack)var3.items.get(0)).isEmpty())) {
++         if (!var3.isLit() && var3.cookingProgress > 0) {
++            var3.cookingProgress = Mth.clamp((int)(var3.cookingProgress - 2), (int)0, (int)var3.cookingTotalTime);
++         }
++      } else {
 +         Recipe var7 = (Recipe)var0.getRecipeManager().getRecipeFor(var3.recipeType, var3, var0).orElse((Object)null);
 +         int var8 = var3.getMaxStackSize();
 +         if (!var3.isLit() && canBurn(var7, var3.items, var8)) {
@@ -205,8 +213,6 @@
 +         } else {
 +            var3.cookingProgress = 0;
           }
-+      } else if (!var3.isLit() && var3.cookingProgress > 0) {
-+         var3.cookingProgress = Mth.clamp((int)(var3.cookingProgress - 2), (int)0, (int)var3.cookingTotalTime);
 +      }
  
 -         if (var1 != this.isLit()) {
@@ -298,7 +304,7 @@
  
     protected int getBurnDuration(ItemStack var1) {
        if (var1.isEmpty()) {
-@@ -334,12 +350,12 @@
+@@ -334,12 +352,12 @@
           Item var2 = var1.getItem();
           return (Integer)getFuel().getOrDefault(var2, 0);
        }
@@ -313,7 +319,7 @@
     public static boolean isFuel(ItemStack var0) {
        return getFuel().containsKey(var0.getItem());
     }
-@@ -356,17 +372,14 @@
+@@ -356,17 +374,14 @@
        return this.canPlaceItem(var1, var2);
     }
  
@@ -334,7 +340,7 @@
     public int getContainerSize() {
        return this.items.size();
     }
-@@ -405,11 +418,11 @@
+@@ -405,11 +420,11 @@
        if (var2.getCount() > this.getMaxStackSize()) {
           var2.setCount(this.getMaxStackSize());
        }
@@ -347,7 +353,7 @@
        }
  
     }
-@@ -427,11 +440,11 @@
+@@ -427,11 +442,11 @@
           return false;
        } else if (var1 != 1) {
           return true;
@@ -360,7 +366,7 @@
  
     public void clearContent() {
        this.items.clear();
-@@ -451,17 +464,17 @@
+@@ -451,17 +466,17 @@
     }
  
     public void awardUsedRecipes(Player var1) {
@@ -381,7 +387,7 @@
  
        while(var4.hasNext()) {
           Entry var5 = (Entry)var4.next();
-@@ -472,23 +485,18 @@
+@@ -472,23 +487,18 @@
        }
  
        return var3;

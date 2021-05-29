@@ -1,6 +1,17 @@
 --- net/minecraft/network/Connection.java
 +++ net/minecraft/network/Connection.java
-@@ -33,10 +33,11 @@
+@@ -23,20 +23,21 @@
+ import io.netty.handler.timeout.ReadTimeoutHandler;
+ import io.netty.handler.timeout.TimeoutException;
+ import io.netty.util.AttributeKey;
+ import io.netty.util.concurrent.Future;
+ import io.netty.util.concurrent.GenericFutureListener;
+-import java.net.InetAddress;
++import java.net.InetSocketAddress;
+ import java.net.SocketAddress;
+ import java.util.Queue;
+ import javax.annotation.Nullable;
+ import javax.crypto.Cipher;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.network.protocol.Packet;
@@ -52,7 +63,7 @@
                    this.setReadOnly();
                 } else {
                    LOGGER.debug("Double fault", var2);
-@@ -122,11 +126,11 @@
+@@ -122,15 +126,18 @@
  
           }
        }
@@ -64,8 +75,15 @@
           try {
              genericsFtw(var2, this.packetListener);
           } catch (RunningOnDifferentThreadException var4) {
++         } catch (ClassCastException var5) {
++            LOGGER.error("Received {} that couldn't be processed", var2.getClass(), var5);
++            this.disconnect(new TranslatableComponent("multiplayer.disconnect.invalid_packet"));
           }
-@@ -159,11 +163,11 @@
+ 
+          ++this.receivedPackets;
+       }
+ 
+@@ -159,45 +166,44 @@
  
     }
  
@@ -78,10 +96,47 @@
           LOGGER.debug("Disabled auto read");
           this.channel.config().setAutoRead(false);
        }
-@@ -194,10 +198,14 @@
-          });
+ 
+       if (this.channel.eventLoop().inEventLoop()) {
+-         if (var3 != var4) {
+-            this.setProtocol(var3);
+-         }
+-
+-         ChannelFuture var5 = this.channel.writeAndFlush(var1);
+-         if (var2 != null) {
+-            var5.addListener(var2);
+-         }
+-
+-         var5.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
++         this.doSendPacket(var1, var2, var3, var4);
+       } else {
+          this.channel.eventLoop().execute(() -> {
+-            if (var3 != var4) {
+-               this.setProtocol(var3);
+-            }
++            this.doSendPacket(var1, var2, var3, var4);
++         });
++      }
+ 
+-            ChannelFuture var5 = this.channel.writeAndFlush(var1);
+-            if (var2 != null) {
+-               var5.addListener(var2);
+-            }
++   }
+ 
+-            var5.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+-         });
++   private void doSendPacket(Packet<?> var1, @Nullable GenericFutureListener<? extends Future<? super Void>> var2, ConnectionProtocol var3, ConnectionProtocol var4) {
++      if (var3 != var4) {
++         this.setProtocol(var3);
        }
  
++      ChannelFuture var5 = this.channel.writeAndFlush(var1);
++      if (var2 != null) {
++         var5.addListener(var2);
++      }
++
++      var5.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
     }
  
 +   private ConnectionProtocol getCurrentProtocol() {
@@ -93,12 +148,34 @@
           synchronized(this.queue) {
              Connection.PacketHolder var2;
              while((var2 = (Connection.PacketHolder)this.queue.poll()) != null) {
-@@ -249,10 +257,18 @@
+@@ -216,10 +222,14 @@
+ 
+       if (this.packetListener instanceof ServerGamePacketListenerImpl) {
+          ((ServerGamePacketListenerImpl)this.packetListener).tick();
+       }
+ 
++      if (!this.isConnected() && !this.disconnectionHandled) {
++         this.handleDisconnection();
++      }
++
+       if (this.channel != null) {
+          this.channel.flush();
+       }
+ 
+       if (this.tickCount++ % 20 == 0) {
+@@ -249,39 +259,47 @@
  
     public boolean isMemoryConnection() {
        return this.channel instanceof LocalChannel || this.channel instanceof LocalServerChannel;
     }
  
+-   public static Connection connectToServer(InetAddress var0, int var1, boolean var2) {
+-      final Connection var3 = new Connection(PacketFlow.CLIENTBOUND);
+-      Class var4;
+-      LazyLoadedValue var5;
+-      if (Epoll.isAvailable() && var2) {
+-         var4 = EpollSocketChannel.class;
+-         var5 = NETWORK_EPOLL_WORKER_GROUP;
 +   public PacketFlow getReceiving() {
 +      return this.receiving;
 +   }
@@ -107,25 +184,37 @@
 +      return this.receiving.getOpposite();
 +   }
 +
-    public static Connection connectToServer(InetAddress var0, int var1, boolean var2) {
-       final Connection var3 = new Connection(PacketFlow.CLIENTBOUND);
-       Class var4;
-       LazyLoadedValue var5;
-       if (Epoll.isAvailable() && var2) {
-@@ -262,11 +278,11 @@
-          var4 = NioSocketChannel.class;
-          var5 = NETWORK_WORKER_GROUP;
++   public static Connection connectToServer(InetSocketAddress var0, boolean var1) {
++      final Connection var2 = new Connection(PacketFlow.CLIENTBOUND);
++      Class var3;
++      LazyLoadedValue var4;
++      if (Epoll.isAvailable() && var1) {
++         var3 = EpollSocketChannel.class;
++         var4 = NETWORK_EPOLL_WORKER_GROUP;
+       } else {
+-         var4 = NioSocketChannel.class;
+-         var5 = NETWORK_WORKER_GROUP;
++         var3 = NioSocketChannel.class;
++         var4 = NETWORK_WORKER_GROUP;
        }
  
-       ((Bootstrap)((Bootstrap)((Bootstrap)(new Bootstrap()).group((EventLoopGroup)var5.get())).handler(new ChannelInitializer<Channel>() {
+-      ((Bootstrap)((Bootstrap)((Bootstrap)(new Bootstrap()).group((EventLoopGroup)var5.get())).handler(new ChannelInitializer<Channel>() {
 -         protected void initChannel(Channel var1) throws Exception {
++      ((Bootstrap)((Bootstrap)((Bootstrap)(new Bootstrap()).group((EventLoopGroup)var4.get())).handler(new ChannelInitializer<Channel>() {
 +         protected void initChannel(Channel var1) {
              try {
                 var1.config().setOption(ChannelOption.TCP_NODELAY, true);
-             } catch (ChannelException var3x) {
+-            } catch (ChannelException var3x) {
++            } catch (ChannelException var3) {
              }
  
-@@ -277,11 +293,11 @@
+-            var1.pipeline().addLast("timeout", new ReadTimeoutHandler(30)).addLast("splitter", new Varint21FrameDecoder()).addLast("decoder", new PacketDecoder(PacketFlow.CLIENTBOUND)).addLast("prepender", new Varint21LengthFieldPrepender()).addLast("encoder", new PacketEncoder(PacketFlow.SERVERBOUND)).addLast("packet_handler", var3);
++            var1.pipeline().addLast("timeout", new ReadTimeoutHandler(30)).addLast("splitter", new Varint21FrameDecoder()).addLast("decoder", new PacketDecoder(PacketFlow.CLIENTBOUND)).addLast("prepender", new Varint21LengthFieldPrepender()).addLast("encoder", new PacketEncoder(PacketFlow.SERVERBOUND)).addLast("packet_handler", var2);
+          }
+-      })).channel(var4)).connect(var0, var1).syncUninterruptibly();
+-      return var3;
++      })).channel(var3)).connect(var0.getAddress(), var0.getPort()).syncUninterruptibly();
++      return var2;
     }
  
     public static Connection connectToLocalServer(SocketAddress var0) {
@@ -138,3 +227,19 @@
        })).channel(LocalChannel.class)).connect(var0).syncUninterruptibly();
        return var1;
     }
+@@ -379,13 +397,13 @@
+          return new DefaultEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Local Client IO #%d").setDaemon(true).build());
+       });
+    }
+ 
+    static class PacketHolder {
+-      private final Packet<?> packet;
++      final Packet<?> packet;
+       @Nullable
+-      private final GenericFutureListener<? extends Future<? super Void>> listener;
++      final GenericFutureListener<? extends Future<? super Void>> listener;
+ 
+       public PacketHolder(Packet<?> var1, @Nullable GenericFutureListener<? extends Future<? super Void>> var2) {
+          this.packet = var1;
+          this.listener = var2;
+       }

@@ -1,6 +1,6 @@
 --- net/minecraft/commands/CommandFunction.java
 +++ net/minecraft/commands/CommandFunction.java
-@@ -3,12 +3,12 @@
+@@ -3,21 +3,22 @@
  import com.google.common.collect.Lists;
  import com.mojang.brigadier.CommandDispatcher;
  import com.mojang.brigadier.ParseResults;
@@ -12,39 +12,120 @@
  import java.util.List;
  import java.util.Optional;
  import javax.annotation.Nullable;
++import net.minecraft.Util;
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.server.ServerFunctionManager;
-@@ -106,11 +106,11 @@
+ 
+ public class CommandFunction {
+    private final CommandFunction.Entry[] entries;
+-   private final ResourceLocation id;
++   final ResourceLocation id;
+ 
+    public CommandFunction(ResourceLocation var1, CommandFunction.Entry[] var2) {
+       this.id = var1;
+       this.entries = var2;
+    }
+@@ -62,10 +63,43 @@
+       }
+ 
+       return new CommandFunction(var0, (CommandFunction.Entry[])var4.toArray(new CommandFunction.Entry[0]));
+    }
+ 
++   @FunctionalInterface
++   public interface Entry {
++      void execute(ServerFunctionManager var1, CommandSourceStack var2, Deque<ServerFunctionManager.QueuedCommand> var3, int var4, int var5, @Nullable ServerFunctionManager.TraceCallbacks var6) throws CommandSyntaxException;
++   }
++
++   public static class CommandEntry implements CommandFunction.Entry {
++      private final ParseResults<CommandSourceStack> parse;
++
++      public CommandEntry(ParseResults<CommandSourceStack> var1) {
++         this.parse = var1;
++      }
++
++      public void execute(ServerFunctionManager var1, CommandSourceStack var2, Deque<ServerFunctionManager.QueuedCommand> var3, int var4, int var5, @Nullable ServerFunctionManager.TraceCallbacks var6) throws CommandSyntaxException {
++         if (var6 != null) {
++            String var7 = this.parse.getReader().getString();
++            var6.onCommand(var5, var7);
++            int var8 = this.execute(var1, var2);
++            var6.onReturn(var5, var7, var8);
++         } else {
++            this.execute(var1, var2);
++         }
++
++      }
++
++      private int execute(ServerFunctionManager var1, CommandSourceStack var2) throws CommandSyntaxException {
++         return var1.getDispatcher().execute(new ParseResults(this.parse.getContext().withSource(var2), this.parse.getReader(), this.parse.getExceptions()));
++      }
++
++      public String toString() {
++         return this.parse.getReader().getString();
++      }
++   }
++
+    public static class CacheableFunction {
+       public static final CommandFunction.CacheableFunction NONE = new CommandFunction.CacheableFunction((ResourceLocation)null);
+       @Nullable
+       private final ResourceLocation id;
+       private boolean resolved;
+@@ -106,43 +140,32 @@
  
        public FunctionEntry(CommandFunction var1) {
           this.function = new CommandFunction.CacheableFunction(var1);
        }
  
 -      public void execute(ServerFunctionManager var1, CommandSourceStack var2, ArrayDeque<ServerFunctionManager.QueuedCommand> var3, int var4) {
-+      public void execute(ServerFunctionManager var1, CommandSourceStack var2, Deque<ServerFunctionManager.QueuedCommand> var3, int var4) {
-          this.function.get(var1).ifPresent((var4x) -> {
-             CommandFunction.Entry[] var5 = var4x.getEntries();
-             int var6 = var4 - var3.size();
-             int var7 = Math.min(var5.length, var6);
+-         this.function.get(var1).ifPresent((var4x) -> {
+-            CommandFunction.Entry[] var5 = var4x.getEntries();
+-            int var6 = var4 - var3.size();
+-            int var7 = Math.min(var5.length, var6);
++      public void execute(ServerFunctionManager var1, CommandSourceStack var2, Deque<ServerFunctionManager.QueuedCommand> var3, int var4, int var5, @Nullable ServerFunctionManager.TraceCallbacks var6) {
++         Util.ifElse(this.function.get(var1), (var5x) -> {
++            CommandFunction.Entry[] var6x = var5x.getEntries();
++            if (var6 != null) {
++               var6.onCall(var5, var5x.getId(), var6x.length);
++            }
  
-@@ -131,18 +131,18 @@
+-            for(int var8 = var7 - 1; var8 >= 0; --var8) {
+-               var3.addFirst(new ServerFunctionManager.QueuedCommand(var1, var2, var5[var8]));
++            int var7 = var4 - var3.size();
++            int var8 = Math.min(var6x.length, var7);
++
++            for(int var9 = var8 - 1; var9 >= 0; --var9) {
++               var3.addFirst(new ServerFunctionManager.QueuedCommand(var2, var5 + 1, var6x[var9]));
+             }
  
-       public CommandEntry(ParseResults<CommandSourceStack> var1) {
-          this.parse = var1;
-       }
- 
--      public void execute(ServerFunctionManager var1, CommandSourceStack var2, ArrayDeque<ServerFunctionManager.QueuedCommand> var3, int var4) throws CommandSyntaxException {
-+      public void execute(ServerFunctionManager var1, CommandSourceStack var2, Deque<ServerFunctionManager.QueuedCommand> var3, int var4) throws CommandSyntaxException {
-          var1.getDispatcher().execute(new ParseResults(this.parse.getContext().withSource(var2), this.parse.getReader(), this.parse.getExceptions()));
++         }, () -> {
++            if (var6 != null) {
++               var6.onCall(var5, this.function.getId(), -1);
++            }
++
+          });
        }
  
        public String toString() {
-          return this.parse.getReader().getString();
+          return "function " + this.function.getId();
        }
     }
- 
-    public interface Entry {
+-
+-   public static class CommandEntry implements CommandFunction.Entry {
+-      private final ParseResults<CommandSourceStack> parse;
+-
+-      public CommandEntry(ParseResults<CommandSourceStack> var1) {
+-         this.parse = var1;
+-      }
+-
+-      public void execute(ServerFunctionManager var1, CommandSourceStack var2, ArrayDeque<ServerFunctionManager.QueuedCommand> var3, int var4) throws CommandSyntaxException {
+-         var1.getDispatcher().execute(new ParseResults(this.parse.getContext().withSource(var2), this.parse.getReader(), this.parse.getExceptions()));
+-      }
+-
+-      public String toString() {
+-         return this.parse.getReader().getString();
+-      }
+-   }
+-
+-   public interface Entry {
 -      void execute(ServerFunctionManager var1, CommandSourceStack var2, ArrayDeque<ServerFunctionManager.QueuedCommand> var3, int var4) throws CommandSyntaxException;
-+      void execute(ServerFunctionManager var1, CommandSourceStack var2, Deque<ServerFunctionManager.QueuedCommand> var3, int var4) throws CommandSyntaxException;
-    }
+-   }
  }

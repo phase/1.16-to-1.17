@@ -9,7 +9,7 @@
  import com.mojang.authlib.GameProfileRepository;
  import com.mojang.authlib.minecraft.MinecraftSessionService;
  import java.io.File;
-@@ -10,10 +11,11 @@
+@@ -10,54 +11,60 @@
  import java.util.ArrayList;
  import java.util.Iterator;
  import java.util.Optional;
@@ -18,10 +18,21 @@
 +import javax.annotation.Nullable;
  import net.minecraft.CrashReport;
  import net.minecraft.SharedConstants;
++import net.minecraft.SystemReport;
  import net.minecraft.client.ClientBrandRetriever;
  import net.minecraft.client.Minecraft;
  import net.minecraft.core.RegistryAccess;
-@@ -30,28 +32,30 @@
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.ServerResources;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.server.level.progress.ChunkProgressListenerFactory;
+ import net.minecraft.server.packs.repository.PackRepository;
+ import net.minecraft.server.players.GameProfileCache;
++import net.minecraft.stats.Stats;
+ import net.minecraft.util.profiling.ProfilerFiller;
+ import net.minecraft.world.Snooper;
+ import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.storage.LevelStorageSource;
  import net.minecraft.world.level.storage.WorldData;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
@@ -54,7 +65,68 @@
        this.setFlightAllowed(true);
        this.initializeKeyPair();
        this.loadLevel();
-@@ -136,18 +140,22 @@
+-      this.setMotd(this.getSingleplayerName() + " - " + this.getWorldData().getLevelName());
++      String var10001 = this.getSingleplayerName();
++      this.setMotd(var10001 + " - " + this.getWorldData().getLevelName());
+       return true;
+    }
+ 
+    public void tickServer(BooleanSupplier var1) {
+       boolean var2 = this.paused;
+@@ -69,21 +76,33 @@
+          this.getPlayerList().saveAll();
+          this.saveAllChunks(false, false, false);
+          var3.pop();
+       }
+ 
+-      if (!this.paused) {
++      if (this.paused) {
++         this.tickPaused();
++      } else {
+          super.tickServer(var1);
+          int var4 = Math.max(2, this.minecraft.options.renderDistance + -1);
+          if (var4 != this.getPlayerList().getViewDistance()) {
+             LOGGER.info("Changing view distance to {}, from {}", var4, this.getPlayerList().getViewDistance());
+             this.getPlayerList().setViewDistance(var4);
+          }
+ 
+       }
+    }
+ 
++   private void tickPaused() {
++      Iterator var1 = this.getPlayerList().getPlayers().iterator();
++
++      while(var1.hasNext()) {
++         ServerPlayer var2 = (ServerPlayer)var1.next();
++         var2.awardStat(Stats.TOTAL_WORLD_TIME);
++      }
++
++   }
++
+    public boolean shouldRconBroadcast() {
+       return true;
+    }
+ 
+    public boolean shouldInformAdmins() {
+@@ -108,14 +127,13 @@
+ 
+    public void onServerCrash(CrashReport var1) {
+       this.minecraft.delayCrash(var1);
+    }
+ 
+-   public CrashReport fillReport(CrashReport var1) {
+-      var1 = super.fillReport(var1);
+-      var1.getSystemDetails().setDetail("Type", (Object)"Integrated Server (map_client.txt)");
+-      var1.getSystemDetails().setDetail("Is Modded", () -> {
++   public SystemReport fillServerSystemReport(SystemReport var1) {
++      var1.setDetail("Type", "Integrated Server (map_client.txt)");
++      var1.setDetail("Is Modded", () -> {
+          return (String)this.getModdedStatus().orElse("Probably not. Jar signature remains and both client + server brands are untouched.");
+       });
+       return var1;
+    }
+ 
+@@ -136,18 +154,22 @@
     public void populateSnooper(Snooper var1) {
        super.populateSnooper(var1);
        var1.setDynamicData("snooper_partner", this.minecraft.getSnooper().getToken());
@@ -70,7 +142,8 @@
           this.getConnection().startTcpServerListener((InetAddress)null, var3);
           LOGGER.info("Started serving on {}", var3);
           this.publishedPort = var3;
-          this.lanPinger = new LanServerPinger(this.getMotd(), var3 + "");
+-         this.lanPinger = new LanServerPinger(this.getMotd(), var3 + "");
++         this.lanPinger = new LanServerPinger(this.getMotd(), var3.makeConcatWithConstants<invokedynamic>(var3));
           this.lanPinger.start();
 -         this.getPlayerList().setOverrideGameMode(var1);
 +         this.publishedGameType = var1;
@@ -79,7 +152,7 @@
           this.minecraft.player.setPermissionLevel(var4);
           Iterator var5 = this.getPlayerList().getPlayers().iterator();
  
-@@ -200,11 +208,11 @@
+@@ -200,11 +222,11 @@
        return this.publishedPort;
     }
  
@@ -92,7 +165,7 @@
     public boolean isCommandBlockEnabled() {
        return true;
     }
-@@ -230,6 +238,11 @@
+@@ -230,6 +252,11 @@
     }
  
     public boolean forceSynchronousWrites() {

@@ -1,6 +1,6 @@
 --- net/minecraft/client/renderer/PostPass.java
 +++ net/minecraft/client/renderer/PostPass.java
-@@ -5,10 +5,11 @@
+@@ -5,14 +5,16 @@
  import com.mojang.blaze3d.systems.RenderSystem;
  import com.mojang.blaze3d.vertex.BufferBuilder;
  import com.mojang.blaze3d.vertex.BufferUploader;
@@ -11,8 +11,13 @@
  import java.io.IOException;
  import java.util.Iterator;
  import java.util.List;
++import java.util.Objects;
  import java.util.function.IntSupplier;
-@@ -33,10 +34,14 @@
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.server.packs.resources.ResourceManager;
+ 
+ public class PostPass implements AutoCloseable {
+@@ -33,10 +35,14 @@
  
     public void close() {
        this.effect.close();
@@ -27,7 +32,23 @@
        this.auxAssets.add(this.auxAssets.size(), var2);
        this.auxWidths.add(this.auxWidths.size(), var3);
        this.auxHeights.add(this.auxHeights.size(), var4);
-@@ -68,17 +73,17 @@
+@@ -49,12 +55,14 @@
+    public void process(float var1) {
+       this.inTarget.unbindWrite();
+       float var2 = (float)this.outTarget.width;
+       float var3 = (float)this.outTarget.height;
+       RenderSystem.viewport(0, 0, (int)var2, (int)var3);
++      EffectInstance var10000 = this.effect;
+       RenderTarget var10002 = this.inTarget;
+-      this.effect.setSampler("DiffuseSampler", var10002::getColorTextureId);
++      Objects.requireNonNull(var10002);
++      var10000.setSampler("DiffuseSampler", var10002::getColorTextureId);
+ 
+       for(int var4 = 0; var4 < this.auxAssets.size(); ++var4) {
+          this.effect.setSampler((String)this.auxNames.get(var4), (IntSupplier)this.auxAssets.get(var4));
+          this.effect.safeGetUniform("AuxSize" + var4).set((float)(Integer)this.auxWidths.get(var4), (float)(Integer)this.auxHeights.get(var4));
+       }
+@@ -68,17 +76,17 @@
        this.effect.apply();
        this.outTarget.clear(Minecraft.ON_OSX);
        this.outTarget.bindWrite(false);

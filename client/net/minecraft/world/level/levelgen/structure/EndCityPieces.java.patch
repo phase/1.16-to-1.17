@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/levelgen/structure/EndCityPieces.java
 +++ net/minecraft/world/level/levelgen/structure/EndCityPieces.java
-@@ -7,10 +7,11 @@
+@@ -7,37 +7,67 @@
  import java.util.Random;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
@@ -12,7 +12,10 @@
  import net.minecraft.world.entity.decoration.ItemFrame;
  import net.minecraft.world.entity.monster.Shulker;
  import net.minecraft.world.item.ItemStack;
-@@ -20,23 +21,51 @@
+ import net.minecraft.world.item.Items;
++import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.ServerLevelAccessor;
+ import net.minecraft.world.level.block.Rotation;
  import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
  import net.minecraft.world.level.levelgen.feature.StructurePieceType;
  import net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnoreProcessor;
@@ -25,11 +28,17 @@
 -   private static final StructurePlaceSettings OVERWRITE;
 -   private static final StructurePlaceSettings INSERT;
 -   private static final EndCityPieces.SectionGenerator HOUSE_TOWER_GENERATOR;
+-   private static final List<Tuple<Rotation, BlockPos>> TOWER_BRIDGES;
+-   private static final EndCityPieces.SectionGenerator TOWER_GENERATOR;
+-   private static final EndCityPieces.SectionGenerator TOWER_BRIDGE_GENERATOR;
+-   private static final List<Tuple<Rotation, BlockPos>> FAT_TOWER_BRIDGES;
+-   private static final EndCityPieces.SectionGenerator FAT_TOWER_GENERATOR;
 +   private static final int MAX_GEN_DEPTH = 8;
-+   private static final EndCityPieces.SectionGenerator HOUSE_TOWER_GENERATOR = new EndCityPieces.SectionGenerator() {
++   static final EndCityPieces.SectionGenerator HOUSE_TOWER_GENERATOR = new EndCityPieces.SectionGenerator() {
 +      public void init() {
 +      }
-+
+ 
+-   private static EndCityPieces.EndCityPiece addPiece(StructureManager var0, EndCityPieces.EndCityPiece var1, BlockPos var2, String var3, Rotation var4, boolean var5) {
 +      public boolean generate(StructureManager var1, int var2, EndCityPieces.EndCityPiece var3, BlockPos var4, List<StructurePiece> var5, Random var6) {
 +         if (var2 > 8) {
 +            return false;
@@ -54,21 +63,41 @@
 +         }
 +      }
 +   };
-    private static final List<Tuple<Rotation, BlockPos>> TOWER_BRIDGES;
-    private static final EndCityPieces.SectionGenerator TOWER_GENERATOR;
-    private static final EndCityPieces.SectionGenerator TOWER_BRIDGE_GENERATOR;
-    private static final List<Tuple<Rotation, BlockPos>> FAT_TOWER_BRIDGES;
-    private static final EndCityPieces.SectionGenerator FAT_TOWER_GENERATOR;
- 
++   static final List<Tuple<Rotation, BlockPos>> TOWER_BRIDGES;
++   static final EndCityPieces.SectionGenerator TOWER_GENERATOR;
++   static final EndCityPieces.SectionGenerator TOWER_BRIDGE_GENERATOR;
++   static final List<Tuple<Rotation, BlockPos>> FAT_TOWER_BRIDGES;
++   static final EndCityPieces.SectionGenerator FAT_TOWER_GENERATOR;
++
 +   public EndCityPieces() {
 +   }
 +
-    private static EndCityPieces.EndCityPiece addPiece(StructureManager var0, EndCityPieces.EndCityPiece var1, BlockPos var2, String var3, Rotation var4, boolean var5) {
++   static EndCityPieces.EndCityPiece addPiece(StructureManager var0, EndCityPieces.EndCityPiece var1, BlockPos var2, String var3, Rotation var4, boolean var5) {
        EndCityPieces.EndCityPiece var6 = new EndCityPieces.EndCityPiece(var0, var3, var1.templatePosition, var4, var5);
        BlockPos var7 = var1.template.calculateConnectedPosition(var1.placeSettings, var2, var6.placeSettings, BlockPos.ZERO);
        var6.move(var7.getX(), var7.getY(), var7.getZ());
        return var6;
-@@ -70,11 +99,11 @@
+    }
+@@ -52,16 +82,16 @@
+       var5 = addHelper(var3, addPiece(var0, var5, new BlockPos(-1, 4, -1), "third_floor_1", var2, false));
+       var5 = addHelper(var3, addPiece(var0, var5, new BlockPos(-1, 8, -1), "third_roof", var2, true));
+       recursiveChildren(var0, TOWER_GENERATOR, 1, var5, (BlockPos)null, var3, var4);
+    }
+ 
+-   private static EndCityPieces.EndCityPiece addHelper(List<StructurePiece> var0, EndCityPieces.EndCityPiece var1) {
++   static EndCityPieces.EndCityPiece addHelper(List<StructurePiece> var0, EndCityPieces.EndCityPiece var1) {
+       var0.add(var1);
+       return var1;
+    }
+ 
+-   private static boolean recursiveChildren(StructureManager var0, EndCityPieces.SectionGenerator var1, int var2, EndCityPieces.EndCityPiece var3, BlockPos var4, List<StructurePiece> var5, Random var6) {
++   static boolean recursiveChildren(StructureManager var0, EndCityPieces.SectionGenerator var1, int var2, EndCityPieces.EndCityPiece var3, BlockPos var4, List<StructurePiece> var5, Random var6) {
+       if (var2 > 8) {
+          return false;
+       } else {
+          ArrayList var7 = Lists.newArrayList();
+          if (var1.generate(var0, var2, var3, var4, var7, var6)) {
+@@ -70,11 +100,11 @@
              Iterator var10 = var7.iterator();
  
              while(var10.hasNext()) {
@@ -81,7 +110,7 @@
                    break;
                 }
              }
-@@ -88,40 +117,10 @@
+@@ -88,40 +118,10 @@
           return false;
        }
     }
@@ -122,11 +151,18 @@
           public void init() {
           }
  
-@@ -237,57 +236,51 @@
- 
-       boolean generate(StructureManager var1, int var2, EndCityPieces.EndCityPiece var3, BlockPos var4, List<StructurePiece> var5, Random var6);
+@@ -230,66 +230,62 @@
+             return true;
+          }
+       };
     }
  
+-   interface SectionGenerator {
+-      void init();
+-
+-      boolean generate(StructureManager var1, int var2, EndCityPieces.EndCityPiece var3, BlockPos var4, List<StructurePiece> var5, Random var6);
+-   }
+-
     public static class EndCityPiece extends TemplateStructurePiece {
 -      private final String templateName;
 -      private final Rotation rotation;
@@ -188,16 +224,33 @@
              if (var5.isInside(var6)) {
                 RandomizableContainerBlockEntity.setLootTable(var3, var4, var6, BuiltInLootTables.END_CITY_TREASURE);
              }
-          } else if (var1.startsWith("Sentry")) {
-             Shulker var7 = (Shulker)EntityType.SHULKER.create(var3.getLevel());
-             var7.setPos((double)var2.getX() + 0.5D, (double)var2.getY() + 0.5D, (double)var2.getZ() + 0.5D);
+-         } else if (var1.startsWith("Sentry")) {
+-            Shulker var7 = (Shulker)EntityType.SHULKER.create(var3.getLevel());
+-            var7.setPos((double)var2.getX() + 0.5D, (double)var2.getY() + 0.5D, (double)var2.getZ() + 0.5D);
 -            var7.setAttachPosition(var2);
-             var3.addFreshEntity(var7);
-          } else if (var1.startsWith("Elytra")) {
+-            var3.addFreshEntity(var7);
+-         } else if (var1.startsWith("Elytra")) {
 -            ItemFrame var8 = new ItemFrame(var3.getLevel(), var2, this.rotation.rotate(Direction.SOUTH));
-+            ItemFrame var8 = new ItemFrame(var3.getLevel(), var2, this.placeSettings.getRotation().rotate(Direction.SOUTH));
-             var8.setItem(new ItemStack(Items.ELYTRA), false);
-             var3.addFreshEntity(var8);
+-            var8.setItem(new ItemStack(Items.ELYTRA), false);
+-            var3.addFreshEntity(var8);
++         } else if (var5.isInside(var2) && Level.isInSpawnableBounds(var2)) {
++            if (var1.startsWith("Sentry")) {
++               Shulker var7 = (Shulker)EntityType.SHULKER.create(var3.getLevel());
++               var7.setPos((double)var2.getX() + 0.5D, (double)var2.getY(), (double)var2.getZ() + 0.5D);
++               var3.addFreshEntity(var7);
++            } else if (var1.startsWith("Elytra")) {
++               ItemFrame var8 = new ItemFrame(var3.getLevel(), var2, this.placeSettings.getRotation().rotate(Direction.SOUTH));
++               var8.setItem(new ItemStack(Items.ELYTRA), false);
++               var3.addFreshEntity(var8);
++            }
           }
  
        }
+    }
++
++   interface SectionGenerator {
++      void init();
++
++      boolean generate(StructureManager var1, int var2, EndCityPieces.EndCityPiece var3, BlockPos var4, List<StructurePiece> var5, Random var6);
++   }
+ }

@@ -1,6 +1,18 @@
 --- net/minecraft/server/gui/MinecraftServerGui.java
 +++ net/minecraft/server/gui/MinecraftServerGui.java
-@@ -32,10 +32,12 @@
+@@ -9,10 +9,11 @@
+ import java.awt.event.FocusAdapter;
+ import java.awt.event.FocusEvent;
+ import java.awt.event.WindowAdapter;
+ import java.awt.event.WindowEvent;
+ import java.util.Collection;
++import java.util.Objects;
+ import java.util.concurrent.atomic.AtomicBoolean;
+ import javax.swing.JComponent;
+ import javax.swing.JFrame;
+ import javax.swing.JPanel;
+ import javax.swing.JScrollBar;
+@@ -32,14 +33,16 @@
  import org.apache.logging.log4j.Logger;
  
  public class MinecraftServerGui extends JComponent {
@@ -11,5 +23,50 @@
     private final DedicatedServer server;
     private Thread logAppenderThread;
     private final Collection<Runnable> finalizers = Lists.newArrayList();
-    private final AtomicBoolean isClosing = new AtomicBoolean();
+-   private final AtomicBoolean isClosing = new AtomicBoolean();
++   final AtomicBoolean isClosing = new AtomicBoolean();
  
+    public static MinecraftServerGui showFrameFor(final DedicatedServer var0) {
+       try {
+          UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+       } catch (Exception var3) {
+@@ -60,10 +63,11 @@
+                var2.runFinalizers();
+             }
+ 
+          }
+       });
++      Objects.requireNonNull(var1);
+       var2.addFinalizer(var1::dispose);
+       var2.start();
+       return var2;
+    }
+ 
+@@ -86,11 +90,13 @@
+    }
+ 
+    private JComponent buildInfoPanel() {
+       JPanel var1 = new JPanel(new BorderLayout());
+       StatsComponent var2 = new StatsComponent(this.server);
+-      this.finalizers.add(var2::close);
++      Collection var10000 = this.finalizers;
++      Objects.requireNonNull(var2);
++      var10000.add(var2::close);
+       var1.add(var2, "North");
+       var1.add(this.buildPlayerPanel(), "Center");
+       var1.setBorder(new TitledBorder(new EtchedBorder(), "Stats"));
+       return var1;
+    }
+@@ -145,11 +151,11 @@
+          this.runFinalizers();
+       }
+ 
+    }
+ 
+-   private void runFinalizers() {
++   void runFinalizers() {
+       this.finalizers.forEach(Runnable::run);
+    }
+ 
+    public void print(JTextArea var1, JScrollPane var2, String var3) {
+       if (!SwingUtilities.isEventDispatchThread()) {

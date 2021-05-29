@@ -1,17 +1,18 @@
 --- net/minecraft/world/item/ElytraItem.java
 +++ net/minecraft/world/item/ElytraItem.java
-@@ -1,7 +1,10 @@
+@@ -1,7 +1,11 @@
  package net.minecraft.world.item;
  
 +import javax.annotation.Nullable;
 +import net.minecraft.sounds.SoundEvent;
 +import net.minecraft.sounds.SoundEvents;
++import net.minecraft.stats.Stats;
  import net.minecraft.world.InteractionHand;
  import net.minecraft.world.InteractionResultHolder;
  import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.entity.Mob;
  import net.minecraft.world.entity.player.Player;
-@@ -17,11 +20,11 @@
+@@ -17,21 +21,30 @@
     public static boolean isFlyEnabled(ItemStack var0) {
        return var0.getDamageValue() < var0.getMaxDamage() - 1;
     }
@@ -24,7 +25,14 @@
     public InteractionResultHolder<ItemStack> use(Level var1, Player var2, InteractionHand var3) {
        ItemStack var4 = var2.getItemInHand(var3);
        EquipmentSlot var5 = Mob.getEquipmentSlotForItem(var4);
-@@ -32,6 +35,11 @@
+       ItemStack var6 = var2.getItemBySlot(var5);
+       if (var6.isEmpty()) {
+          var2.setItemSlot(var5, var4.copy());
++         if (!var1.isClientSide()) {
++            var2.awardStat(Stats.ITEM_USED.get(this));
++         }
++
+          var4.setCount(0);
           return InteractionResultHolder.sidedSuccess(var4, var1.isClientSide());
        } else {
           return InteractionResultHolder.fail(var4);

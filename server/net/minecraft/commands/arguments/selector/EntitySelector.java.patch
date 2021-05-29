@@ -1,7 +1,14 @@
 --- net/minecraft/commands/arguments/selector/EntitySelector.java
 +++ net/minecraft/commands/arguments/selector/EntitySelector.java
-@@ -18,14 +18,25 @@
- import net.minecraft.network.chat.MutableComponent;
+@@ -12,39 +12,49 @@
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ import net.minecraft.advancements.critereon.MinMaxBounds;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.commands.arguments.EntityArgument;
++import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.ComponentUtils;
+-import net.minecraft.network.chat.MutableComponent;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.world.entity.Entity;
@@ -25,8 +32,12 @@
     private final boolean includesEntities;
     private final boolean worldLimited;
     private final Predicate<Entity> predicate;
-    private final MinMaxBounds.Floats range;
-@@ -36,12 +47,11 @@
+-   private final MinMaxBounds.Floats range;
++   private final MinMaxBounds.Doubles range;
+    private final Function<Vec3, Vec3> position;
+    @Nullable
+    private final AABB aabb;
+    private final BiConsumer<Vec3, List<? extends Entity>> order;
     private final boolean currentEntity;
     @Nullable
     private final String playerName;
@@ -37,9 +48,13 @@
 +   private EntityTypeTest<Entity, ?> type;
     private final boolean usesSelector;
  
-    public EntitySelector(int var1, boolean var2, boolean var3, Predicate<Entity> var4, MinMaxBounds.Floats var5, Function<Vec3, Vec3> var6, @Nullable AABB var7, BiConsumer<Vec3, List<? extends Entity>> var8, boolean var9, @Nullable String var10, @Nullable UUID var11, @Nullable EntityType<?> var12, boolean var13) {
+-   public EntitySelector(int var1, boolean var2, boolean var3, Predicate<Entity> var4, MinMaxBounds.Floats var5, Function<Vec3, Vec3> var6, @Nullable AABB var7, BiConsumer<Vec3, List<? extends Entity>> var8, boolean var9, @Nullable String var10, @Nullable UUID var11, @Nullable EntityType<?> var12, boolean var13) {
++   public EntitySelector(int var1, boolean var2, boolean var3, Predicate<Entity> var4, MinMaxBounds.Doubles var5, Function<Vec3, Vec3> var6, @Nullable AABB var7, BiConsumer<Vec3, List<? extends Entity>> var8, boolean var9, @Nullable String var10, @Nullable UUID var11, @Nullable EntityType<?> var12, boolean var13) {
        this.maxResults = var1;
        this.includesEntities = var2;
+       this.worldLimited = var3;
+       this.predicate = var4;
+       this.range = var5;
 @@ -52,11 +62,11 @@
        this.aabb = var7;
        this.order = var8;
@@ -83,3 +98,15 @@
                 Iterator var5 = var1.getServer().getPlayerList().getPlayers().iterator();
  
                 while(var5.hasNext()) {
+@@ -223,9 +235,9 @@
+       }
+ 
+       return var2.subList(0, Math.min(this.maxResults, var2.size()));
+    }
+ 
+-   public static MutableComponent joinNames(List<? extends Entity> var0) {
+-      return ComponentUtils.formatList(var0, Entity::getDisplayName);
++   public static Component joinNames(List<? extends Entity> var0) {
++      return ComponentUtils.formatList(var0, (Function)(Entity::getDisplayName));
+    }
+ }

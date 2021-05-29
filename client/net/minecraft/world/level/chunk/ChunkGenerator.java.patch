@@ -1,10 +1,12 @@
 --- net/minecraft/world/level/chunk/ChunkGenerator.java
 +++ net/minecraft/world/level/chunk/ChunkGenerator.java
-@@ -6,28 +6,32 @@
+@@ -5,43 +5,53 @@
+ import java.util.ArrayList;
  import java.util.BitSet;
  import java.util.Iterator;
  import java.util.List;
  import java.util.ListIterator;
++import java.util.Objects;
  import java.util.Random;
 +import java.util.concurrent.CompletableFuture;
 +import java.util.concurrent.Executor;
@@ -35,10 +37,17 @@
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.BiomeGenerationSettings;
  import net.minecraft.world.level.biome.BiomeManager;
-@@ -38,10 +42,11 @@
+ import net.minecraft.world.level.biome.BiomeSource;
+ import net.minecraft.world.level.biome.MobSpawnSettings;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.levelgen.Aquifer;
++import net.minecraft.world.level.levelgen.BaseStoneSource;
+ import net.minecraft.world.level.levelgen.DebugLevelSource;
+ import net.minecraft.world.level.levelgen.FlatLevelSource;
  import net.minecraft.world.level.levelgen.GenerationStep;
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
++import net.minecraft.world.level.levelgen.SingleBaseStoneSource;
  import net.minecraft.world.level.levelgen.StructureSettings;
  import net.minecraft.world.level.levelgen.WorldgenRandom;
 +import net.minecraft.world.level.levelgen.carver.CarvingContext;
@@ -47,14 +56,42 @@
  import net.minecraft.world.level.levelgen.feature.StructureFeature;
  import net.minecraft.world.level.levelgen.feature.configurations.StrongholdConfiguration;
  import net.minecraft.world.level.levelgen.feature.configurations.StructureFeatureConfiguration;
-@@ -93,14 +98,14 @@
+@@ -53,10 +63,11 @@
+    protected final BiomeSource biomeSource;
+    protected final BiomeSource runtimeBiomeSource;
+    private final StructureSettings settings;
+    private final long strongholdSeed;
+    private final List<ChunkPos> strongholdPositions;
++   private final BaseStoneSource defaultBaseStoneSource;
+ 
+    public ChunkGenerator(BiomeSource var1, StructureSettings var2) {
+       this(var1, var1, var2, 0L);
+    }
+ 
+@@ -64,10 +75,11 @@
+       this.strongholdPositions = Lists.newArrayList();
+       this.biomeSource = var1;
+       this.runtimeBiomeSource = var2;
+       this.settings = var3;
+       this.strongholdSeed = var4;
++      this.defaultBaseStoneSource = new SingleBaseStoneSource(Blocks.STONE.defaultBlockState());
+    }
+ 
+    private void generateStrongholds() {
+       if (this.strongholdPositions.isEmpty()) {
+          StrongholdConfiguration var1 = this.settings.stronghold();
+@@ -93,14 +105,18 @@
  
              for(int var11 = 0; var11 < var18; ++var11) {
                 double var12 = (double)(4 * var17 + var17 * var10 * 6) + (var6.nextDouble() - 0.5D) * (double)var17 * 2.5D;
                 int var14 = (int)Math.round(Math.cos(var7) * var12);
                 int var15 = (int)Math.round(Math.sin(var7) * var12);
 -               BlockPos var16 = this.biomeSource.findBiomeHorizontal((var14 << 4) + 8, 0, (var15 << 4) + 8, 112, var2::contains, var6);
-+               BlockPos var16 = this.biomeSource.findBiomeHorizontal(SectionPos.sectionToBlockCoord(var14, 8), 0, SectionPos.sectionToBlockCoord(var15, 8), 112, var2::contains, var6);
++               BiomeSource var10000 = this.biomeSource;
++               int var10001 = SectionPos.sectionToBlockCoord(var14, 8);
++               int var10003 = SectionPos.sectionToBlockCoord(var15, 8);
++               Objects.requireNonNull(var2);
++               BlockPos var16 = var10000.findBiomeHorizontal(var10001, 0, var10003, 112, var2::contains, var6);
                 if (var16 != null) {
 -                  var14 = var16.getX() >> 4;
 -                  var15 = var16.getZ() >> 4;
@@ -65,7 +102,7 @@
                 this.strongholdPositions.add(new ChunkPos(var14, var15));
                 var7 += 6.283185307179586D / (double)var5;
                 ++var9;
-@@ -121,34 +126,34 @@
+@@ -121,41 +137,47 @@
  
     public abstract ChunkGenerator withSeed(long var1);
  
@@ -84,34 +121,51 @@
 -      int var11 = var9.z;
 -      BiomeGenerationSettings var12 = this.biomeSource.getNoiseBiome(var9.x << 2, 0, var9.z << 2).getGenerationSettings();
 -      BitSet var13 = ((ProtoChunk)var4).getOrCreateCarvingMask(var5);
-+      BiomeGenerationSettings var10 = this.biomeSource.getNoiseBiome(QuartPos.fromBlock(var9.getMinBlockX()), 0, QuartPos.fromBlock(var9.getMinBlockZ())).getGenerationSettings();
-+      CarvingContext var11 = new CarvingContext(this);
++      CarvingContext var10 = new CarvingContext(this);
++      Aquifer var11 = this.createAquifer(var4);
 +      BitSet var12 = ((ProtoChunk)var4).getOrCreateCarvingMask(var5);
  
 -      for(int var14 = var10 - 8; var14 <= var10 + 8; ++var14) {
 -         for(int var15 = var11 - 8; var15 <= var11 + 8; ++var15) {
 -            List var16 = var12.getCarvers(var5);
+-            ListIterator var17 = var16.listIterator();
 +      for(int var13 = -8; var13 <= 8; ++var13) {
 +         for(int var14 = -8; var14 <= 8; ++var14) {
 +            ChunkPos var15 = new ChunkPos(var9.x + var13, var9.z + var14);
-+            List var16 = var10.getCarvers(var5);
-             ListIterator var17 = var16.listIterator();
++            BiomeGenerationSettings var16 = this.biomeSource.getNoiseBiome(QuartPos.fromBlock(var15.getMinBlockX()), 0, QuartPos.fromBlock(var15.getMinBlockZ())).getGenerationSettings();
++            List var17 = var16.getCarvers(var5);
++            ListIterator var18 = var17.listIterator();
  
-             while(var17.hasNext()) {
-                int var18 = var17.nextIndex();
-                ConfiguredWorldCarver var19 = (ConfiguredWorldCarver)((Supplier)var17.next()).get();
+-            while(var17.hasNext()) {
+-               int var18 = var17.nextIndex();
+-               ConfiguredWorldCarver var19 = (ConfiguredWorldCarver)((Supplier)var17.next()).get();
 -               var7.setLargeFeatureSeed(var1 + (long)var18, var14, var15);
 -               if (var19.isStartChunk(var7, var14, var15)) {
 -                  var19.carve(var4, var6::getBiome, var7, this.getSeaLevel(), var14, var15, var10, var11, var13);
-+               var7.setLargeFeatureSeed(var1 + (long)var18, var15.x, var15.z);
-+               if (var19.isStartChunk(var7)) {
-+                  var19.carve(var11, var4, var6::getBiome, var7, this.getSeaLevel(), var15, var12);
++            while(var18.hasNext()) {
++               int var19 = var18.nextIndex();
++               ConfiguredWorldCarver var20 = (ConfiguredWorldCarver)((Supplier)var18.next()).get();
++               var7.setLargeFeatureSeed(var1 + (long)var19, var15.x, var15.z);
++               if (var20.isStartChunk(var7)) {
++                  Objects.requireNonNull(var6);
++                  var20.carve(var10, var4, var6::getBiome, var7, var11, var15, var12);
                 }
              }
           }
        }
  
-@@ -165,11 +170,11 @@
+    }
+ 
++   protected Aquifer createAquifer(ChunkAccess var1) {
++      return Aquifer.createDisabled(this.getSeaLevel(), Blocks.WATER.defaultBlockState());
++   }
++
+    @Nullable
+    public BlockPos findNearestMapFeature(ServerLevel var1, StructureFeature<?> var2, BlockPos var3, int var4, boolean var5) {
+       if (!this.biomeSource.canGenerateStructure(var2)) {
+          return null;
+       } else if (var2 == StructureFeature.STRONGHOLD) {
+@@ -165,11 +187,11 @@
           BlockPos.MutableBlockPos var9 = new BlockPos.MutableBlockPos();
           Iterator var10 = this.strongholdPositions.iterator();
  
@@ -124,7 +178,7 @@
                 var14 = new BlockPos(var9);
                 var7 = var12;
              } else if (var12 < var7) {
-@@ -184,25 +189,24 @@
+@@ -184,25 +206,24 @@
           return var6 == null ? null : var2.getNearestGeneratedFeature(var1, var1.structureFeatureManager(), var3, var4, var5, var1.getSeed(), var6);
        }
     }
@@ -162,7 +216,7 @@
  
     public abstract void buildSurfaceAndBedrock(WorldGenRegion var1, ChunkAccess var2);
  
-@@ -211,107 +215,113 @@
+@@ -211,11 +232,11 @@
  
     public StructureSettings getSettings() {
        return this.settings;
@@ -175,11 +229,10 @@
  
     public BiomeSource getBiomeSource() {
        return this.runtimeBiomeSource;
-    }
+@@ -223,102 +244,112 @@
  
     public int getGenDepth() {
--      return 256;
-+      return 384;
+       return 256;
     }
  
 -   public List<MobSpawnSettings.SpawnerData> getMobsAt(Biome var1, StructureFeatureManager var2, MobCategory var3, BlockPos var4) {
@@ -324,3 +377,14 @@
     public boolean hasStronghold(ChunkPos var1) {
        this.generateStrongholds();
        return this.strongholdPositions.contains(var1);
+    }
+ 
++   public BaseStoneSource getBaseStoneSource() {
++      return this.defaultBaseStoneSource;
++   }
++
+    static {
+       Registry.register(Registry.CHUNK_GENERATOR, (String)"noise", NoiseBasedChunkGenerator.CODEC);
+       Registry.register(Registry.CHUNK_GENERATOR, (String)"flat", FlatLevelSource.CODEC);
+       Registry.register(Registry.CHUNK_GENERATOR, (String)"debug", DebugLevelSource.CODEC);
+       CODEC = Registry.CHUNK_GENERATOR.dispatchStable(ChunkGenerator::codec, Function.identity());

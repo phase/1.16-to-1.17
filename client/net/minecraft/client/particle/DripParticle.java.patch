@@ -1,6 +1,6 @@
 --- net/minecraft/client/particle/DripParticle.java
 +++ net/minecraft/client/particle/DripParticle.java
-@@ -1,14 +1,17 @@
+@@ -1,29 +1,36 @@
  package net.minecraft.client.particle;
  
 +import java.util.Random;
@@ -18,7 +18,12 @@
  import net.minecraft.world.level.material.Fluids;
  
  public class DripParticle extends TextureSheetParticle {
-@@ -20,10 +23,14 @@
+    private final Fluid type;
+    protected boolean isGlowing;
+ 
+-   private DripParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8) {
++   DripParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8) {
+       super(var1, var2, var4, var6);
        this.setSize(0.01F, 0.01F);
        this.gravity = 0.06F;
        this.type = var8;
@@ -133,21 +138,36 @@
  
        public HoneyLandProvider(SpriteSet var1) {
           this.sprite = var1;
-@@ -262,32 +347,54 @@
+@@ -253,51 +338,73 @@
+          var15.pickSprite(this.sprite);
+          return var15;
        }
     }
  
-    static class FallingParticle extends DripParticle {
-       private FallingParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8) {
-+         this(var1, var2, var4, var6, var8, (int)(64.0D / (Math.random() * 0.8D + 0.2D)));
-+      }
-+
-+      private FallingParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, int var9) {
-          super(var1, var2, var4, var6, var8, null);
+-   static class DripLandParticle extends DripParticle {
+-      private DripLandParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8) {
+-         super(var1, var2, var4, var6, var8, null);
++   private static class DripLandParticle extends DripParticle {
++      DripLandParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8) {
++         super(var1, var2, var4, var6, var8);
+          this.lifetime = (int)(16.0D / (Math.random() * 0.8D + 0.2D));
+       }
+    }
+ 
+-   static class FallingParticle extends DripParticle {
+-      private FallingParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8) {
+-         super(var1, var2, var4, var6, var8, null);
 -         this.lifetime = (int)(64.0D / (Math.random() * 0.8D + 0.2D));
-+         this.lifetime = var9;
++   private static class FallingParticle extends DripParticle {
++      FallingParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8) {
++         this(var1, var2, var4, var6, var8, (int)(64.0D / (Math.random() * 0.8D + 0.2D)));
        }
  
++      FallingParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, int var9) {
++         super(var1, var2, var4, var6, var8);
++         this.lifetime = var9;
++      }
++
        protected void postMoveUpdate() {
           if (this.onGround) {
              this.remove();
@@ -156,9 +176,9 @@
        }
     }
  
-+   static class DripstoneFallAndLandParticle extends DripParticle.FallAndLandParticle {
-+      private DripstoneFallAndLandParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
-+         super(var1, var2, var4, var6, var8, var9, null);
++   private static class DripstoneFallAndLandParticle extends DripParticle.FallAndLandParticle {
++      DripstoneFallAndLandParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
++         super(var1, var2, var4, var6, var8, var9);
 +      }
 +
 +      protected void postMoveUpdate() {
@@ -174,8 +194,10 @@
 +   }
 +
     static class HoneyFallAndLandParticle extends DripParticle.FallAndLandParticle {
-       private HoneyFallAndLandParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
-          super(var1, var2, var4, var6, var8, var9, null);
+-      private HoneyFallAndLandParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
+-         super(var1, var2, var4, var6, var8, var9, null);
++      HoneyFallAndLandParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
++         super(var1, var2, var4, var6, var8, var9);
        }
  
        protected void postMoveUpdate() {
@@ -189,4 +211,50 @@
  
        }
     }
+ 
+-   static class FallAndLandParticle extends DripParticle.FallingParticle {
++   private static class FallAndLandParticle extends DripParticle.FallingParticle {
+       protected final ParticleOptions landParticle;
+ 
+-      private FallAndLandParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
+-         super(var1, var2, var4, var6, var8, null);
++      FallAndLandParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
++         super(var1, var2, var4, var6, var8);
+          this.landParticle = var9;
+       }
+ 
+       protected void postMoveUpdate() {
+          if (this.onGround) {
+@@ -307,27 +414,27 @@
+ 
+       }
+    }
+ 
+    static class CoolingDripHangParticle extends DripParticle.DripHangParticle {
+-      private CoolingDripHangParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
+-         super(var1, var2, var4, var6, var8, var9, null);
++      CoolingDripHangParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
++         super(var1, var2, var4, var6, var8, var9);
+       }
+ 
+       protected void preMoveUpdate() {
+          this.rCol = 1.0F;
+          this.gCol = 16.0F / (float)(40 - this.lifetime + 16);
+          this.bCol = 4.0F / (float)(40 - this.lifetime + 8);
+          super.preMoveUpdate();
+       }
+    }
+ 
+-   static class DripHangParticle extends DripParticle {
++   private static class DripHangParticle extends DripParticle {
+       private final ParticleOptions fallingParticle;
+ 
+-      private DripHangParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
+-         super(var1, var2, var4, var6, var8, null);
++      DripHangParticle(ClientLevel var1, double var2, double var4, double var6, Fluid var8, ParticleOptions var9) {
++         super(var1, var2, var4, var6, var8);
+          this.fallingParticle = var9;
+          this.gravity *= 0.02F;
+          this.lifetime = 40;
+       }
  

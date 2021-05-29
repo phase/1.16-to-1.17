@@ -1,0 +1,91 @@
+--- net/minecraft/world/level/storage/loot/functions/SetContainerContents.java
++++ net/minecraft/world/level/storage/loot/functions/SetContainerContents.java
+@@ -6,10 +6,11 @@
+ import com.google.gson.JsonObject;
+ import com.google.gson.JsonSerializationContext;
+ import java.util.Arrays;
+ import java.util.Collection;
+ import java.util.List;
++import java.util.Objects;
+ import net.minecraft.core.NonNullList;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.util.GsonHelper;
+ import net.minecraft.world.ContainerHelper;
+ import net.minecraft.world.item.ItemStack;
+@@ -18,13 +19,13 @@
+ import net.minecraft.world.level.storage.loot.ValidationContext;
+ import net.minecraft.world.level.storage.loot.entries.LootPoolEntryContainer;
+ import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
+ 
+ public class SetContainerContents extends LootItemConditionalFunction {
+-   private final List<LootPoolEntryContainer> entries;
++   final List<LootPoolEntryContainer> entries;
+ 
+-   private SetContainerContents(LootItemCondition[] var1, List<LootPoolEntryContainer> var2) {
++   SetContainerContents(LootItemCondition[] var1, List<LootPoolEntryContainer> var2) {
+       super(var1);
+       this.entries = ImmutableList.copyOf((Collection)var2);
+    }
+ 
+    public LootItemFunctionType getType() {
+@@ -36,11 +37,11 @@
+          return var1;
+       } else {
+          NonNullList var3 = NonNullList.create();
+          this.entries.forEach((var2x) -> {
+             var2x.expand(var2, (var2xx) -> {
+-               var3.getClass();
++               Objects.requireNonNull(var3);
+                var2xx.createItemStack(LootTable.createStackSplitter(var3::add), var2);
+             });
+          });
+          CompoundTag var4 = new CompoundTag();
+          ContainerHelper.saveAllItems(var4, var3);
+@@ -61,25 +62,10 @@
+ 
+    public static SetContainerContents.Builder setContents() {
+       return new SetContainerContents.Builder();
+    }
+ 
+-   public static class Serializer extends LootItemConditionalFunction.Serializer<SetContainerContents> {
+-      public Serializer() {
+-      }
+-
+-      public void serialize(JsonObject var1, SetContainerContents var2, JsonSerializationContext var3) {
+-         super.serialize(var1, (LootItemConditionalFunction)var2, var3);
+-         var1.add("entries", var3.serialize(var2.entries));
+-      }
+-
+-      public SetContainerContents deserialize(JsonObject var1, JsonDeserializationContext var2, LootItemCondition[] var3) {
+-         LootPoolEntryContainer[] var4 = (LootPoolEntryContainer[])GsonHelper.getAsObject(var1, "entries", var2, LootPoolEntryContainer[].class);
+-         return new SetContainerContents(var3, Arrays.asList(var4));
+-      }
+-   }
+-
+    public static class Builder extends LootItemConditionalFunction.Builder<SetContainerContents.Builder> {
+       private final List<LootPoolEntryContainer> entries = Lists.newArrayList();
+ 
+       public Builder() {
+       }
+@@ -95,6 +81,21 @@
+ 
+       public LootItemFunction build() {
+          return new SetContainerContents(this.getConditions(), this.entries);
+       }
+    }
++
++   public static class Serializer extends LootItemConditionalFunction.Serializer<SetContainerContents> {
++      public Serializer() {
++      }
++
++      public void serialize(JsonObject var1, SetContainerContents var2, JsonSerializationContext var3) {
++         super.serialize(var1, (LootItemConditionalFunction)var2, var3);
++         var1.add("entries", var3.serialize(var2.entries));
++      }
++
++      public SetContainerContents deserialize(JsonObject var1, JsonDeserializationContext var2, LootItemCondition[] var3) {
++         LootPoolEntryContainer[] var4 = (LootPoolEntryContainer[])GsonHelper.getAsObject(var1, "entries", var2, LootPoolEntryContainer[].class);
++         return new SetContainerContents(var3, Arrays.asList(var4));
++      }
++   }
+ }

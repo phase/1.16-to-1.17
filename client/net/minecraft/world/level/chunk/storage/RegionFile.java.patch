@@ -1,6 +1,6 @@
 --- net/minecraft/world/level/chunk/storage/RegionFile.java
 +++ net/minecraft/world/level/chunk/storage/RegionFile.java
-@@ -25,11 +25,20 @@
+@@ -25,14 +25,23 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -18,9 +18,13 @@
 +   private static final int CHUNK_NOT_PRESENT = 0;
     private final FileChannel file;
     private final Path externalFileDir;
-    private final RegionFileVersion version;
+-   private final RegionFileVersion version;
++   final RegionFileVersion version;
     private final ByteBuffer header;
     private final IntBuffer offsets;
+    private final IntBuffer timestamps;
+    @VisibleForTesting
+    protected final RegionBitmap usedSectors;
 @@ -139,10 +148,14 @@
              }
           }
@@ -74,3 +78,74 @@
        if (var5 != 0) {
           this.usedSectors.free(var5, var6);
        }
+@@ -292,33 +316,30 @@
+    }
+ 
+    private RegionFile.CommitOp writeToExternalFile(Path var1, ByteBuffer var2) throws IOException {
+       Path var3 = Files.createTempFile(this.externalFileDir, "tmp", (String)null);
+       FileChannel var4 = FileChannel.open(var3, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+-      Throwable var5 = null;
+ 
+       try {
+          var2.position(5);
+          var4.write(var2);
+-      } catch (Throwable var14) {
+-         var5 = var14;
+-         throw var14;
+-      } finally {
++      } catch (Throwable var8) {
+          if (var4 != null) {
+-            if (var5 != null) {
+-               try {
+-                  var4.close();
+-               } catch (Throwable var13) {
+-                  var5.addSuppressed(var13);
+-               }
+-            } else {
++            try {
+                var4.close();
++            } catch (Throwable var7) {
++               var8.addSuppressed(var7);
+             }
+          }
+ 
++         throw var8;
+       }
+ 
++      if (var4 != null) {
++         var4.close();
++      }
++
+       return () -> {
+          Files.move(var3, var1, StandardCopyOption.REPLACE_EXISTING);
+       };
+    }
+ 
+@@ -361,15 +382,11 @@
+          this.file.write(var3, (long)(var2 - 1));
+       }
+ 
+    }
+ 
+-   interface CommitOp {
+-      void run() throws IOException;
+-   }
+-
+-   class ChunkBuffer extends ByteArrayOutputStream {
++   private class ChunkBuffer extends ByteArrayOutputStream {
+       private final ChunkPos pos;
+ 
+       public ChunkBuffer(ChunkPos var2) {
+          super(8096);
+          super.write(0);
+@@ -384,6 +401,10 @@
+          ByteBuffer var1 = ByteBuffer.wrap(this.buf, 0, this.count);
+          var1.putInt(0, this.count - 5 + 1);
+          RegionFile.this.write(this.pos, var1);
+       }
+    }
++
++   interface CommitOp {
++      void run() throws IOException;
++   }
+ }

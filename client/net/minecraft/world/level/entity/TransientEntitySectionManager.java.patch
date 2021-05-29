@@ -1,10 +1,11 @@
 --- net/minecraft/world/level/entity/TransientEntitySectionManager.java
 +++ net/minecraft/world/level/entity/TransientEntitySectionManager.java
-@@ -1,0 +1,152 @@
+@@ -1,0 +1,156 @@
 +package net.minecraft.world.level.entity;
 +
 +import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 +import it.unimi.dsi.fastutil.longs.LongSet;
++import java.util.Objects;
 +import java.util.stream.Stream;
 +import net.minecraft.core.BlockPos;
 +import net.minecraft.core.SectionPos;
@@ -15,10 +16,10 @@
 +import org.apache.logging.log4j.Logger;
 +
 +public class TransientEntitySectionManager<T extends EntityAccess> {
-+   private static final Logger LOGGER = LogManager.getLogger();
-+   private final LevelCallback<T> callbacks;
-+   private final EntityLookup<T> entityStorage = new EntityLookup();
-+   private final EntitySectionStorage<T> sectionStorage;
++   static final Logger LOGGER = LogManager.getLogger();
++   final LevelCallback<T> callbacks;
++   final EntityLookup<T> entityStorage = new EntityLookup();
++   final EntitySectionStorage<T> sectionStorage;
 +   private final LongSet tickingChunks = new LongOpenHashSet();
 +   private final LevelEntityGetter<T> entityGetter;
 +
@@ -40,6 +41,7 @@
 +               return !var0.isAlwaysTicking();
 +            });
 +            LevelCallback var10001 = this.callbacks;
++            Objects.requireNonNull(var10001);
 +            var10000.forEach(var10001::onTickingStart);
 +         }
 +
@@ -56,6 +58,7 @@
 +               return !var0.isAlwaysTicking();
 +            });
 +            LevelCallback var10001 = this.callbacks;
++            Objects.requireNonNull(var10001);
 +            var10000.forEach(var10001::onTickingEnd);
 +         }
 +
@@ -85,7 +88,7 @@
 +      return this.entityStorage.count();
 +   }
 +
-+   private void removeSectionIfEmpty(long var1, EntitySection<T> var3) {
++   void removeSectionIfEmpty(long var1, EntitySection<T> var3) {
 +      if (var3.isEmpty()) {
 +         this.sectionStorage.remove(var1);
 +      }
@@ -94,7 +97,8 @@
 +
 +   @VisibleForDebug
 +   public String gatherStats() {
-+      return this.entityStorage.count() + "," + this.sectionStorage.count() + "," + this.tickingChunks.size();
++      int var10000 = this.entityStorage.count();
++      return var10000 + "," + this.sectionStorage.count() + "," + this.tickingChunks.size();
 +   }
 +
 +   class Callback implements EntityInLevelCallback {
@@ -102,7 +106,7 @@
 +      private long currentSectionKey;
 +      private EntitySection<T> currentSection;
 +
-+      private Callback(T var2, long var3, EntitySection<T> var5) {
++      Callback(T var2, long var3, EntitySection<T> var5) {
 +         this.entity = var2;
 +         this.currentSectionKey = var3;
 +         this.currentSection = var5;

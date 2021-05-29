@@ -184,7 +184,7 @@
 -            Direction var9 = ChestBlock.getConnectedDirection(this.getBlockState());
 -            var3 += (double)var9.getStepX() * 0.5D;
 -            var7 += (double)var9.getStepZ() * 0.5D;
-+   private static void playSound(Level var0, BlockPos var1, BlockState var2, SoundEvent var3) {
++   static void playSound(Level var0, BlockPos var1, BlockState var2, SoundEvent var3) {
 +      ChestType var4 = (ChestType)var2.getValue(ChestBlock.TYPE);
 +      if (var4 != ChestType.LEFT) {
 +         double var5 = (double)var1.getX() + 0.5D;
@@ -212,22 +212,24 @@
     }
  
     public void startOpen(Player var1) {
-       if (!var1.isSpectator()) {
+-      if (!var1.isSpectator()) {
 -         if (this.openCount < 0) {
 -            this.openCount = 0;
 -         }
 -
 -         ++this.openCount;
 -         this.signalOpenCount();
++      if (!this.remove && !var1.isSpectator()) {
 +         this.openersCounter.incrementOpeners(var1, this.getLevel(), this.getBlockPos(), this.getBlockState());
        }
  
     }
  
     public void stopOpen(Player var1) {
-       if (!var1.isSpectator()) {
+-      if (!var1.isSpectator()) {
 -         --this.openCount;
 -         this.signalOpenCount();
++      if (!this.remove && !var1.isSpectator()) {
 +         this.openersCounter.decrementOpeners(var1, this.getLevel(), this.getBlockPos(), this.getBlockState());
        }
  
@@ -268,7 +270,7 @@
  
        return 0;
     }
-@@ -224,6 +162,15 @@
+@@ -224,6 +162,18 @@
     }
  
     protected AbstractContainerMenu createMenu(int var1, Inventory var2) {
@@ -276,7 +278,10 @@
     }
 +
 +   public void recheckOpen() {
-+      this.openersCounter.recheckOpeners(this.getLevel(), this.getBlockPos(), this.getBlockState());
++      if (!this.remove) {
++         this.openersCounter.recheckOpeners(this.getLevel(), this.getBlockPos(), this.getBlockState());
++      }
++
 +   }
 +
 +   protected void signalOpenCount(Level var1, BlockPos var2, BlockState var3, int var4, int var5) {

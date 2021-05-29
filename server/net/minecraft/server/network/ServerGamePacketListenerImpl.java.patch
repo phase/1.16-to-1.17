@@ -1,6 +1,6 @@
 --- net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -1,25 +1,26 @@
+@@ -1,25 +1,27 @@
  package net.minecraft.server.network;
  
  import com.google.common.collect.Lists;
@@ -19,6 +19,7 @@
  import java.util.Collections;
  import java.util.Iterator;
  import java.util.List;
++import java.util.Objects;
  import java.util.Optional;
  import java.util.Set;
  import java.util.concurrent.CompletableFuture;
@@ -30,7 +31,7 @@
  import javax.annotation.Nullable;
  import net.minecraft.ChatFormatting;
  import net.minecraft.CrashReport;
-@@ -29,11 +30,10 @@
+@@ -29,11 +31,10 @@
  import net.minecraft.Util;
  import net.minecraft.advancements.Advancement;
  import net.minecraft.advancements.CriteriaTriggers;
@@ -42,7 +43,7 @@
  import net.minecraft.nbt.StringTag;
  import net.minecraft.network.Connection;
  import net.minecraft.network.chat.ChatType;
-@@ -44,11 +44,10 @@
+@@ -44,11 +45,10 @@
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.network.protocol.PacketUtils;
  import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
@@ -54,7 +55,7 @@
  import net.minecraft.network.protocol.game.ClientboundKeepAlivePacket;
  import net.minecraft.network.protocol.game.ClientboundMoveVehiclePacket;
  import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
-@@ -60,11 +59,10 @@
+@@ -60,11 +60,10 @@
  import net.minecraft.network.protocol.game.ServerboundChangeDifficultyPacket;
  import net.minecraft.network.protocol.game.ServerboundChatPacket;
  import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
@@ -66,7 +67,19 @@
  import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
  import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
  import net.minecraft.network.protocol.game.ServerboundEditBookPacket;
-@@ -103,10 +101,11 @@
+@@ -80,10 +79,11 @@
+ import net.minecraft.network.protocol.game.ServerboundPlaceRecipePacket;
+ import net.minecraft.network.protocol.game.ServerboundPlayerAbilitiesPacket;
+ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+ import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
+ import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
++import net.minecraft.network.protocol.game.ServerboundPongPacket;
+ import net.minecraft.network.protocol.game.ServerboundRecipeBookChangeSettingsPacket;
+ import net.minecraft.network.protocol.game.ServerboundRecipeBookSeenRecipePacket;
+ import net.minecraft.network.protocol.game.ServerboundRenameItemPacket;
+ import net.minecraft.network.protocol.game.ServerboundResourcePackPacket;
+ import net.minecraft.network.protocol.game.ServerboundSeenAdvancementsPacket;
+@@ -103,10 +103,11 @@
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.server.MinecraftServer;
  import net.minecraft.server.level.ServerLevel;
@@ -78,7 +91,7 @@
  import net.minecraft.world.InteractionResult;
  import net.minecraft.world.effect.MobEffects;
  import net.minecraft.world.entity.Entity;
-@@ -115,18 +114,18 @@
+@@ -115,18 +116,18 @@
  import net.minecraft.world.entity.PlayerRideableJumping;
  import net.minecraft.world.entity.animal.horse.AbstractHorse;
  import net.minecraft.world.entity.item.ItemEntity;
@@ -98,15 +111,16 @@
  import net.minecraft.world.item.Item;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
-@@ -153,35 +152,37 @@
+@@ -153,35 +154,37 @@
  import net.minecraft.world.phys.shapes.VoxelShape;
  import org.apache.commons.lang3.StringUtils;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
 -public class ServerGamePacketListenerImpl implements ServerGamePacketListener {
+-   private static final Logger LOGGER = LogManager.getLogger();
 +public class ServerGamePacketListenerImpl implements ServerPlayerConnection, ServerGamePacketListener {
-    private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   private static final int LATENCY_CHECK_INTERVAL = 15000;
     public final Connection connection;
     private final MinecraftServer server;
@@ -138,7 +152,7 @@
     private int awaitingTeleportTime;
     private boolean clientIsFloating;
     private int aboveGroundTickCount;
-@@ -194,15 +195,11 @@
+@@ -194,24 +197,20 @@
        this.server = var1;
        this.connection = var2;
        var2.setListener(this);
@@ -155,10 +169,27 @@
     public void tick() {
        this.resetPosition();
        this.player.xo = this.player.getX();
-@@ -299,74 +296,64 @@
+       this.player.yo = this.player.getY();
+       this.player.zo = this.player.getZ();
+       this.player.doTick();
+-      this.player.absMoveTo(this.firstGoodX, this.firstGoodY, this.firstGoodZ, this.player.yRot, this.player.xRot);
++      this.player.absMoveTo(this.firstGoodX, this.firstGoodY, this.firstGoodZ, this.player.getYRot(), this.player.getXRot());
+       ++this.tickCount;
+       this.knownMovePacketCount = this.receivedMovePacketCount;
+       if (this.clientIsFloating && !this.player.isSleeping()) {
+          if (++this.aboveGroundTickCount > 80) {
+             LOGGER.warn((String)"{} was kicked for floating too long!", (Object)this.player.getName().getString());
+@@ -295,78 +294,70 @@
+    public void disconnect(Component var1) {
+       this.connection.send(new ClientboundDisconnectPacket(var1), (var2) -> {
+          this.connection.disconnect(var1);
+       });
        this.connection.setReadOnly();
++      MinecraftServer var10000 = this.server;
        Connection var10001 = this.connection;
-       this.server.executeBlocking(var10001::handleDisconnection);
+-      this.server.executeBlocking(var10001::handleDisconnection);
++      Objects.requireNonNull(var10001);
++      var10000.executeBlocking(var10001::handleDisconnection);
     }
  
 -   private <T> void filterTextPacket(T var1, Consumer<T> var2, BiFunction<TextFilter, T, CompletableFuture<Optional<T>>> var3) {
@@ -248,7 +279,32 @@
              double var22 = var14 - this.vehicleFirstGoodZ;
              double var24 = var2.getDeltaMovement().lengthSqr();
              double var26 = var18 * var18 + var20 * var20 + var22 * var22;
-@@ -490,29 +477,32 @@
+@@ -420,11 +411,11 @@
+    }
+ 
+    public void handleAcceptTeleportPacket(ServerboundAcceptTeleportationPacket var1) {
+       PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+       if (var1.getId() == this.awaitingTeleport) {
+-         this.player.absMoveTo(this.awaitingPositionFromClient.x, this.awaitingPositionFromClient.y, this.awaitingPositionFromClient.z, this.player.yRot, this.player.xRot);
++         this.player.absMoveTo(this.awaitingPositionFromClient.x, this.awaitingPositionFromClient.y, this.awaitingPositionFromClient.z, this.player.getYRot(), this.player.getXRot());
+          this.lastGoodX = this.awaitingPositionFromClient.x;
+          this.lastGoodY = this.awaitingPositionFromClient.y;
+          this.lastGoodZ = this.awaitingPositionFromClient.z;
+          if (this.player.isChangingDimension()) {
+             this.player.hasChangedDimension();
+@@ -437,10 +428,11 @@
+ 
+    public void handleRecipeBookSeenRecipePacket(ServerboundRecipeBookSeenRecipePacket var1) {
+       PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+       Optional var10000 = this.server.getRecipeManager().byKey(var1.getRecipe());
+       ServerRecipeBook var10001 = this.player.getRecipeBook();
++      Objects.requireNonNull(var10001);
+       var10000.ifPresent(var10001::removeHighlight);
+    }
+ 
+    public void handleRecipeBookChangeSettingsPacket(ServerboundRecipeBookChangeSettingsPacket var1) {
+       PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
+@@ -490,29 +482,32 @@
  
           String var6 = var1.getCommand();
           boolean var7 = var1.isTrackOutput();
@@ -291,7 +347,7 @@
              if (!var7) {
                 var2.setLastOutput((Component)null);
              }
-@@ -553,14 +543,14 @@
+@@ -553,22 +548,22 @@
        }
     }
  
@@ -310,7 +366,16 @@
     public void handleRenameItem(ServerboundRenameItemPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        if (this.player.containerMenu instanceof AnvilMenu) {
-@@ -679,72 +669,95 @@
+          AnvilMenu var2 = (AnvilMenu)this.player.containerMenu;
+          String var3 = SharedConstants.filterText(var1.getName());
+-         if (var3.length() <= 35) {
++         if (var3.length() <= 50) {
+             var2.setItemName(var3);
+          }
+       }
+ 
+    }
+@@ -679,72 +674,97 @@
        }
  
     }
@@ -414,9 +479,11 @@
 +   private void updateBookPages(List<TextFilter.FilteredText> var1, UnaryOperator<String> var2, ItemStack var3) {
 +      ListTag var4 = new ListTag();
 +      if (this.player.isTextFilteringEnabled()) {
-+         var1.stream().map((var1x) -> {
++         Stream var10000 = var1.stream().map((var1x) -> {
 +            return StringTag.valueOf((String)var2.apply(var1x.getFiltered()));
-+         }).forEach(var4::add);
++         });
++         Objects.requireNonNull(var4);
++         var10000.forEach(var4::add);
 +      } else {
 +         CompoundTag var5 = new CompoundTag();
 +         int var6 = 0;
@@ -444,7 +511,7 @@
     public void handleEntityTagQuery(ServerboundEntityTagQuery var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        if (this.player.hasPermissions(2)) {
-@@ -766,11 +779,11 @@
+@@ -766,11 +786,11 @@
        }
     }
  
@@ -457,8 +524,14 @@
           ServerLevel var2 = this.player.getLevel();
           if (!this.player.wonGame) {
              if (this.tickCount == 0) {
-@@ -783,31 +796,31 @@
-                   this.teleport(this.awaitingPositionFromClient.x, this.awaitingPositionFromClient.y, this.awaitingPositionFromClient.z, this.player.yRot, this.player.xRot);
+@@ -778,36 +798,36 @@
+             }
+ 
+             if (this.awaitingPositionFromClient != null) {
+                if (this.tickCount - this.awaitingTeleportTime > 20) {
+                   this.awaitingTeleportTime = this.tickCount;
+-                  this.teleport(this.awaitingPositionFromClient.x, this.awaitingPositionFromClient.y, this.awaitingPositionFromClient.z, this.player.yRot, this.player.xRot);
++                  this.teleport(this.awaitingPositionFromClient.x, this.awaitingPositionFromClient.y, this.awaitingPositionFromClient.z, this.player.getYRot(), this.player.getXRot());
                 }
  
              } else {
@@ -466,8 +539,8 @@
 +               double var3 = clampHorizontal(var1.getX(this.player.getX()));
 +               double var5 = clampVertical(var1.getY(this.player.getY()));
 +               double var7 = clampHorizontal(var1.getZ(this.player.getZ()));
-+               float var9 = Mth.wrapDegrees(var1.getYRot(this.player.yRot));
-+               float var10 = Mth.wrapDegrees(var1.getXRot(this.player.xRot));
++               float var9 = Mth.wrapDegrees(var1.getYRot(this.player.getYRot()));
++               float var10 = Mth.wrapDegrees(var1.getXRot(this.player.getXRot()));
                 if (this.player.isPassenger()) {
 -                  this.player.absMoveTo(this.player.getX(), this.player.getY(), this.player.getZ(), var1.getYRot(this.player.yRot), var1.getXRot(this.player.xRot));
 +                  this.player.absMoveTo(this.player.getX(), this.player.getY(), this.player.getZ(), var9, var10);
@@ -503,7 +576,14 @@
                    } else {
                       ++this.receivedMovePacketCount;
                       int var29 = this.receivedMovePacketCount - this.knownMovePacketCount;
-@@ -824,50 +837,50 @@
+@@ -818,56 +838,56 @@
+ 
+                      if (!this.player.isChangingDimension() && (!this.player.getLevel().getGameRules().getBoolean(GameRules.RULE_DISABLE_ELYTRA_MOVEMENT_CHECK) || !this.player.isFallFlying())) {
+                         float var30 = this.player.isFallFlying() ? 300.0F : 100.0F;
+                         if (var27 - var25 > (double)(var30 * (float)var29) && !this.isSingleplayerOwner()) {
+                            LOGGER.warn((String)"{} moved too quickly! {},{},{}", (Object)this.player.getName().getString(), var19, var21, var23);
+-                           this.teleport(this.player.getX(), this.player.getY(), this.player.getZ(), this.player.yRot, this.player.xRot);
++                           this.teleport(this.player.getX(), this.player.getY(), this.player.getZ(), this.player.getYRot(), this.player.getXRot());
                             return;
                          }
                       }
@@ -565,7 +645,7 @@
                 }
              }
           }
-@@ -882,28 +895,36 @@
+@@ -882,28 +902,36 @@
        return var3.anyMatch((var1x) -> {
           return !Shapes.joinIsNotEmpty(var1x, var4, BooleanOp.AND);
        });
@@ -593,8 +673,8 @@
 +      double var11 = var9.contains(ClientboundPlayerPositionPacket.RelativeArgument.X) ? this.player.getX() : 0.0D;
 +      double var13 = var9.contains(ClientboundPlayerPositionPacket.RelativeArgument.Y) ? this.player.getY() : 0.0D;
 +      double var15 = var9.contains(ClientboundPlayerPositionPacket.RelativeArgument.Z) ? this.player.getZ() : 0.0D;
-+      float var17 = var9.contains(ClientboundPlayerPositionPacket.RelativeArgument.Y_ROT) ? this.player.yRot : 0.0F;
-+      float var18 = var9.contains(ClientboundPlayerPositionPacket.RelativeArgument.X_ROT) ? this.player.xRot : 0.0F;
++      float var17 = var9.contains(ClientboundPlayerPositionPacket.RelativeArgument.Y_ROT) ? this.player.getYRot() : 0.0F;
++      float var18 = var9.contains(ClientboundPlayerPositionPacket.RelativeArgument.X_ROT) ? this.player.getXRot() : 0.0F;
        this.awaitingPositionFromClient = new Vec3(var1, var3, var5);
        if (++this.awaitingTeleport == Integer.MAX_VALUE) {
           this.awaitingTeleport = 0;
@@ -609,7 +689,7 @@
     public void handlePlayerAction(ServerboundPlayerActionPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        BlockPos var2 = var1.getPos();
-@@ -935,11 +956,11 @@
+@@ -935,11 +963,11 @@
           this.player.releaseUsingItem();
           return;
        case START_DESTROY_BLOCK:
@@ -622,7 +702,7 @@
           throw new IllegalArgumentException("Invalid player action");
        }
     }
-@@ -960,23 +981,24 @@
+@@ -960,23 +988,24 @@
        ItemStack var4 = this.player.getItemInHand(var3);
        BlockHitResult var5 = var1.getHitResult();
        BlockPos var6 = var5.getBlockPos();
@@ -655,7 +735,17 @@
        this.player.connection.send(new ClientboundBlockUpdatePacket(var2, var6));
        this.player.connection.send(new ClientboundBlockUpdatePacket(var2, var6.relative(var7)));
     }
-@@ -1012,10 +1034,16 @@
+@@ -1003,19 +1032,25 @@
+ 
+          while(var2.hasNext()) {
+             ServerLevel var3 = (ServerLevel)var2.next();
+             Entity var4 = var1.getEntity(var3);
+             if (var4 != null) {
+-               this.player.teleportTo(var3, var4.getX(), var4.getY(), var4.getZ(), var4.yRot, var4.xRot);
++               this.player.teleportTo(var3, var4.getX(), var4.getY(), var4.getZ(), var4.getYRot(), var4.getXRot());
+                return;
+             }
+          }
        }
  
     }
@@ -672,7 +762,16 @@
     public void handlePaddleBoat(ServerboundPaddleBoatPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        Entity var2 = this.player.getVehicle();
-@@ -1029,15 +1057,11 @@
+@@ -1023,21 +1058,20 @@
+          ((Boat)var2).setPaddleState(var1.getLeft(), var1.getRight());
+       }
+ 
+    }
+ 
++   public void handlePong(ServerboundPongPacket var1) {
++   }
++
+    public void onDisconnect(Component var1) {
        LOGGER.info((String)"{} lost connection: {}", (Object)this.player.getName().getString(), (Object)var1.getString());
        this.server.invalidateStatus();
        this.server.getPlayerList().broadcastMessage((new TranslatableComponent("multiplayer.player.left", new Object[]{this.player.getDisplayName()})).withStyle(ChatFormatting.YELLOW), ChatType.SYSTEM, Util.NIL_UUID);
@@ -689,7 +788,7 @@
           this.server.halt(false);
        }
  
-@@ -1046,77 +1070,70 @@
+@@ -1046,77 +1080,70 @@
     public void send(Packet<?> var1) {
        this.send(var1, (GenericFutureListener)null);
     }
@@ -792,7 +891,7 @@
           this.chatSpamTickCount += 20;
           if (this.chatSpamTickCount > 200 && !this.server.getPlayerList().isOp(this.player.getGameProfile())) {
              this.disconnect(new TranslatableComponent("disconnect.spam"));
-@@ -1190,39 +1207,48 @@
+@@ -1190,39 +1217,48 @@
     }
  
     public void handleInteract(ServerboundInteractPacket var1) {
@@ -861,7 +960,7 @@
  
     }
  
-@@ -1260,59 +1286,45 @@
+@@ -1260,59 +1296,45 @@
     }
  
     public void handleContainerClick(ServerboundContainerClickPacket var1) {
@@ -935,7 +1034,7 @@
        }
  
     }
-@@ -1342,37 +1354,27 @@
+@@ -1342,37 +1364,27 @@
                 this.player.inventoryMenu.setItem(var1.getSlotNum(), ItemStack.EMPTY);
              } else {
                 this.player.inventoryMenu.setItem(var1.getSlotNum(), var3);
@@ -974,7 +1073,14 @@
        BlockPos var4 = var1.getPos();
        if (var3.hasChunkAt(var4)) {
           BlockState var5 = var3.getBlockState(var4);
-@@ -1386,11 +1388,16 @@
+@@ -1380,17 +1392,22 @@
+          if (!(var6 instanceof SignBlockEntity)) {
+             return;
+          }
+ 
+          SignBlockEntity var7 = (SignBlockEntity)var6;
+-         if (!var7.isEditable() || var7.getPlayerWhoMayEdit() != this.player) {
++         if (!var7.isEditable() || !this.player.getUUID().equals(var7.getPlayerWhoMayEdit())) {
              LOGGER.warn((String)"Player {} just tried to change non-editable sign", (Object)this.player.getName().getString());
              return;
           }
@@ -992,7 +1098,7 @@
           var7.setChanged();
           var3.sendBlockUpdated(var4, var5, var5, 3);
        }
-@@ -1408,11 +1415,11 @@
+@@ -1408,11 +1425,11 @@
  
     }
  
@@ -1005,7 +1111,7 @@
     public void handleClientInformation(ServerboundClientInformationPacket var1) {
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        this.player.updateOptions(var1);
-@@ -1432,6 +1439,15 @@
+@@ -1432,6 +1449,15 @@
        PacketUtils.ensureRunningOnSameThread(var1, this, (ServerLevel)this.player.getLevel());
        if (this.player.hasPermissions(2) || this.isSingleplayerOwner()) {
           this.server.setDifficultyLocked(var1.isLocked());
@@ -1017,7 +1123,7 @@
 +   }
 +
 +   @FunctionalInterface
-+   interface EntityInteraction {
++   private interface EntityInteraction {
 +      InteractionResult run(ServerPlayer var1, Entity var2, InteractionHand var3);
 +   }
  }

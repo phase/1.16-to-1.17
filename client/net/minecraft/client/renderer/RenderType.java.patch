@@ -1,6 +1,6 @@
 --- net/minecraft/client/renderer/RenderType.java
 +++ net/minecraft/client/renderer/RenderType.java
-@@ -3,42 +3,68 @@
+@@ -3,42 +3,70 @@
  import com.google.common.collect.ImmutableList;
  import com.mojang.blaze3d.vertex.BufferBuilder;
  import com.mojang.blaze3d.vertex.BufferUploader;
@@ -59,7 +59,9 @@
     private static final RenderType ENTITY_GLINT_DIRECT;
 +   private static final Function<ResourceLocation, RenderType> CRUMBLING;
 +   private static final Function<ResourceLocation, RenderType> TEXT;
++   private static final Function<ResourceLocation, RenderType> TEXT_INTENSITY;
 +   private static final Function<ResourceLocation, RenderType> TEXT_SEE_THROUGH;
++   private static final Function<ResourceLocation, RenderType> TEXT_INTENSITY_SEE_THROUGH;
     private static final RenderType LIGHTNING;
     private static final RenderType TRIPWIRE;
 +   private static final RenderType END_PORTAL;
@@ -74,7 +76,7 @@
     private final boolean sortOnUpload;
     private final Optional<RenderType> asOptional;
  
-@@ -52,20 +78,20 @@
+@@ -52,20 +80,20 @@
  
     public static RenderType cutout() {
        return CUTOUT;
@@ -98,7 +100,7 @@
     public static RenderType translucentMovingBlock() {
        return TRANSLUCENT_MOVING_BLOCK;
     }
-@@ -73,98 +99,83 @@
+@@ -73,98 +101,83 @@
     public static RenderType translucentNoCrumbling() {
        return TRANSLUCENT_NO_CRUMBLING;
     }
@@ -214,7 +216,7 @@
     public static RenderType leash() {
        return LEASH;
     }
-@@ -172,17 +183,13 @@
+@@ -172,17 +185,13 @@
     public static RenderType waterMask() {
        return WATER_MASK;
     }
@@ -233,7 +235,7 @@
     }
  
     public static RenderType armorEntityGlint() {
-@@ -208,74 +215,71 @@
+@@ -208,74 +217,79 @@
     public static RenderType entityGlintDirect() {
        return ENTITY_GLINT_DIRECT;
     }
@@ -249,11 +251,19 @@
 +      return (RenderType)TEXT.apply(var0);
     }
  
++   public static RenderType textIntensity(ResourceLocation var0) {
++      return (RenderType)TEXT_INTENSITY.apply(var0);
++   }
++
     public static RenderType textSeeThrough(ResourceLocation var0) {
 -      return create("text_see_through", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, 7, 256, false, true, RenderType.CompositeState.builder().setTextureState(new RenderStateShard.TextureStateShard(var0, false, false)).setAlphaState(DEFAULT_ALPHA).setTransparencyState(TRANSLUCENT_TRANSPARENCY).setLightmapState(LIGHTMAP).setDepthTestState(NO_DEPTH_TEST).setWriteMaskState(COLOR_WRITE).createCompositeState(false));
 +      return (RenderType)TEXT_SEE_THROUGH.apply(var0);
     }
  
++   public static RenderType textIntensitySeeThrough(ResourceLocation var0) {
++      return (RenderType)TEXT_INTENSITY_SEE_THROUGH.apply(var0);
++   }
++
     public static RenderType lightning() {
        return LIGHTNING;
     }
@@ -306,7 +316,7 @@
     }
  
 -   public static RenderType.CompositeRenderType create(String var0, VertexFormat var1, int var2, int var3, RenderType.CompositeState var4) {
-+   private static RenderType.CompositeRenderType create(String var0, VertexFormat var1, VertexFormat.Mode var2, int var3, RenderType.CompositeState var4) {
++   static RenderType.CompositeRenderType create(String var0, VertexFormat var1, VertexFormat.Mode var2, int var3, RenderType.CompositeState var4) {
        return create(var0, var1, var2, var3, false, false, var4);
     }
  
@@ -326,7 +336,7 @@
           var1.end();
           this.setupRenderState();
           BufferUploader.end(var1);
-@@ -297,11 +301,11 @@
+@@ -297,11 +311,11 @@
  
     public VertexFormat format() {
        return this.format;
@@ -339,7 +349,7 @@
  
     public Optional<RenderType> outline() {
        return Optional.empty();
-@@ -318,221 +322,226 @@
+@@ -318,221 +332,194 @@
     public Optional<RenderType> asOptional() {
        return this.asOptional;
     }
@@ -366,7 +376,7 @@
 +      SOLID = create("solid", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 2097152, true, false, RenderType.CompositeState.builder().setLightmapState(LIGHTMAP).setShaderState(RENDERTYPE_SOLID_SHADER).setTextureState(BLOCK_SHEET_MIPPED).createCompositeState(true));
 +      CUTOUT_MIPPED = create("cutout_mipped", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 131072, true, false, RenderType.CompositeState.builder().setLightmapState(LIGHTMAP).setShaderState(RENDERTYPE_CUTOUT_MIPPED_SHADER).setTextureState(BLOCK_SHEET_MIPPED).createCompositeState(true));
 +      CUTOUT = create("cutout", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 131072, true, false, RenderType.CompositeState.builder().setLightmapState(LIGHTMAP).setShaderState(RENDERTYPE_CUTOUT_SHADER).setTextureState(BLOCK_SHEET).createCompositeState(true));
-+      TRANSLUCENT = create("translucent", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 262144, true, true, translucentState(RENDERTYPE_TRANSLUCENT_SHADER));
++      TRANSLUCENT = create("translucent", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 2097152, true, true, translucentState(RENDERTYPE_TRANSLUCENT_SHADER));
 +      TRANSLUCENT_MOVING_BLOCK = create("translucent_moving_block", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 262144, false, true, translucentMovingBlockState());
 +      TRANSLUCENT_NO_CRUMBLING = create("translucent_no_crumbling", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 262144, false, true, translucentState(RENDERTYPE_TRANSLUCENT_NO_CRUMBLING_SHADER));
 +      ARMOR_CUTOUT_NO_CULL = Util.memoize((var0) -> {
@@ -445,8 +455,14 @@
 +      TEXT = Util.memoize((var0) -> {
 +         return create("text", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS, 256, false, true, RenderType.CompositeState.builder().setShaderState(RENDERTYPE_TEXT_SHADER).setTextureState(new RenderStateShard.TextureStateShard(var0, false, false)).setTransparencyState(TRANSLUCENT_TRANSPARENCY).setLightmapState(LIGHTMAP).createCompositeState(false));
 +      });
++      TEXT_INTENSITY = Util.memoize((var0) -> {
++         return create("text_intensity", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS, 256, false, true, RenderType.CompositeState.builder().setShaderState(RENDERTYPE_TEXT_INTENSITY_SHADER).setTextureState(new RenderStateShard.TextureStateShard(var0, false, false)).setTransparencyState(TRANSLUCENT_TRANSPARENCY).setLightmapState(LIGHTMAP).createCompositeState(false));
++      });
 +      TEXT_SEE_THROUGH = Util.memoize((var0) -> {
 +         return create("text_see_through", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS, 256, false, true, RenderType.CompositeState.builder().setShaderState(RENDERTYPE_TEXT_SEE_THROUGH_SHADER).setTextureState(new RenderStateShard.TextureStateShard(var0, false, false)).setTransparencyState(TRANSLUCENT_TRANSPARENCY).setLightmapState(LIGHTMAP).setDepthTestState(NO_DEPTH_TEST).setWriteMaskState(COLOR_WRITE).createCompositeState(false));
++      });
++      TEXT_INTENSITY_SEE_THROUGH = Util.memoize((var0) -> {
++         return create("text_intensity_see_through", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS, 256, false, true, RenderType.CompositeState.builder().setShaderState(RENDERTYPE_TEXT_INTENSITY_SEE_THROUGH_SHADER).setTextureState(new RenderStateShard.TextureStateShard(var0, false, false)).setTransparencyState(TRANSLUCENT_TRANSPARENCY).setLightmapState(LIGHTMAP).setDepthTestState(NO_DEPTH_TEST).setWriteMaskState(COLOR_WRITE).createCompositeState(false));
 +      });
 +      LIGHTNING = create("lightning", DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS, 256, false, true, RenderType.CompositeState.builder().setShaderState(RENDERTYPE_LIGHTNING_SHADER).setWriteMaskState(COLOR_DEPTH_WRITE).setTransparencyState(LIGHTNING_TRANSPARENCY).setOutputState(WEATHER_TARGET).createCompositeState(false));
 +      TRIPWIRE = create("tripwire", DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 262144, true, true, tripwireState());
@@ -456,59 +472,50 @@
 +      LINE_STRIP = create("line_strip", DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINE_STRIP, 256, RenderType.CompositeState.builder().setShaderState(RENDERTYPE_LINES_SHADER).setLineState(new RenderStateShard.LineStateShard(OptionalDouble.empty())).setLayeringState(VIEW_OFFSET_Z_LAYERING).setTransparencyState(TRANSLUCENT_TRANSPARENCY).setOutputState(ITEM_ENTITY_TARGET).setWriteMaskState(COLOR_DEPTH_WRITE).setCullState(NO_CULL).createCompositeState(false));
     }
  
-    static final class CompositeRenderType extends RenderType {
+-   static final class CompositeRenderType extends RenderType {
 -      private static final ObjectOpenCustomHashSet<RenderType.CompositeRenderType> INSTANCES;
-+      private static final BiFunction<ResourceLocation, RenderStateShard.CullStateShard, RenderType> OUTLINE = Util.memoize((var0, var1) -> {
-+         return RenderType.create("outline", DefaultVertexFormat.POSITION_COLOR_TEX, VertexFormat.Mode.QUADS, 256, RenderType.CompositeState.builder().setShaderState(RENDERTYPE_OUTLINE_SHADER).setTextureState(new RenderStateShard.TextureStateShard(var0, false, false)).setCullState(var1).setDepthTestState(NO_DEPTH_TEST).setOutputState(OUTLINE_TARGET).createCompositeState(RenderType.OutlineProperty.IS_OUTLINE));
-+      });
-       private final RenderType.CompositeState state;
+-      private final RenderType.CompositeState state;
 -      private final int hashCode;
-       private final Optional<RenderType> outline;
-       private final boolean isOutline;
- 
+-      private final Optional<RenderType> outline;
+-      private final boolean isOutline;
+-
 -      private CompositeRenderType(String var1, VertexFormat var2, int var3, int var4, boolean var5, boolean var6, RenderType.CompositeState var7) {
-+      private CompositeRenderType(String var1, VertexFormat var2, VertexFormat.Mode var3, int var4, boolean var5, boolean var6, RenderType.CompositeState var7) {
-          super(var1, var2, var3, var4, var5, var6, () -> {
-             var7.states.forEach(RenderStateShard::setupRenderState);
-          }, () -> {
-             var7.states.forEach(RenderStateShard::clearRenderState);
-          });
-          this.state = var7;
+-         super(var1, var2, var3, var4, var5, var6, () -> {
+-            var7.states.forEach(RenderStateShard::setupRenderState);
+-         }, () -> {
+-            var7.states.forEach(RenderStateShard::clearRenderState);
+-         });
+-         this.state = var7;
 -         this.outline = var7.outlineProperty == RenderType.OutlineProperty.AFFECTS_OUTLINE ? var7.textureState.texture().map((var1x) -> {
 -            return outline(var1x, var7.cullState);
-+         this.outline = var7.outlineProperty == RenderType.OutlineProperty.AFFECTS_OUTLINE ? var7.textureState.cutoutTexture().map((var1x) -> {
-+            return (RenderType)OUTLINE.apply(var1x, var7.cullState);
-          }) : Optional.empty();
-          this.isOutline = var7.outlineProperty == RenderType.OutlineProperty.IS_OUTLINE;
+-         }) : Optional.empty();
+-         this.isOutline = var7.outlineProperty == RenderType.OutlineProperty.IS_OUTLINE;
 -         this.hashCode = Objects.hash(new Object[]{super.hashCode(), var7});
-       }
- 
+-      }
+-
 -      private static RenderType.CompositeRenderType memoize(String var0, VertexFormat var1, int var2, int var3, boolean var4, boolean var5, RenderType.CompositeState var6) {
 -         return (RenderType.CompositeRenderType)INSTANCES.addOrGet(new RenderType.CompositeRenderType(var0, var1, var2, var3, var4, var5, var6));
 -      }
 -
-       public Optional<RenderType> outline() {
-          return this.outline;
-       }
- 
-       public boolean isOutline() {
-          return this.isOutline;
-       }
- 
+-      public Optional<RenderType> outline() {
+-         return this.outline;
+-      }
+-
+-      public boolean isOutline() {
+-         return this.isOutline;
+-      }
+-
 -      public boolean equals(@Nullable Object var1) {
 -         return this == var1;
-+      protected final RenderType.CompositeState state() {
-+         return this.state;
-       }
- 
+-      }
+-
 -      public int hashCode() {
 -         return this.hashCode;
 -      }
 -
-       public String toString() {
+-      public String toString() {
 -         return "RenderType[" + this.state + ']';
-+         return "RenderType[" + this.name + ":" + this.state + ']';
-       }
+-      }
 -
 -      static {
 -         INSTANCES = new ObjectOpenCustomHashSet(RenderType.CompositeRenderType.EqualsStrategy.INSTANCE);
@@ -532,18 +539,20 @@
 -            }
 -         }
 -      }
-    }
- 
-    public static final class CompositeState {
+-   }
+-
+-   public static final class CompositeState {
 -      private final RenderStateShard.TextureStateShard textureState;
-+      private final RenderStateShard.EmptyTextureStateShard textureState;
++   protected static final class CompositeState {
++      final RenderStateShard.EmptyTextureStateShard textureState;
 +      private final RenderStateShard.ShaderStateShard shaderState;
        private final RenderStateShard.TransparencyStateShard transparencyState;
 -      private final RenderStateShard.DiffuseLightingStateShard diffuseLightingState;
 -      private final RenderStateShard.ShadeModelStateShard shadeModelState;
 -      private final RenderStateShard.AlphaStateShard alphaState;
        private final RenderStateShard.DepthTestStateShard depthTestState;
-       private final RenderStateShard.CullStateShard cullState;
+-      private final RenderStateShard.CullStateShard cullState;
++      final RenderStateShard.CullStateShard cullState;
        private final RenderStateShard.LightmapStateShard lightmapState;
        private final RenderStateShard.OverlayStateShard overlayState;
 -      private final RenderStateShard.FogStateShard fogState;
@@ -552,11 +561,13 @@
        private final RenderStateShard.TexturingStateShard texturingState;
        private final RenderStateShard.WriteMaskStateShard writeMaskState;
        private final RenderStateShard.LineStateShard lineState;
-       private final RenderType.OutlineProperty outlineProperty;
-       private final ImmutableList<RenderStateShard> states;
+-      private final RenderType.OutlineProperty outlineProperty;
+-      private final ImmutableList<RenderStateShard> states;
++      final RenderType.OutlineProperty outlineProperty;
++      final ImmutableList<RenderStateShard> states;
  
 -      private CompositeState(RenderStateShard.TextureStateShard var1, RenderStateShard.TransparencyStateShard var2, RenderStateShard.DiffuseLightingStateShard var3, RenderStateShard.ShadeModelStateShard var4, RenderStateShard.AlphaStateShard var5, RenderStateShard.DepthTestStateShard var6, RenderStateShard.CullStateShard var7, RenderStateShard.LightmapStateShard var8, RenderStateShard.OverlayStateShard var9, RenderStateShard.FogStateShard var10, RenderStateShard.LayeringStateShard var11, RenderStateShard.OutputStateShard var12, RenderStateShard.TexturingStateShard var13, RenderStateShard.WriteMaskStateShard var14, RenderStateShard.LineStateShard var15, RenderType.OutlineProperty var16) {
-+      private CompositeState(RenderStateShard.EmptyTextureStateShard var1, RenderStateShard.ShaderStateShard var2, RenderStateShard.TransparencyStateShard var3, RenderStateShard.DepthTestStateShard var4, RenderStateShard.CullStateShard var5, RenderStateShard.LightmapStateShard var6, RenderStateShard.OverlayStateShard var7, RenderStateShard.LayeringStateShard var8, RenderStateShard.OutputStateShard var9, RenderStateShard.TexturingStateShard var10, RenderStateShard.WriteMaskStateShard var11, RenderStateShard.LineStateShard var12, RenderType.OutlineProperty var13) {
++      CompositeState(RenderStateShard.EmptyTextureStateShard var1, RenderStateShard.ShaderStateShard var2, RenderStateShard.TransparencyStateShard var3, RenderStateShard.DepthTestStateShard var4, RenderStateShard.CullStateShard var5, RenderStateShard.LightmapStateShard var6, RenderStateShard.OverlayStateShard var7, RenderStateShard.LayeringStateShard var8, RenderStateShard.OutputStateShard var9, RenderStateShard.TexturingStateShard var10, RenderStateShard.WriteMaskStateShard var11, RenderStateShard.LineStateShard var12, RenderType.OutlineProperty var13) {
           this.textureState = var1;
 -         this.transparencyState = var2;
 -         this.diffuseLightingState = var3;
@@ -605,7 +616,8 @@
 -      }
 -
        public String toString() {
-          return "CompositeState[" + this.states + ", outlineProperty=" + this.outlineProperty + ']';
+-         return "CompositeState[" + this.states + ", outlineProperty=" + this.outlineProperty + ']';
++         return "CompositeState[" + this.states + ", outlineProperty=" + this.outlineProperty + "]";
        }
  
        public static RenderType.CompositeState.CompositeStateBuilder builder() {
@@ -631,7 +643,8 @@
           private RenderStateShard.WriteMaskStateShard writeMaskState;
           private RenderStateShard.LineStateShard lineState;
  
-          private CompositeStateBuilder() {
+-         private CompositeStateBuilder() {
++         CompositeStateBuilder() {
              this.textureState = RenderStateShard.NO_TEXTURE;
 +            this.shaderState = RenderStateShard.NO_SHADER;
              this.transparencyState = RenderStateShard.NO_TRANSPARENCY;
@@ -685,7 +698,7 @@
              return this;
           }
  
-@@ -549,15 +558,10 @@
+@@ -549,15 +536,10 @@
           public RenderType.CompositeState.CompositeStateBuilder setOverlayState(RenderStateShard.OverlayStateShard var1) {
              this.overlayState = var1;
              return this;
@@ -701,7 +714,7 @@
              return this;
           }
  
-@@ -584,11 +588,11 @@
+@@ -584,16 +566,54 @@
           public RenderType.CompositeState createCompositeState(boolean var1) {
              return this.createCompositeState(var1 ? RenderType.OutlineProperty.AFFECTS_OUTLINE : RenderType.OutlineProperty.NONE);
           }
@@ -713,4 +726,48 @@
        }
     }
  
-    static enum OutlineProperty {
+-   static enum OutlineProperty {
++   private static final class CompositeRenderType extends RenderType {
++      static final BiFunction<ResourceLocation, RenderStateShard.CullStateShard, RenderType> OUTLINE = Util.memoize((var0, var1) -> {
++         return RenderType.create("outline", DefaultVertexFormat.POSITION_COLOR_TEX, VertexFormat.Mode.QUADS, 256, RenderType.CompositeState.builder().setShaderState(RENDERTYPE_OUTLINE_SHADER).setTextureState(new RenderStateShard.TextureStateShard(var0, false, false)).setCullState(var1).setDepthTestState(NO_DEPTH_TEST).setOutputState(OUTLINE_TARGET).createCompositeState(RenderType.OutlineProperty.IS_OUTLINE));
++      });
++      private final RenderType.CompositeState state;
++      private final Optional<RenderType> outline;
++      private final boolean isOutline;
++
++      CompositeRenderType(String var1, VertexFormat var2, VertexFormat.Mode var3, int var4, boolean var5, boolean var6, RenderType.CompositeState var7) {
++         super(var1, var2, var3, var4, var5, var6, () -> {
++            var7.states.forEach(RenderStateShard::setupRenderState);
++         }, () -> {
++            var7.states.forEach(RenderStateShard::clearRenderState);
++         });
++         this.state = var7;
++         this.outline = var7.outlineProperty == RenderType.OutlineProperty.AFFECTS_OUTLINE ? var7.textureState.cutoutTexture().map((var1x) -> {
++            return (RenderType)OUTLINE.apply(var1x, var7.cullState);
++         }) : Optional.empty();
++         this.isOutline = var7.outlineProperty == RenderType.OutlineProperty.IS_OUTLINE;
++      }
++
++      public Optional<RenderType> outline() {
++         return this.outline;
++      }
++
++      public boolean isOutline() {
++         return this.isOutline;
++      }
++
++      protected final RenderType.CompositeState state() {
++         return this.state;
++      }
++
++      public String toString() {
++         return "RenderType[" + this.name + ":" + this.state + "]";
++      }
++   }
++
++   private static enum OutlineProperty {
+       NONE("none"),
+       IS_OUTLINE("is_outline"),
+       AFFECTS_OUTLINE("affects_outline");
+ 
+       private final String name;

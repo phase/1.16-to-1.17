@@ -1,16 +1,18 @@
 --- net/minecraft/world/level/block/TntBlock.java
 +++ net/minecraft/world/level/block/TntBlock.java
-@@ -9,20 +9,20 @@
+@@ -2,10 +2,11 @@
+ 
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.sounds.SoundSource;
++import net.minecraft.stats.Stats;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.item.PrimedTnt;
- import net.minecraft.world.entity.player.Player;
- import net.minecraft.world.entity.projectile.Projectile;
--import net.minecraft.world.item.Item;
- import net.minecraft.world.item.ItemStack;
- import net.minecraft.world.item.Items;
- import net.minecraft.world.level.Explosion;
- import net.minecraft.world.level.Level;
+@@ -19,10 +20,11 @@
  import net.minecraft.world.level.block.state.BlockBehaviour;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.StateDefinition;
@@ -22,7 +24,7 @@
  public class TntBlock extends Block {
     public static final BooleanProperty UNSTABLE;
  
-@@ -58,11 +58,12 @@
+@@ -58,11 +60,12 @@
     }
  
     public void wasExploded(Level var1, BlockPos var2, Explosion var3) {
@@ -36,7 +38,7 @@
     }
  
     public static void explode(Level var0, BlockPos var1) {
-@@ -72,23 +73,23 @@
+@@ -72,42 +75,44 @@
     private static void explode(Level var0, BlockPos var1, @Nullable LivingEntity var2) {
        if (!var0.isClientSide) {
           PrimedTnt var3 = new PrimedTnt(var0, (double)var1.getX() + 0.5D, (double)var1.getY(), (double)var1.getZ() + 0.5D, var2);
@@ -55,6 +57,7 @@
        } else {
           explode(var2, var3, var4);
           var2.setBlock(var3, Blocks.AIR.defaultBlockState(), 11);
++         Item var8 = var7.getItem();
           if (!var4.isCreative()) {
 -            if (var8 == Items.FLINT_AND_STEEL) {
 +            if (var7.is(Items.FLINT_AND_STEEL)) {
@@ -63,3 +66,28 @@
                 });
              } else {
                 var7.shrink(1);
+             }
+          }
+ 
++         var4.awardStat(Stats.ITEM_USED.get(var8));
+          return InteractionResult.sidedSuccess(var2.isClientSide);
+       }
+    }
+ 
+    public void onProjectileHit(Level var1, BlockState var2, BlockHitResult var3, Projectile var4) {
+       if (!var1.isClientSide) {
+-         Entity var5 = var4.getOwner();
+-         if (var4.isOnFire()) {
+-            BlockPos var6 = var3.getBlockPos();
+-            explode(var1, var6, var5 instanceof LivingEntity ? (LivingEntity)var5 : null);
+-            var1.removeBlock(var6, false);
++         BlockPos var5 = var3.getBlockPos();
++         Entity var6 = var4.getOwner();
++         if (var4.isOnFire() && var4.mayInteract(var1, var5)) {
++            explode(var1, var5, var6 instanceof LivingEntity ? (LivingEntity)var6 : null);
++            var1.removeBlock(var5, false);
+          }
+       }
+ 
+    }
+ 

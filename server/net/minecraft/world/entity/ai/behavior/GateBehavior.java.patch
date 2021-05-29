@@ -1,8 +1,12 @@
 --- net/minecraft/world/entity/ai/behavior/GateBehavior.java
 +++ net/minecraft/world/entity/ai/behavior/GateBehavior.java
-@@ -4,21 +4,22 @@
+@@ -1,32 +1,34 @@
+ package net.minecraft.world.entity.ai.behavior;
+ 
+ import com.mojang.datafixers.util.Pair;
  import java.util.List;
  import java.util.Map;
++import java.util.Objects;
  import java.util.Set;
  import java.util.function.Consumer;
  import java.util.stream.Collectors;
@@ -24,7 +28,16 @@
        super(var1);
        this.exitErasedMemories = var2;
        this.orderPolicy = var3;
-@@ -40,11 +41,11 @@
+       this.runningPolicy = var4;
+       var5.forEach((var1x) -> {
+-         this.behaviors.add(var1x.getFirst(), (Integer)var1x.getSecond());
++         this.behaviors.add((Behavior)var1x.getFirst(), (Integer)var1x.getSecond());
+       });
+    }
+ 
+    protected boolean canStillUse(ServerLevel var1, E var2, long var3) {
+       return this.behaviors.stream().filter((var0) -> {
+@@ -40,11 +42,11 @@
        return false;
     }
  
@@ -37,13 +50,42 @@
     protected void tick(ServerLevel var1, E var2, long var3) {
        this.behaviors.stream().filter((var0) -> {
           return var0.getStatus() == Behavior.Status.RUNNING;
-@@ -69,47 +70,47 @@
+@@ -59,57 +61,59 @@
+       }).forEach((var4) -> {
+          var4.doStop(var1, var2, var3);
+       });
+       Set var10000 = this.exitErasedMemories;
+       Brain var10001 = var2.getBrain();
++      Objects.requireNonNull(var10001);
+       var10000.forEach(var10001::eraseMemory);
+    }
+ 
+    public String toString() {
+       Set var1 = (Set)this.behaviors.stream().filter((var0) -> {
           return var0.getStatus() == Behavior.Status.RUNNING;
        }).collect(Collectors.toSet());
-       return "(" + this.getClass().getSimpleName() + "): " + var1;
+-      return "(" + this.getClass().getSimpleName() + "): " + var1;
++      String var10000 = this.getClass().getSimpleName();
++      return "(" + var10000 + "): " + var1;
     }
  
 -   static enum RunningPolicy {
++   public static enum OrderPolicy {
++      ORDERED((var0) -> {
++      }),
++      SHUFFLED(ShufflingList::shuffle);
++
++      private final Consumer<ShufflingList<?>> consumer;
++
++      private OrderPolicy(Consumer<ShufflingList<?>> var3) {
++         this.consumer = var3;
++      }
++
++      public void apply(ShufflingList<?> var1) {
++         this.consumer.accept(var1);
++      }
++   }
++
 +   public static enum RunningPolicy {
        RUN_ONE {
 -         public <E extends LivingEntity> void apply(WeightedList<Behavior<? super E>> var1, ServerLevel var2, E var3, long var4) {
@@ -68,31 +110,27 @@
           }
        };
  
-       private RunningPolicy() {
+-      private RunningPolicy() {
++      RunningPolicy() {
        }
  
 -      public abstract <E extends LivingEntity> void apply(WeightedList<Behavior<? super E>> var1, ServerLevel var2, E var3, long var4);
 +      public abstract <E extends LivingEntity> void apply(Stream<Behavior<? super E>> var1, ServerLevel var2, E var3, long var4);
     }
- 
+-
 -   static enum OrderPolicy {
-+   public static enum OrderPolicy {
-       ORDERED((var0) -> {
-       }),
+-      ORDERED((var0) -> {
+-      }),
 -      SHUFFLED(WeightedList::shuffle);
-+      SHUFFLED(ShufflingList::shuffle);
- 
+-
 -      private final Consumer<WeightedList<?>> consumer;
-+      private final Consumer<ShufflingList<?>> consumer;
- 
+-
 -      private OrderPolicy(Consumer<WeightedList<?>> var3) {
-+      private OrderPolicy(Consumer<ShufflingList<?>> var3) {
-          this.consumer = var3;
-       }
- 
+-         this.consumer = var3;
+-      }
+-
 -      public void apply(WeightedList<?> var1) {
-+      public void apply(ShufflingList<?> var1) {
-          this.consumer.accept(var1);
-       }
-    }
+-         this.consumer.accept(var1);
+-      }
+-   }
  }

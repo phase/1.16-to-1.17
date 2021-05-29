@@ -1,0 +1,99 @@
+--- net/minecraft/client/resources/SplashManager.java
++++ net/minecraft/client/resources/SplashManager.java
+@@ -32,59 +32,48 @@
+    }
+ 
+    protected List<String> prepare(ResourceManager var1, ProfilerFiller var2) {
+       try {
+          Resource var3 = Minecraft.getInstance().getResourceManager().getResource(SPLASHES_LOCATION);
+-         Throwable var4 = null;
+ 
+-         Object var7;
++         List var5;
+          try {
+-            BufferedReader var5 = new BufferedReader(new InputStreamReader(var3.getInputStream(), StandardCharsets.UTF_8));
+-            Throwable var6 = null;
++            BufferedReader var4 = new BufferedReader(new InputStreamReader(var3.getInputStream(), StandardCharsets.UTF_8));
+ 
+             try {
+-               var7 = (List)var5.lines().map(String::trim).filter((var0) -> {
++               var5 = (List)var4.lines().map(String::trim).filter((var0) -> {
+                   return var0.hashCode() != 125780783;
+                }).collect(Collectors.toList());
+-            } catch (Throwable var32) {
+-               var7 = var32;
+-               var6 = var32;
+-               throw var32;
+-            } finally {
+-               if (var5 != null) {
+-                  if (var6 != null) {
+-                     try {
+-                        var5.close();
+-                     } catch (Throwable var31) {
+-                        var6.addSuppressed(var31);
+-                     }
+-                  } else {
+-                     var5.close();
+-                  }
++            } catch (Throwable var9) {
++               try {
++                  var4.close();
++               } catch (Throwable var8) {
++                  var9.addSuppressed(var8);
+                }
+ 
++               throw var9;
+             }
+-         } catch (Throwable var34) {
+-            var4 = var34;
+-            throw var34;
+-         } finally {
++
++            var4.close();
++         } catch (Throwable var10) {
+             if (var3 != null) {
+-               if (var4 != null) {
+-                  try {
+-                     var3.close();
+-                  } catch (Throwable var30) {
+-                     var4.addSuppressed(var30);
+-                  }
+-               } else {
++               try {
+                   var3.close();
++               } catch (Throwable var7) {
++                  var10.addSuppressed(var7);
+                }
+             }
+ 
++            throw var10;
+          }
+ 
+-         return (List)var7;
+-      } catch (IOException var36) {
++         if (var3 != null) {
++            var3.close();
++         }
++
++         return var5;
++      } catch (IOException var11) {
+          return Collections.emptyList();
+       }
+    }
+ 
+    protected void apply(List<String> var1, ResourceManager var2, ProfilerFiller var3) {
+@@ -102,10 +91,13 @@
+          return "Happy new year!";
+       } else if (var1.get(2) + 1 == 10 && var1.get(5) == 31) {
+          return "OOoooOOOoooo! Spooky!";
+       } else if (this.splashes.isEmpty()) {
+          return null;
++      } else if (this.user != null && RANDOM.nextInt(this.splashes.size()) == 42) {
++         String var10000 = this.user.getName();
++         return var10000.toUpperCase(Locale.ROOT) + " IS YOU";
+       } else {
+-         return this.user != null && RANDOM.nextInt(this.splashes.size()) == 42 ? this.user.getName().toUpperCase(Locale.ROOT) + " IS YOU" : (String)this.splashes.get(RANDOM.nextInt(this.splashes.size()));
++         return (String)this.splashes.get(RANDOM.nextInt(this.splashes.size()));
+       }
+    }
+ }

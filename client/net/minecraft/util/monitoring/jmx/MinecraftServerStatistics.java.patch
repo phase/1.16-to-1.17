@@ -1,0 +1,52 @@
+--- net/minecraft/util/monitoring/jmx/MinecraftServerStatistics.java
++++ net/minecraft/util/monitoring/jmx/MinecraftServerStatistics.java
+@@ -36,13 +36,11 @@
+    private MinecraftServerStatistics(MinecraftServer var1) {
+       this.attributeDescriptionByName = (Map)Stream.of(new MinecraftServerStatistics.AttributeDescription("tickTimes", this::getTickTimes, "Historical tick times (ms)", long[].class), new MinecraftServerStatistics.AttributeDescription("averageTickTime", this::getAverageTickTime, "Current average tick time (ms)", Long.TYPE)).collect(Collectors.toMap((var0) -> {
+          return var0.name;
+       }, Function.identity()));
+       this.server = var1;
+-      MBeanAttributeInfo[] var2 = (MBeanAttributeInfo[])this.attributeDescriptionByName.values().stream().map((var0) -> {
+-         return ((MinecraftServerStatistics.AttributeDescription)var0).asMBeanAttributeInfo();
+-      }).toArray((var0) -> {
++      MBeanAttributeInfo[] var2 = (MBeanAttributeInfo[])this.attributeDescriptionByName.values().stream().map(MinecraftServerStatistics.AttributeDescription::asMBeanAttributeInfo).toArray((var0) -> {
+          return new MBeanAttributeInfo[var0];
+       });
+       this.mBeanInfo = new MBeanInfo(MinecraftServerStatistics.class.getSimpleName(), "metrics for dedicated server", var2, (MBeanConstructorInfo[])null, (MBeanOperationInfo[])null, new MBeanNotificationInfo[0]);
+    }
+ 
+@@ -73,11 +71,11 @@
+    }
+ 
+    public AttributeList getAttributes(String[] var1) {
+       Stream var10000 = Arrays.stream(var1);
+       Map var10001 = this.attributeDescriptionByName;
+-      var10001.getClass();
++      Objects.requireNonNull(var10001);
+       List var2 = (List)var10000.map(var10001::get).filter(Objects::nonNull).map((var0) -> {
+          return new Attribute(var0.name, var0.getter.get());
+       }).collect(Collectors.toList());
+       return new AttributeList(var2);
+    }
+@@ -93,17 +91,17 @@
+ 
+    public MBeanInfo getMBeanInfo() {
+       return this.mBeanInfo;
+    }
+ 
+-   static final class AttributeDescription {
+-      private final String name;
+-      private final Supplier<Object> getter;
++   private static final class AttributeDescription {
++      final String name;
++      final Supplier<Object> getter;
+       private final String description;
+       private final Class<?> type;
+ 
+-      private AttributeDescription(String var1, Supplier<Object> var2, String var3, Class<?> var4) {
++      AttributeDescription(String var1, Supplier<Object> var2, String var3, Class<?> var4) {
+          this.name = var1;
+          this.getter = var2;
+          this.description = var3;
+          this.type = var4;
+       }

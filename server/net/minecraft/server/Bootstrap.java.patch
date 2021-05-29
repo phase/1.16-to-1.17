@@ -1,6 +1,12 @@
 --- net/minecraft/server/Bootstrap.java
 +++ net/minecraft/server/Bootstrap.java
-@@ -7,10 +7,11 @@
+@@ -2,15 +2,17 @@
+ 
+ import java.io.PrintStream;
+ import java.util.Set;
+ import java.util.TreeSet;
+ import java.util.function.Function;
++import java.util.function.Supplier;
  import net.minecraft.SharedConstants;
  import net.minecraft.commands.Commands;
  import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
@@ -12,10 +18,14 @@
  import net.minecraft.tags.StaticTags;
  import net.minecraft.world.effect.MobEffect;
  import net.minecraft.world.entity.EntityType;
-@@ -29,10 +30,13 @@
+@@ -26,13 +28,16 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
  public class Bootstrap {
     public static final PrintStream STDOUT;
-    private static boolean isBootstrapped;
+-   private static boolean isBootstrapped;
++   private static volatile boolean isBootstrapped;
     private static final Logger LOGGER;
  
 +   public Bootstrap() {
@@ -26,7 +36,7 @@
           isBootstrapped = true;
           if (Registry.REGISTRY.keySet().isEmpty()) {
              throw new IllegalStateException("Unable to load registries");
-@@ -43,10 +47,11 @@
+@@ -43,10 +48,11 @@
                 throw new IllegalStateException("Failed loading EntityTypes");
              } else {
                 PotionBrewing.bootStrap();
@@ -38,16 +48,63 @@
                 wrapStreams();
              }
           }
-@@ -95,11 +100,11 @@
-       if (!isBootstrapped) {
-          throw new IllegalArgumentException("Not bootstrapped");
-       } else {
-          if (SharedConstants.IS_RUNNING_IN_IDE) {
-             getMissingTranslations().forEach((var0) -> {
--               LOGGER.error("Missing translations: " + var0);
-+               LOGGER.error((String)"Missing translations: {}", (Object)var0);
-             });
-             Commands.validate();
-          }
+@@ -83,31 +89,48 @@
+       checkTranslations(Registry.MOB_EFFECT, MobEffect::getDescriptionId, var0);
+       checkTranslations(Registry.ITEM, Item::getDescriptionId, var0);
+       checkTranslations(Registry.ENCHANTMENT, Enchantment::getDescriptionId, var0);
+       checkTranslations(Registry.BLOCK, Block::getDescriptionId, var0);
+       checkTranslations(Registry.CUSTOM_STAT, (var0x) -> {
+-         return "stat." + var0x.toString().replace(':', '.');
++         String var10000 = var0x.toString();
++         return "stat." + var10000.replace(':', '.');
+       }, var0);
+       checkGameruleTranslations(var0);
+       return var0;
+    }
  
-          DefaultAttributes.validate();
+-   public static void validate() {
++   public static void checkBootstrapCalled(Supplier<String> var0) {
+       if (!isBootstrapped) {
+-         throw new IllegalArgumentException("Not bootstrapped");
+-      } else {
+-         if (SharedConstants.IS_RUNNING_IN_IDE) {
+-            getMissingTranslations().forEach((var0) -> {
+-               LOGGER.error("Missing translations: " + var0);
+-            });
+-            Commands.validate();
+-         }
++         throw createBootstrapException(var0);
++      }
++   }
+ 
+-         DefaultAttributes.validate();
++   private static RuntimeException createBootstrapException(Supplier<String> var0) {
++      try {
++         String var1 = (String)var0.get();
++         return new IllegalArgumentException("Not bootstrapped (called from " + var1 + ")");
++      } catch (Exception var3) {
++         IllegalArgumentException var2 = new IllegalArgumentException("Not bootstrapped (failed to resolve location)");
++         var2.addSuppressed(var3);
++         return var2;
+       }
+    }
+ 
++   public static void validate() {
++      checkBootstrapCalled(() -> {
++         return "validate";
++      });
++      if (SharedConstants.IS_RUNNING_IN_IDE) {
++         getMissingTranslations().forEach((var0) -> {
++            LOGGER.error((String)"Missing translations: {}", (Object)var0);
++         });
++         Commands.validate();
++      }
++
++      DefaultAttributes.validate();
++   }
++
+    private static void wrapStreams() {
+       if (LOGGER.isDebugEnabled()) {
+          System.setErr(new DebugLoggedPrintStream("STDERR", System.err));
+          System.setOut(new DebugLoggedPrintStream("STDOUT", STDOUT));
+       } else {

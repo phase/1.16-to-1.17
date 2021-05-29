@@ -1,6 +1,13 @@
 --- net/minecraft/world/entity/ai/village/poi/PoiSection.java
 +++ net/minecraft/world/entity/ai/village/poi/PoiSection.java
-@@ -15,14 +15,14 @@
+@@ -9,22 +9,24 @@
+ import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
+ import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
+ import java.util.Collection;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
+ import java.util.Optional;
  import java.util.Set;
  import java.util.function.BiConsumer;
  import java.util.function.Consumer;
@@ -13,10 +20,39 @@
 +import net.minecraft.util.VisibleForDebug;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
++import org.apache.logging.log4j.util.Supplier;
  
  public class PoiSection {
     private static final Logger LOGGER = LogManager.getLogger();
-@@ -86,16 +86,11 @@
+    private final Short2ObjectMap<PoiRecord> records;
+    private final Map<PoiType, Set<PoiRecord>> byType;
+@@ -38,11 +40,11 @@
+          }), PoiRecord.codec(var0).listOf().fieldOf("Records").forGetter((var0x) -> {
+             return ImmutableList.copyOf((Collection)var0x.records.values());
+          })).apply(var1, (Function3)(PoiSection::new));
+       });
+       Logger var10002 = LOGGER;
+-      var10002.getClass();
++      Objects.requireNonNull(var10002);
+       return var10000.orElseGet(Util.prefix("Failed to read POI section: ", var10002::error), () -> {
+          return new PoiSection(var0, false, ImmutableList.of());
+       });
+    }
+ 
+@@ -58,11 +60,11 @@
+       var3.forEach(this::add);
+    }
+ 
+    public Stream<PoiRecord> getRecords(Predicate<PoiType> var1, PoiManager.Occupancy var2) {
+       return this.byType.entrySet().stream().filter((var1x) -> {
+-         return var1.test(var1x.getKey());
++         return var1.test((PoiType)var1x.getKey());
+       }).flatMap((var0) -> {
+          return ((Set)var0.getValue()).stream();
+       }).filter(var2.getTest());
+    }
+ 
+@@ -86,16 +88,11 @@
        if (var5 != null) {
           if (var3.equals(var5.getPoiType())) {
              return false;
@@ -34,7 +70,7 @@
        this.records.put(var4, var1);
        ((Set)this.byType.computeIfAbsent(var3, (var0) -> {
           return Sets.newHashSet();
-@@ -104,18 +99,24 @@
+@@ -104,18 +101,30 @@
     }
  
     public void remove(BlockPos var1) {
@@ -44,7 +80,14 @@
 +         LOGGER.error((String)"POI data mismatch: never registered at {}", (Object)var1);
        } else {
           ((Set)this.byType.get(var2.getPoiType())).remove(var2);
-          LOGGER.debug("Removed POI of type {} @ {}", var2::getPoiType, var2::getPos);
+-         LOGGER.debug("Removed POI of type {} @ {}", var2::getPoiType, var2::getPos);
++         Logger var10000 = LOGGER;
++         Supplier[] var10002 = new Supplier[2];
++         Objects.requireNonNull(var2);
++         var10002[0] = var2::getPoiType;
++         Objects.requireNonNull(var2);
++         var10002[1] = var2::getPos;
++         var10000.debug("Removed POI of type {} @ {}", var10002);
           this.setDirty.run();
        }
     }
@@ -60,7 +103,7 @@
        if (var2 == null) {
           throw (IllegalStateException)Util.pauseInIde(new IllegalStateException("POI never registered at " + var1));
        } else {
-@@ -124,21 +125,21 @@
+@@ -124,21 +133,21 @@
           return var3;
        }
     }
@@ -80,7 +123,7 @@
     }
  
 +   private Optional<PoiRecord> getPoiRecord(BlockPos var1) {
-+      return Optional.ofNullable(this.records.get(SectionPos.sectionRelativePos(var1)));
++      return Optional.ofNullable((PoiRecord)this.records.get(SectionPos.sectionRelativePos(var1)));
 +   }
 +
     public void refresh(Consumer<BiConsumer<BlockPos, PoiType>> var1) {

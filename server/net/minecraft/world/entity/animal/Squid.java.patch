@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/animal/Squid.java
 +++ net/minecraft/world/entity/animal/Squid.java
-@@ -1,17 +1,19 @@
+@@ -1,27 +1,30 @@
  package net.minecraft.world.entity.animal;
  
  import java.util.Random;
@@ -20,7 +20,18 @@
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.Mob;
  import net.minecraft.world.entity.MobSpawnType;
-@@ -71,16 +73,20 @@
+ import net.minecraft.world.entity.MoverType;
+ import net.minecraft.world.entity.Pose;
+ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+ import net.minecraft.world.entity.ai.attributes.Attributes;
+ import net.minecraft.world.entity.ai.goal.Goal;
++import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LevelAccessor;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.material.FluidState;
+ import net.minecraft.world.phys.Vec3;
+@@ -71,16 +74,24 @@
  
     protected SoundEvent getDeathSound() {
        return SoundEvents.SQUID_DEATH;
@@ -28,6 +39,10 @@
  
 +   protected SoundEvent getSquirtSound() {
 +      return SoundEvents.SQUID_SQUIRT;
++   }
++
++   public boolean canBeLeashed(Player var1) {
++      return !this.isLeashed();
 +   }
 +
     protected float getSoundVolume() {
@@ -43,7 +58,44 @@
     public void aiStep() {
        super.aiStep();
        this.xBodyRotO = this.xBodyRot;
-@@ -159,29 +165,42 @@
+@@ -119,27 +130,27 @@
+ 
+          if (!this.level.isClientSide) {
+             this.setDeltaMovement((double)(this.tx * this.speed), (double)(this.ty * this.speed), (double)(this.tz * this.speed));
+          }
+ 
+-         Vec3 var3 = this.getDeltaMovement();
+-         float var2 = Mth.sqrt(getHorizontalDistanceSqr(var3));
+-         this.yBodyRot += (-((float)Mth.atan2(var3.x, var3.z)) * 57.295776F - this.yBodyRot) * 0.1F;
+-         this.yRot = this.yBodyRot;
++         Vec3 var4 = this.getDeltaMovement();
++         double var2 = var4.horizontalDistance();
++         this.yBodyRot += (-((float)Mth.atan2(var4.x, var4.z)) * 57.295776F - this.yBodyRot) * 0.1F;
++         this.setYRot(this.yBodyRot);
+          this.zBodyRot = (float)((double)this.zBodyRot + 3.141592653589793D * (double)this.rotateSpeed * 1.5D);
+-         this.xBodyRot += (-((float)Mth.atan2((double)var2, var3.y)) * 57.295776F - this.xBodyRot) * 0.1F;
++         this.xBodyRot += (-((float)Mth.atan2(var2, var4.y)) * 57.295776F - this.xBodyRot) * 0.1F;
+       } else {
+          this.tentacleAngle = Mth.abs(Mth.sin(this.tentacleMovement)) * 3.1415927F * 0.25F;
+          if (!this.level.isClientSide) {
+-            double var4 = this.getDeltaMovement().y;
++            double var5 = this.getDeltaMovement().y;
+             if (this.hasEffect(MobEffects.LEVITATION)) {
+-               var4 = 0.05D * (double)(this.getEffect(MobEffects.LEVITATION).getAmplifier() + 1);
++               var5 = 0.05D * (double)(this.getEffect(MobEffects.LEVITATION).getAmplifier() + 1);
+             } else if (!this.isNoGravity()) {
+-               var4 -= 0.08D;
++               var5 -= 0.08D;
+             }
+ 
+-            this.setDeltaMovement(0.0D, var4 * 0.9800000190734863D, 0.0D);
++            this.setDeltaMovement(0.0D, var5 * 0.9800000190734863D, 0.0D);
+          }
+ 
+          this.xBodyRot = (float)((double)this.xBodyRot + (double)(-90.0F - this.xBodyRot) * 0.02D);
+       }
+ 
+@@ -159,43 +170,85 @@
        var2 = var2.yRot(-this.yBodyRotO * 0.017453292F);
        return var2;
     }
@@ -88,17 +140,81 @@
        this.ty = var2;
        this.tz = var3;
     }
-@@ -189,10 +208,13 @@
+ 
     public boolean hasMovementVector() {
        return this.tx != 0.0F || this.ty != 0.0F || this.tz != 0.0F;
     }
  
-    class SquidFleeGoal extends Goal {
+-   class SquidFleeGoal extends Goal {
++   private class SquidRandomMovementGoal extends Goal {
++      private final Squid squid;
++
++      public SquidRandomMovementGoal(Squid var2) {
++         this.squid = var2;
++      }
++
++      public boolean canUse() {
++         return true;
++      }
++
++      public void tick() {
++         int var1 = this.squid.getNoActionTime();
++         if (var1 > 100) {
++            this.squid.setMovementVector(0.0F, 0.0F, 0.0F);
++         } else if (this.squid.getRandom().nextInt(50) == 0 || !this.squid.wasTouchingWater || !this.squid.hasMovementVector()) {
++            float var2 = this.squid.getRandom().nextFloat() * 6.2831855F;
++            float var3 = Mth.cos(var2) * 0.2F;
++            float var4 = -0.1F + this.squid.getRandom().nextFloat() * 0.2F;
++            float var5 = Mth.sin(var2) * 0.2F;
++            this.squid.setMovementVector(var3, var4, var5);
++         }
++
++      }
++   }
++
++   private class SquidFleeGoal extends Goal {
 +      private static final float SQUID_FLEE_SPEED = 3.0F;
 +      private static final float SQUID_FLEE_MIN_DISTANCE = 5.0F;
 +      private static final float SQUID_FLEE_MAX_DISTANCE = 10.0F;
        private int fleeTicks;
  
-       private SquidFleeGoal() {
+-      private SquidFleeGoal() {
++      SquidFleeGoal() {
        }
  
+       public boolean canUse() {
+          LivingEntity var1 = Squid.this.getLastHurtByMob();
+          if (Squid.this.isInWater() && var1 != null) {
+@@ -242,32 +295,6 @@
+             }
+ 
+          }
+       }
+    }
+-
+-   class SquidRandomMovementGoal extends Goal {
+-      private final Squid squid;
+-
+-      public SquidRandomMovementGoal(Squid var2) {
+-         this.squid = var2;
+-      }
+-
+-      public boolean canUse() {
+-         return true;
+-      }
+-
+-      public void tick() {
+-         int var1 = this.squid.getNoActionTime();
+-         if (var1 > 100) {
+-            this.squid.setMovementVector(0.0F, 0.0F, 0.0F);
+-         } else if (this.squid.getRandom().nextInt(50) == 0 || !this.squid.wasTouchingWater || !this.squid.hasMovementVector()) {
+-            float var2 = this.squid.getRandom().nextFloat() * 6.2831855F;
+-            float var3 = Mth.cos(var2) * 0.2F;
+-            float var4 = -0.1F + this.squid.getRandom().nextFloat() * 0.2F;
+-            float var5 = Mth.sin(var2) * 0.2F;
+-            this.squid.setMovementVector(var3, var4, var5);
+-         }
+-
+-      }
+-   }
+ }

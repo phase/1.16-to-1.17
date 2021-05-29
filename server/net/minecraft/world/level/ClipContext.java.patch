@@ -1,0 +1,52 @@
+--- net/minecraft/world/level/ClipContext.java
++++ net/minecraft/world/level/ClipContext.java
+@@ -40,10 +40,26 @@
+ 
+    public VoxelShape getFluidShape(FluidState var1, BlockGetter var2, BlockPos var3) {
+       return this.fluid.canPick(var1) ? var1.getShape(var2, var3) : Shapes.empty();
+    }
+ 
++   public static enum Block implements ClipContext.ShapeGetter {
++      COLLIDER(BlockBehaviour.BlockStateBase::getCollisionShape),
++      OUTLINE(BlockBehaviour.BlockStateBase::getShape),
++      VISUAL(BlockBehaviour.BlockStateBase::getVisualShape);
++
++      private final ClipContext.ShapeGetter shapeGetter;
++
++      private Block(ClipContext.ShapeGetter var3) {
++         this.shapeGetter = var3;
++      }
++
++      public VoxelShape get(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
++         return this.shapeGetter.get(var1, var2, var3, var4);
++      }
++   }
++
+    public static enum Fluid {
+       NONE((var0) -> {
+          return false;
+       }),
+       SOURCE_ONLY(FluidState::isSource),
+@@ -63,22 +79,6 @@
+    }
+ 
+    public interface ShapeGetter {
+       VoxelShape get(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4);
+    }
+-
+-   public static enum Block implements ClipContext.ShapeGetter {
+-      COLLIDER(BlockBehaviour.BlockStateBase::getCollisionShape),
+-      OUTLINE(BlockBehaviour.BlockStateBase::getShape),
+-      VISUAL(BlockBehaviour.BlockStateBase::getVisualShape);
+-
+-      private final ClipContext.ShapeGetter shapeGetter;
+-
+-      private Block(ClipContext.ShapeGetter var3) {
+-         this.shapeGetter = var3;
+-      }
+-
+-      public VoxelShape get(BlockState var1, BlockGetter var2, BlockPos var3, CollisionContext var4) {
+-         return this.shapeGetter.get(var1, var2, var3, var4);
+-      }
+-   }
+ }

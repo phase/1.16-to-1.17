@@ -1,6 +1,29 @@
 --- net/minecraft/core/RegistryAccess.java
 +++ net/minecraft/core/RegistryAccess.java
-@@ -57,22 +57,29 @@
+@@ -1,8 +1,9 @@
+ package net.minecraft.core;
+ 
+ import com.google.common.collect.ImmutableMap;
++import com.google.gson.JsonParseException;
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.JsonOps;
+ import com.mojang.serialization.Lifecycle;
+ import com.mojang.serialization.codecs.UnboundedMapCodec;
+@@ -30,11 +31,11 @@
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public abstract class RegistryAccess {
+    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Map<ResourceKey<? extends Registry<?>>, RegistryAccess.RegistryData<?>> REGISTRIES = (Map)Util.make(() -> {
++   static final Map<ResourceKey<? extends Registry<?>>, RegistryAccess.RegistryData<?>> REGISTRIES = (Map)Util.make(() -> {
+       ImmutableMap.Builder var0 = ImmutableMap.builder();
+       put(var0, Registry.DIMENSION_TYPE_REGISTRY, DimensionType.DIRECT_CODEC, DimensionType.DIRECT_CODEC);
+       put(var0, Registry.BIOME_REGISTRY, Biome.DIRECT_CODEC, Biome.NETWORK_CODEC);
+       put(var0, Registry.CONFIGURED_SURFACE_BUILDER_REGISTRY, ConfiguredSurfaceBuilder.DIRECT_CODEC);
+       put(var0, Registry.CONFIGURED_CARVER_REGISTRY, ConfiguredWorldCarver.DIRECT_CODEC);
+@@ -57,22 +58,29 @@
     });
  
     public RegistryAccess() {
@@ -35,7 +58,15 @@
     }
  
     private static <E> void put(ImmutableMap.Builder<ResourceKey<? extends Registry<?>>, RegistryAccess.RegistryData<?>> var0, ResourceKey<? extends Registry<E>> var1, Codec<E> var2, Codec<E> var3) {
-@@ -94,67 +101,58 @@
+@@ -87,80 +95,101 @@
+       while(var2.hasNext()) {
+          RegistryAccess.RegistryData var3 = (RegistryAccess.RegistryData)var2.next();
+          addBuiltinElements(var0, var1, var3);
+       }
+ 
+-      RegistryReadOps.create(JsonOps.INSTANCE, (RegistryReadOps.ResourceAccess)var1, var0);
++      RegistryReadOps.createAndLoad(JsonOps.INSTANCE, (RegistryReadOps.ResourceAccess)var1, var0);
+       return var0;
     }
  
     private static <E> void addBuiltinElements(RegistryAccess.RegistryHolder var0, RegistryReadOps.ResourceAccess.MemoryMap var1, RegistryAccess.RegistryData<E> var2) {
@@ -112,19 +143,109 @@
 +      MappedRegistry var4 = (MappedRegistry)var1.ownedRegistryOrThrow(var3);
        DataResult var5 = var0.decodeElements(var4, var2.key(), var2.codec());
        var5.error().ifPresent((var0x) -> {
-          LOGGER.error((String)"Error loading registry data: {}", (Object)var0x.message());
+-         LOGGER.error((String)"Error loading registry data: {}", (Object)var0x.message());
++         throw new JsonParseException("Error loading registry data: " + var0x.message());
        });
     }
-@@ -202,11 +200,11 @@
+ 
++   private static final class RegistryData<E> {
++      private final ResourceKey<? extends Registry<E>> key;
++      private final Codec<E> codec;
++      @Nullable
++      private final Codec<E> networkCodec;
++
++      public RegistryData(ResourceKey<? extends Registry<E>> var1, Codec<E> var2, @Nullable Codec<E> var3) {
++         this.key = var1;
++         this.codec = var2;
++         this.networkCodec = var3;
++      }
++
++      public ResourceKey<? extends Registry<E>> key() {
++         return this.key;
++      }
++
++      public Codec<E> codec() {
++         return this.codec;
++      }
++
++      @Nullable
++      public Codec<E> networkCodec() {
++         return this.networkCodec;
++      }
++
++      public boolean sendToClient() {
++         return this.networkCodec != null;
++      }
++   }
++
+    public static final class RegistryHolder extends RegistryAccess {
+       public static final Codec<RegistryAccess.RegistryHolder> NETWORK_CODEC = makeNetworkCodec();
+       private final Map<? extends ResourceKey<? extends Registry<?>>, ? extends MappedRegistry<?>> registries;
+ 
+       private static <E> Codec<RegistryAccess.RegistryHolder> makeNetworkCodec() {
+@@ -176,18 +205,18 @@
+          return captureMap(var2);
+       }
+ 
+       private static <K extends ResourceKey<? extends Registry<?>>, V extends MappedRegistry<?>> Codec<RegistryAccess.RegistryHolder> captureMap(UnboundedMapCodec<K, V> var0) {
+          return var0.xmap(RegistryAccess.RegistryHolder::new, (var0x) -> {
+-            return (ImmutableMap)var0x.registries.entrySet().stream().filter((var0) -> {
++            return (Map)var0x.registries.entrySet().stream().filter((var0) -> {
+                return ((RegistryAccess.RegistryData)RegistryAccess.REGISTRIES.get(var0.getKey())).sendToClient();
+             }).collect(ImmutableMap.toImmutableMap(Entry::getKey, Entry::getValue));
+          });
+       }
+ 
+       private static <E> DataResult<? extends Codec<E>> getNetworkCodec(ResourceKey<? extends Registry<E>> var0) {
+-         return (DataResult)Optional.ofNullable(RegistryAccess.REGISTRIES.get(var0)).map((var0x) -> {
++         return (DataResult)Optional.ofNullable((RegistryAccess.RegistryData)RegistryAccess.REGISTRIES.get(var0)).map((var0x) -> {
+             return var0x.networkCodec();
+          }).map(DataResult::success).orElseGet(() -> {
+             return DataResult.error("Unknown or not serializable registry: " + var0);
+          });
+       }
+@@ -202,42 +231,12 @@
  
        private static <E> MappedRegistry<?> createRegistry(ResourceKey<? extends Registry<?>> var0) {
           return new MappedRegistry(var0, Lifecycle.stable());
        }
  
 -      public <E> Optional<WritableRegistry<E>> registry(ResourceKey<? extends Registry<E>> var1) {
+-         return Optional.ofNullable(this.registries.get(var1)).map((var0) -> {
 +      public <E> Optional<WritableRegistry<E>> ownedRegistry(ResourceKey<? extends Registry<? extends E>> var1) {
-          return Optional.ofNullable(this.registries.get(var1)).map((var0) -> {
++         return Optional.ofNullable((MappedRegistry)this.registries.get(var1)).map((var0) -> {
              return var0;
           });
        }
     }
+-
+-   static final class RegistryData<E> {
+-      private final ResourceKey<? extends Registry<E>> key;
+-      private final Codec<E> codec;
+-      @Nullable
+-      private final Codec<E> networkCodec;
+-
+-      public RegistryData(ResourceKey<? extends Registry<E>> var1, Codec<E> var2, @Nullable Codec<E> var3) {
+-         this.key = var1;
+-         this.codec = var2;
+-         this.networkCodec = var3;
+-      }
+-
+-      public ResourceKey<? extends Registry<E>> key() {
+-         return this.key;
+-      }
+-
+-      public Codec<E> codec() {
+-         return this.codec;
+-      }
+-
+-      @Nullable
+-      public Codec<E> networkCodec() {
+-         return this.networkCodec;
+-      }
+-
+-      public boolean sendToClient() {
+-         return this.networkCodec != null;
+-      }
+-   }
+ }

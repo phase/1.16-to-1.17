@@ -14,7 +14,7 @@
  import net.minecraft.SharedConstants;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.NbtIo;
-@@ -35,51 +35,49 @@
+@@ -35,130 +35,106 @@
  
     private File getDataFile(String var1) {
        return new File(this.dataFolder, var1 + ".dat");
@@ -81,7 +81,119 @@
     public CompoundTag readTagFromDisk(String var1, int var2) throws IOException {
        File var3 = this.getDataFile(var1);
        FileInputStream var4 = new FileInputStream(var3);
-@@ -176,16 +174,13 @@
+-      Throwable var5 = null;
+ 
+-      Object var10;
++      CompoundTag var8;
+       try {
+-         PushbackInputStream var6 = new PushbackInputStream(var4, 2);
+-         Throwable var7 = null;
++         PushbackInputStream var5 = new PushbackInputStream(var4, 2);
+ 
+          try {
+-            CompoundTag var8;
+-            if (this.isGzip(var6)) {
+-               var8 = NbtIo.readCompressed((InputStream)var6);
++            CompoundTag var6;
++            if (this.isGzip(var5)) {
++               var6 = NbtIo.readCompressed((InputStream)var5);
+             } else {
+-               DataInputStream var9 = new DataInputStream(var6);
+-               var10 = null;
++               DataInputStream var7 = new DataInputStream(var5);
+ 
+                try {
+-                  var8 = NbtIo.read((DataInput)var9);
+-               } catch (Throwable var54) {
+-                  var10 = var54;
+-                  throw var54;
+-               } finally {
+-                  if (var9 != null) {
+-                     if (var10 != null) {
+-                        try {
+-                           var9.close();
+-                        } catch (Throwable var53) {
+-                           ((Throwable)var10).addSuppressed(var53);
+-                        }
+-                     } else {
+-                        var9.close();
+-                     }
++                  var6 = NbtIo.read((DataInput)var7);
++               } catch (Throwable var13) {
++                  try {
++                     var7.close();
++                  } catch (Throwable var12) {
++                     var13.addSuppressed(var12);
+                   }
+ 
++                  throw var13;
+                }
++
++               var7.close();
+             }
+ 
+-            int var60 = var8.contains("DataVersion", 99) ? var8.getInt("DataVersion") : 1343;
+-            var10 = NbtUtils.update(this.fixerUpper, DataFixTypes.SAVED_DATA, var8, var60, var2);
+-         } catch (Throwable var56) {
+-            var7 = var56;
+-            throw var56;
+-         } finally {
+-            if (var6 != null) {
+-               if (var7 != null) {
+-                  try {
+-                     var6.close();
+-                  } catch (Throwable var52) {
+-                     var7.addSuppressed(var52);
+-                  }
+-               } else {
+-                  var6.close();
+-               }
++            int var16 = var6.contains("DataVersion", 99) ? var6.getInt("DataVersion") : 1343;
++            var8 = NbtUtils.update(this.fixerUpper, DataFixTypes.SAVED_DATA, var6, var16, var2);
++         } catch (Throwable var14) {
++            try {
++               var5.close();
++            } catch (Throwable var11) {
++               var14.addSuppressed(var11);
+             }
+ 
++            throw var14;
+          }
+-      } catch (Throwable var58) {
+-         var5 = var58;
+-         throw var58;
+-      } finally {
+-         if (var4 != null) {
+-            if (var5 != null) {
+-               try {
+-                  var4.close();
+-               } catch (Throwable var51) {
+-                  var5.addSuppressed(var51);
+-               }
+-            } else {
+-               var4.close();
+-            }
++
++         var5.close();
++      } catch (Throwable var15) {
++         try {
++            var4.close();
++         } catch (Throwable var10) {
++            var15.addSuppressed(var10);
+          }
+ 
++         throw var15;
+       }
+ 
+-      return (CompoundTag)var10;
++      var4.close();
++      return var8;
+    }
+ 
+    private boolean isGzip(PushbackInputStream var1) throws IOException {
+       byte[] var2 = new byte[2];
+       boolean var3 = false;
+@@ -176,16 +152,13 @@
  
        return var3;
     }

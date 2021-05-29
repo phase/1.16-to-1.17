@@ -1,6 +1,18 @@
 --- net/minecraft/world/item/enchantment/EnchantmentHelper.java
 +++ net/minecraft/world/item/enchantment/EnchantmentHelper.java
-@@ -16,11 +16,11 @@
+@@ -6,21 +6,23 @@
+ import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.LinkedHashMap;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
++import java.util.Optional;
+ import java.util.Random;
+ import java.util.Map.Entry;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ import net.minecraft.Util;
  import net.minecraft.core.Registry;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.ListTag;
@@ -13,7 +25,7 @@
  import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.MobType;
-@@ -31,10 +31,13 @@
+@@ -31,10 +33,13 @@
  import net.minecraft.world.item.Items;
  import org.apache.commons.lang3.mutable.MutableFloat;
  import org.apache.commons.lang3.mutable.MutableInt;
@@ -27,7 +39,7 @@
           return 0;
        } else {
           ResourceLocation var2 = Registry.ENCHANTMENT.getKey(var0);
-@@ -42,20 +45,20 @@
+@@ -42,30 +47,30 @@
  
           for(int var4 = 0; var4 < var3.size(); ++var4) {
              CompoundTag var5 = var3.getCompound(var4);
@@ -50,7 +62,18 @@
  
     public static Map<Enchantment, Integer> deserializeEnchantments(ListTag var0) {
        LinkedHashMap var1 = Maps.newLinkedHashMap();
-@@ -81,19 +84,19 @@
+ 
+       for(int var2 = 0; var2 < var0.size(); ++var2) {
+          CompoundTag var3 = var0.getCompound(var2);
+          Registry.ENCHANTMENT.getOptional(ResourceLocation.tryParse(var3.getString("id"))).ifPresent((var2x) -> {
+-            Integer var10000 = (Integer)var1.put(var2x, var3.getInt("lvl"));
++            var1.put(var2x, var3.getInt("lvl"));
+          });
+       }
+ 
+       return var1;
+    }
+@@ -81,19 +86,19 @@
              int var6 = (Integer)var4.getValue();
              CompoundTag var7 = new CompoundTag();
              var7.putString("id", String.valueOf(Registry.ENCHANTMENT.getKey(var5)));
@@ -72,7 +95,7 @@
  
     }
  
-@@ -302,11 +305,11 @@
+@@ -302,11 +307,11 @@
        }
     }
  
@@ -85,7 +108,7 @@
        }
  
        Iterator var6 = var4.iterator();
-@@ -330,22 +333,25 @@
+@@ -330,22 +335,29 @@
        if (var6 <= 0) {
           return var4;
        } else {
@@ -96,7 +119,9 @@
           List var8 = getAvailableEnchantmentResults(var2, var1, var3);
           if (!var8.isEmpty()) {
 -            var4.add(WeighedRandom.getRandomItem(var0, var8));
-+            WeightedRandom.getRandomItem(var0, var8).ifPresent(var4::add);
++            Optional var10000 = WeightedRandom.getRandomItem(var0, var8);
++            Objects.requireNonNull(var4);
++            var10000.ifPresent(var4::add);
  
              while(var0.nextInt(50) <= var2) {
 -               filterCompatibleEnchantments(var8, (EnchantmentInstance)Util.lastOf(var4));
@@ -109,13 +134,15 @@
                 }
  
 -               var4.add(WeighedRandom.getRandomItem(var0, var8));
-+               WeightedRandom.getRandomItem(var0, var8).ifPresent(var4::add);
++               var10000 = WeightedRandom.getRandomItem(var0, var8);
++               Objects.requireNonNull(var4);
++               var10000.ifPresent(var4::add);
                 var2 /= 2;
              }
           }
  
           return var4;
-@@ -379,11 +385,11 @@
+@@ -379,11 +391,11 @@
     }
  
     public static List<EnchantmentInstance> getAvailableEnchantmentResults(int var0, ItemStack var1, boolean var2) {

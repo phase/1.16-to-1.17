@@ -33,10 +33,10 @@
  
  public class SetStewEffectFunction extends LootItemConditionalFunction {
 -   private final Map<MobEffect, RandomValueBounds> effectDurationMap;
-+   private final Map<MobEffect, NumberProvider> effectDurationMap;
++   final Map<MobEffect, NumberProvider> effectDurationMap;
  
 -   private SetStewEffectFunction(LootItemCondition[] var1, Map<MobEffect, RandomValueBounds> var2) {
-+   private SetStewEffectFunction(LootItemCondition[] var1, Map<MobEffect, NumberProvider> var2) {
++   SetStewEffectFunction(LootItemCondition[] var1, Map<MobEffect, NumberProvider> var2) {
        super(var1);
        this.effectDurationMap = ImmutableMap.copyOf(var2);
     }
@@ -65,7 +65,38 @@
           }
  
           SuspiciousStewItem.saveMobEffect(var1, var6, var7);
-@@ -98,30 +107,30 @@
+@@ -58,10 +67,30 @@
+ 
+    public static SetStewEffectFunction.Builder stewEffect() {
+       return new SetStewEffectFunction.Builder();
+    }
+ 
++   public static class Builder extends LootItemConditionalFunction.Builder<SetStewEffectFunction.Builder> {
++      private final Map<MobEffect, NumberProvider> effectDurationMap = Maps.newHashMap();
++
++      public Builder() {
++      }
++
++      protected SetStewEffectFunction.Builder getThis() {
++         return this;
++      }
++
++      public SetStewEffectFunction.Builder withEffect(MobEffect var1, NumberProvider var2) {
++         this.effectDurationMap.put(var1, var2);
++         return this;
++      }
++
++      public LootItemFunction build() {
++         return new SetStewEffectFunction(this.getConditions(), this.effectDurationMap);
++      }
++   }
++
+    public static class Serializer extends LootItemConditionalFunction.Serializer<SetStewEffectFunction> {
+       public Serializer() {
+       }
+ 
+       public void serialize(JsonObject var1, SetStewEffectFunction var2, JsonSerializationContext var3) {
+@@ -98,34 +127,14 @@
                 JsonElement var7 = (JsonElement)var6.next();
                 String var8 = GsonHelper.getAsString(var7.getAsJsonObject(), "type");
                 MobEffect var9 = (MobEffect)Registry.MOB_EFFECT.getOptional(new ResourceLocation(var8)).orElseThrow(() -> {
@@ -80,22 +111,24 @@
           return new SetStewEffectFunction(var3, var4);
        }
     }
- 
-    public static class Builder extends LootItemConditionalFunction.Builder<SetStewEffectFunction.Builder> {
+-
+-   public static class Builder extends LootItemConditionalFunction.Builder<SetStewEffectFunction.Builder> {
 -      private final Map<MobEffect, RandomValueBounds> effectDurationMap = Maps.newHashMap();
-+      private final Map<MobEffect, NumberProvider> effectDurationMap = Maps.newHashMap();
- 
-       public Builder() {
-       }
- 
-       protected SetStewEffectFunction.Builder getThis() {
-          return this;
-       }
- 
+-
+-      public Builder() {
+-      }
+-
+-      protected SetStewEffectFunction.Builder getThis() {
+-         return this;
+-      }
+-
 -      public SetStewEffectFunction.Builder withEffect(MobEffect var1, RandomValueBounds var2) {
-+      public SetStewEffectFunction.Builder withEffect(MobEffect var1, NumberProvider var2) {
-          this.effectDurationMap.put(var1, var2);
-          return this;
-       }
- 
-       public LootItemFunction build() {
+-         this.effectDurationMap.put(var1, var2);
+-         return this;
+-      }
+-
+-      public LootItemFunction build() {
+-         return new SetStewEffectFunction(this.getConditions(), this.effectDurationMap);
+-      }
+-   }
+ }

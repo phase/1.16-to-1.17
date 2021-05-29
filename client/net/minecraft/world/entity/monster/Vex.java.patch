@@ -1,6 +1,6 @@
 --- net/minecraft/world/entity/monster/Vex.java
 +++ net/minecraft/world/entity/monster/Vex.java
-@@ -37,11 +37,14 @@
+@@ -37,12 +37,15 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.ServerLevelAccessor;
  import net.minecraft.world.phys.Vec3;
@@ -9,12 +9,14 @@
 +   public static final float FLAP_DEGREES_PER_TICK = 45.836624F;
 +   public static final int TICKS_PER_FLAP = Mth.ceil(3.9269907F);
     protected static final EntityDataAccessor<Byte> DATA_FLAGS_ID;
+-   private Mob owner;
 +   private static final int FLAG_IS_CHARGING = 1;
-    private Mob owner;
++   Mob owner;
     @Nullable
     private BlockPos boundOrigin;
     private boolean hasLimitedLife;
     private int limitedLifeTicks;
+ 
 @@ -50,10 +53,14 @@
        super(var1, var2);
        this.moveControl = new Vex.VexMoveControl(this);
@@ -30,7 +32,90 @@
        this.checkInsideBlocks();
     }
  
-@@ -262,11 +269,11 @@
+@@ -193,61 +200,41 @@
+ 
+    static {
+       DATA_FLAGS_ID = SynchedEntityData.defineId(Vex.class, EntityDataSerializers.BYTE);
+    }
+ 
+-   class VexCopyOwnerTargetGoal extends TargetGoal {
+-      private final TargetingConditions copyOwnerTargeting = (new TargetingConditions()).allowUnseeable().ignoreInvisibilityTesting();
+-
+-      public VexCopyOwnerTargetGoal(PathfinderMob var2) {
+-         super(var2, false);
++   private class VexMoveControl extends MoveControl {
++      public VexMoveControl(Vex var2) {
++         super(var2);
+       }
+ 
+-      public boolean canUse() {
+-         return Vex.this.owner != null && Vex.this.owner.getTarget() != null && this.canAttack(Vex.this.owner.getTarget(), this.copyOwnerTargeting);
+-      }
+-
+-      public void start() {
+-         Vex.this.setTarget(Vex.this.owner.getTarget());
+-         super.start();
+-      }
+-   }
+-
+-   class VexRandomMoveGoal extends Goal {
+-      public VexRandomMoveGoal() {
+-         this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+-      }
+-
+-      public boolean canUse() {
+-         return !Vex.this.getMoveControl().hasWanted() && Vex.this.random.nextInt(7) == 0;
+-      }
+-
+-      public boolean canContinueToUse() {
+-         return false;
+-      }
+-
+       public void tick() {
+-         BlockPos var1 = Vex.this.getBoundOrigin();
+-         if (var1 == null) {
+-            var1 = Vex.this.blockPosition();
+-         }
+-
+-         for(int var2 = 0; var2 < 3; ++var2) {
+-            BlockPos var3 = var1.offset(Vex.this.random.nextInt(15) - 7, Vex.this.random.nextInt(11) - 5, Vex.this.random.nextInt(15) - 7);
+-            if (Vex.this.level.isEmptyBlock(var3)) {
+-               Vex.this.moveControl.setWantedPosition((double)var3.getX() + 0.5D, (double)var3.getY() + 0.5D, (double)var3.getZ() + 0.5D, 0.25D);
++         if (this.operation == MoveControl.Operation.MOVE_TO) {
++            Vec3 var1 = new Vec3(this.wantedX - Vex.this.getX(), this.wantedY - Vex.this.getY(), this.wantedZ - Vex.this.getZ());
++            double var2 = var1.length();
++            if (var2 < Vex.this.getBoundingBox().getSize()) {
++               this.operation = MoveControl.Operation.WAIT;
++               Vex.this.setDeltaMovement(Vex.this.getDeltaMovement().scale(0.5D));
++            } else {
++               Vex.this.setDeltaMovement(Vex.this.getDeltaMovement().add(var1.scale(this.speedModifier * 0.05D / var2)));
+                if (Vex.this.getTarget() == null) {
+-                  Vex.this.getLookControl().setLookAt((double)var3.getX() + 0.5D, (double)var3.getY() + 0.5D, (double)var3.getZ() + 0.5D, 180.0F, 20.0F);
++                  Vec3 var4 = Vex.this.getDeltaMovement();
++                  Vex.this.setYRot(-((float)Mth.atan2(var4.x, var4.z)) * 57.295776F);
++                  Vex.this.yBodyRot = Vex.this.getYRot();
++               } else {
++                  double var8 = Vex.this.getTarget().getX() - Vex.this.getX();
++                  double var6 = Vex.this.getTarget().getZ() - Vex.this.getZ();
++                  Vex.this.setYRot(-((float)Mth.atan2(var8, var6)) * 57.295776F);
++                  Vex.this.yBodyRot = Vex.this.getYRot();
+                }
+-               break;
+             }
+-         }
+ 
++         }
+       }
+    }
+ 
+-   class VexChargeAttackGoal extends Goal {
++   private class VexChargeAttackGoal extends Goal {
+       public VexChargeAttackGoal() {
+          this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+       }
+ 
+       public boolean canUse() {
+@@ -262,11 +249,11 @@
           return Vex.this.getMoveControl().hasWanted() && Vex.this.isCharging() && Vex.this.getTarget() != null && Vex.this.getTarget().isAlive();
        }
  
@@ -43,7 +128,7 @@
           Vex.this.playSound(SoundEvents.VEX_CHARGE, 1.0F, 1.0F);
        }
  
-@@ -280,11 +287,11 @@
+@@ -280,43 +267,63 @@
              Vex.this.doHurtTarget(var1);
              Vex.this.setIsCharging(false);
           } else {
@@ -56,3 +141,75 @@
           }
  
        }
+    }
+ 
+-   class VexMoveControl extends MoveControl {
+-      public VexMoveControl(Vex var2) {
+-         super(var2);
++   private class VexRandomMoveGoal extends Goal {
++      public VexRandomMoveGoal() {
++         this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+       }
+ 
++      public boolean canUse() {
++         return !Vex.this.getMoveControl().hasWanted() && Vex.this.random.nextInt(7) == 0;
++      }
++
++      public boolean canContinueToUse() {
++         return false;
++      }
++
+       public void tick() {
+-         if (this.operation == MoveControl.Operation.MOVE_TO) {
+-            Vec3 var1 = new Vec3(this.wantedX - Vex.this.getX(), this.wantedY - Vex.this.getY(), this.wantedZ - Vex.this.getZ());
+-            double var2 = var1.length();
+-            if (var2 < Vex.this.getBoundingBox().getSize()) {
+-               this.operation = MoveControl.Operation.WAIT;
+-               Vex.this.setDeltaMovement(Vex.this.getDeltaMovement().scale(0.5D));
+-            } else {
+-               Vex.this.setDeltaMovement(Vex.this.getDeltaMovement().add(var1.scale(this.speedModifier * 0.05D / var2)));
++         BlockPos var1 = Vex.this.getBoundOrigin();
++         if (var1 == null) {
++            var1 = Vex.this.blockPosition();
++         }
++
++         for(int var2 = 0; var2 < 3; ++var2) {
++            BlockPos var3 = var1.offset(Vex.this.random.nextInt(15) - 7, Vex.this.random.nextInt(11) - 5, Vex.this.random.nextInt(15) - 7);
++            if (Vex.this.level.isEmptyBlock(var3)) {
++               Vex.this.moveControl.setWantedPosition((double)var3.getX() + 0.5D, (double)var3.getY() + 0.5D, (double)var3.getZ() + 0.5D, 0.25D);
+                if (Vex.this.getTarget() == null) {
+-                  Vec3 var4 = Vex.this.getDeltaMovement();
+-                  Vex.this.yRot = -((float)Mth.atan2(var4.x, var4.z)) * 57.295776F;
+-                  Vex.this.yBodyRot = Vex.this.yRot;
+-               } else {
+-                  double var8 = Vex.this.getTarget().getX() - Vex.this.getX();
+-                  double var6 = Vex.this.getTarget().getZ() - Vex.this.getZ();
+-                  Vex.this.yRot = -((float)Mth.atan2(var8, var6)) * 57.295776F;
+-                  Vex.this.yBodyRot = Vex.this.yRot;
++                  Vex.this.getLookControl().setLookAt((double)var3.getX() + 0.5D, (double)var3.getY() + 0.5D, (double)var3.getZ() + 0.5D, 180.0F, 20.0F);
+                }
++               break;
+             }
+-
+          }
++
+       }
+    }
++
++   private class VexCopyOwnerTargetGoal extends TargetGoal {
++      private final TargetingConditions copyOwnerTargeting = TargetingConditions.forNonCombat().ignoreLineOfSight().ignoreInvisibilityTesting();
++
++      public VexCopyOwnerTargetGoal(PathfinderMob var2) {
++         super(var2, false);
++      }
++
++      public boolean canUse() {
++         return Vex.this.owner != null && Vex.this.owner.getTarget() != null && this.canAttack(Vex.this.owner.getTarget(), this.copyOwnerTargeting);
++      }
++
++      public void start() {
++         Vex.this.setTarget(Vex.this.owner.getTarget());
++         super.start();
++      }
++   }
+ }

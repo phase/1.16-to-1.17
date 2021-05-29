@@ -1,11 +1,12 @@
 --- net/minecraft/world/level/levelgen/feature/OreFeature.java
 +++ net/minecraft/world/level/levelgen/feature/OreFeature.java
-@@ -1,44 +1,53 @@
+@@ -1,44 +1,55 @@
  package net.minecraft.world.level.levelgen.feature;
  
  import com.mojang.serialization.Codec;
  import java.util.BitSet;
 +import java.util.Iterator;
++import java.util.Objects;
  import java.util.Random;
 +import java.util.function.Function;
  import net.minecraft.core.BlockPos;
@@ -16,6 +17,7 @@
 -import net.minecraft.world.level.chunk.ChunkGenerator;
 +import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.chunk.BulkSectionAccess;
++import net.minecraft.world.level.chunk.LevelChunk;
 +import net.minecraft.world.level.chunk.LevelChunkSection;
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.feature.configurations.OreConfiguration;
@@ -68,10 +70,13 @@
        }
  
        return false;
-@@ -69,66 +78,118 @@
+@@ -67,68 +78,116 @@
+          var25[var26 * 4 + 1] = var30;
+          var25[var26 * 4 + 2] = var32;
           var25[var26 * 4 + 3] = var36;
        }
  
++      int var62;
        for(var26 = 0; var26 < var24 - 1; ++var26) {
           if (var25[var26 * 4 + 3] > 0.0D) {
 -            for(int var51 = var26 + 1; var51 < var24; ++var51) {
@@ -80,16 +85,16 @@
 -                  var30 = var25[var26 * 4 + 1] - var25[var51 * 4 + 1];
 -                  var32 = var25[var26 * 4 + 2] - var25[var51 * 4 + 2];
 -                  var34 = var25[var26 * 4 + 3] - var25[var51 * 4 + 3];
-+            for(int var70 = var26 + 1; var70 < var24; ++var70) {
-+               if (var25[var70 * 4 + 3] > 0.0D) {
-+                  var28 = var25[var26 * 4 + 0] - var25[var70 * 4 + 0];
-+                  var30 = var25[var26 * 4 + 1] - var25[var70 * 4 + 1];
-+                  var32 = var25[var26 * 4 + 2] - var25[var70 * 4 + 2];
-+                  var34 = var25[var26 * 4 + 3] - var25[var70 * 4 + 3];
++            for(var62 = var26 + 1; var62 < var24; ++var62) {
++               if (var25[var62 * 4 + 3] > 0.0D) {
++                  var28 = var25[var26 * 4 + 0] - var25[var62 * 4 + 0];
++                  var30 = var25[var26 * 4 + 1] - var25[var62 * 4 + 1];
++                  var32 = var25[var26 * 4 + 2] - var25[var62 * 4 + 2];
++                  var34 = var25[var26 * 4 + 3] - var25[var62 * 4 + 3];
                    if (var34 * var34 > var28 * var28 + var30 * var30 + var32 * var32) {
                       if (var34 > 0.0D) {
 -                        var25[var51 * 4 + 3] = -1.0D;
-+                        var25[var70 * 4 + 3] = -1.0D;
++                        var25[var62 * 4 + 3] = -1.0D;
                       } else {
                          var25[var26 * 4 + 3] = -1.0D;
                       }
@@ -111,8 +116,7 @@
 -            int var38 = Math.max(Mth.floor(var29 + var52), var35);
 -            int var39 = Math.max(Mth.floor(var31 + var52), var53);
 -            int var40 = Math.max(Mth.floor(var33 + var52), var37);
-+      BulkSectionAccess var69 = new BulkSectionAccess(var1);
-+      Throwable var71 = null;
++      BulkSectionAccess var61 = new BulkSectionAccess(var1);
  
 -            for(int var41 = var35; var41 <= var38; ++var41) {
 -               double var42 = ((double)var41 + 0.5D - var29) / var52;
@@ -131,45 +135,48 @@
 -                                    var1.setBlock(var23, var3.state, 2);
 -                                    ++var21;
 +      try {
-+         for(int var72 = 0; var72 < var24; ++var72) {
-+            double var29 = var25[var72 * 4 + 3];
-+            if (var29 >= 0.0D) {
-+               double var31 = var25[var72 * 4 + 0];
-+               double var33 = var25[var72 * 4 + 1];
-+               double var35 = var25[var72 * 4 + 2];
-+               int var37 = Math.max(Mth.floor(var31 - var29), var16);
-+               int var38 = Math.max(Mth.floor(var33 - var29), var17);
-+               int var39 = Math.max(Mth.floor(var35 - var29), var18);
-+               int var40 = Math.max(Mth.floor(var31 + var29), var37);
-+               int var41 = Math.max(Mth.floor(var33 + var29), var38);
-+               int var42 = Math.max(Mth.floor(var35 + var29), var39);
++         for(var62 = 0; var62 < var24; ++var62) {
++            var28 = var25[var62 * 4 + 3];
++            if (var28 >= 0.0D) {
++               var30 = var25[var62 * 4 + 0];
++               var32 = var25[var62 * 4 + 1];
++               var34 = var25[var62 * 4 + 2];
++               int var63 = Math.max(Mth.floor(var30 - var28), var16);
++               int var37 = Math.max(Mth.floor(var32 - var28), var17);
++               int var38 = Math.max(Mth.floor(var34 - var28), var18);
++               int var39 = Math.max(Mth.floor(var30 + var28), var63);
++               int var40 = Math.max(Mth.floor(var32 + var28), var37);
++               int var41 = Math.max(Mth.floor(var34 + var28), var38);
 +
-+               for(int var43 = var37; var43 <= var40; ++var43) {
-+                  double var44 = ((double)var43 + 0.5D - var31) / var29;
-+                  if (var44 * var44 < 1.0D) {
-+                     for(int var46 = var38; var46 <= var41; ++var46) {
-+                        double var47 = ((double)var46 + 0.5D - var33) / var29;
-+                        if (var44 * var44 + var47 * var47 < 1.0D) {
-+                           for(int var49 = var39; var49 <= var42; ++var49) {
-+                              double var50 = ((double)var49 + 0.5D - var35) / var29;
-+                              if (var44 * var44 + var47 * var47 + var50 * var50 < 1.0D && !var1.isOutsideBuildHeight(var46)) {
-+                                 int var52 = var43 - var16 + (var46 - var17) * var19 + (var49 - var18) * var19 * var20;
-+                                 if (!var22.get(var52)) {
-+                                    var22.set(var52);
-+                                    var23.set(var43, var46, var49);
-+                                    LevelChunkSection var53 = var69.getSection(var23);
-+                                    int var54 = SectionPos.sectionRelative(var43);
-+                                    int var55 = SectionPos.sectionRelative(var46);
-+                                    int var56 = SectionPos.sectionRelative(var49);
-+                                    BlockState var57 = var53.getBlockState(var54, var55, var56);
-+                                    Iterator var58 = var3.targetStates.iterator();
++               for(int var42 = var63; var42 <= var39; ++var42) {
++                  double var43 = ((double)var42 + 0.5D - var30) / var28;
++                  if (var43 * var43 < 1.0D) {
++                     for(int var45 = var37; var45 <= var40; ++var45) {
++                        double var46 = ((double)var45 + 0.5D - var32) / var28;
++                        if (var43 * var43 + var46 * var46 < 1.0D) {
++                           for(int var48 = var38; var48 <= var41; ++var48) {
++                              double var49 = ((double)var48 + 0.5D - var34) / var28;
++                              if (var43 * var43 + var46 * var46 + var49 * var49 < 1.0D && !var1.isOutsideBuildHeight(var45)) {
++                                 int var51 = var42 - var16 + (var45 - var17) * var19 + (var48 - var18) * var19 * var20;
++                                 if (!var22.get(var51)) {
++                                    var22.set(var51);
++                                    var23.set(var42, var45, var48);
++                                    LevelChunkSection var52 = var61.getSection(var23);
++                                    if (var52 != LevelChunk.EMPTY_SECTION) {
++                                       int var53 = SectionPos.sectionRelative(var42);
++                                       int var54 = SectionPos.sectionRelative(var45);
++                                       int var55 = SectionPos.sectionRelative(var48);
++                                       BlockState var56 = var52.getBlockState(var53, var54, var55);
++                                       Iterator var57 = var3.targetStates.iterator();
 +
-+                                    while(var58.hasNext()) {
-+                                       OreConfiguration.TargetBlockState var59 = (OreConfiguration.TargetBlockState)var58.next();
-+                                       if (canPlaceOre(var57, var69::getBlockState, var2, var3, var59, var23)) {
-+                                          var53.setBlockState(var54, var55, var56, var59.state, false);
-+                                          ++var21;
-+                                          break;
++                                       while(var57.hasNext()) {
++                                          OreConfiguration.TargetBlockState var58 = (OreConfiguration.TargetBlockState)var57.next();
++                                          Objects.requireNonNull(var61);
++                                          if (canPlaceOre(var56, var61::getBlockState, var2, var3, var58, var23)) {
++                                             var52.setBlockState(var53, var54, var55, var58.state, false);
++                                             ++var21;
++                                             break;
++                                          }
 +                                       }
 +                                    }
                                   }
@@ -181,24 +188,17 @@
                 }
              }
           }
-+      } catch (Throwable var67) {
-+         var71 = var67;
-+         throw var67;
-+      } finally {
-+         if (var69 != null) {
-+            if (var71 != null) {
-+               try {
-+                  var69.close();
-+               } catch (Throwable var66) {
-+                  var71.addSuppressed(var66);
-+               }
-+            } else {
-+               var69.close();
-+            }
++      } catch (Throwable var60) {
++         try {
++            var61.close();
++         } catch (Throwable var59) {
++            var60.addSuppressed(var59);
 +         }
 +
++         throw var60;
        }
  
++      var61.close();
        return var21 > 0;
     }
 +

@@ -1,11 +1,50 @@
 --- net/minecraft/server/dedicated/DedicatedServer.java
 +++ net/minecraft/server/dedicated/DedicatedServer.java
-@@ -59,10 +59,12 @@
+@@ -5,31 +5,35 @@
+ import com.mojang.authlib.GameProfile;
+ import com.mojang.authlib.GameProfileRepository;
+ import com.mojang.authlib.minecraft.MinecraftSessionService;
+ import com.mojang.datafixers.DataFixer;
+ import java.io.BufferedReader;
++import java.io.BufferedWriter;
+ import java.io.IOException;
+ import java.io.InputStreamReader;
+ import java.net.InetAddress;
+ import java.net.Proxy;
+ import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Path;
+ import java.util.Collections;
+ import java.util.List;
+ import java.util.Locale;
+ import java.util.Optional;
+ import java.util.function.BooleanSupplier;
+ import java.util.regex.Pattern;
+ import javax.annotation.Nullable;
+-import net.minecraft.CrashReport;
+ import net.minecraft.DefaultUncaughtExceptionHandler;
+ import net.minecraft.DefaultUncaughtExceptionHandlerWithName;
+ import net.minecraft.SharedConstants;
++import net.minecraft.SystemReport;
+ import net.minecraft.Util;
+ import net.minecraft.commands.CommandSourceStack;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.NonNullList;
+ import net.minecraft.core.RegistryAccess;
++import net.minecraft.network.chat.Component;
+ import net.minecraft.server.ConsoleInput;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.ServerInterface;
+ import net.minecraft.server.ServerResources;
+ import net.minecraft.server.gui.MinecraftServerGui;
+@@ -58,27 +62,32 @@
+ import net.minecraft.world.level.storage.WorldData;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
  public class DedicatedServer extends MinecraftServer implements ServerInterface {
-    private static final Logger LOGGER = LogManager.getLogger();
+-   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   private static final int CONVERSION_RETRY_DELAY_MS = 5000;
 +   private static final int CONVERSION_RETRIES = 2;
     private static final Pattern SHA1 = Pattern.compile("^[a-fA-F0-9]{40}$");
@@ -13,7 +52,13 @@
     private QueryThreadGs4 queryThreadGs4;
     private final RconConsoleSource rconConsoleSource;
     private RconThread rconThread;
-@@ -74,11 +76,11 @@
+    private final DedicatedServerSettings settings;
+    @Nullable
+    private MinecraftServerGui gui;
+    @Nullable
+    private final TextFilterClient textFilterClient;
++   @Nullable
++   private final Component resourcePackPrompt;
  
     public DedicatedServer(Thread var1, RegistryAccess.RegistryHolder var2, LevelStorageSource.LevelStorageAccess var3, PackRepository var4, ServerResources var5, WorldData var6, DedicatedServerSettings var7, DataFixer var8, MinecraftSessionService var9, GameProfileRepository var10, GameProfileCache var11, ChunkProgressListenerFactory var12) {
        super(var1, var2, var3, var6, var4, Proxy.NO_PROXY, var8, var5, var9, var10, var11, var12);
@@ -21,12 +66,13 @@
        this.rconConsoleSource = new RconConsoleSource(this);
 -      this.textFilterClient = null;
 +      this.textFilterClient = TextFilterClient.createFromConfig(var7.getProperties().textFilteringConfig);
++      this.resourcePackPrompt = parseResourcePackPrompt(var7);
     }
  
     public boolean initServer() throws IOException {
        Thread var1 = new Thread("Server console handler") {
           public void run() {
-@@ -96,11 +98,11 @@
+@@ -96,11 +105,11 @@
           }
        };
        var1.setDaemon(true);
@@ -39,7 +85,7 @@
        }
  
        LOGGER.info("Loading properties");
-@@ -115,11 +117,10 @@
+@@ -115,11 +124,10 @@
  
        this.setPvpAllowed(var2.pvp);
        this.setFlightAllowed(var2.allowFlight);
@@ -51,7 +97,7 @@
        this.worldData.setGameType(var2.gamemode);
        LOGGER.info("Default game type: {}", var2.gamemode);
        InetAddress var3 = null;
-@@ -157,11 +158,10 @@
+@@ -157,11 +165,10 @@
        if (!OldUsersConverter.serverReadyAfterUserconversion(this)) {
           return false;
        } else {
@@ -63,7 +109,7 @@
           GameProfileCache.setUsesAuthentication(this.usesAuthentication());
           LOGGER.info("Preparing level \"{}\"", this.getLevelIdName());
           this.loadLevel();
-@@ -191,10 +191,11 @@
+@@ -191,10 +198,11 @@
           }
  
           Items.AIR.fillItemCategory(CreativeModeTab.TAB_SEARCH, NonNullList.create());
@@ -75,7 +121,66 @@
           return true;
        }
     }
-@@ -297,10 +298,14 @@
+@@ -247,21 +255,54 @@
+ 
+    public boolean isHardcore() {
+       return this.getProperties().hardcore;
+    }
+ 
+-   public CrashReport fillReport(CrashReport var1) {
+-      var1 = super.fillReport(var1);
+-      var1.getSystemDetails().setDetail("Is Modded", () -> {
++   public SystemReport fillServerSystemReport(SystemReport var1) {
++      var1.setDetail("Is Modded", () -> {
+          return (String)this.getModdedStatus().orElse("Unknown (can't tell)");
+       });
+-      var1.getSystemDetails().setDetail("Type", () -> {
++      var1.setDetail("Type", () -> {
+          return "Dedicated Server (map_server.txt)";
+       });
+       return var1;
+    }
+ 
++   public void dumpServerProperties(Path var1) throws IOException {
++      DedicatedServerProperties var2 = this.getProperties();
++      BufferedWriter var3 = Files.newBufferedWriter(var1);
++
++      try {
++         var3.write(String.format("sync-chunk-writes=%s%n", var2.syncChunkWrites));
++         var3.write(String.format("gamemode=%s%n", var2.gamemode));
++         var3.write(String.format("spawn-monsters=%s%n", var2.spawnMonsters));
++         var3.write(String.format("entity-broadcast-range-percentage=%d%n", var2.entityBroadcastRangePercentage));
++         var3.write(String.format("max-world-size=%d%n", var2.maxWorldSize));
++         var3.write(String.format("spawn-npcs=%s%n", var2.spawnNpcs));
++         var3.write(String.format("view-distance=%d%n", var2.viewDistance));
++         var3.write(String.format("spawn-animals=%s%n", var2.spawnAnimals));
++         var3.write(String.format("generate-structures=%s%n", var2.worldGenSettings.generateFeatures()));
++         var3.write(String.format("use-native=%s%n", var2.useNativeTransport));
++         var3.write(String.format("rate-limit=%d%n", var2.rateLimitPacketsPerSecond));
++      } catch (Throwable var7) {
++         if (var3 != null) {
++            try {
++               var3.close();
++            } catch (Throwable var6) {
++               var7.addSuppressed(var6);
++            }
++         }
++
++         throw var7;
++      }
++
++      if (var3 != null) {
++         var3.close();
++      }
++
++   }
++
+    public Optional<String> getModdedStatus() {
+       String var1 = this.getServerModName();
+       return !"vanilla".equals(var1) ? Optional.of("Definitely; Server brand changed to '" + var1 + "'") : Optional.empty();
+    }
+ 
+@@ -297,10 +338,14 @@
        var1.setDynamicData("whitelist_enabled", this.getPlayerList().isUsingWhitelist());
        var1.setDynamicData("whitelist_count", this.getPlayerList().getWhiteListNames().length);
        super.populateSnooper(var1);
@@ -90,7 +195,7 @@
     }
  
     public void handleConsoleInputs() {
-@@ -352,14 +357,10 @@
+@@ -352,14 +397,10 @@
  
     public boolean hasGui() {
        return this.gui != null;
@@ -105,7 +210,7 @@
     }
  
     public int getSpawnProtectionRadius() {
-@@ -527,10 +528,18 @@
+@@ -527,10 +568,37 @@
  
     public boolean forceSynchronousWrites() {
        return this.settings.getProperties().syncChunkWrites;
@@ -124,5 +229,24 @@
 +   @Nullable
 +   public GameType getForcedGameType() {
 +      return this.settings.getProperties().forceGameMode ? this.worldData.getGameType() : null;
++   }
++
++   @Nullable
++   private static Component parseResourcePackPrompt(DedicatedServerSettings var0) {
++      String var1 = var0.getProperties().resourcePackPrompt;
++      if (!Strings.isNullOrEmpty(var1)) {
++         try {
++            return Component.Serializer.fromJson(var1);
++         } catch (Exception var3) {
++            LOGGER.warn("Failed to parse resource pack prompt '{}'", var1, var3);
++         }
++      }
++
++      return null;
++   }
++
++   @Nullable
++   public Component getResourcePackPrompt() {
++      return this.resourcePackPrompt;
 +   }
  }

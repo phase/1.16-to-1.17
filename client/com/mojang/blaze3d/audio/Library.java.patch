@@ -6,8 +6,9 @@
  import org.lwjgl.system.MemoryStack;
  
  public class Library {
+-   private static final Logger LOGGER = LogManager.getLogger();
 +   private static final int NUM_OPEN_DEVICE_RETRIES = 3;
-    private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   private static final int DEFAULT_CHANNEL_COUNT = 30;
     private long device;
     private long context;
@@ -29,20 +30,36 @@
           ALCapabilities var5 = AL.createCapabilities(var1);
           OpenAlUtil.checkALError("Initialization");
           if (!var5.AL_EXT_source_distance_model) {
-@@ -88,33 +90,28 @@
+@@ -82,60 +84,63 @@
+       }
+    }
  
-       try {
-          int var3 = ALC10.alcGetInteger(this.device, 4098);
-          if (OpenAlUtil.checkALCError(this.device, "Get attributes size")) {
-             throw new IllegalStateException("Failed to get OpenAL attributes");
+    private int getChannelCount() {
+       MemoryStack var1 = MemoryStack.stackPush();
+-      Throwable var2 = null;
+ 
+-      try {
+-         int var3 = ALC10.alcGetInteger(this.device, 4098);
+-         if (OpenAlUtil.checkALCError(this.device, "Get attributes size")) {
+-            throw new IllegalStateException("Failed to get OpenAL attributes");
 -         } else {
 -            IntBuffer var4 = var1.mallocInt(var3);
 -            ALC10.alcGetIntegerv(this.device, 4099, var4);
--            if (OpenAlUtil.checkALCError(this.device, "Get attributes")) {
--               throw new IllegalStateException("Failed to get OpenAL attributes");
++      int var7;
++      label58: {
++         try {
++            int var2 = ALC10.alcGetInteger(this.device, 4098);
++            if (OpenAlUtil.checkALCError(this.device, "Get attributes size")) {
++               throw new IllegalStateException("Failed to get OpenAL attributes");
++            }
++
++            IntBuffer var3 = var1.mallocInt(var2);
++            ALC10.alcGetIntegerv(this.device, 4099, var3);
+             if (OpenAlUtil.checkALCError(this.device, "Get attributes")) {
+                throw new IllegalStateException("Failed to get OpenAL attributes");
 -            } else {
 -               int var5 = 0;
-+         }
++            }
  
 -               int var6;
 -               int var7;
@@ -50,43 +67,116 @@
 -                  if (var5 >= var3) {
 -                     return 30;
 -                  }
-+         IntBuffer var4 = var1.mallocInt(var3);
-+         ALC10.alcGetIntegerv(this.device, 4099, var4);
-+         if (OpenAlUtil.checkALCError(this.device, "Get attributes")) {
-+            throw new IllegalStateException("Failed to get OpenAL attributes");
-+         }
++            int var4 = 0;
  
 -                  var6 = var4.get(var5++);
 -                  if (var6 == 0) {
 -                     return 30;
 -                  }
-+         int var5 = 0;
++            while(var4 < var2) {
++               int var5 = var3.get(var4++);
++               if (var5 == 0) {
++                  break;
++               }
  
 -                  var7 = var4.get(var5++);
 -               } while(var6 != 4112);
-+         while(var5 < var3) {
-+            int var6 = var4.get(var5++);
-+            if (var6 == 0) {
-+               break;
-+            }
- 
-+            int var7 = var4.get(var5++);
-+            if (var6 == 4112) {
-                int var8 = var7;
-                return var8;
+-
+-               int var8 = var7;
+-               return var8;
++               int var6 = var3.get(var4++);
++               if (var5 == 4112) {
++                  var7 = var6;
++                  break label58;
++               }
              }
-          }
-       } catch (Throwable var18) {
-@@ -132,10 +129,12 @@
-                var1.close();
+-         }
+-      } catch (Throwable var18) {
+-         var2 = var18;
+-         throw var18;
+-      } finally {
+-         if (var1 != null) {
+-            if (var2 != null) {
++         } catch (Throwable var9) {
++            if (var1 != null) {
+                try {
+                   var1.close();
+-               } catch (Throwable var17) {
+-                  var2.addSuppressed(var17);
++               } catch (Throwable var8) {
++                  var9.addSuppressed(var8);
+                }
+-            } else {
+-               var1.close();
              }
++
++            throw var9;
           }
  
++         if (var1 != null) {
++            var1.close();
++         }
++
++         return 30;
        }
 +
-+      return 30;
++      if (var1 != null) {
++         var1.close();
++      }
++
++      return var7;
     }
  
     private static long tryOpenDevice() {
        for(int var0 = 0; var0 < 3; ++var0) {
           long var1 = ALC10.alcOpenDevice((ByteBuffer)null);
+@@ -174,11 +179,24 @@
+ 
+    public String getDebugString() {
+       return String.format("Sounds: %d/%d + %d/%d", this.staticChannels.getUsedCount(), this.staticChannels.getMaxCount(), this.streamingChannels.getUsedCount(), this.streamingChannels.getMaxCount());
+    }
+ 
+-   static class CountingChannelPool implements Library.ChannelPool {
++   private interface ChannelPool {
++      @Nullable
++      Channel acquire();
++
++      boolean release(Channel var1);
++
++      void cleanup();
++
++      int getMaxCount();
++
++      int getUsedCount();
++   }
++
++   private static class CountingChannelPool implements Library.ChannelPool {
+       private final int limit;
+       private final Set<Channel> activeChannels = Sets.newIdentityHashSet();
+ 
+       public CountingChannelPool(int var1) {
+          this.limit = var1;
+@@ -220,23 +238,10 @@
+       public int getUsedCount() {
+          return this.activeChannels.size();
+       }
+    }
+ 
+-   interface ChannelPool {
+-      @Nullable
+-      Channel acquire();
+-
+-      boolean release(Channel var1);
+-
+-      void cleanup();
+-
+-      int getMaxCount();
+-
+-      int getUsedCount();
+-   }
+-
+    public static enum Pool {
+       STATIC,
+       STREAMING;
+ 
+       private Pool() {

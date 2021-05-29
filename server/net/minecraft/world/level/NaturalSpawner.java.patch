@@ -36,10 +36,11 @@
  
  public final class NaturalSpawner {
     private static final Logger LOGGER = LogManager.getLogger();
+-   private static final int MAGIC_NUMBER = (int)Math.pow(17.0D, 2.0D);
 +   private static final int MIN_SPAWN_DISTANCE = 24;
 +   public static final int SPAWN_DISTANCE_CHUNK = 8;
 +   public static final int SPAWN_DISTANCE_BLOCK = 128;
-    private static final int MAGIC_NUMBER = (int)Math.pow(17.0D, 2.0D);
++   static final int MAGIC_NUMBER = (int)Math.pow(17.0D, 2.0D);
     private static final MobCategory[] SPAWNING_CATEGORIES = (MobCategory[])Stream.of(MobCategory.values()).filter((var0) -> {
        return var0 != MobCategory.MISC;
     }).toArray((var0) -> {
@@ -67,7 +68,37 @@
                 if (var6x != null) {
                    var3.addCharge(var6.blockPosition(), var6x.getCharge());
                 }
-@@ -112,15 +120,23 @@
+@@ -87,11 +95,11 @@
+             });
+          }
+       }
+    }
+ 
+-   private static Biome getRoughBiome(BlockPos var0, ChunkAccess var1) {
++   static Biome getRoughBiome(BlockPos var0, ChunkAccess var1) {
+       return NearestNeighborBiomeZoomer.INSTANCE.getBiome(0L, var0.getX(), var0.getY(), var0.getZ(), var1.getBiomes());
+    }
+ 
+    public static void spawnForChunk(ServerLevel var0, LevelChunk var1, NaturalSpawner.SpawnState var2, boolean var3, boolean var4, boolean var5) {
+       var0.getProfiler().push("spawner");
+@@ -99,28 +107,35 @@
+       int var7 = var6.length;
+ 
+       for(int var8 = 0; var8 < var7; ++var8) {
+          MobCategory var9 = var6[var8];
+          if ((var3 || !var9.isFriendly()) && (var4 || var9.isFriendly()) && (var5 || !var9.isPersistent()) && var2.canSpawnForCategory(var9)) {
+-            spawnCategoryForChunk(var9, var0, var1, (var1x, var2x, var3x) -> {
+-               return var2.canSpawn(var1x, var2x, var3x);
+-            }, (var1x, var2x) -> {
+-               var2.afterSpawn(var1x, var2x);
+-            });
++            Objects.requireNonNull(var2);
++            NaturalSpawner.SpawnPredicate var10003 = var2::canSpawn;
++            Objects.requireNonNull(var2);
++            spawnCategoryForChunk(var9, var0, var1, var10003, var2::afterSpawn);
+          }
+       }
+ 
        var0.getProfiler().pop();
     }
  
@@ -92,7 +123,7 @@
        ChunkGenerator var7 = var1.getChunkSource().getGenerator();
        int var8 = var3.getY();
        BlockState var9 = var2.getBlockState(var3);
-@@ -146,36 +162,37 @@
+@@ -146,36 +161,37 @@
                 Player var25 = var1.getNearestPlayer(var21, (double)var8, var23, -1.0D, false);
                 if (var25 != null) {
                    double var26 = var25.distanceToSqr(var21, (double)var8, var23);
@@ -141,7 +172,21 @@
                          }
                       }
                    }
-@@ -239,35 +256,29 @@
+@@ -190,12 +206,11 @@
+       if (var3 <= 576.0D) {
+          return false;
+       } else if (var0.getSharedSpawnPos().closerThan(new Vec3((double)var2.getX() + 0.5D, (double)var2.getY(), (double)var2.getZ() + 0.5D), 24.0D)) {
+          return false;
+       } else {
+-         ChunkPos var5 = new ChunkPos(var2);
+-         return Objects.equals(var5, var1.getPos()) || var0.getChunkSource().isEntityTickingChunk(var5);
++         return Objects.equals(new ChunkPos(var2), var1.getPos()) || var0.isPositionEntityTicking((BlockPos)var2);
+       }
+    }
+ 
+    private static boolean isValidSpawnPostitionForType(ServerLevel var0, MobCategory var1, StructureFeatureManager var2, ChunkGenerator var3, MobSpawnSettings.SpawnerData var4, BlockPos.MutableBlockPos var5, double var6) {
+       EntityType var8 = var4.type;
+@@ -239,35 +254,29 @@
        } else {
           return var1.checkSpawnRules(var0, MobSpawnType.NATURAL) && var1.checkSpawnObstruction(var0);
        }
@@ -183,7 +228,7 @@
  
     public static boolean isValidEmptySpawnBlock(BlockGetter var0, BlockPos var1, BlockState var2, FluidState var3, EntityType<?> var4) {
        if (var2.isCollisionShapeFullBlock(var0, var1)) {
-@@ -308,35 +319,44 @@
+@@ -308,35 +317,44 @@
        } else {
           return false;
        }
@@ -241,7 +286,7 @@
                       }
  
                       Entity var25;
-@@ -345,30 +365,29 @@
+@@ -345,30 +363,29 @@
                       } catch (Exception var27) {
                          LOGGER.warn((String)"Failed to create mob", (Throwable)var27);
                          continue;
@@ -276,7 +321,7 @@
  
     private static BlockPos getTopNonCollidingPos(LevelReader var0, EntityType<?> var1, int var2, int var3) {
        int var4 = var0.getHeight(SpawnPlacements.getHeightmapType(var1), var2, var3);
-@@ -378,11 +397,11 @@
+@@ -378,11 +395,11 @@
              var5.move(Direction.DOWN);
           } while(!var0.getBlockState(var5).isAir());
  
@@ -289,7 +334,41 @@
        if (SpawnPlacements.getPlacementType(var1) == SpawnPlacements.Type.ON_GROUND) {
           BlockPos var6 = var5.below();
           if (var0.getBlockState(var6).isPathfindable(var0, var6, PathComputationType.LAND)) {
-@@ -458,10 +477,14 @@
+@@ -396,20 +413,10 @@
+    @FunctionalInterface
+    public interface ChunkGetter {
+       void query(long var1, Consumer<LevelChunk> var3);
+    }
+ 
+-   @FunctionalInterface
+-   public interface AfterSpawnCallback {
+-      void run(Mob var1, ChunkAccess var2);
+-   }
+-
+-   @FunctionalInterface
+-   public interface SpawnPredicate {
+-      boolean test(EntityType<?> var1, BlockPos var2, ChunkAccess var3);
+-   }
+-
+    public static class SpawnState {
+       private final int spawnableChunkCount;
+       private final Object2IntOpenHashMap<MobCategory> mobCategoryCounts;
+       private final PotentialCalculator spawnPotential;
+       private final Object2IntMap<MobCategory> unmodifiableMobCategoryCounts;
+@@ -417,11 +424,11 @@
+       private BlockPos lastCheckedPos;
+       @Nullable
+       private EntityType<?> lastCheckedType;
+       private double lastCharge;
+ 
+-      private SpawnState(int var1, Object2IntOpenHashMap<MobCategory> var2, PotentialCalculator var3) {
++      SpawnState(int var1, Object2IntOpenHashMap<MobCategory> var2, PotentialCalculator var3) {
+          this.spawnableChunkCount = var1;
+          this.mobCategoryCounts = var2;
+          this.spawnPotential = var3;
+          this.unmodifiableMobCategoryCounts = Object2IntMaps.unmodifiable(var2);
+       }
+@@ -458,15 +465,29 @@
  
           this.spawnPotential.addCharge(var6, var4);
           this.mobCategoryCounts.addTo(var3.getCategory(), 1);
@@ -303,4 +382,20 @@
           return this.unmodifiableMobCategoryCounts;
        }
  
-       private boolean canSpawnForCategory(MobCategory var1) {
+-      private boolean canSpawnForCategory(MobCategory var1) {
++      boolean canSpawnForCategory(MobCategory var1) {
+          int var2 = var1.getMaxInstancesPerChunk() * this.spawnableChunkCount / NaturalSpawner.MAGIC_NUMBER;
+          return this.mobCategoryCounts.getInt(var1) < var2;
+       }
+    }
++
++   @FunctionalInterface
++   public interface SpawnPredicate {
++      boolean test(EntityType<?> var1, BlockPos var2, ChunkAccess var3);
++   }
++
++   @FunctionalInterface
++   public interface AfterSpawnCallback {
++      void run(Mob var1, ChunkAccess var2);
++   }
+ }

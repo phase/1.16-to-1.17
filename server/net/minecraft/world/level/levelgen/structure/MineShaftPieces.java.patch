@@ -1,12 +1,13 @@
 --- net/minecraft/world/level/levelgen/structure/MineShaftPieces.java
 +++ net/minecraft/world/level/levelgen/structure/MineShaftPieces.java
-@@ -1,39 +1,57 @@
+@@ -1,39 +1,58 @@
  package net.minecraft.world.level.levelgen.structure;
  
  import com.google.common.collect.Lists;
 +import com.mojang.serialization.DataResult;
  import java.util.Iterator;
  import java.util.List;
++import java.util.Objects;
 +import java.util.Optional;
  import java.util.Random;
  import javax.annotation.Nullable;
@@ -44,7 +45,7 @@
  
  public class MineShaftPieces {
 -   private static MineShaftPieces.MineShaftPiece createRandomShaftPiece(List<StructurePiece> var0, Random var1, int var2, int var3, int var4, @Nullable Direction var5, int var6, MineshaftFeature.Type var7) {
-+   private static final Logger LOGGER = LogManager.getLogger();
++   static final Logger LOGGER = LogManager.getLogger();
 +   private static final int DEFAULT_SHAFT_WIDTH = 3;
 +   private static final int DEFAULT_SHAFT_HEIGHT = 3;
 +   private static final int DEFAULT_SHAFT_LENGTH = 5;
@@ -61,14 +62,14 @@
        if (var8 >= 80) {
           var9 = MineShaftPieces.MineShaftCrossing.findCrossing(var0, var1, var2, var3, var4, var5);
           if (var9 != null) {
-@@ -52,18 +70,18 @@
+@@ -52,383 +71,370 @@
        }
  
        return null;
     }
  
 -   private static MineShaftPieces.MineShaftPiece generateAndAddPiece(StructurePiece var0, List<StructurePiece> var1, Random var2, int var3, int var4, int var5, Direction var6, int var7) {
-+   private static MineShaftPieces.MineShaftPiece generateAndAddPiece(StructurePiece var0, StructurePieceAccessor var1, Random var2, int var3, int var4, int var5, Direction var6, int var7) {
++   static MineShaftPieces.MineShaftPiece generateAndAddPiece(StructurePiece var0, StructurePieceAccessor var1, Random var2, int var3, int var4, int var5, Direction var6, int var7) {
        if (var7 > 8) {
           return null;
 -      } else if (Math.abs(var3 - var0.getBoundingBox().x0) <= 80 && Math.abs(var5 - var0.getBoundingBox().z0) <= 80) {
@@ -83,85 +84,83 @@
  
           return var9;
        } else {
-@@ -71,60 +89,57 @@
+          return null;
        }
     }
  
-    public static class MineShaftStairs extends MineShaftPieces.MineShaftPiece {
-       public MineShaftStairs(int var1, BoundingBox var2, Direction var3, MineshaftFeature.Type var4) {
+-   public static class MineShaftStairs extends MineShaftPieces.MineShaftPiece {
+-      public MineShaftStairs(int var1, BoundingBox var2, Direction var3, MineshaftFeature.Type var4) {
 -         super(StructurePieceType.MINE_SHAFT_STAIRS, var1, var4);
-+         super(StructurePieceType.MINE_SHAFT_STAIRS, var1, var4, var2);
-          this.setOrientation(var3);
+-         this.setOrientation(var3);
 -         this.boundingBox = var2;
-       }
- 
+-      }
+-
 -      public MineShaftStairs(StructureManager var1, CompoundTag var2) {
-+      public MineShaftStairs(ServerLevel var1, CompoundTag var2) {
-          super(StructurePieceType.MINE_SHAFT_STAIRS, var2);
-       }
- 
+-         super(StructurePieceType.MINE_SHAFT_STAIRS, var2);
+-      }
+-
 -      public static BoundingBox findStairs(List<StructurePiece> var0, Random var1, int var2, int var3, int var4, Direction var5) {
 -         BoundingBox var6 = new BoundingBox(var2, var3 - 5, var4, var2, var3 + 3 - 1, var4);
-+      @Nullable
-+      public static BoundingBox findStairs(StructurePieceAccessor var0, Random var1, int var2, int var3, int var4, Direction var5) {
-+         BoundingBox var6;
-          switch(var5) {
-          case NORTH:
-          default:
+-         switch(var5) {
+-         case NORTH:
+-         default:
 -            var6.x1 = var2 + 3 - 1;
 -            var6.z0 = var4 - 8;
-+            var6 = new BoundingBox(0, -5, -8, 2, 2, 0);
-             break;
-          case SOUTH:
+-            break;
+-         case SOUTH:
 -            var6.x1 = var2 + 3 - 1;
 -            var6.z1 = var4 + 8;
-+            var6 = new BoundingBox(0, -5, 0, 2, 2, 8);
-             break;
-          case WEST:
+-            break;
+-         case WEST:
 -            var6.x0 = var2 - 8;
 -            var6.z1 = var4 + 3 - 1;
-+            var6 = new BoundingBox(-8, -5, 0, 0, 2, 2);
-             break;
-          case EAST:
+-            break;
+-         case EAST:
 -            var6.x1 = var2 + 8;
 -            var6.z1 = var4 + 3 - 1;
-+            var6 = new BoundingBox(0, -5, 0, 8, 2, 2);
-          }
- 
+-         }
+-
 -         return StructurePiece.findCollisionPiece(var0, var6) != null ? null : var6;
-+         var6.move(var2, var3, var4);
-+         return var0.findCollisionPiece(var6) != null ? null : var6;
-       }
- 
+-      }
+-
 -      public void addChildren(StructurePiece var1, List<StructurePiece> var2, Random var3) {
-+      public void addChildren(StructurePiece var1, StructurePieceAccessor var2, Random var3) {
-          int var4 = this.getGenDepth();
-          Direction var5 = this.getOrientation();
-          if (var5 != null) {
-             switch(var5) {
-             case NORTH:
-             default:
+-         int var4 = this.getGenDepth();
+-         Direction var5 = this.getOrientation();
+-         if (var5 != null) {
+-            switch(var5) {
+-            case NORTH:
+-            default:
 -               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.x0, this.boundingBox.y0, this.boundingBox.z0 - 1, Direction.NORTH, var4);
-+               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.minX(), this.boundingBox.minY(), this.boundingBox.minZ() - 1, Direction.NORTH, var4);
-                break;
-             case SOUTH:
+-               break;
+-            case SOUTH:
 -               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.x0, this.boundingBox.y0, this.boundingBox.z1 + 1, Direction.SOUTH, var4);
-+               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.minX(), this.boundingBox.minY(), this.boundingBox.maxZ() + 1, Direction.SOUTH, var4);
-                break;
-             case WEST:
+-               break;
+-            case WEST:
 -               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.x0 - 1, this.boundingBox.y0, this.boundingBox.z0, Direction.WEST, var4);
-+               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.minX() - 1, this.boundingBox.minY(), this.boundingBox.minZ(), Direction.WEST, var4);
-                break;
-             case EAST:
+-               break;
+-            case EAST:
 -               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.x1 + 1, this.boundingBox.y0, this.boundingBox.z0, Direction.EAST, var4);
-+               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.maxX() + 1, this.boundingBox.minY(), this.boundingBox.minZ(), Direction.EAST, var4);
-             }
-          }
- 
-       }
- 
-@@ -146,142 +161,137 @@
- 
+-            }
+-         }
+-
+-      }
+-
+-      public boolean postProcess(WorldGenLevel var1, StructureFeatureManager var2, ChunkGenerator var3, Random var4, BoundingBox var5, ChunkPos var6, BlockPos var7) {
+-         if (this.edgesLiquid(var1, var5)) {
+-            return false;
+-         } else {
+-            this.generateBox(var1, var5, 0, 5, 0, 2, 7, 1, CAVE_AIR, CAVE_AIR, false);
+-            this.generateBox(var1, var5, 0, 0, 7, 2, 2, 8, CAVE_AIR, CAVE_AIR, false);
+-
+-            for(int var8 = 0; var8 < 5; ++var8) {
+-               this.generateBox(var1, var5, 0, 5 - var8 - (var8 < 4 ? 1 : 0), 2 + var8, 2, 7 - var8, 2 + var8, CAVE_AIR, CAVE_AIR, false);
+-            }
+-
+-            return true;
+-         }
+-      }
+-   }
+-
     public static class MineShaftCrossing extends MineShaftPieces.MineShaftPiece {
        private final Direction direction;
        private final boolean isTwoFloored;
@@ -356,7 +355,77 @@
        }
     }
  
-@@ -289,146 +299,141 @@
++   public static class MineShaftStairs extends MineShaftPieces.MineShaftPiece {
++      public MineShaftStairs(int var1, BoundingBox var2, Direction var3, MineshaftFeature.Type var4) {
++         super(StructurePieceType.MINE_SHAFT_STAIRS, var1, var4, var2);
++         this.setOrientation(var3);
++      }
++
++      public MineShaftStairs(ServerLevel var1, CompoundTag var2) {
++         super(StructurePieceType.MINE_SHAFT_STAIRS, var2);
++      }
++
++      @Nullable
++      public static BoundingBox findStairs(StructurePieceAccessor var0, Random var1, int var2, int var3, int var4, Direction var5) {
++         BoundingBox var6;
++         switch(var5) {
++         case NORTH:
++         default:
++            var6 = new BoundingBox(0, -5, -8, 2, 2, 0);
++            break;
++         case SOUTH:
++            var6 = new BoundingBox(0, -5, 0, 2, 2, 8);
++            break;
++         case WEST:
++            var6 = new BoundingBox(-8, -5, 0, 0, 2, 2);
++            break;
++         case EAST:
++            var6 = new BoundingBox(0, -5, 0, 8, 2, 2);
++         }
++
++         var6.move(var2, var3, var4);
++         return var0.findCollisionPiece(var6) != null ? null : var6;
++      }
++
++      public void addChildren(StructurePiece var1, StructurePieceAccessor var2, Random var3) {
++         int var4 = this.getGenDepth();
++         Direction var5 = this.getOrientation();
++         if (var5 != null) {
++            switch(var5) {
++            case NORTH:
++            default:
++               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.minX(), this.boundingBox.minY(), this.boundingBox.minZ() - 1, Direction.NORTH, var4);
++               break;
++            case SOUTH:
++               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.minX(), this.boundingBox.minY(), this.boundingBox.maxZ() + 1, Direction.SOUTH, var4);
++               break;
++            case WEST:
++               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.minX() - 1, this.boundingBox.minY(), this.boundingBox.minZ(), Direction.WEST, var4);
++               break;
++            case EAST:
++               MineShaftPieces.generateAndAddPiece(var1, var2, var3, this.boundingBox.maxX() + 1, this.boundingBox.minY(), this.boundingBox.minZ(), Direction.EAST, var4);
++            }
++         }
++
++      }
++
++      public boolean postProcess(WorldGenLevel var1, StructureFeatureManager var2, ChunkGenerator var3, Random var4, BoundingBox var5, ChunkPos var6, BlockPos var7) {
++         if (this.edgesLiquid(var1, var5)) {
++            return false;
++         } else {
++            this.generateBox(var1, var5, 0, 5, 0, 2, 7, 1, CAVE_AIR, CAVE_AIR, false);
++            this.generateBox(var1, var5, 0, 0, 7, 2, 2, 8, CAVE_AIR, CAVE_AIR, false);
++
++            for(int var8 = 0; var8 < 5; ++var8) {
++               this.generateBox(var1, var5, 0, 5 - var8 - (var8 < 4 ? 1 : 0), 2 + var8, 2, 7 - var8, 2 + var8, CAVE_AIR, CAVE_AIR, false);
++            }
++
++            return true;
++         }
++      }
++   }
++
+    public static class MineShaftCorridor extends MineShaftPieces.MineShaftPiece {
        private final boolean hasRails;
        private final boolean spiderCorridor;
        private boolean hasPlacedSpider;
@@ -544,7 +613,7 @@
              this.placeBlock(var1, var9, var4, var5, var6, var2);
              MinecartChest var10 = new MinecartChest(var1.getLevel(), (double)var8.getX() + 0.5D, (double)var8.getY() + 0.5D, (double)var8.getZ() + 0.5D);
              var10.setLootTable(var7, var3.nextLong());
-@@ -446,11 +451,11 @@
+@@ -446,11 +452,11 @@
              boolean var8 = false;
              boolean var9 = true;
              boolean var10 = false;
@@ -557,7 +626,32 @@
              if (this.spiderCorridor) {
                 this.generateMaybeBox(var1, var5, var4, 0.6F, 0, 0, 0, 2, 1, var12, Blocks.COBWEB.defaultBlockState(), CAVE_AIR, false, true);
              }
-@@ -475,99 +480,184 @@
+@@ -458,74 +464,160 @@
+             int var14;
+             int var15;
+             for(var14 = 0; var14 < this.numSections; ++var14) {
+                var15 = 2 + var14 * 5;
+                this.placeSupport(var1, var5, 0, 0, var15, 2, 2, var4);
+-               this.placeCobWeb(var1, var5, var4, 0.1F, 0, 2, var15 - 1);
+-               this.placeCobWeb(var1, var5, var4, 0.1F, 2, 2, var15 - 1);
+-               this.placeCobWeb(var1, var5, var4, 0.1F, 0, 2, var15 + 1);
+-               this.placeCobWeb(var1, var5, var4, 0.1F, 2, 2, var15 + 1);
+-               this.placeCobWeb(var1, var5, var4, 0.05F, 0, 2, var15 - 2);
+-               this.placeCobWeb(var1, var5, var4, 0.05F, 2, 2, var15 - 2);
+-               this.placeCobWeb(var1, var5, var4, 0.05F, 0, 2, var15 + 2);
+-               this.placeCobWeb(var1, var5, var4, 0.05F, 2, 2, var15 + 2);
++               this.maybePlaceCobWeb(var1, var5, var4, 0.1F, 0, 2, var15 - 1);
++               this.maybePlaceCobWeb(var1, var5, var4, 0.1F, 2, 2, var15 - 1);
++               this.maybePlaceCobWeb(var1, var5, var4, 0.1F, 0, 2, var15 + 1);
++               this.maybePlaceCobWeb(var1, var5, var4, 0.1F, 2, 2, var15 + 1);
++               this.maybePlaceCobWeb(var1, var5, var4, 0.05F, 0, 2, var15 - 2);
++               this.maybePlaceCobWeb(var1, var5, var4, 0.05F, 2, 2, var15 - 2);
++               this.maybePlaceCobWeb(var1, var5, var4, 0.05F, 0, 2, var15 + 2);
++               this.maybePlaceCobWeb(var1, var5, var4, 0.05F, 2, 2, var15 + 2);
+                if (var4.nextInt(100) == 0) {
+                   this.createChest(var1, var5, var4, 2, 0, var15 - 1, BuiltInLootTables.ABANDONED_MINESHAFT);
+                }
+ 
                 if (var4.nextInt(100) == 0) {
                    this.createChest(var1, var5, var4, 0, 0, var15 + 1, BuiltInLootTables.ABANDONED_MINESHAFT);
                 }
@@ -618,7 +712,7 @@
 +                  BlockState var23 = this.getBlock(var1, 1, -1, var22, var5);
 +                  if (!var23.isAir() && var23.isSolidRender(var1, this.getWorldPos(1, -1, var22))) {
 +                     float var24 = this.isInterior(var1, 1, 0, var22, var5) ? 0.7F : 0.9F;
-+                     this.maybeGenerateBlock(var1, var5, var4, var24, 1, 0, var22, var21, false);
++                     this.maybeGenerateBlock(var1, var5, var4, var24, 1, 0, var22, var21);
                    }
                 }
              }
@@ -724,26 +818,139 @@
              if (var8.nextInt(4) == 0) {
                 this.generateBox(var1, var2, var3, var6, var5, var3, var6, var5, var9, CAVE_AIR, false);
                 this.generateBox(var1, var2, var7, var6, var5, var7, var6, var5, var9, CAVE_AIR, false);
-             } else {
-                this.generateBox(var1, var2, var3, var6, var5, var7, var6, var5, var9, CAVE_AIR, false);
--               this.maybeGenerateBlock(var1, var2, var8, 0.05F, var3 + 1, var6, var5 - 1, (BlockState)Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.NORTH));
--               this.maybeGenerateBlock(var1, var2, var8, 0.05F, var3 + 1, var6, var5 + 1, (BlockState)Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.SOUTH));
-+               this.maybeGenerateBlock(var1, var2, var8, 0.05F, var3 + 1, var6, var5 - 1, (BlockState)Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.NORTH), false);
-+               this.maybeGenerateBlock(var1, var2, var8, 0.05F, var3 + 1, var6, var5 + 1, (BlockState)Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.SOUTH), false);
+@@ -536,38 +628,154 @@
              }
  
           }
        }
  
-       private void placeCobWeb(WorldGenLevel var1, BoundingBox var2, Random var3, float var4, int var5, int var6, int var7) {
-          if (this.isInterior(var1, var5, var6, var7, var2)) {
+-      private void placeCobWeb(WorldGenLevel var1, BoundingBox var2, Random var3, float var4, int var5, int var6, int var7) {
+-         if (this.isInterior(var1, var5, var6, var7, var2)) {
 -            this.maybeGenerateBlock(var1, var2, var3, var4, var5, var6, var7, Blocks.COBWEB.defaultBlockState());
-+            this.maybeGenerateBlock(var1, var2, var3, var4, var5, var6, var7, Blocks.COBWEB.defaultBlockState(), true);
++      private void maybePlaceCobWeb(WorldGenLevel var1, BoundingBox var2, Random var3, float var4, int var5, int var6, int var7) {
++         if (this.isInterior(var1, var5, var6, var7, var2) && var3.nextFloat() < var4 && this.hasSturdyNeighbours(var1, var2, var5, var6, var7, 2)) {
++            this.placeBlock(var1, Blocks.COBWEB.defaultBlockState(), var5, var6, var7, var2);
           }
  
        }
++
++      private boolean hasSturdyNeighbours(WorldGenLevel var1, BoundingBox var2, int var3, int var4, int var5, int var6) {
++         BlockPos.MutableBlockPos var7 = this.getWorldPos(var3, var4, var5);
++         int var8 = 0;
++         Direction[] var9 = Direction.values();
++         int var10 = var9.length;
++
++         for(int var11 = 0; var11 < var10; ++var11) {
++            Direction var12 = var9[var11];
++            var7.move(var12);
++            if (var2.isInside(var7) && var1.getBlockState(var7).isFaceSturdy(var1, var7, var12.getOpposite())) {
++               ++var8;
++               if (var8 >= var6) {
++                  return true;
++               }
++            }
++
++            var7.move(var12.getOpposite());
++         }
++
++         return false;
++      }
     }
  
++   private abstract static class MineShaftPiece extends StructurePiece {
++      protected MineshaftFeature.Type type;
++
++      public MineShaftPiece(StructurePieceType var1, int var2, MineshaftFeature.Type var3, BoundingBox var4) {
++         super(var1, var2, var4);
++         this.type = var3;
++      }
++
++      public MineShaftPiece(StructurePieceType var1, CompoundTag var2) {
++         super(var1, var2);
++         this.type = MineshaftFeature.Type.byId(var2.getInt("MST"));
++      }
++
++      protected boolean canBeReplaced(LevelReader var1, int var2, int var3, int var4, BoundingBox var5) {
++         BlockState var6 = this.getBlock(var1, var2, var3, var4, var5);
++         return !var6.is(this.type.getPlanksState().getBlock()) && !var6.is(this.type.getWoodState().getBlock()) && !var6.is(this.type.getFenceState().getBlock()) && !var6.is(Blocks.CHAIN);
++      }
++
++      protected void addAdditionalSaveData(ServerLevel var1, CompoundTag var2) {
++         var2.putInt("MST", this.type.ordinal());
++      }
++
++      protected boolean isSupportingBox(BlockGetter var1, BoundingBox var2, int var3, int var4, int var5, int var6) {
++         for(int var7 = var3; var7 <= var4; ++var7) {
++            if (this.getBlock(var1, var7, var5 + 1, var6, var2).isAir()) {
++               return false;
++            }
++         }
++
++         return true;
++      }
++
++      protected boolean edgesLiquid(BlockGetter var1, BoundingBox var2) {
++         int var3 = Math.max(this.boundingBox.minX() - 1, var2.minX());
++         int var4 = Math.max(this.boundingBox.minY() - 1, var2.minY());
++         int var5 = Math.max(this.boundingBox.minZ() - 1, var2.minZ());
++         int var6 = Math.min(this.boundingBox.maxX() + 1, var2.maxX());
++         int var7 = Math.min(this.boundingBox.maxY() + 1, var2.maxY());
++         int var8 = Math.min(this.boundingBox.maxZ() + 1, var2.maxZ());
++         BlockPos.MutableBlockPos var9 = new BlockPos.MutableBlockPos();
++
++         int var10;
++         int var11;
++         for(var10 = var3; var10 <= var6; ++var10) {
++            for(var11 = var5; var11 <= var8; ++var11) {
++               if (var1.getBlockState(var9.set(var10, var4, var11)).getMaterial().isLiquid()) {
++                  return true;
++               }
++
++               if (var1.getBlockState(var9.set(var10, var7, var11)).getMaterial().isLiquid()) {
++                  return true;
++               }
++            }
++         }
++
++         for(var10 = var3; var10 <= var6; ++var10) {
++            for(var11 = var4; var11 <= var7; ++var11) {
++               if (var1.getBlockState(var9.set(var10, var11, var5)).getMaterial().isLiquid()) {
++                  return true;
++               }
++
++               if (var1.getBlockState(var9.set(var10, var11, var8)).getMaterial().isLiquid()) {
++                  return true;
++               }
++            }
++         }
++
++         for(var10 = var5; var10 <= var8; ++var10) {
++            for(var11 = var4; var11 <= var7; ++var11) {
++               if (var1.getBlockState(var9.set(var3, var11, var10)).getMaterial().isLiquid()) {
++                  return true;
++               }
++
++               if (var1.getBlockState(var9.set(var6, var11, var10)).getMaterial().isLiquid()) {
++                  return true;
++               }
++            }
++         }
++
++         return false;
++      }
++
++      protected void setPlanksBlock(WorldGenLevel var1, BoundingBox var2, BlockState var3, int var4, int var5, int var6) {
++         if (this.isInterior(var1, var4, var5, var6, var2)) {
++            BlockPos.MutableBlockPos var7 = this.getWorldPos(var4, var5, var6);
++            BlockState var8 = var1.getBlockState(var7);
++            if (var8.isAir() || var8.is(Blocks.CHAIN)) {
++               var1.setBlock(var7, var3, 2);
++            }
++
++         }
++      }
++   }
++
     public static class MineShaftRoom extends MineShaftPieces.MineShaftPiece {
        private final List<BoundingBox> childEntranceBoxes = Lists.newLinkedList();
  
@@ -765,9 +972,10 @@
 -
 +         DataResult var10000 = BoundingBox.CODEC.listOf().parse(NbtOps.INSTANCE, var2.getList("Entrances", 11));
 +         Logger var10001 = MineShaftPieces.LOGGER;
-+         var10001.getClass();
++         Objects.requireNonNull(var10001);
 +         Optional var3 = var10000.resultOrPartial(var10001::error);
 +         List var4 = this.childEntranceBoxes;
++         Objects.requireNonNull(var4);
 +         var3.ifPresent(var4::addAll);
        }
  
@@ -778,7 +986,7 @@
           if (var6 <= 0) {
              var6 = 1;
           }
-@@ -579,72 +669,72 @@
+@@ -579,72 +787,72 @@
              var5 += var3.nextInt(this.boundingBox.getXSpan());
              if (var5 + 3 > this.boundingBox.getXSpan()) {
                 break;
@@ -863,7 +1071,7 @@
        }
  
        public void move(int var1, int var2, int var3) {
-@@ -656,67 +746,110 @@
+@@ -656,67 +864,16 @@
              var5.move(var1, var2, var3);
           }
  
@@ -884,35 +1092,30 @@
 +         super.addAdditionalSaveData(var1, var2);
 +         DataResult var10000 = BoundingBox.CODEC.listOf().encodeStart(NbtOps.INSTANCE, this.childEntranceBoxes);
 +         Logger var10001 = MineShaftPieces.LOGGER;
-+         var10001.getClass();
++         Objects.requireNonNull(var10001);
 +         var10000.resultOrPartial(var10001::error).ifPresent((var1x) -> {
 +            var2.put("Entrances", var1x);
 +         });
        }
     }
- 
-    abstract static class MineShaftPiece extends StructurePiece {
-       protected MineshaftFeature.Type type;
- 
+-
+-   abstract static class MineShaftPiece extends StructurePiece {
+-      protected MineshaftFeature.Type type;
+-
 -      public MineShaftPiece(StructurePieceType var1, int var2, MineshaftFeature.Type var3) {
 -         super(var1, var2);
-+      public MineShaftPiece(StructurePieceType var1, int var2, MineshaftFeature.Type var3, BoundingBox var4) {
-+         super(var1, var2, var4);
-          this.type = var3;
-       }
- 
-       public MineShaftPiece(StructurePieceType var1, CompoundTag var2) {
-          super(var1, var2);
-          this.type = MineshaftFeature.Type.byId(var2.getInt("MST"));
-       }
- 
+-         this.type = var3;
+-      }
+-
+-      public MineShaftPiece(StructurePieceType var1, CompoundTag var2) {
+-         super(var1, var2);
+-         this.type = MineshaftFeature.Type.byId(var2.getInt("MST"));
+-      }
+-
 -      protected void addAdditionalSaveData(CompoundTag var1) {
 -         var1.putInt("MST", this.type.ordinal());
-+      protected boolean canBeReplaced(LevelReader var1, int var2, int var3, int var4, BoundingBox var5) {
-+         BlockState var6 = this.getBlock(var1, var2, var3, var4, var5);
-+         return !var6.is(this.type.getPlanksState().getBlock()) && !var6.is(this.type.getWoodState().getBlock()) && !var6.is(this.type.getFenceState().getBlock()) && !var6.is(Blocks.CHAIN);
-       }
- 
+-      }
+-
 -      protected BlockState getPlanksBlock() {
 -         switch(this.type) {
 -         case NORMAL:
@@ -921,10 +1124,8 @@
 -         case MESA:
 -            return Blocks.DARK_OAK_PLANKS.defaultBlockState();
 -         }
-+      protected void addAdditionalSaveData(ServerLevel var1, CompoundTag var2) {
-+         var2.putInt("MST", this.type.ordinal());
-       }
- 
+-      }
+-
 -      protected BlockState getFenceBlock() {
 -         switch(this.type) {
 -         case NORMAL:
@@ -935,75 +1136,14 @@
 -         }
 -      }
 -
-       protected boolean isSupportingBox(BlockGetter var1, BoundingBox var2, int var3, int var4, int var5, int var6) {
-          for(int var7 = var3; var7 <= var4; ++var7) {
-             if (this.getBlock(var1, var7, var5 + 1, var6, var2).isAir()) {
-                return false;
-             }
-          }
- 
-          return true;
-       }
-+
-+      protected boolean edgesLiquid(BlockGetter var1, BoundingBox var2) {
-+         int var3 = Math.max(this.boundingBox.minX() - 1, var2.minX());
-+         int var4 = Math.max(this.boundingBox.minY() - 1, var2.minY());
-+         int var5 = Math.max(this.boundingBox.minZ() - 1, var2.minZ());
-+         int var6 = Math.min(this.boundingBox.maxX() + 1, var2.maxX());
-+         int var7 = Math.min(this.boundingBox.maxY() + 1, var2.maxY());
-+         int var8 = Math.min(this.boundingBox.maxZ() + 1, var2.maxZ());
-+         BlockPos.MutableBlockPos var9 = new BlockPos.MutableBlockPos();
-+
-+         int var10;
-+         int var11;
-+         for(var10 = var3; var10 <= var6; ++var10) {
-+            for(var11 = var5; var11 <= var8; ++var11) {
-+               if (var1.getBlockState(var9.set(var10, var4, var11)).getMaterial().isLiquid()) {
-+                  return true;
-+               }
-+
-+               if (var1.getBlockState(var9.set(var10, var7, var11)).getMaterial().isLiquid()) {
-+                  return true;
-+               }
-+            }
-+         }
-+
-+         for(var10 = var3; var10 <= var6; ++var10) {
-+            for(var11 = var4; var11 <= var7; ++var11) {
-+               if (var1.getBlockState(var9.set(var10, var11, var5)).getMaterial().isLiquid()) {
-+                  return true;
-+               }
-+
-+               if (var1.getBlockState(var9.set(var10, var11, var8)).getMaterial().isLiquid()) {
-+                  return true;
-+               }
-+            }
-+         }
-+
-+         for(var10 = var5; var10 <= var8; ++var10) {
-+            for(var11 = var4; var11 <= var7; ++var11) {
-+               if (var1.getBlockState(var9.set(var3, var11, var10)).getMaterial().isLiquid()) {
-+                  return true;
-+               }
-+
-+               if (var1.getBlockState(var9.set(var6, var11, var10)).getMaterial().isLiquid()) {
-+                  return true;
-+               }
-+            }
-+         }
-+
-+         return false;
-+      }
-+
-+      protected void setPlanksBlock(WorldGenLevel var1, BoundingBox var2, BlockState var3, int var4, int var5, int var6) {
-+         if (this.isInterior(var1, var4, var5, var6, var2)) {
-+            BlockPos.MutableBlockPos var7 = this.getWorldPos(var4, var5, var6);
-+            BlockState var8 = var1.getBlockState(var7);
-+            if (var8.isAir() || var8.is(Blocks.CHAIN)) {
-+               var1.setBlock(var7, var3, 2);
-+            }
-+
-+         }
-+      }
-    }
+-      protected boolean isSupportingBox(BlockGetter var1, BoundingBox var2, int var3, int var4, int var5, int var6) {
+-         for(int var7 = var3; var7 <= var4; ++var7) {
+-            if (this.getBlock(var1, var7, var5 + 1, var6, var2).isAir()) {
+-               return false;
+-            }
+-         }
+-
+-         return true;
+-      }
+-   }
  }

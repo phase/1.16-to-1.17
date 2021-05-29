@@ -1,6 +1,12 @@
 --- net/minecraft/server/Main.java
 +++ net/minecraft/server/Main.java
-@@ -25,16 +25,18 @@
+@@ -20,21 +20,24 @@
+ import joptsimple.OptionParser;
+ import joptsimple.OptionSet;
+ import joptsimple.OptionSpecBuilder;
+ import net.minecraft.CrashReport;
+ import net.minecraft.DefaultUncaughtExceptionHandler;
++import net.minecraft.SharedConstants;
  import net.minecraft.Util;
  import net.minecraft.commands.Commands;
  import net.minecraft.core.RegistryAccess;
@@ -19,7 +25,7 @@
  import net.minecraft.server.packs.repository.PackSource;
  import net.minecraft.server.packs.repository.RepositorySource;
  import net.minecraft.server.packs.repository.ServerPacksSource;
-@@ -48,10 +50,11 @@
+@@ -48,10 +51,11 @@
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelSettings;
  import net.minecraft.world.level.levelgen.WorldGenSettings;
@@ -31,7 +37,7 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
-@@ -59,10 +62,11 @@
+@@ -59,11 +63,13 @@
     private static final Logger LOGGER = LogManager.getLogger();
  
     public Main() {
@@ -39,13 +45,20 @@
  
 +   @DontObfuscate
     public static void main(String[] var0) {
++      SharedConstants.tryDetectVersion();
        OptionParser var1 = new OptionParser();
        OptionSpecBuilder var2 = var1.accepts("nogui");
        OptionSpecBuilder var3 = var1.accepts("initSettings", "Initializes 'server.properties' and 'eula.txt', then quits");
        OptionSpecBuilder var4 = var1.accepts("demo");
-@@ -112,56 +116,62 @@
+       OptionSpecBuilder var5 = var1.accepts("bonusChest");
+@@ -108,60 +114,66 @@
+          File var22 = new File((String)var16.valueOf(var11));
+          YggdrasilAuthenticationService var23 = new YggdrasilAuthenticationService(Proxy.NO_PROXY);
+          MinecraftSessionService var24 = var23.createMinecraftSessionService();
+          GameProfileRepository var25 = var23.createProfileRepository();
           GameProfileCache var26 = new GameProfileCache(var25, new File(var22, MinecraftServer.USERID_CACHE_FILE.getName()));
-          String var27 = (String)Optional.ofNullable(var16.valueOf(var12)).orElse(var19.getProperties().levelName);
+-         String var27 = (String)Optional.ofNullable(var16.valueOf(var12)).orElse(var19.getProperties().levelName);
++         String var27 = (String)Optional.ofNullable((String)var16.valueOf(var12)).orElse(var19.getProperties().levelName);
           LevelStorageSource var28 = LevelStorageSource.createDefault(var22.toPath());
           LevelStorageSource.LevelStorageAccess var29 = var28.createAccess(var27);
           MinecraftServer.convertFromRegionFormatIfNeeded(var29);
@@ -54,7 +67,7 @@
 -         if (var31) {
 +         LevelSummary var30 = var29.getSummary();
 +         if (var30 != null && var30.isIncompatibleWorldHeight()) {
-+            LOGGER.info("Loading of old worlds is temporarily disabled.");
++            LOGGER.info("Loading of worlds with extended height is disabled.");
 +            return;
 +         }
 +
@@ -92,7 +105,7 @@
 -            LevelSettings var38;
 -            WorldGenSettings var39;
 +         var36.updateGlobals();
-+         RegistryReadOps var37 = RegistryReadOps.create(NbtOps.INSTANCE, (ResourceManager)var36.getResourceManager(), var17);
++         RegistryReadOps var37 = RegistryReadOps.createAndLoad(NbtOps.INSTANCE, (ResourceManager)var36.getResourceManager(), var17);
 +         Object var38 = var29.getDataTag(var37, var34);
 +         if (var38 == null) {
 +            LevelSettings var39;
@@ -133,7 +146,7 @@
              var17x.setDemo(var16.has(var4));
              var17x.setId((String)var16.valueOf(var14));
              boolean var18 = !var16.has(var2) && !var16.valuesOf(var15).contains("nogui");
-@@ -169,19 +179,19 @@
+@@ -169,19 +181,19 @@
                 var17x.showGui();
              }
  

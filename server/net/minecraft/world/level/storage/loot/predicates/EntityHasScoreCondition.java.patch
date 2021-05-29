@@ -18,11 +18,12 @@
  
  public class EntityHasScoreCondition implements LootItemCondition {
 -   private final Map<String, RandomValueBounds> scores;
-+   private final Map<String, IntRange> scores;
-    private final LootContext.EntityTarget entityTarget;
+-   private final LootContext.EntityTarget entityTarget;
++   final Map<String, IntRange> scores;
++   final LootContext.EntityTarget entityTarget;
  
 -   private EntityHasScoreCondition(Map<String, RandomValueBounds> var1, LootContext.EntityTarget var2) {
-+   private EntityHasScoreCondition(Map<String, IntRange> var1, LootContext.EntityTarget var2) {
++   EntityHasScoreCondition(Map<String, IntRange> var1, LootContext.EntityTarget var2) {
        this.scores = ImmutableMap.copyOf(var1);
        this.entityTarget = var2;
     }
@@ -41,7 +42,7 @@
     public boolean test(LootContext var1) {
        Entity var2 = (Entity)var1.getParamOrNull(this.entityTarget.getParam());
        if (var2 == null) {
-@@ -50,26 +53,30 @@
+@@ -50,26 +53,48 @@
              if (!var4.hasNext()) {
                 return true;
              }
@@ -73,25 +74,6 @@
 +      return new EntityHasScoreCondition.Builder(var0);
 +   }
 +
-    public static class Serializer implements net.minecraft.world.level.storage.loot.Serializer<EntityHasScoreCondition> {
-       public Serializer() {
-       }
- 
-       public void serialize(JsonObject var1, EntityHasScoreCondition var2, JsonSerializationContext var3) {
-@@ -90,12 +97,30 @@
-          LinkedHashMap var4 = Maps.newLinkedHashMap();
-          Iterator var5 = var3.iterator();
- 
-          while(var5.hasNext()) {
-             Entry var6 = (Entry)var5.next();
--            var4.put(var6.getKey(), GsonHelper.convertToObject((JsonElement)var6.getValue(), "score", var2, RandomValueBounds.class));
-+            var4.put(var6.getKey(), GsonHelper.convertToObject((JsonElement)var6.getValue(), "score", var2, IntRange.class));
-          }
- 
-          return new EntityHasScoreCondition(var4, (LootContext.EntityTarget)GsonHelper.getAsObject(var1, "entity", var2, LootContext.EntityTarget.class));
-       }
-    }
-+
 +   public static class Builder implements LootItemCondition.Builder {
 +      private final Map<String, IntRange> scores = Maps.newHashMap();
 +      private final LootContext.EntityTarget entityTarget;
@@ -109,4 +91,22 @@
 +         return new EntityHasScoreCondition(this.scores, this.entityTarget);
 +      }
 +   }
- }
++
+    public static class Serializer implements net.minecraft.world.level.storage.loot.Serializer<EntityHasScoreCondition> {
+       public Serializer() {
+       }
+ 
+       public void serialize(JsonObject var1, EntityHasScoreCondition var2, JsonSerializationContext var3) {
+@@ -90,11 +115,11 @@
+          LinkedHashMap var4 = Maps.newLinkedHashMap();
+          Iterator var5 = var3.iterator();
+ 
+          while(var5.hasNext()) {
+             Entry var6 = (Entry)var5.next();
+-            var4.put(var6.getKey(), GsonHelper.convertToObject((JsonElement)var6.getValue(), "score", var2, RandomValueBounds.class));
++            var4.put((String)var6.getKey(), (IntRange)GsonHelper.convertToObject((JsonElement)var6.getValue(), "score", var2, IntRange.class));
+          }
+ 
+          return new EntityHasScoreCondition(var4, (LootContext.EntityTarget)GsonHelper.getAsObject(var1, "entity", var2, LootContext.EntityTarget.class));
+       }
+    }

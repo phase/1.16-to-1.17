@@ -1,6 +1,6 @@
 --- com/mojang/realmsclient/gui/screens/RealmsDownloadLatestWorldScreen.java
 +++ com/mojang/realmsclient/gui/screens/RealmsDownloadLatestWorldScreen.java
-@@ -5,10 +5,11 @@
+@@ -5,28 +5,30 @@
  import com.mojang.blaze3d.systems.RenderSystem;
  import com.mojang.blaze3d.vertex.BufferBuilder;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -12,10 +12,13 @@
  import com.mojang.realmsclient.dto.WorldDownload;
  import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
  import java.util.ArrayList;
-@@ -17,10 +18,11 @@
++import java.util.Collection;
+ import java.util.Locale;
+ import java.util.concurrent.TimeUnit;
  import java.util.concurrent.locks.ReentrantLock;
- import java.util.stream.Collectors;
+-import java.util.stream.Collectors;
  import net.minecraft.Util;
++import net.minecraft.client.gui.chat.NarratorChatListener;
  import net.minecraft.client.gui.components.Button;
  import net.minecraft.client.gui.screens.Screen;
 +import net.minecraft.client.renderer.GameRenderer;
@@ -24,7 +27,81 @@
  import net.minecraft.network.chat.FormattedText;
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
-@@ -166,15 +168,16 @@
+-import net.minecraft.realms.NarrationHelper;
+ import net.minecraft.realms.RealmsScreen;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+ public class RealmsDownloadLatestWorldScreen extends RealmsScreen {
+@@ -54,10 +56,11 @@
+    private int dotIndex;
+    private boolean checked;
+    private final BooleanConsumer callback;
+ 
+    public RealmsDownloadLatestWorldScreen(Screen var1, WorldDownload var2, String var3, BooleanConsumer var4) {
++      super(NarratorChatListener.NO_TITLE);
+       this.callback = var4;
+       this.lastScreen = var1;
+       this.worldName = var3;
+       this.worldDownload = var2;
+       this.downloadStatus = new RealmsDownloadLatestWorldScreen.DownloadStatus();
+@@ -65,11 +68,11 @@
+       this.narrationRateLimiter = RateLimiter.create(0.10000000149011612D);
+    }
+ 
+    public void init() {
+       this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
+-      this.cancelButton = (Button)this.addButton(new Button(this.width / 2 - 100, this.height - 42, 200, 20, CommonComponents.GUI_CANCEL, (var1) -> {
++      this.cancelButton = (Button)this.addRenderableWidget(new Button(this.width / 2 - 100, this.height - 42, 200, 20, CommonComponents.GUI_CANCEL, (var1) -> {
+          this.cancelled = true;
+          this.backButtonClicked();
+       }));
+       this.checkDownloadSize();
+    }
+@@ -98,26 +101,30 @@
+ 
+    public void tick() {
+       super.tick();
+       ++this.animTick;
+       if (this.status != null && this.narrationRateLimiter.tryAcquire(1)) {
+-         ArrayList var1 = Lists.newArrayList();
+-         var1.add(this.downloadTitle);
+-         var1.add(this.status);
+-         if (this.progress != null) {
+-            var1.add(new TextComponent(this.progress + "%"));
+-            var1.add(new TextComponent(Unit.humanReadable(this.bytesPersSecond) + "/s"));
+-         }
++         Component var1 = this.createProgressNarrationMessage();
++         NarratorChatListener.INSTANCE.sayNow(var1);
++      }
+ 
+-         if (this.errorMessage != null) {
+-            var1.add(this.errorMessage);
+-         }
++   }
+ 
+-         String var2 = (String)var1.stream().map(Component::getString).collect(Collectors.joining("\n"));
+-         NarrationHelper.now(var2);
++   private Component createProgressNarrationMessage() {
++      ArrayList var1 = Lists.newArrayList();
++      var1.add(this.downloadTitle);
++      var1.add(this.status);
++      if (this.progress != null) {
++         var1.add(new TextComponent(this.progress + "%"));
++         var1.add(new TextComponent(Unit.humanReadable(this.bytesPersSecond) + "/s"));
+       }
+ 
++      if (this.errorMessage != null) {
++         var1.add(this.errorMessage);
++      }
++
++      return CommonComponents.joinLines((Collection)var1);
+    }
+ 
+    public boolean keyPressed(int var1, int var2, int var3) {
+       if (var1 == 256) {
+          this.cancelled = true;
+@@ -166,15 +173,16 @@
     }
  
     private void drawProgressBar(PoseStack var1) {

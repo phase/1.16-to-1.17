@@ -1,10 +1,12 @@
 --- net/minecraft/network/protocol/game/ClientboundResourcePackPacket.java
 +++ net/minecraft/network/protocol/game/ClientboundResourcePackPacket.java
-@@ -1,35 +1,49 @@
+@@ -1,35 +1,72 @@
  package net.minecraft.network.protocol.game;
  
 -import java.io.IOException;
++import javax.annotation.Nullable;
  import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.network.chat.Component;
  import net.minecraft.network.protocol.Packet;
  
  public class ClientboundResourcePackPacket implements Packet<ClientGamePacketListener> {
@@ -14,6 +16,8 @@
 +   private final String url;
 +   private final String hash;
 +   private final boolean required;
++   @Nullable
++   private final Component prompt;
  
 -   public ClientboundResourcePackPacket() {
 -   }
@@ -21,13 +25,14 @@
 -   public ClientboundResourcePackPacket(String var1, String var2) {
 -      this.url = var1;
 -      this.hash = var2;
-+   public ClientboundResourcePackPacket(String var1, String var2, boolean var3) {
++   public ClientboundResourcePackPacket(String var1, String var2, boolean var3, @Nullable Component var4) {
        if (var2.length() > 40) {
           throw new IllegalArgumentException("Hash is too long (max 40, was " + var2.length() + ")");
 +      } else {
 +         this.url = var1;
 +         this.hash = var2;
 +         this.required = var3;
++         this.prompt = var4;
        }
     }
  
@@ -37,6 +42,12 @@
 +      this.url = var1.readUtf();
        this.hash = var1.readUtf(40);
 +      this.required = var1.readBoolean();
++      if (var1.readBoolean()) {
++         this.prompt = var1.readComponent();
++      } else {
++         this.prompt = null;
++      }
++
     }
  
 -   public void write(FriendlyByteBuf var1) throws IOException {
@@ -44,6 +55,13 @@
        var1.writeUtf(this.url);
        var1.writeUtf(this.hash);
 +      var1.writeBoolean(this.required);
++      if (this.prompt != null) {
++         var1.writeBoolean(true);
++         var1.writeComponent(this.prompt);
++      } else {
++         var1.writeBoolean(false);
++      }
++
     }
  
     public void handle(ClientGamePacketListener var1) {
@@ -60,5 +78,10 @@
 +
 +   public boolean isRequired() {
 +      return this.required;
++   }
++
++   @Nullable
++   public Component getPrompt() {
++      return this.prompt;
 +   }
  }

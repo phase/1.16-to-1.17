@@ -1,6 +1,6 @@
 --- net/minecraft/client/gui/screens/worldselection/CreateWorldScreen.java
 +++ net/minecraft/client/gui/screens/worldselection/CreateWorldScreen.java
-@@ -16,10 +16,11 @@
+@@ -16,13 +16,16 @@
  import net.minecraft.FileUtil;
  import net.minecraft.Util;
  import net.minecraft.client.Minecraft;
@@ -8,11 +8,16 @@
  import net.minecraft.client.gui.components.Button;
 +import net.minecraft.client.gui.components.CycleButton;
  import net.minecraft.client.gui.components.EditBox;
++import net.minecraft.client.gui.components.Widget;
  import net.minecraft.client.gui.components.events.GuiEventListener;
  import net.minecraft.client.gui.components.toasts.SystemToast;
++import net.minecraft.client.gui.narration.NarratableEntry;
  import net.minecraft.client.gui.screens.ConfirmScreen;
  import net.minecraft.client.gui.screens.GenericDirtMessageScreen;
-@@ -34,10 +35,11 @@
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
+ import net.minecraft.client.resources.language.I18n;
+@@ -34,10 +37,11 @@
  import net.minecraft.network.chat.MutableComponent;
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.network.chat.TranslatableComponent;
@@ -24,7 +29,7 @@
  import net.minecraft.server.packs.repository.PackSource;
  import net.minecraft.server.packs.repository.RepositorySource;
  import net.minecraft.server.packs.repository.ServerPacksSource;
-@@ -53,10 +55,11 @@
+@@ -53,40 +57,40 @@
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  
@@ -36,9 +41,11 @@
     private static final Component SEED_INFO = new TranslatableComponent("selectWorld.seedInfo");
     private static final Component NAME_LABEL = new TranslatableComponent("selectWorld.enterName");
     private static final Component OUTPUT_DIR_INFO = new TranslatableComponent("selectWorld.resultFolder");
-@@ -65,28 +68,27 @@
+    private static final Component COMMANDS_INFO = new TranslatableComponent("selectWorld.allowCommands.info");
+    private final Screen lastScreen;
     private EditBox nameEdit;
-    private String resultFolder;
+-   private String resultFolder;
++   String resultFolder;
     private CreateWorldScreen.SelectedGameMode gameMode;
     @Nullable
     private CreateWorldScreen.SelectedGameMode oldGameMode;
@@ -70,7 +77,7 @@
     private String initName;
     private GameRules gameRules;
     public final WorldGenSettingsComponent worldGenSettingsComponent;
-@@ -94,12 +96,11 @@
+@@ -94,12 +98,11 @@
     public CreateWorldScreen(@Nullable Screen var1, LevelSettings var2, WorldGenSettings var3, @Nullable Path var4, DataPackConfig var5, RegistryAccess.RegistryHolder var6) {
        this(var1, var5, new WorldGenSettingsComponent(var6, var3, WorldPreset.of(var3), OptionalLong.of(var3.seed())));
        this.initName = var2.levelName();
@@ -84,7 +91,7 @@
           this.gameMode = CreateWorldScreen.SelectedGameMode.HARDCORE;
        } else if (var2.gameType().isSurvival()) {
           this.gameMode = CreateWorldScreen.SelectedGameMode.SURVIVAL;
-@@ -116,12 +117,11 @@
+@@ -116,12 +119,11 @@
     }
  
     private CreateWorldScreen(@Nullable Screen var1, DataPackConfig var2, WorldGenSettingsComponent var3) {
@@ -98,10 +105,24 @@
        this.initName = I18n.get("selectWorld.newWorld");
        this.dataPacks = var2;
        this.worldGenSettingsComponent = var3;
-@@ -146,54 +146,24 @@
+@@ -134,94 +136,68 @@
+ 
+    protected void init() {
+       this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
+       this.nameEdit = new EditBox(this.font, this.width / 2 - 100, 60, 200, 20, new TranslatableComponent("selectWorld.enterName")) {
+          protected MutableComponent createNarrationMessage() {
+-            return super.createNarrationMessage().append(". ").append((Component)(new TranslatableComponent("selectWorld.resultFolder"))).append(" ").append(CreateWorldScreen.this.resultFolder);
++            return CommonComponents.joinForNarration(super.createNarrationMessage(), new TranslatableComponent("selectWorld.resultFolder")).append(" ").append(CreateWorldScreen.this.resultFolder);
+          }
+       };
+       this.nameEdit.setValue(this.initName);
+       this.nameEdit.setResponder((var1x) -> {
+          this.initName = var1x;
+          this.createButton.active = !this.nameEdit.getValue().isEmpty();
           this.updateResultFolder();
        });
-       this.children.add(this.nameEdit);
+-      this.children.add(this.nameEdit);
++      this.addWidget(this.nameEdit);
        int var1 = this.width / 2 - 155;
        int var2 = this.width / 2 + 5;
 -      this.modeButton = (Button)this.addButton(new Button(var1, 100, 150, 20, TextComponent.EMPTY, (var1x) -> {
@@ -136,16 +157,16 @@
 -         }
 -      });
 -      this.commandsButton = (Button)this.addButton(new Button(var1, 151, 150, 20, new TranslatableComponent("selectWorld.allowCommands"), (var1x) -> {
-+      this.modeButton = (CycleButton)this.addButton(CycleButton.builder(CreateWorldScreen.SelectedGameMode::getDisplayName).withValues((Object[])(CreateWorldScreen.SelectedGameMode.SURVIVAL, CreateWorldScreen.SelectedGameMode.HARDCORE, CreateWorldScreen.SelectedGameMode.CREATIVE)).withInitialValue(this.gameMode).withCustomNarration((var1x) -> {
-+         return AbstractWidget.wrapDefaultNarrationMessage(var1x.getMessage()).append(". ").append(this.gameModeHelp1).append(" ").append(this.gameModeHelp2);
++      this.modeButton = (CycleButton)this.addRenderableWidget(CycleButton.builder(CreateWorldScreen.SelectedGameMode::getDisplayName).withValues((Object[])(CreateWorldScreen.SelectedGameMode.SURVIVAL, CreateWorldScreen.SelectedGameMode.HARDCORE, CreateWorldScreen.SelectedGameMode.CREATIVE)).withInitialValue(this.gameMode).withCustomNarration((var1x) -> {
++         return AbstractWidget.wrapDefaultNarrationMessage(var1x.getMessage()).append(CommonComponents.NARRATION_SEPARATOR).append(this.gameModeHelp1).append(" ").append(this.gameModeHelp2);
 +      }).create(var1, 100, 150, 20, GAME_MODEL_LABEL, (var1x, var2x) -> {
 +         this.setGameMode(var2x);
 +      }));
-+      this.difficultyButton = (CycleButton)this.addButton(CycleButton.builder(Difficulty::getDisplayName).withValues((Object[])Difficulty.values()).withInitialValue(this.getEffectiveDifficulty()).create(var2, 100, 150, 20, new TranslatableComponent("options.difficulty"), (var1x, var2x) -> {
++      this.difficultyButton = (CycleButton)this.addRenderableWidget(CycleButton.builder(Difficulty::getDisplayName).withValues((Object[])Difficulty.values()).withInitialValue(this.getEffectiveDifficulty()).create(var2, 100, 150, 20, new TranslatableComponent("options.difficulty"), (var1x, var2x) -> {
 +         this.difficulty = var2x;
 +      }));
-+      this.commandsButton = (CycleButton)this.addButton(CycleButton.onOffBuilder(this.commands && !this.hardCore).withCustomNarration((var0) -> {
-+         return var0.createDefaultNarrationMessage().append(". ").append((Component)(new TranslatableComponent("selectWorld.allowCommands.info")));
++      this.commandsButton = (CycleButton)this.addRenderableWidget(CycleButton.onOffBuilder(this.commands && !this.hardCore).withCustomNarration((var0) -> {
++         return CommonComponents.joinForNarration(var0.createDefaultNarrationMessage(), new TranslatableComponent("selectWorld.allowCommands.info"));
 +      }).create(var1, 151, 150, 20, new TranslatableComponent("selectWorld.allowCommands"), (var1x, var2x) -> {
           this.commandsChanged = true;
 -         this.commands = !this.commands;
@@ -159,27 +180,34 @@
 -            return super.createNarrationMessage().append(". ").append((Component)(new TranslatableComponent("selectWorld.allowCommands.info")));
 -         }
 -      });
+-      this.dataPacksButton = (Button)this.addButton(new Button(var2, 151, 150, 20, new TranslatableComponent("selectWorld.dataPacks"), (var1x) -> {
 +         this.commands = var2x;
 +      }));
-       this.dataPacksButton = (Button)this.addButton(new Button(var2, 151, 150, 20, new TranslatableComponent("selectWorld.dataPacks"), (var1x) -> {
++      this.dataPacksButton = (Button)this.addRenderableWidget(new Button(var2, 151, 150, 20, new TranslatableComponent("selectWorld.dataPacks"), (var1x) -> {
           this.openDataPackSelectionScreen();
        }));
-       this.gameRulesButton = (Button)this.addButton(new Button(var1, 185, 150, 20, new TranslatableComponent("selectWorld.gameRules"), (var1x) -> {
+-      this.gameRulesButton = (Button)this.addButton(new Button(var1, 185, 150, 20, new TranslatableComponent("selectWorld.gameRules"), (var1x) -> {
++      this.gameRulesButton = (Button)this.addRenderableWidget(new Button(var1, 185, 150, 20, new TranslatableComponent("selectWorld.gameRules"), (var1x) -> {
           this.minecraft.setScreen(new EditGameRulesScreen(this.gameRules.copy(), (var1) -> {
-@@ -203,25 +173,29 @@
+             this.minecraft.setScreen(this);
+             var1.ifPresent((var1x) -> {
+                this.gameRules = var1x;
              });
           }));
        }));
        this.worldGenSettingsComponent.init(this, this.minecraft, this.font);
-       this.moreOptionsButton = (Button)this.addButton(new Button(var2, 185, 150, 20, new TranslatableComponent("selectWorld.moreWorldOptions"), (var1x) -> {
+-      this.moreOptionsButton = (Button)this.addButton(new Button(var2, 185, 150, 20, new TranslatableComponent("selectWorld.moreWorldOptions"), (var1x) -> {
 -         this.toggleDisplayOptions();
++      this.moreOptionsButton = (Button)this.addRenderableWidget(new Button(var2, 185, 150, 20, new TranslatableComponent("selectWorld.moreWorldOptions"), (var1x) -> {
 +         this.toggleWorldGenSettingsVisibility();
        }));
-       this.createButton = (Button)this.addButton(new Button(var1, this.height - 28, 150, 20, new TranslatableComponent("selectWorld.create"), (var1x) -> {
+-      this.createButton = (Button)this.addButton(new Button(var1, this.height - 28, 150, 20, new TranslatableComponent("selectWorld.create"), (var1x) -> {
++      this.createButton = (Button)this.addRenderableWidget(new Button(var1, this.height - 28, 150, 20, new TranslatableComponent("selectWorld.create"), (var1x) -> {
           this.onCreate();
        }));
        this.createButton.active = !this.initName.isEmpty();
-       this.addButton(new Button(var2, this.height - 28, 150, 20, CommonComponents.GUI_CANCEL, (var1x) -> {
+-      this.addButton(new Button(var2, this.height - 28, 150, 20, CommonComponents.GUI_CANCEL, (var1x) -> {
++      this.addRenderableWidget(new Button(var2, this.height - 28, 150, 20, CommonComponents.GUI_CANCEL, (var1x) -> {
           this.popScreen();
        }));
 -      this.updateDisplayOptions();
@@ -198,7 +226,7 @@
        this.gameModeHelp2 = new TranslatableComponent("selectWorld.gameMode." + this.gameMode.name + ".line2");
     }
  
-@@ -258,52 +232,55 @@
+@@ -258,52 +234,55 @@
           if (var1.isDebug()) {
              GameRules var3 = new GameRules();
              ((GameRules.BooleanValue)var3.getRule(GameRules.RULE_DAYLIGHT)).set(false, (MinecraftServer)null);
@@ -267,7 +295,7 @@
           this.modeButton.active = false;
           if (this.oldGameMode == null) {
              this.oldGameMode = this.gameMode;
-@@ -315,23 +292,23 @@
+@@ -315,23 +294,23 @@
           this.modeButton.active = true;
           if (this.oldGameMode != null) {
              this.setGameMode(this.oldGameMode);
@@ -297,7 +325,7 @@
     public boolean keyPressed(int var1, int var2, int var3) {
        if (super.keyPressed(var1, var2, var3)) {
           return true;
-@@ -342,12 +319,12 @@
+@@ -342,12 +321,12 @@
           return true;
        }
     }
@@ -312,7 +340,7 @@
        }
  
     }
-@@ -366,11 +343,11 @@
+@@ -366,11 +345,11 @@
     }
  
     public void render(PoseStack var1, int var2, int var3, float var4) {
@@ -325,20 +353,253 @@
           this.worldGenSettingsComponent.render(var1, var2, var3, var4);
        } else {
           drawString(var1, this.font, NAME_LABEL, this.width / 2 - 100, 47, -6250336);
-@@ -427,11 +404,11 @@
+@@ -384,16 +363,16 @@
+       }
+ 
+       super.render(var1, var2, var3, var4);
+    }
+ 
+-   protected <T extends GuiEventListener> T addWidget(T var1) {
++   protected <T extends GuiEventListener & NarratableEntry> T addWidget(T var1) {
+       return super.addWidget(var1);
+    }
+ 
+-   protected <T extends AbstractWidget> T addButton(T var1) {
+-      return super.addButton(var1);
++   protected <T extends GuiEventListener & Widget & NarratableEntry> T addRenderableWidget(T var1) {
++      return super.addRenderableWidget(var1);
+    }
+ 
+    @Nullable
+    protected Path getTempDataPackDir() {
+       if (this.tempDataPackDir == null) {
+@@ -427,13 +406,17 @@
           this.dataPacks = var4;
        } else {
           this.minecraft.tell(() -> {
              this.minecraft.setScreen(new GenericDirtMessageScreen(new TranslatableComponent("dataPack.validation.working")));
           });
 -         ServerResources.loadResources(var1.openAllSelected(), Commands.CommandSelection.INTEGRATED, 2, Util.backgroundExecutor(), this.minecraft).handle((var2x, var3x) -> {
-+         ServerResources.loadResources(var1.openAllSelected(), this.worldGenSettingsComponent.registryHolder(), Commands.CommandSelection.INTEGRATED, 2, Util.backgroundExecutor(), this.minecraft).handle((var2x, var3x) -> {
-             if (var3x != null) {
-                LOGGER.warn("Failed to validate datapack", var3x);
+-            if (var3x != null) {
+-               LOGGER.warn("Failed to validate datapack", var3x);
++         ServerResources.loadResources(var1.openAllSelected(), this.worldGenSettingsComponent.registryHolder(), Commands.CommandSelection.INTEGRATED, 2, Util.backgroundExecutor(), this.minecraft).thenAcceptAsync((var2x) -> {
++            this.dataPacks = var4;
++            this.worldGenSettingsComponent.updateDataPacks(var2x);
++            var2x.close();
++         }, this.minecraft).handle((var1x, var2x) -> {
++            if (var2x != null) {
++               LOGGER.warn("Failed to validate datapack", var2x);
                 this.minecraft.tell(() -> {
                    this.minecraft.setScreen(new ConfirmScreen((var1) -> {
                       if (var1) {
-@@ -626,11 +603,11 @@
+                         this.openDataPackSelectionScreen();
+                      } else {
+@@ -443,13 +426,10 @@
+ 
+                   }, new TranslatableComponent("dataPack.validation.failed"), TextComponent.EMPTY, new TranslatableComponent("dataPack.validation.back"), new TranslatableComponent("dataPack.validation.reset")));
+                });
+             } else {
+                this.minecraft.tell(() -> {
+-                  this.dataPacks = var4;
+-                  this.worldGenSettingsComponent.updateDataPacks(var2x);
+-                  var2x.close();
+                   this.minecraft.setScreen(this);
+                });
+             }
+ 
+             return null;
+@@ -459,39 +439,36 @@
+ 
+    private void removeTempDataPackDir() {
+       if (this.tempDataPackDir != null) {
+          try {
+             Stream var1 = Files.walk(this.tempDataPackDir);
+-            Throwable var2 = null;
+ 
+             try {
+                var1.sorted(Comparator.reverseOrder()).forEach((var0) -> {
+                   try {
+                      Files.delete(var0);
+                   } catch (IOException var2) {
+                      LOGGER.warn("Failed to remove temporary file {}", var0, var2);
+                   }
+ 
+                });
+-            } catch (Throwable var12) {
+-               var2 = var12;
+-               throw var12;
+-            } finally {
++            } catch (Throwable var5) {
+                if (var1 != null) {
+-                  if (var2 != null) {
+-                     try {
+-                        var1.close();
+-                     } catch (Throwable var11) {
+-                        var2.addSuppressed(var11);
+-                     }
+-                  } else {
++                  try {
+                      var1.close();
++                  } catch (Throwable var4) {
++                     var5.addSuppressed(var4);
+                   }
+                }
+ 
++               throw var5;
+             }
+-         } catch (IOException var14) {
++
++            if (var1 != null) {
++               var1.close();
++            }
++         } catch (IOException var6) {
+             LOGGER.warn("Failed to list temporary dir {}", this.tempDataPackDir);
+          }
+ 
+          this.tempDataPackDir = null;
+       }
+@@ -509,60 +486,54 @@
+ 
+    private boolean copyTempDataPackDirToNewWorld() {
+       if (this.tempDataPackDir != null) {
+          try {
+             LevelStorageSource.LevelStorageAccess var1 = this.minecraft.getLevelSource().createAccess(this.resultFolder);
+-            Throwable var2 = null;
+ 
+             try {
+-               Stream var3 = Files.walk(this.tempDataPackDir);
+-               Throwable var4 = null;
++               Stream var2 = Files.walk(this.tempDataPackDir);
+ 
+                try {
+-                  Path var5 = var1.getLevelPath(LevelResource.DATAPACK_DIR);
+-                  Files.createDirectories(var5);
+-                  var3.filter((var1x) -> {
++                  Path var3 = var1.getLevelPath(LevelResource.DATAPACK_DIR);
++                  Files.createDirectories(var3);
++                  var2.filter((var1x) -> {
+                      return !var1x.equals(this.tempDataPackDir);
+                   }).forEach((var2x) -> {
+-                     copyBetweenDirs(this.tempDataPackDir, var5, var2x);
++                     copyBetweenDirs(this.tempDataPackDir, var3, var2x);
+                   });
+-               } catch (Throwable var29) {
+-                  var4 = var29;
+-                  throw var29;
+-               } finally {
+-                  if (var3 != null) {
+-                     if (var4 != null) {
+-                        try {
+-                           var3.close();
+-                        } catch (Throwable var28) {
+-                           var4.addSuppressed(var28);
+-                        }
+-                     } else {
+-                        var3.close();
++               } catch (Throwable var7) {
++                  if (var2 != null) {
++                     try {
++                        var2.close();
++                     } catch (Throwable var6) {
++                        var7.addSuppressed(var6);
+                      }
+                   }
+ 
++                  throw var7;
+                }
+-            } catch (Throwable var31) {
+-               var2 = var31;
+-               throw var31;
+-            } finally {
++
++               if (var2 != null) {
++                  var2.close();
++               }
++            } catch (Throwable var8) {
+                if (var1 != null) {
+-                  if (var2 != null) {
+-                     try {
+-                        var1.close();
+-                     } catch (Throwable var27) {
+-                        var2.addSuppressed(var27);
+-                     }
+-                  } else {
++                  try {
+                      var1.close();
++                  } catch (Throwable var5) {
++                     var8.addSuppressed(var5);
+                   }
+                }
+ 
++               throw var8;
+             }
+-         } catch (CreateWorldScreen.OperationFailedException | IOException var33) {
+-            LOGGER.warn("Failed to copy datapacks to world {}", this.resultFolder, var33);
++
++            if (var1 != null) {
++               var1.close();
++            }
++         } catch (CreateWorldScreen.OperationFailedException | IOException var9) {
++            LOGGER.warn("Failed to copy datapacks to world {}", this.resultFolder, var9);
+             SystemToast.onPackCopyFailure(this.minecraft, this.resultFolder);
+             this.popScreen();
+             return false;
+          }
+       }
+@@ -574,11 +545,10 @@
+    public static Path createTempDataPackDirFromExistingWorld(Path var0, Minecraft var1) {
+       MutableObject var2 = new MutableObject();
+ 
+       try {
+          Stream var3 = Files.walk(var0);
+-         Throwable var4 = null;
+ 
+          try {
+             var3.filter((var1x) -> {
+                return !var1x.equals(var0);
+             }).forEach((var2x) -> {
+@@ -594,29 +564,27 @@
+                   var2.setValue(var3);
+                }
+ 
+                copyBetweenDirs(var0, var3, var2x);
+             });
+-         } catch (Throwable var14) {
+-            var4 = var14;
+-            throw var14;
+-         } finally {
++         } catch (Throwable var7) {
+             if (var3 != null) {
+-               if (var4 != null) {
+-                  try {
+-                     var3.close();
+-                  } catch (Throwable var13) {
+-                     var4.addSuppressed(var13);
+-                  }
+-               } else {
++               try {
+                   var3.close();
++               } catch (Throwable var6) {
++                  var7.addSuppressed(var6);
+                }
+             }
+ 
++            throw var7;
+          }
+-      } catch (CreateWorldScreen.OperationFailedException | IOException var16) {
+-         LOGGER.warn("Failed to copy datapacks from world {}", var0, var16);
++
++         if (var3 != null) {
++            var3.close();
++         }
++      } catch (CreateWorldScreen.OperationFailedException | IOException var8) {
++         LOGGER.warn("Failed to copy datapacks from world {}", var0, var8);
+          SystemToast.onPackCopyFailure(var1, var0.toString());
+          return null;
+       }
+ 
+       return (Path)var2.getValue();
+@@ -626,37 +594,43 @@
     private Pair<File, PackRepository> getDataPackSelectionSettings() {
        Path var1 = this.getTempDataPackDir();
        if (var1 != null) {
@@ -351,12 +612,28 @@
  
           this.tempDataPackRepository.setSelected(this.dataPacks.getEnabled());
           return Pair.of(var2, this.tempDataPackRepository);
-@@ -651,12 +628,18 @@
+       } else {
+          return null;
+       }
+    }
+ 
+-   static class OperationFailedException extends RuntimeException {
+-      public OperationFailedException(Throwable var1) {
+-         super(var1);
+-      }
+-   }
+-
+-   static enum SelectedGameMode {
++   private static enum SelectedGameMode {
+       SURVIVAL("survival", GameType.SURVIVAL),
+       HARDCORE("hardcore", GameType.SURVIVAL),
        CREATIVE("creative", GameType.CREATIVE),
        DEBUG("spectator", GameType.SPECTATOR);
  
-       private final String name;
-       private final GameType gameType;
+-      private final String name;
+-      private final GameType gameType;
++      final String name;
++      final GameType gameType;
 +      private final Component displayName;
  
        private SelectedGameMode(String var3, GameType var4) {
@@ -369,4 +646,10 @@
 +         return this.displayName;
 +      }
     }
++
++   private static class OperationFailedException extends RuntimeException {
++      public OperationFailedException(Throwable var1) {
++         super(var1);
++      }
++   }
  }

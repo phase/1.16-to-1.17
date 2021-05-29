@@ -1,6 +1,18 @@
 --- net/minecraft/client/resources/ClientPackSource.java
 +++ net/minecraft/client/resources/ClientPackSource.java
-@@ -24,10 +24,11 @@
+@@ -18,16 +18,23 @@
+ import java.util.regex.Pattern;
+ import javax.annotation.Nullable;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
+ import net.minecraft.client.Minecraft;
++import net.minecraft.client.gui.screens.ConfirmScreen;
++import net.minecraft.client.gui.screens.GenericDirtMessageScreen;
+ import net.minecraft.client.gui.screens.ProgressScreen;
++import net.minecraft.client.gui.screens.Screen;
++import net.minecraft.client.multiplayer.ClientPacketListener;
++import net.minecraft.network.chat.CommonComponents;
++import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.resources.ResourceLocation;
  import net.minecraft.server.packs.FilePackResources;
@@ -12,7 +24,7 @@
  import net.minecraft.server.packs.repository.Pack;
  import net.minecraft.server.packs.repository.PackCompatibility;
  import net.minecraft.server.packs.repository.PackSource;
-@@ -40,12 +41,19 @@
+@@ -40,12 +47,20 @@
  import org.apache.commons.io.filefilter.TrueFileFilter;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
@@ -29,12 +41,13 @@
 +   private static final String SERVER_ID = "server";
 +   private static final String PROGRAMMER_ART_ID = "programer_art";
 +   private static final String PROGRAMMER_ART_NAME = "Programmer Art";
++   private static final Component APPLYING_PACK_TEXT;
     private final VanillaPackResources vanillaPack;
     private final File serverPackDir;
     private final ReentrantLock downloadLock = new ReentrantLock();
     private final AssetIndex assetIndex;
     @Nullable
-@@ -54,11 +62,11 @@
+@@ -54,11 +69,11 @@
     private Pack serverPack;
  
     public ClientPackSource(File var1, AssetIndex var2) {
@@ -47,7 +60,7 @@
     public void loadPacks(Consumer<Pack> var1, Pack.PackConstructor var2) {
        Pack var3 = Pack.create("vanilla", true, () -> {
           return this.vanillaPack;
-@@ -86,11 +94,11 @@
+@@ -86,53 +101,78 @@
        HashMap var0 = Maps.newHashMap();
        var0.put("X-Minecraft-Username", Minecraft.getInstance().getUser().getName());
        var0.put("X-Minecraft-UUID", Minecraft.getInstance().getUser().getUuid());
@@ -59,8 +72,189 @@
        return var0;
     }
  
-    public CompletableFuture<?> downloadAndSelectResourcePack(String var1, String var2) {
-@@ -255,11 +263,11 @@
+-   public CompletableFuture<?> downloadAndSelectResourcePack(String var1, String var2) {
+-      String var3 = DigestUtils.sha1Hex(var1);
+-      String var4 = SHA1.matcher(var2).matches() ? var2 : "";
++   public CompletableFuture<?> downloadAndSelectResourcePack(String var1, String var2, boolean var3) {
++      String var4 = DigestUtils.sha1Hex(var1);
++      String var5 = SHA1.matcher(var2).matches() ? var2 : "";
+       this.downloadLock.lock();
+ 
+-      CompletableFuture var13;
++      CompletableFuture var14;
+       try {
+          this.clearServerPack();
+          this.clearOldDownloads();
+-         File var5 = new File(this.serverPackDir, var3);
+-         CompletableFuture var6;
+-         if (var5.exists()) {
+-            var6 = CompletableFuture.completedFuture("");
++         File var6 = new File(this.serverPackDir, var4);
++         CompletableFuture var7;
++         if (var6.exists()) {
++            var7 = CompletableFuture.completedFuture("");
+          } else {
+-            ProgressScreen var7 = new ProgressScreen();
+-            Map var8 = getDownloadHeaders();
+-            Minecraft var9 = Minecraft.getInstance();
+-            var9.executeBlocking(() -> {
+-               var9.setScreen(var7);
++            ProgressScreen var8 = new ProgressScreen(var3);
++            Map var9 = getDownloadHeaders();
++            Minecraft var10 = Minecraft.getInstance();
++            var10.executeBlocking(() -> {
++               var10.setScreen(var8);
+             });
+-            var6 = HttpUtil.downloadTo(var5, var1, var8, 104857600, var7, var9.getProxy());
++            var7 = HttpUtil.downloadTo(var6, var1, var9, 104857600, var8, var10.getProxy());
+          }
+ 
+-         this.currentDownload = var6.thenCompose((var3x) -> {
+-            return !this.checkHash(var4, var5) ? Util.failedFuture(new RuntimeException("Hash check failure for file " + var5 + ", see log")) : this.setServerPack(var5, PackSource.SERVER);
++         this.currentDownload = var7.thenCompose((var4x) -> {
++            if (!this.checkHash(var5, var6)) {
++               return Util.failedFuture(new RuntimeException("Hash check failure for file " + var6 + ", see log"));
++            } else {
++               Minecraft var5x = Minecraft.getInstance();
++               var5x.execute(() -> {
++                  if (!var3) {
++                     var5x.setScreen(new GenericDirtMessageScreen(APPLYING_PACK_TEXT));
++                  }
++
++               });
++               return this.setServerPack(var6, PackSource.SERVER);
++            }
+          }).whenComplete((var1x, var2x) -> {
+             if (var2x != null) {
+-               LOGGER.warn("Pack application failed: {}, deleting file {}", var2x.getMessage(), var5);
+-               deleteQuietly(var5);
++               LOGGER.warn("Pack application failed: {}, deleting file {}", var2x.getMessage(), var6);
++               deleteQuietly(var6);
++               Minecraft var3 = Minecraft.getInstance();
++               var3.execute(() -> {
++                  var3.setScreen(new ConfirmScreen((var1) -> {
++                     if (var1) {
++                        var3.setScreen((Screen)null);
++                     } else {
++                        ClientPacketListener var2 = var3.getConnection();
++                        if (var2 != null) {
++                           var2.getConnection().disconnect(new TranslatableComponent("connect.aborted"));
++                        }
++                     }
++
++                  }, new TranslatableComponent("multiplayer.texturePrompt.failure.line1"), new TranslatableComponent("multiplayer.texturePrompt.failure.line2"), CommonComponents.GUI_PROCEED, new TranslatableComponent("menu.disconnect")));
++               });
+             }
+ 
+          });
+-         var13 = this.currentDownload;
++         var14 = this.currentDownload;
+       } finally {
+          this.downloadLock.unlock();
+       }
+ 
+-      return var13;
++      return var14;
+    }
+ 
+    private static void deleteQuietly(File var0) {
+       try {
+          Files.delete(var0.toPath());
+@@ -162,33 +202,25 @@
+    }
+ 
+    private boolean checkHash(String var1, File var2) {
+       try {
+          FileInputStream var4 = new FileInputStream(var2);
+-         Throwable var5 = null;
+ 
+          String var3;
+          try {
+             var3 = DigestUtils.sha1Hex(var4);
+-         } catch (Throwable var15) {
+-            var5 = var15;
+-            throw var15;
+-         } finally {
+-            if (var4 != null) {
+-               if (var5 != null) {
+-                  try {
+-                     var4.close();
+-                  } catch (Throwable var14) {
+-                     var5.addSuppressed(var14);
+-                  }
+-               } else {
+-                  var4.close();
+-               }
++         } catch (Throwable var8) {
++            try {
++               var4.close();
++            } catch (Throwable var7) {
++               var8.addSuppressed(var7);
+             }
+ 
++            throw var8;
+          }
+ 
++         var4.close();
+          if (var1.isEmpty()) {
+             LOGGER.info("Found file {} without verification hash", var2);
+             return true;
+          }
+ 
+@@ -196,12 +228,12 @@
+             LOGGER.info("Found file {} matching requested hash {}", var2, var1);
+             return true;
+          }
+ 
+          LOGGER.warn("File {} had wrong hash (expected {}, found {}).", var2, var1, var3);
+-      } catch (IOException var17) {
+-         LOGGER.warn("File {} couldn't be hashed.", var2, var17);
++      } catch (IOException var9) {
++         LOGGER.warn("File {} couldn't be hashed.", var2, var9);
+       }
+ 
+       return false;
+    }
+ 
+@@ -227,39 +259,32 @@
+ 
+    public CompletableFuture<Void> setServerPack(File var1, PackSource var2) {
+       PackMetadataSection var3;
+       try {
+          FilePackResources var4 = new FilePackResources(var1);
+-         Throwable var5 = null;
+ 
+          try {
+             var3 = (PackMetadataSection)var4.getMetadataSection(PackMetadataSection.SERIALIZER);
+-         } catch (Throwable var15) {
+-            var5 = var15;
+-            throw var15;
+-         } finally {
+-            if (var4 != null) {
+-               if (var5 != null) {
+-                  try {
+-                     var4.close();
+-                  } catch (Throwable var14) {
+-                     var5.addSuppressed(var14);
+-                  }
+-               } else {
+-                  var4.close();
+-               }
++         } catch (Throwable var8) {
++            try {
++               var4.close();
++            } catch (Throwable var7) {
++               var8.addSuppressed(var7);
+             }
+ 
++            throw var8;
+          }
+-      } catch (IOException var17) {
+-         return Util.failedFuture(new IOException(String.format("Invalid resourcepack at %s", var1), var17));
++
++         var4.close();
++      } catch (IOException var9) {
++         return Util.failedFuture(new IOException(String.format("Invalid resourcepack at %s", var1), var9));
        }
  
        LOGGER.info("Applying server pack {}", var1);
@@ -73,7 +267,7 @@
  
     @Nullable
     private Pack createProgrammerArtPack(Pack.PackConstructor var1) {
-@@ -301,6 +309,12 @@
+@@ -301,6 +326,13 @@
           public String getName() {
              return "Programmer Art";
           }
@@ -84,5 +278,6 @@
 +      BUILT_IN = new PackMetadataSection(new TranslatableComponent("resourcePack.vanilla.description"), PackType.CLIENT_RESOURCES.getVersion(SharedConstants.getCurrentVersion()));
 +      LOGGER = LogManager.getLogger();
 +      SHA1 = Pattern.compile("^[a-fA-F0-9]{40}$");
++      APPLYING_PACK_TEXT = new TranslatableComponent("multiplayer.applyingPack");
 +   }
  }

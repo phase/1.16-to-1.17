@@ -65,14 +65,15 @@
  public class ClientLevel extends Level {
 -   private final Int2ObjectMap<Entity> entitiesById = new Int2ObjectOpenHashMap();
 +   private static final double FLUID_PARTICLE_SPAWN_OFFSET = 0.05D;
-+   private final EntityTickList tickingEntities = new EntityTickList();
++   final EntityTickList tickingEntities = new EntityTickList();
 +   private final TransientEntitySectionManager<Entity> entityStorage = new TransientEntitySectionManager(Entity.class, new ClientLevel.EntityCallbacks());
     private final ClientPacketListener connection;
     private final LevelRenderer levelRenderer;
     private final ClientLevel.ClientLevelData clientLevelData;
     private final DimensionSpecialEffects effects;
     private final Minecraft minecraft = Minecraft.getInstance();
-    private final List<AbstractClientPlayer> players = Lists.newArrayList();
+-   private final List<AbstractClientPlayer> players = Lists.newArrayList();
++   final List<AbstractClientPlayer> players = Lists.newArrayList();
     private Scoreboard scoreboard = new Scoreboard();
     private final Map<String, MapItemSavedData> mapData = Maps.newHashMap();
 +   private static final long CLOUD_COLOR = 16777215L;
@@ -249,7 +250,7 @@
     public void clearTintCaches() {
        this.tintCaches.forEach((var0, var1) -> {
           var1.invalidateAll();
-@@ -273,64 +221,37 @@
+@@ -273,64 +221,38 @@
     public boolean hasChunk(int var1, int var2) {
        return true;
     }
@@ -285,6 +286,7 @@
 +      Entity var3 = (Entity)this.getEntities().get(var1);
 +      if (var3 != null) {
 +         var3.setRemoved(var2);
++         var3.onClientRemoval();
        }
  
     }
@@ -322,7 +324,7 @@
     public void setKnownState(BlockPos var1, BlockState var2) {
        this.setBlock(var1, var2, 19);
     }
-@@ -340,33 +261,37 @@
+@@ -340,33 +262,37 @@
     }
  
     public void animateTick(int var1, int var2, int var3) {
@@ -375,7 +377,7 @@
        int var10 = var3 + this.random.nextInt(var4) - this.random.nextInt(var4);
        var7.set(var8, var9, var10);
        BlockState var11 = this.getBlockState(var7);
-@@ -380,12 +305,12 @@
+@@ -380,12 +306,12 @@
              BlockPos var15 = var7.below();
              this.trySpawnDripParticles(var15, this.getBlockState(var15), var13, var14);
           }
@@ -390,7 +392,7 @@
        if (!var11.isCollisionShapeFullBlock(this, var7)) {
           this.getBiome(var7).getAmbientParticle().ifPresent((var2x) -> {
              if (var2x.canSpawn(this.random)) {
-@@ -429,24 +354,10 @@
+@@ -429,24 +355,10 @@
  
     private void spawnFluidParticle(double var1, double var3, double var5, double var7, double var9, ParticleOptions var11) {
        this.addParticle(var11, Mth.lerp(this.random.nextDouble(), var1, var3), var9, Mth.lerp(this.random.nextDouble(), var5, var7), 0.0D, 0.0D, 0.0D);
@@ -415,7 +417,20 @@
        var2.setDetail("Server brand", () -> {
           return this.minecraft.player.getServerBrand();
        });
-@@ -517,12 +428,12 @@
+@@ -463,11 +375,11 @@
+ 
+    }
+ 
+    public void playSound(@Nullable Player var1, Entity var2, SoundEvent var3, SoundSource var4, float var5, float var6) {
+       if (var1 == this.minecraft.player) {
+-         this.minecraft.getSoundManager().play(new EntityBoundSoundInstance(var3, var4, var2));
++         this.minecraft.getSoundManager().play(new EntityBoundSoundInstance(var3, var4, var5, var6, var2));
+       }
+ 
+    }
+ 
+    public void playLocalSound(BlockPos var1, SoundEvent var2, SoundSource var3, float var4, float var5, boolean var6) {
+@@ -517,12 +429,12 @@
     @Nullable
     public MapItemSavedData getMapData(String var1) {
        return (MapItemSavedData)this.mapData.get(var1);
@@ -430,7 +445,7 @@
     public int getFreeMapId() {
        return 0;
     }
-@@ -563,11 +474,11 @@
+@@ -563,11 +475,11 @@
        try {
           this.levelRenderer.levelEvent(var1, var2, var3, var4);
        } catch (Throwable var8) {
@@ -443,7 +458,7 @@
           var7.setDetail("Event data", (Object)var4);
           throw new ReportedException(var6);
        }
-@@ -605,55 +516,55 @@
+@@ -605,55 +517,55 @@
        var3 = (float)((double)var3 * (1.0D - (double)(this.getRainLevel(var1) * 5.0F) / 16.0D));
        var3 = (float)((double)var3 * (1.0D - (double)(this.getThunderLevel(var1) * 5.0F) / 16.0D));
        return var3 * 0.8F + 0.2F;
@@ -532,7 +547,7 @@
     public Vec3 getCloudColor(float var1) {
        float var2 = this.getTimeOfDay(var1);
        float var3 = Mth.cos(var2 * 6.2831855F) * 2.0F + 0.5F;
-@@ -777,10 +688,77 @@
+@@ -777,10 +689,65 @@
  
     public ClientLevel.ClientLevelData getLevelData() {
        return this.clientLevelData;
@@ -554,28 +569,16 @@
 +   }
 +
 +   public String gatherChunkSourceStats() {
-+      return "Chunks[C] W: " + this.chunkSource.gatherStats() + " E: " + this.entityStorage.gatherStats();
++      String var10000 = this.chunkSource.gatherStats();
++      return "Chunks[C] W: " + var10000 + " E: " + this.entityStorage.gatherStats();
 +   }
 +
 +   public void addDestroyBlockEffect(BlockPos var1, BlockState var2) {
 +      this.minecraft.particleEngine.destroy(var1, var2);
 +   }
 +
-+   static enum MarkerParticleStatus {
-+      BARRIER(Blocks.BARRIER, ParticleTypes.BARRIER),
-+      LIGHT(Blocks.LIGHT, ParticleTypes.LIGHT);
-+
-+      private final Block block;
-+      private final ParticleOptions particle;
-+
-+      private MarkerParticleStatus(Block var3, ParticleOptions var4) {
-+         this.block = var3;
-+         this.particle = var4;
-+      }
-+   }
-+
-+   final class EntityCallbacks implements LevelCallback<Entity> {
-+      private EntityCallbacks() {
++   private final class EntityCallbacks implements LevelCallback<Entity> {
++      EntityCallbacks() {
 +      }
 +
 +      public void onCreated(Entity var1) {
@@ -610,7 +613,7 @@
        private final GameRules gameRules;
        private final boolean isFlat;
        private int xSpawn;
-@@ -881,24 +859,24 @@
+@@ -881,26 +848,39 @@
  
        public boolean isDifficultyLocked() {
           return this.difficultyLocked;
@@ -639,3 +642,18 @@
        public double getClearColorScale() {
           return this.isFlat ? 1.0D : 0.03125D;
        }
+    }
++
++   static enum MarkerParticleStatus {
++      BARRIER(Blocks.BARRIER, ParticleTypes.BARRIER),
++      LIGHT(Blocks.LIGHT, ParticleTypes.LIGHT);
++
++      final Block block;
++      final ParticleOptions particle;
++
++      private MarkerParticleStatus(Block var3, ParticleOptions var4) {
++         this.block = var3;
++         this.particle = var4;
++      }
++   }
+ }

@@ -1,15 +1,110 @@
 --- net/minecraft/data/recipes/ShapedRecipeBuilder.java
 +++ net/minecraft/data/recipes/ShapedRecipeBuilder.java
-@@ -25,11 +25,11 @@
+@@ -22,20 +22,18 @@
+ import net.minecraft.tags.Tag;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.crafting.Ingredient;
  import net.minecraft.world.item.crafting.RecipeSerializer;
  import net.minecraft.world.level.ItemLike;
- import org.apache.logging.log4j.LogManager;
- import org.apache.logging.log4j.Logger;
+-import org.apache.logging.log4j.LogManager;
+-import org.apache.logging.log4j.Logger;
  
 -public class ShapedRecipeBuilder {
+-   private static final Logger LOGGER = LogManager.getLogger();
 +public class ShapedRecipeBuilder implements RecipeBuilder {
-    private static final Logger LOGGER = LogManager.getLogger();
     private final Item result;
     private final int count;
     private final List<String> rows = Lists.newArrayList();
     private final Map<Character, Ingredient> key = Maps.newLinkedHashMap();
+    private final Advancement.Builder advancement = Advancement.Builder.advancement();
++   @Nullable
+    private String group;
+ 
+    public ShapedRecipeBuilder(ItemLike var1, int var2) {
+       this.result = var1.asItem();
+       this.count = var2;
+@@ -80,32 +78,31 @@
+    public ShapedRecipeBuilder unlockedBy(String var1, CriterionTriggerInstance var2) {
+       this.advancement.addCriterion(var1, var2);
+       return this;
+    }
+ 
+-   public ShapedRecipeBuilder group(String var1) {
++   public ShapedRecipeBuilder group(@Nullable String var1) {
+       this.group = var1;
+       return this;
+    }
+ 
+-   public void save(Consumer<FinishedRecipe> var1) {
+-      this.save(var1, Registry.ITEM.getKey(this.result));
++   public Item getResult() {
++      return this.result;
+    }
+ 
+-   public void save(Consumer<FinishedRecipe> var1, String var2) {
+-      ResourceLocation var3 = Registry.ITEM.getKey(this.result);
+-      if ((new ResourceLocation(var2)).equals(var3)) {
+-         throw new IllegalStateException("Shaped Recipe " + var2 + " should remove its 'save' argument");
+-      } else {
+-         this.save(var1, new ResourceLocation(var2));
+-      }
+-   }
+-
+    public void save(Consumer<FinishedRecipe> var1, ResourceLocation var2) {
+       this.ensureValid(var2);
+       this.advancement.parent(new ResourceLocation("recipes/root")).addCriterion("has_the_recipe", (CriterionTriggerInstance)RecipeUnlockedTrigger.unlocked(var2)).rewards(AdvancementRewards.Builder.recipe(var2)).requirements(RequirementsStrategy.OR);
+-      var1.accept(new ShapedRecipeBuilder.Result(var2, this.result, this.count, this.group == null ? "" : this.group, this.rows, this.key, this.advancement, new ResourceLocation(var2.getNamespace(), "recipes/" + this.result.getItemCategory().getRecipeFolderName() + "/" + var2.getPath())));
++      Item var10004 = this.result;
++      int var10005 = this.count;
++      String var10006 = this.group == null ? "" : this.group;
++      List var10007 = this.rows;
++      Map var10008 = this.key;
++      Advancement.Builder var10009 = this.advancement;
++      String var10012 = var2.getNamespace();
++      String var10013 = this.result.getItemCategory().getRecipeFolderName();
++      var1.accept(new ShapedRecipeBuilder.Result(var2, var10004, var10005, var10006, var10007, var10008, var10009, new ResourceLocation(var10012, "recipes/" + var10013 + "/" + var2.getPath())));
+    }
+ 
+    private void ensureValid(ResourceLocation var1) {
+       if (this.rows.isEmpty()) {
+          throw new IllegalStateException("No pattern is defined for shaped recipe " + var1 + "!");
+@@ -135,29 +132,29 @@
+             throw new IllegalStateException("No way of obtaining recipe " + var1);
+          }
+       }
+    }
+ 
+-   class Result implements FinishedRecipe {
++   static class Result implements FinishedRecipe {
+       private final ResourceLocation id;
+       private final Item result;
+       private final int count;
+       private final String group;
+       private final List<String> pattern;
+       private final Map<Character, Ingredient> key;
+       private final Advancement.Builder advancement;
+       private final ResourceLocation advancementId;
+ 
+-      public Result(ResourceLocation var2, Item var3, int var4, String var5, List<String> var6, Map<Character, Ingredient> var7, Advancement.Builder var8, ResourceLocation var9) {
+-         this.id = var2;
+-         this.result = var3;
+-         this.count = var4;
+-         this.group = var5;
+-         this.pattern = var6;
+-         this.key = var7;
+-         this.advancement = var8;
+-         this.advancementId = var9;
++      public Result(ResourceLocation var1, Item var2, int var3, String var4, List<String> var5, Map<Character, Ingredient> var6, Advancement.Builder var7, ResourceLocation var8) {
++         this.id = var1;
++         this.result = var2;
++         this.count = var3;
++         this.group = var4;
++         this.pattern = var5;
++         this.key = var6;
++         this.advancement = var7;
++         this.advancementId = var8;
+       }
+ 
+       public void serializeRecipeData(JsonObject var1) {
+          if (!this.group.isEmpty()) {
+             var1.addProperty("group", this.group);

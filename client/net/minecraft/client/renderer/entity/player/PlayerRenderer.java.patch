@@ -1,9 +1,11 @@
 --- net/minecraft/client/renderer/entity/player/PlayerRenderer.java
 +++ net/minecraft/client/renderer/entity/player/PlayerRenderer.java
-@@ -2,25 +2,26 @@
+@@ -1,34 +1,35 @@
+ package net.minecraft.client.renderer.entity.player;
  
  import com.mojang.blaze3d.vertex.PoseStack;
  import com.mojang.math.Vector3f;
++import java.util.Objects;
  import net.minecraft.client.model.HumanoidModel;
  import net.minecraft.client.model.PlayerModel;
 +import net.minecraft.client.model.geom.ModelLayers;
@@ -29,6 +31,14 @@
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.TextComponent;
  import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.InteractionHand;
+-import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.HumanoidArm;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.player.PlayerModelPart;
+ import net.minecraft.world.item.CrossbowItem;
+ import net.minecraft.world.item.ItemStack;
 @@ -38,25 +39,21 @@
  import net.minecraft.world.scores.Objective;
  import net.minecraft.world.scores.Score;
@@ -81,3 +91,46 @@
  
           return HumanoidModel.ArmPose.ITEM;
        }
+@@ -145,11 +146,11 @@
+          Scoreboard var8 = var1.getScoreboard();
+          Objective var9 = var8.getDisplayObjective(2);
+          if (var9 != null) {
+             Score var10 = var8.getOrCreatePlayerScore(var1.getScoreboardName(), var9);
+             super.renderNameTag(var1, (new TextComponent(Integer.toString(var10.getScore()))).append(" ").append(var9.getDisplayName()), var3, var4, var5);
+-            this.getFont().getClass();
++            Objects.requireNonNull(this.getFont());
+             var3.translate(0.0D, (double)(9.0F * 1.15F * 0.025F), 0.0D);
+          }
+       }
+ 
+       super.renderNameTag(var1, var2, var3, var4, var5);
+@@ -184,25 +185,25 @@
+       if (var1.isFallFlying()) {
+          super.setupRotations(var1, var2, var3, var4, var5);
+          var7 = (float)var1.getFallFlyingTicks() + var5;
+          var8 = Mth.clamp(var7 * var7 / 100.0F, 0.0F, 1.0F);
+          if (!var1.isAutoSpinAttack()) {
+-            var2.mulPose(Vector3f.XP.rotationDegrees(var8 * (-90.0F - var1.xRot)));
++            var2.mulPose(Vector3f.XP.rotationDegrees(var8 * (-90.0F - var1.getXRot())));
+          }
+ 
+          Vec3 var9 = var1.getViewVector(var5);
+          Vec3 var10 = var1.getDeltaMovement();
+-         double var11 = Entity.getHorizontalDistanceSqr(var10);
+-         double var13 = Entity.getHorizontalDistanceSqr(var9);
++         double var11 = var10.horizontalDistanceSqr();
++         double var13 = var9.horizontalDistanceSqr();
+          if (var11 > 0.0D && var13 > 0.0D) {
+             double var15 = (var10.x * var9.x + var10.z * var9.z) / Math.sqrt(var11 * var13);
+             double var17 = var10.x * var9.z - var10.z * var9.x;
+             var2.mulPose(Vector3f.YP.rotation((float)(Math.signum(var17) * Math.acos(var15))));
+          }
+       } else if (var6 > 0.0F) {
+          super.setupRotations(var1, var2, var3, var4, var5);
+-         var7 = var1.isInWater() ? -90.0F - var1.xRot : -90.0F;
++         var7 = var1.isInWater() ? -90.0F - var1.getXRot() : -90.0F;
+          var8 = Mth.lerp(var6, 0.0F, var7);
+          var2.mulPose(Vector3f.XP.rotationDegrees(var8));
+          if (var1.isVisuallySwimming()) {
+             var2.translate(0.0D, -1.0D, 0.30000001192092896D);
+          }

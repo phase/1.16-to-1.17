@@ -1,6 +1,6 @@
 --- net/minecraft/world/inventory/AbstractContainerMenu.java
 +++ net/minecraft/world/inventory/AbstractContainerMenu.java
-@@ -1,43 +1,69 @@
+@@ -1,43 +1,70 @@
  package net.minecraft.world.inventory;
  
 +import com.google.common.base.Supplier;
@@ -12,6 +12,7 @@
 +import it.unimi.dsi.fastutil.ints.IntList;
  import java.util.Iterator;
  import java.util.List;
++import java.util.Objects;
 +import java.util.Optional;
  import java.util.Set;
  import javax.annotation.Nullable;
@@ -77,7 +78,7 @@
     }
  
     protected static boolean stillValid(ContainerLevelAccess var0, Player var1, Block var2) {
-@@ -70,15 +96,17 @@
+@@ -70,15 +97,17 @@
  
     protected Slot addSlot(Slot var1) {
        var1.index = this.slots.size();
@@ -95,7 +96,7 @@
  
     protected void addDataSlots(ContainerData var1) {
        for(int var2 = 0; var2 < var1.getCount(); ++var2) {
-@@ -88,76 +116,162 @@
+@@ -88,76 +117,162 @@
     }
  
     public void addSlotListener(ContainerListener var1) {
@@ -159,7 +160,7 @@
 -            ItemStack var4 = var2.copy();
 -            this.lastSlots.set(var1, var4);
 -            Iterator var5 = this.containerListeners.iterator();
-+         var2.getClass();
++         Objects.requireNonNull(var2);
 +         Supplier var3 = Suppliers.memoize(var2::copy);
 +         this.triggerSlotListeners(var1, var2, var3);
 +         this.synchronizeSlotToRemote(var1, var2, var3);
@@ -280,7 +281,7 @@
           CrashReportCategory var7 = var6.addCategory("Click info");
           var7.setDetail("Menu Type", () -> {
              return this.menuType != null ? Registry.MENU.getKey(this.menuType).toString() : "<no type>";
-@@ -171,76 +285,83 @@
+@@ -171,76 +286,83 @@
           var7.setDetail("Type", (Object)var3);
           throw new ReportedException(var6);
        }
@@ -401,7 +402,7 @@
              }
  
              this.resetQuickCraft();
-@@ -248,219 +369,193 @@
+@@ -248,219 +370,193 @@
              this.resetQuickCraft();
           }
        } else if (this.quickcraftStatus != 0) {
@@ -746,7 +747,7 @@
        }
     }
  
-@@ -481,28 +576,10 @@
+@@ -481,28 +577,10 @@
  
     public void setData(int var1, int var2) {
        ((DataSlot)this.dataSlots.get(var1)).set(var2);
@@ -775,7 +776,7 @@
     protected boolean moveItemStackTo(ItemStack var1, int var2, int var3, boolean var4) {
        boolean var5 = false;
        int var6 = var2;
-@@ -522,11 +599,11 @@
+@@ -522,11 +600,11 @@
                 break;
              }
  
@@ -788,7 +789,7 @@
                    var1.setCount(0);
                    var8.setCount(var9);
                    var7.setChanged();
-@@ -604,22 +681,22 @@
+@@ -604,22 +682,22 @@
        if (var0 == 0) {
           return true;
        } else if (var0 == 1) {
@@ -813,7 +814,7 @@
           return var3;
        }
     }
-@@ -664,6 +741,42 @@
+@@ -664,6 +742,43 @@
  
           var2 /= (float)var0.getContainerSize();
           return Mth.floor(var2 * 14.0F) + (var1 > 0 ? 1 : 0);
@@ -850,7 +851,8 @@
 +         var4 = (Slot)this.slots.get(var3);
 +         Integer var5 = (Integer)var2.get(var4.container, var4.getContainerSlot());
 +         if (var5 != null) {
-+            this.remoteSlots.set(var3, var1.remoteSlots.get(var5));
++            this.lastSlots.set(var3, (ItemStack)var1.lastSlots.get(var5));
++            this.remoteSlots.set(var3, (ItemStack)var1.remoteSlots.get(var5));
 +         }
 +      }
 +

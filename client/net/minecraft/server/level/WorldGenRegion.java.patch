@@ -1,6 +1,16 @@
 --- net/minecraft/server/level/WorldGenRegion.java
 +++ net/minecraft/server/level/WorldGenRegion.java
-@@ -11,10 +11,11 @@
+@@ -2,19 +2,21 @@
+ 
+ import java.util.Collections;
+ import java.util.List;
+ import java.util.Random;
+ import java.util.function.Predicate;
++import java.util.function.Supplier;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
  import net.minecraft.core.Direction;
  import net.minecraft.core.RegistryAccess;
  import net.minecraft.core.SectionPos;
@@ -12,7 +22,7 @@
  import net.minecraft.util.Mth;
  import net.minecraft.world.DifficultyInstance;
  import net.minecraft.world.entity.Entity;
-@@ -34,10 +35,12 @@
+@@ -34,10 +36,12 @@
  import net.minecraft.world.level.border.WorldBorder;
  import net.minecraft.world.level.chunk.ChunkAccess;
  import net.minecraft.world.level.chunk.ChunkSource;
@@ -25,7 +35,7 @@
  import net.minecraft.world.level.levelgen.structure.StructureStart;
  import net.minecraft.world.level.lighting.LevelLightEngine;
  import net.minecraft.world.level.material.Fluid;
-@@ -48,12 +51,11 @@
+@@ -48,12 +52,11 @@
  import org.apache.logging.log4j.Logger;
  
  public class WorldGenRegion implements WorldGenLevel {
@@ -39,21 +49,41 @@
     private final long seed;
     private final LevelData levelData;
     private final Random random;
-@@ -74,12 +76,11 @@
-       if (var3 * var3 != var2.size()) {
+@@ -66,21 +69,26 @@
+    });
+    private final BiomeManager biomeManager;
+    private final ChunkPos firstPos;
+    private final ChunkPos lastPos;
+    private final StructureFeatureManager structureFeatureManager;
++   private final ChunkStatus generatingStatus;
++   private final int writeRadiusCutoff;
++   @Nullable
++   private Supplier<String> currentlyGenerating;
+ 
+-   public WorldGenRegion(ServerLevel var1, List<ChunkAccess> var2) {
+-      int var3 = Mth.floor(Math.sqrt((double)var2.size()));
+-      if (var3 * var3 != var2.size()) {
++   public WorldGenRegion(ServerLevel var1, List<ChunkAccess> var2, ChunkStatus var3, int var4) {
++      this.generatingStatus = var3;
++      this.writeRadiusCutoff = var4;
++      int var5 = Mth.floor(Math.sqrt((double)var2.size()));
++      if (var5 * var5 != var2.size()) {
           throw (IllegalStateException)Util.pauseInIde(new IllegalStateException("Cache size is not a square."));
        } else {
-          ChunkPos var4 = ((ChunkAccess)var2.get(var2.size() / 2)).getPos();
+-         ChunkPos var4 = ((ChunkAccess)var2.get(var2.size() / 2)).getPos();
++         ChunkPos var6 = ((ChunkAccess)var2.get(var2.size() / 2)).getPos();
           this.cache = var2;
 -         this.x = var4.x;
 -         this.z = var4.z;
-+         this.center = var4;
-          this.size = var3;
+-         this.size = var3;
++         this.center = var6;
++         this.size = var5;
           this.level = var1;
           this.seed = var1.getSeed();
           this.levelData = var1.getLevelData();
           this.random = var1.getRandom();
-@@ -89,18 +90,14 @@
+          this.dimensionType = var1.dimensionType();
+@@ -89,16 +97,16 @@
           this.lastPos = ((ChunkAccess)var2.get(var2.size() - 1)).getPos();
           this.structureFeatureManager = var1.structureFeatureManager().forWorldGenRegion(this);
        }
@@ -67,14 +97,14 @@
  
 -   public int getCenterZ() {
 -      return this.z;
--   }
--
++   public void setCurrentlyGenerating(@Nullable Supplier<String> var1) {
++      this.currentlyGenerating = var1;
+    }
+ 
     public ChunkAccess getChunk(int var1, int var2) {
        return this.getChunk(var1, var2, ChunkStatus.EMPTY);
     }
- 
-    @Nullable
-@@ -133,11 +130,11 @@
+@@ -133,11 +141,11 @@
     public boolean hasChunk(int var1, int var2) {
        return var1 >= this.firstPos.x && var1 <= this.lastPos.x && var2 >= this.firstPos.z && var2 <= this.lastPos.z;
     }
@@ -87,7 +117,7 @@
     public FluidState getFluidState(BlockPos var1) {
        return this.getChunk(var1).getFluidState(var1);
     }
-@@ -171,11 +168,11 @@
+@@ -171,11 +179,11 @@
        BlockState var5 = this.getBlockState(var1);
        if (var5.isAir()) {
           return false;
@@ -100,7 +130,7 @@
  
           return this.setBlock(var1, Blocks.AIR.defaultBlockState(), 3, var4);
        }
-@@ -190,27 +187,26 @@
+@@ -190,55 +198,66 @@
        } else {
           CompoundTag var4 = var2.getBlockEntityNbt(var1);
           BlockState var5 = var2.getBlockState(var1);
@@ -133,39 +163,63 @@
  
           return null;
        }
-@@ -221,23 +217,27 @@
-       BlockState var6 = var5.setBlockState(var1, var2, false);
-       if (var6 != null) {
-          this.level.onBlockStateChange(var1, var6, var2);
+    }
+ 
+    public boolean setBlock(BlockPos var1, BlockState var2, int var3, int var4) {
+-      ChunkAccess var5 = this.getChunk(var1);
+-      BlockState var6 = var5.setBlockState(var1, var2, false);
+-      if (var6 != null) {
+-         this.level.onBlockStateChange(var1, var6, var2);
++      int var5 = SectionPos.blockToSectionCoord(var1.getX());
++      int var6 = SectionPos.blockToSectionCoord(var1.getZ());
++      int var7 = Math.abs(this.center.x - var5);
++      int var8 = Math.abs(this.center.z - var6);
++      if (var7 > this.writeRadiusCutoff || var8 > this.writeRadiusCutoff) {
++         Util.logAndPauseIfInIde("Detected setBlock in a far chunk [" + var5 + ", " + var6 + "], status: " + this.generatingStatus + (this.currentlyGenerating == null ? "" : ", currently generating: " + (String)this.currentlyGenerating.get()));
        }
  
 -      Block var7 = var2.getBlock();
 -      if (var7.isEntityBlock()) {
-+      if (var2.hasBlockEntity()) {
-          if (var5.getStatus().getChunkType() == ChunkStatus.ChunkType.LEVELCHUNK) {
+-         if (var5.getStatus().getChunkType() == ChunkStatus.ChunkType.LEVELCHUNK) {
 -            var5.setBlockEntity(var1, ((EntityBlock)var7).newBlockEntity(this));
-+            BlockEntity var7 = ((EntityBlock)var2.getBlock()).newBlockEntity(var1, var2);
-+            if (var7 != null) {
-+               var5.setBlockEntity(var7);
++      ChunkAccess var9 = this.getChunk(var5, var6);
++      BlockState var10 = var9.setBlockState(var1, var2, false);
++      if (var10 != null) {
++         this.level.onBlockStateChange(var1, var10, var2);
++      }
++
++      if (var2.hasBlockEntity()) {
++         if (var9.getStatus().getChunkType() == ChunkStatus.ChunkType.LEVELCHUNK) {
++            BlockEntity var11 = ((EntityBlock)var2.getBlock()).newBlockEntity(var1, var2);
++            if (var11 != null) {
++               var9.setBlockEntity(var11);
 +            } else {
-+               var5.removeBlockEntity(var1);
++               var9.removeBlockEntity(var1);
 +            }
           } else {
-             CompoundTag var8 = new CompoundTag();
-             var8.putInt("x", var1.getX());
-             var8.putInt("y", var1.getY());
-             var8.putInt("z", var1.getZ());
-             var8.putString("id", "DUMMY");
-             var5.setBlockEntityNbt(var8);
+-            CompoundTag var8 = new CompoundTag();
+-            var8.putInt("x", var1.getX());
+-            var8.putInt("y", var1.getY());
+-            var8.putInt("z", var1.getZ());
+-            var8.putString("id", "DUMMY");
+-            var5.setBlockEntityNbt(var8);
++            CompoundTag var12 = new CompoundTag();
++            var12.putInt("x", var1.getX());
++            var12.putInt("y", var1.getY());
++            var12.putInt("z", var1.getZ());
++            var12.putString("id", "DUMMY");
++            var9.setBlockEntityNbt(var12);
           }
 -      } else if (var6 != null && var6.getBlock().isEntityBlock()) {
-+      } else if (var6 != null && var6.hasBlockEntity()) {
-          var5.removeBlockEntity(var1);
+-         var5.removeBlockEntity(var1);
++      } else if (var10 != null && var10.hasBlockEntity()) {
++         var9.removeBlockEntity(var1);
        }
  
        if (var2.hasPostProcess(this, var1)) {
           this.markPosForPostprocessing(var1);
-@@ -249,12 +249,12 @@
+       }
+@@ -249,12 +268,12 @@
     private void markPosForPostprocessing(BlockPos var1) {
        this.getChunk(var1).markPosForPostprocessing(var1);
     }
@@ -180,7 +234,7 @@
     }
  
     public boolean removeBlock(BlockPos var1, boolean var2) {
-@@ -281,17 +281,22 @@
+@@ -281,17 +300,22 @@
     public LevelData getLevelData() {
        return this.levelData;
     }
@@ -204,7 +258,7 @@
     }
  
     public long getSeed() {
-@@ -313,11 +318,11 @@
+@@ -313,11 +337,11 @@
     public Random getRandom() {
        return this.random;
     }
@@ -217,7 +271,7 @@
     public void playSound(@Nullable Player var1, BlockPos var2, SoundEvent var3, SoundSource var4, float var5, float var6) {
     }
  
-@@ -325,19 +330,26 @@
+@@ -325,19 +349,26 @@
     }
  
     public void levelEvent(@Nullable Player var1, int var2, BlockPos var3, int var4) {
@@ -245,7 +299,7 @@
  
     public List<Entity> getEntities(@Nullable Entity var1, AABB var2, @Nullable Predicate<? super Entity> var3) {
        return Collections.emptyList();
-@@ -348,6 +360,14 @@
+@@ -348,6 +379,14 @@
     }
  
     public Stream<? extends StructureStart<?>> startsForFeature(SectionPos var1, StructureFeature<?> var2) {

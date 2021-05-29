@@ -1,9 +1,10 @@
 --- net/minecraft/world/item/BundleItem.java
 +++ net/minecraft/world/item/BundleItem.java
-@@ -1,0 +1,223 @@
+@@ -1,0 +1,239 @@
 +package net.minecraft.world.item;
 +
 +import java.util.List;
++import java.util.Objects;
 +import java.util.Optional;
 +import java.util.stream.Stream;
 +import net.minecraft.ChatFormatting;
@@ -62,7 +63,9 @@
 +   public boolean overrideOtherStackedOnMe(ItemStack var1, ItemStack var2, Slot var3, ClickAction var4, Player var5, SlotAccess var6) {
 +      if (var4 == ClickAction.SECONDARY && var3.allowModification(var5)) {
 +         if (var2.isEmpty()) {
-+            removeOne(var1).ifPresent(var6::set);
++            Optional var10000 = removeOne(var1);
++            Objects.requireNonNull(var6);
++            var10000.ifPresent(var6::set);
 +         } else {
 +            var2.shrink(add(var1, var2));
 +         }
@@ -137,9 +140,9 @@
 +         return Optional.empty();
 +      } else {
 +         Stream var10000 = var1.stream();
-+         CompoundTag.class.getClass();
++         Objects.requireNonNull(CompoundTag.class);
 +         var10000 = var10000.filter(CompoundTag.class::isInstance);
-+         CompoundTag.class.getClass();
++         Objects.requireNonNull(CompoundTag.class);
 +         return var10000.map(CompoundTag.class::cast).filter((var1x) -> {
 +            return ItemStack.isSameItemSameTags(ItemStack.of(var1x), var0);
 +         }).findFirst();
@@ -147,7 +150,18 @@
 +   }
 +
 +   private static int getWeight(ItemStack var0) {
-+      return var0.is(Items.BUNDLE) ? 4 + getContentWeight(var0) : 64 / var0.getMaxStackSize();
++      if (var0.is(Items.BUNDLE)) {
++         return 4 + getContentWeight(var0);
++      } else {
++         if ((var0.is(Items.BEEHIVE) || var0.is(Items.BEE_NEST)) && var0.hasTag()) {
++            CompoundTag var1 = var0.getTagElement("BlockEntityTag");
++            if (var1 != null && !var1.getList("Bees", 10).isEmpty()) {
++               return 64;
++            }
++         }
++
++         return 64 / var0.getMaxStackSize();
++      }
 +   }
 +
 +   private static int getContentWeight(ItemStack var0) {
@@ -205,14 +219,16 @@
 +      } else {
 +         ListTag var2 = var1.getList("Items", 10);
 +         Stream var10000 = var2.stream();
-+         CompoundTag.class.getClass();
++         Objects.requireNonNull(CompoundTag.class);
 +         return var10000.map(CompoundTag.class::cast).map(ItemStack::of);
 +      }
 +   }
 +
 +   public Optional<TooltipComponent> getTooltipImage(ItemStack var1) {
 +      NonNullList var2 = NonNullList.create();
-+      getContents(var1).forEach(var2::add);
++      Stream var10000 = getContents(var1);
++      Objects.requireNonNull(var2);
++      var10000.forEach(var2::add);
 +      return Optional.of(new BundleTooltip(var2, getContentWeight(var1)));
 +   }
 +

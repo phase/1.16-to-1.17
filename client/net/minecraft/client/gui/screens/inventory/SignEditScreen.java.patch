@@ -1,6 +1,6 @@
 --- net/minecraft/client/gui/screens/inventory/SignEditScreen.java
 +++ net/minecraft/client/gui/screens/inventory/SignEditScreen.java
-@@ -7,17 +7,19 @@
+@@ -7,17 +7,21 @@
  import com.mojang.blaze3d.vertex.BufferUploader;
  import com.mojang.blaze3d.vertex.DefaultVertexFormat;
  import com.mojang.blaze3d.vertex.PoseStack;
@@ -8,11 +8,13 @@
  import com.mojang.blaze3d.vertex.VertexConsumer;
 +import com.mojang.blaze3d.vertex.VertexFormat;
  import com.mojang.math.Matrix4f;
++import java.util.Objects;
  import java.util.stream.IntStream;
  import net.minecraft.client.gui.components.Button;
  import net.minecraft.client.gui.font.TextFieldHelper;
  import net.minecraft.client.gui.screens.Screen;
  import net.minecraft.client.multiplayer.ClientPacketListener;
++import net.minecraft.client.renderer.GameRenderer;
  import net.minecraft.client.renderer.MultiBufferSource;
 +import net.minecraft.client.renderer.Sheets;
  import net.minecraft.client.renderer.blockentity.SignRenderer;
@@ -20,7 +22,7 @@
  import net.minecraft.client.resources.model.Material;
  import net.minecraft.network.chat.CommonComponents;
  import net.minecraft.network.chat.Component;
-@@ -26,43 +28,48 @@
+@@ -26,43 +30,48 @@
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket;
  import net.minecraft.world.level.block.StandingSignBlock;
@@ -55,7 +57,7 @@
     protected void init() {
        this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
 -      this.addButton(new Button(this.width / 2 - 100, this.height / 4 + 120, 200, 20, CommonComponents.GUI_DONE, (var1) -> {
-+      this.addButton(new Button(this.width / 2 - 100, this.height / 4 + 120, 200, 20, CommonComponents.GUI_DONE, (var1x) -> {
++      this.addRenderableWidget(new Button(this.width / 2 - 100, this.height / 4 + 120, 200, 20, CommonComponents.GUI_DONE, (var1x) -> {
           this.onDone();
        }));
        this.sign.setEditable(false);
@@ -80,7 +82,7 @@
     public void removed() {
        this.minecraft.keyboardHandler.setSendRepeatsToGui(false);
        ClientPacketListener var1 = this.minecraft.getConnection();
-@@ -73,11 +80,11 @@
+@@ -73,11 +82,11 @@
        this.sign.setEditable(true);
     }
  
@@ -93,7 +95,7 @@
  
     }
  
-@@ -127,19 +134,16 @@
+@@ -127,19 +136,16 @@
        boolean var8 = this.frame / 6 % 2 == 0;
        float var9 = 0.6666667F;
        var1.pushPose();
@@ -102,7 +104,8 @@
 -      Material var11 = SignRenderer.getMaterial(var6.getBlock());
 +      Material var11 = Sheets.getSignMaterial(this.woodType);
        SignRenderer.SignModel var10002 = this.signModel;
-       var10002.getClass();
+-      var10002.getClass();
++      Objects.requireNonNull(var10002);
        VertexConsumer var12 = var11.buffer(var10, var10002::renderType);
 -      this.signModel.sign.render(var1, var12, 15728880, OverlayTexture.NO_OVERLAY);
 -      if (var7) {
@@ -116,16 +119,40 @@
        var1.translate(0.0D, 0.3333333432674408D, 0.046666666865348816D);
        var1.scale(0.010416667F, -0.010416667F, 0.010416667F);
        int var14 = this.sign.getColor().getTextColor();
-@@ -195,11 +199,11 @@
+@@ -179,11 +185,11 @@
+             int var33 = this.minecraft.font.width(var20.substring(0, Math.max(Math.min(var15, var20.length()), 0)));
+             var22 = var33 - this.minecraft.font.width(var20) / 2;
+             if (var8 && var15 < var20.length()) {
+                int var31 = var17 - 1;
+                int var10003 = var22 + 1;
+-               this.minecraft.font.getClass();
++               Objects.requireNonNull(this.minecraft.font);
+                fill(var1, var22, var31, var10003, var17 + 9, -16777216 | var14);
+             }
+ 
+             if (var16 != var15) {
+                var23 = Math.min(var15, var16);
+@@ -192,19 +198,20 @@
+                int var26 = this.minecraft.font.width(var20.substring(0, var24)) - this.minecraft.font.width(var20) / 2;
+                int var27 = Math.min(var25, var26);
+                int var28 = Math.max(var25, var26);
                 Tesselator var29 = Tesselator.getInstance();
                 BufferBuilder var30 = var29.getBuilder();
++               RenderSystem.setShader(GameRenderer::getPositionColorShader);
                 RenderSystem.disableTexture();
                 RenderSystem.enableColorLogicOp();
                 RenderSystem.logicOp(GlStateManager.LogicOp.OR_REVERSE);
 -               var30.begin(7, DefaultVertexFormat.POSITION_COLOR);
 +               var30.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
                 float var32 = (float)var27;
-                this.minecraft.font.getClass();
+-               this.minecraft.font.getClass();
++               Objects.requireNonNull(this.minecraft.font);
                 var30.vertex(var18, var32, (float)(var17 + 9), 0.0F).color(0, 0, 255, 255).endVertex();
                 var32 = (float)var28;
-                this.minecraft.font.getClass();
+-               this.minecraft.font.getClass();
++               Objects.requireNonNull(this.minecraft.font);
+                var30.vertex(var18, var32, (float)(var17 + 9), 0.0F).color(0, 0, 255, 255).endVertex();
+                var30.vertex(var18, (float)var28, (float)var17, 0.0F).color(0, 0, 255, 255).endVertex();
+                var30.vertex(var18, (float)var27, (float)var17, 0.0F).color(0, 0, 255, 255).endVertex();
+                var30.end();
+                BufferUploader.end(var30);

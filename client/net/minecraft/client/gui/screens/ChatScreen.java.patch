@@ -1,18 +1,55 @@
 --- net/minecraft/client/gui/screens/ChatScreen.java
 +++ net/minecraft/client/gui/screens/ChatScreen.java
-@@ -10,10 +10,11 @@
+@@ -1,27 +1,31 @@
+ package net.minecraft.client.gui.screens;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import net.minecraft.client.Minecraft;
+-import net.minecraft.client.gui.chat.NarratorChatListener;
+ import net.minecraft.client.gui.components.ChatComponent;
+ import net.minecraft.client.gui.components.CommandSuggestions;
+ import net.minecraft.client.gui.components.EditBox;
++import net.minecraft.client.gui.narration.NarratedElementType;
++import net.minecraft.client.gui.narration.NarrationElementOutput;
++import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.MutableComponent;
  import net.minecraft.network.chat.Style;
  import net.minecraft.network.chat.TranslatableComponent;
  import net.minecraft.util.Mth;
  
  public class ChatScreen extends Screen {
 +   public static final int MOUSE_SCROLL_SPEED = 7;
++   private static final Component USAGE_TEXT = new TranslatableComponent("chat_screen.usage");
     private String historyBuffer = "";
     private int historyPos = -1;
     protected EditBox input;
-    private String initial = "";
-    private CommandSuggestions commandSuggestions;
-@@ -149,11 +150,11 @@
+-   private String initial = "";
+-   private CommandSuggestions commandSuggestions;
++   private final String initial;
++   CommandSuggestions commandSuggestions;
+ 
+    public ChatScreen(String var1) {
+-      super(NarratorChatListener.NO_TITLE);
++      super(new TranslatableComponent("chat_screen.title"));
+       this.initial = var1;
+    }
+ 
+    protected void init() {
+       this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
+@@ -33,11 +37,11 @@
+       };
+       this.input.setMaxLength(256);
+       this.input.setBordered(false);
+       this.input.setValue(this.initial);
+       this.input.setResponder(this::onEdited);
+-      this.children.add(this.input);
++      this.addWidget(this.input);
+       this.commandSuggestions = new CommandSuggestions(this.minecraft, this, this.input, this.font, false, false, 1, 10, true, -805306368);
+       this.commandSuggestions.updateCommandInfo();
+       this.setInitialFocus(this.input);
+    }
+ 
+@@ -149,11 +153,11 @@
     }
  
     public void moveInHistory(int var1) {
@@ -25,3 +62,20 @@
              this.historyPos = var3;
              this.input.setValue(this.historyBuffer);
           } else {
+@@ -187,6 +191,16 @@
+    }
+ 
+    private void setChatLine(String var1) {
+       this.input.setValue(var1);
+    }
++
++   protected void updateNarrationState(NarrationElementOutput var1) {
++      var1.add(NarratedElementType.TITLE, this.getTitle());
++      var1.add(NarratedElementType.USAGE, USAGE_TEXT);
++      String var2 = this.input.getValue();
++      if (!var2.isEmpty()) {
++         var1.nest().add(NarratedElementType.TITLE, (Component)(new TranslatableComponent("chat_screen.message", new Object[]{var2})));
++      }
++
++   }
+ }

@@ -1,8 +1,9 @@
 --- com/mojang/blaze3d/platform/GlStateManager.java
 +++ com/mojang/blaze3d/platform/GlStateManager.java
-@@ -1,163 +1,46 @@
+@@ -1,163 +1,52 @@
  package com.mojang.blaze3d.platform;
  
++import com.google.common.base.Charsets;
 +import com.mojang.blaze3d.DontObfuscate;
  import com.mojang.blaze3d.systems.RenderSystem;
  import com.mojang.math.Matrix4f;
@@ -11,20 +12,24 @@
  import java.nio.ByteBuffer;
  import java.nio.FloatBuffer;
  import java.nio.IntBuffer;
++import java.util.Iterator;
 +import java.util.List;
  import java.util.stream.IntStream;
  import javax.annotation.Nullable;
 -import org.lwjgl.opengl.ARBFramebufferObject;
 -import org.lwjgl.opengl.EXTFramebufferBlit;
 -import org.lwjgl.opengl.EXTFramebufferObject;
++import org.lwjgl.PointerBuffer;
  import org.lwjgl.opengl.GL11;
  import org.lwjgl.opengl.GL13;
  import org.lwjgl.opengl.GL14;
  import org.lwjgl.opengl.GL15;
  import org.lwjgl.opengl.GL20;
++import org.lwjgl.opengl.GL20C;
  import org.lwjgl.opengl.GL30;
 -import org.lwjgl.opengl.GLCapabilities;
--import org.lwjgl.system.MemoryUtil;
++import org.lwjgl.system.MemoryStack;
+ import org.lwjgl.system.MemoryUtil;
  
 +@DontObfuscate
  public class GlStateManager {
@@ -169,7 +174,7 @@
        SCISSOR.mode.disable();
     }
  
-@@ -229,70 +112,15 @@
+@@ -229,70 +118,15 @@
           glBlendFuncSeparate(var0, var1, var2, var3);
        }
  
@@ -240,7 +245,7 @@
        return GL20.glGetProgrami(var0, var1);
     }
  
-@@ -309,13 +137,13 @@
+@@ -309,13 +143,52 @@
     public static int glCreateShader(int var0) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        return GL20.glCreateShader(var0);
@@ -250,13 +255,52 @@
 +   public static void glShaderSource(int var0, List<String> var1) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
 -      GL20.glShaderSource(var0, var1);
-+      GL20.glShaderSource(var0, (CharSequence[])var1.toArray(new CharSequence[0]));
++      StringBuilder var2 = new StringBuilder();
++      Iterator var3 = var1.iterator();
++
++      while(var3.hasNext()) {
++         String var4 = (String)var3.next();
++         var2.append(var4);
++      }
++
++      byte[] var15 = var2.toString().getBytes(Charsets.UTF_8);
++      ByteBuffer var16 = MemoryUtil.memAlloc(var15.length + 1);
++      var16.put(var15);
++      var16.put((byte)0);
++      var16.flip();
++
++      try {
++         MemoryStack var5 = MemoryStack.stackPush();
++
++         try {
++            PointerBuffer var6 = var5.mallocPointer(1);
++            var6.put(var16);
++            GL20C.nglShaderSource(var0, 1, var6.address0(), 0L);
++         } catch (Throwable var13) {
++            if (var5 != null) {
++               try {
++                  var5.close();
++               } catch (Throwable var12) {
++                  var13.addSuppressed(var12);
++               }
++            }
++
++            throw var13;
++         }
++
++         if (var5 != null) {
++            var5.close();
++         }
++      } finally {
++         MemoryUtil.memFree(var16);
++      }
++
     }
  
     public static void glCompileShader(int var0) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        GL20.glCompileShader(var0);
-@@ -414,163 +242,134 @@
+@@ -414,163 +287,134 @@
     public static int _glGetAttribLocation(int var0, CharSequence var1) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        return GL20.glGetAttribLocation(var0, var1);
@@ -485,7 +529,7 @@
     public static void glBlendFuncSeparate(int var0, int var1, int var2, int var3) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        GL14.glBlendFuncSeparate(var0, var1, var2, var3);
-@@ -584,94 +383,17 @@
+@@ -584,94 +428,17 @@
     public static String glGetProgramInfoLog(int var0, int var1) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        return GL20.glGetProgramInfoLog(var0, var1);
@@ -583,7 +627,7 @@
     public static void setupGuiFlatDiffuseLighting(Vector3f var0, Vector3f var1) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        Matrix4f var2 = new Matrix4f();
-@@ -686,112 +408,15 @@
+@@ -686,112 +453,15 @@
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        Matrix4f var2 = new Matrix4f();
        var2.setIdentity();
@@ -696,7 +740,7 @@
        CULL.enable.enable();
     }
  
-@@ -813,20 +438,10 @@
+@@ -813,20 +483,10 @@
     public static void _disablePolygonOffset() {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        POLY_OFFSET.fill.disable();
@@ -717,7 +761,7 @@
        if (var0 != POLY_OFFSET.factor || var1 != POLY_OFFSET.units) {
           POLY_OFFSET.factor = var0;
           POLY_OFFSET.units = var1;
-@@ -852,56 +467,10 @@
+@@ -852,56 +512,10 @@
           GL11.glLogicOp(var0);
        }
  
@@ -774,7 +818,7 @@
        if (activeTexture != var0 - '\u84c0') {
           activeTexture = var0 - '\u84c0';
           glActiveTexture(var0);
-@@ -909,24 +478,18 @@
+@@ -909,24 +523,18 @@
  
     }
  
@@ -801,7 +845,7 @@
        GL11.glTexParameterf(var0, var1, var2);
     }
  
-@@ -993,10 +556,18 @@
+@@ -993,10 +601,18 @@
           GL11.glBindTexture(3553, var0);
        }
  
@@ -820,7 +864,7 @@
        GL11.glTexImage2D(var0, var1, var2, var3, var4, var5, var6, var7, var8);
     }
  
-@@ -1008,32 +579,10 @@
+@@ -1008,32 +624,10 @@
     public static void _getTexImage(int var0, int var1, int var2, int var3, long var4) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
        GL11.glGetTexImage(var0, var1, var2, var3, var4);
@@ -853,7 +897,7 @@
        GlStateManager.Viewport.INSTANCE.x = var0;
        GlStateManager.Viewport.INSTANCE.y = var1;
        GlStateManager.Viewport.INSTANCE.width = var2;
-@@ -1106,184 +655,51 @@
+@@ -1106,184 +700,51 @@
           _getError();
        }
  
@@ -1048,7 +1092,7 @@
     }
  
     public static int _getError() {
-@@ -1299,14 +715,11 @@
+@@ -1299,61 +760,17 @@
     public static int _getInteger(int var0) {
        RenderSystem.assertThread(RenderSystem::isOnRenderThreadOrInit);
        return GL11.glGetInteger(var0);
@@ -1057,26 +1101,63 @@
 -   public static boolean supportsFramebufferBlit() {
 -      return fboBlitMode != GlStateManager.FboBlitMode.NONE;
 -   }
++   static class ScissorState {
++      public final GlStateManager.BooleanState mode = new GlStateManager.BooleanState(3089);
+ 
+-   public static enum DestFactor {
+-      CONSTANT_ALPHA(32771),
+-      CONSTANT_COLOR(32769),
+-      DST_ALPHA(772),
+-      DST_COLOR(774),
+-      ONE(1),
+-      ONE_MINUS_CONSTANT_ALPHA(32772),
+-      ONE_MINUS_CONSTANT_COLOR(32770),
+-      ONE_MINUS_DST_ALPHA(773),
+-      ONE_MINUS_DST_COLOR(775),
+-      ONE_MINUS_SRC_ALPHA(771),
+-      ONE_MINUS_SRC_COLOR(769),
+-      SRC_ALPHA(770),
+-      SRC_COLOR(768),
+-      ZERO(0);
 -
-+   @DontObfuscate
-    public static enum DestFactor {
-       CONSTANT_ALPHA(32771),
-       CONSTANT_COLOR(32769),
-       DST_ALPHA(772),
-       DST_COLOR(774),
-@@ -1326,10 +739,11 @@
-       private DestFactor(int var3) {
-          this.value = var3;
+-      public final int value;
+-
+-      private DestFactor(int var3) {
+-         this.value = var3;
++      ScissorState() {
        }
     }
  
-+   @DontObfuscate
-    public static enum SourceFactor {
-       CONSTANT_ALPHA(32771),
-       CONSTANT_COLOR(32769),
-       DST_ALPHA(772),
-       DST_COLOR(774),
-@@ -1380,33 +794,10 @@
+-   public static enum SourceFactor {
+-      CONSTANT_ALPHA(32771),
+-      CONSTANT_COLOR(32769),
+-      DST_ALPHA(772),
+-      DST_COLOR(774),
+-      ONE(1),
+-      ONE_MINUS_CONSTANT_ALPHA(32772),
+-      ONE_MINUS_CONSTANT_COLOR(32770),
+-      ONE_MINUS_DST_ALPHA(773),
+-      ONE_MINUS_DST_COLOR(775),
+-      ONE_MINUS_SRC_ALPHA(771),
+-      ONE_MINUS_SRC_COLOR(769),
+-      SRC_ALPHA(770),
+-      SRC_ALPHA_SATURATE(776),
+-      SRC_COLOR(768),
+-      ZERO(0);
+-
+-      public final int value;
+-
+-      private SourceFactor(int var3) {
+-         this.value = var3;
+-      }
+-   }
+-
+    static class BooleanState {
+       private final int state;
+       private boolean enabled;
+ 
+       public BooleanState(int var1) {
+@@ -1380,261 +797,171 @@
           }
  
        }
@@ -1088,10 +1169,15 @@
 -      public float g;
 -      public float b;
 -      public float a;
--
++   static class DepthState {
++      public final GlStateManager.BooleanState mode = new GlStateManager.BooleanState(2929);
++      public boolean mask = true;
++      public int func = 513;
+ 
 -      public Color() {
 -         this(1.0F, 1.0F, 1.0F, 1.0F);
--      }
++      DepthState() {
+       }
 -
 -      public Color(float var1, float var2, float var3, float var4) {
 -         this.r = 1.0F;
@@ -1103,16 +1189,26 @@
 -         this.b = var3;
 -         this.a = var4;
 -      }
--   }
--
-    static class ColorMask {
-       public boolean red;
-       public boolean green;
-       public boolean blue;
-       public boolean alpha;
-@@ -1417,48 +808,10 @@
-          this.blue = true;
-          this.alpha = true;
+    }
+ 
+-   static class ColorMask {
+-      public boolean red;
+-      public boolean green;
+-      public boolean blue;
+-      public boolean alpha;
++   static class BlendState {
++      public final GlStateManager.BooleanState mode = new GlStateManager.BooleanState(3042);
++      public int srcRgb = 1;
++      public int dstRgb = 0;
++      public int srcAlpha = 1;
++      public int dstAlpha = 0;
+ 
+-      private ColorMask() {
+-         this.red = true;
+-         this.green = true;
+-         this.blue = true;
+-         this.alpha = true;
++      BlendState() {
        }
     }
  
@@ -1122,48 +1218,135 @@
 -      T,
 -      R,
 -      Q;
--
++   static class CullState {
++      public final GlStateManager.BooleanState enable = new GlStateManager.BooleanState(2884);
++      public int mode = 1029;
+ 
 -      private TexGen() {
--      }
--   }
--
++      CullState() {
+       }
+    }
+ 
 -   @Deprecated
 -   static class TexGenCoord {
 -      public final GlStateManager.BooleanState enable;
 -      public final int coord;
 -      public int mode = -1;
--
++   static class PolygonOffsetState {
++      public final GlStateManager.BooleanState fill = new GlStateManager.BooleanState(32823);
++      public final GlStateManager.BooleanState line = new GlStateManager.BooleanState(10754);
++      public float factor;
++      public float units;
+ 
 -      public TexGenCoord(int var1, int var2) {
 -         this.coord = var1;
 -         this.enable = new GlStateManager.BooleanState(var2);
--      }
--   }
--
++      PolygonOffsetState() {
+       }
+    }
+ 
 -   @Deprecated
 -   static class TexGenState {
 -      public final GlStateManager.TexGenCoord s;
 -      public final GlStateManager.TexGenCoord t;
 -      public final GlStateManager.TexGenCoord r;
 -      public final GlStateManager.TexGenCoord q;
--
++   static class ColorLogicState {
++      public final GlStateManager.BooleanState enable = new GlStateManager.BooleanState(3058);
++      public int op = 5379;
+ 
 -      private TexGenState() {
 -         this.s = new GlStateManager.TexGenCoord(8192, 3168);
 -         this.t = new GlStateManager.TexGenCoord(8193, 3169);
 -         this.r = new GlStateManager.TexGenCoord(8194, 3170);
 -         this.q = new GlStateManager.TexGenCoord(8195, 3171);
--      }
--   }
--
-    static class ScissorState {
-       public final GlStateManager.BooleanState mode;
- 
-       private ScissorState() {
-          this.mode = new GlStateManager.BooleanState(3089);
-@@ -1522,26 +875,10 @@
-          this.enable = new GlStateManager.BooleanState(2884);
-          this.mode = 1029;
++      ColorLogicState() {
        }
     }
+ 
+-   static class ScissorState {
+-      public final GlStateManager.BooleanState mode;
++   static class TextureState {
++      public boolean enable;
++      public int binding;
+ 
+-      private ScissorState() {
+-         this.mode = new GlStateManager.BooleanState(3089);
++      TextureState() {
+       }
+    }
+ 
+-   static class StencilState {
+-      public final GlStateManager.StencilFunc func;
+-      public int mask;
+-      public int fail;
+-      public int zfail;
+-      public int zpass;
++   public static enum Viewport {
++      INSTANCE;
+ 
+-      private StencilState() {
+-         this.func = new GlStateManager.StencilFunc();
+-         this.mask = -1;
+-         this.fail = 7680;
+-         this.zfail = 7680;
+-         this.zpass = 7680;
+-      }
+-   }
++      protected int x;
++      protected int y;
++      protected int width;
++      protected int height;
+ 
+-   static class StencilFunc {
+-      public int func;
+-      public int ref;
+-      public int mask;
+-
+-      private StencilFunc() {
+-         this.func = 519;
+-         this.mask = -1;
++      private Viewport() {
+       }
+-   }
+ 
+-   static class ColorLogicState {
+-      public final GlStateManager.BooleanState enable;
+-      public int op;
+-
+-      private ColorLogicState() {
+-         this.enable = new GlStateManager.BooleanState(3058);
+-         this.op = 5379;
++      public static int x() {
++         return INSTANCE.x;
+       }
+-   }
+ 
+-   static class PolygonOffsetState {
+-      public final GlStateManager.BooleanState fill;
+-      public final GlStateManager.BooleanState line;
+-      public float factor;
+-      public float units;
+-
+-      private PolygonOffsetState() {
+-         this.fill = new GlStateManager.BooleanState(32823);
+-         this.line = new GlStateManager.BooleanState(10754);
++      public static int y() {
++         return INSTANCE.y;
+       }
+-   }
+ 
+-   static class CullState {
+-      public final GlStateManager.BooleanState enable;
+-      public int mode;
+-
+-      private CullState() {
+-         this.enable = new GlStateManager.BooleanState(2884);
+-         this.mode = 1029;
++      public static int width() {
++         return INSTANCE.width;
+       }
+-   }
  
 -   @Deprecated
 -   static class FogState {
@@ -1178,17 +1361,49 @@
 -         this.mode = 2048;
 -         this.density = 1.0F;
 -         this.end = 1.0F;
--      }
--   }
--
-    static class DepthState {
-       public final GlStateManager.BooleanState mode;
-       public boolean mask;
-       public int func;
++      public static int height() {
++         return INSTANCE.height;
+       }
+    }
  
-@@ -1566,73 +903,44 @@
-          this.srcAlpha = 1;
-          this.dstAlpha = 0;
+-   static class DepthState {
+-      public final GlStateManager.BooleanState mode;
+-      public boolean mask;
+-      public int func;
++   static class ColorMask {
++      public boolean red = true;
++      public boolean green = true;
++      public boolean blue = true;
++      public boolean alpha = true;
+ 
+-      private DepthState() {
+-         this.mode = new GlStateManager.BooleanState(2929);
+-         this.mask = true;
+-         this.func = 513;
++      ColorMask() {
+       }
+    }
+ 
+-   static class BlendState {
+-      public final GlStateManager.BooleanState mode;
+-      public int srcRgb;
+-      public int dstRgb;
+-      public int srcAlpha;
+-      public int dstAlpha;
++   static class StencilState {
++      public final GlStateManager.StencilFunc func = new GlStateManager.StencilFunc();
++      public int mask = -1;
++      public int fail = 7680;
++      public int zfail = 7680;
++      public int zpass = 7680;
+ 
+-      private BlendState() {
+-         this.mode = new GlStateManager.BooleanState(3042);
+-         this.srcRgb = 1;
+-         this.dstRgb = 0;
+-         this.srcAlpha = 1;
+-         this.dstAlpha = 0;
++      StencilState() {
        }
     }
  
@@ -1197,34 +1412,57 @@
 -      public final GlStateManager.BooleanState enable;
 -      public int face;
 -      public int mode;
--
++   private static class StencilFunc {
++      public int func = 519;
++      public int ref;
++      public int mask = -1;
+ 
 -      private ColorMaterialState() {
 -         this.enable = new GlStateManager.BooleanState(2903);
 -         this.face = 1032;
 -         this.mode = 5634;
--      }
--   }
--
++      StencilFunc() {
+       }
+    }
+ 
 -   @Deprecated
 -   static class AlphaState {
 -      public final GlStateManager.BooleanState mode;
 -      public int func;
 -      public float reference;
--
++   @DontObfuscate
++   public static enum DestFactor {
++      CONSTANT_ALPHA(32771),
++      CONSTANT_COLOR(32769),
++      DST_ALPHA(772),
++      DST_COLOR(774),
++      ONE(1),
++      ONE_MINUS_CONSTANT_ALPHA(32772),
++      ONE_MINUS_CONSTANT_COLOR(32770),
++      ONE_MINUS_DST_ALPHA(773),
++      ONE_MINUS_DST_COLOR(775),
++      ONE_MINUS_SRC_ALPHA(771),
++      ONE_MINUS_SRC_COLOR(769),
++      SRC_ALPHA(770),
++      SRC_COLOR(768),
++      ZERO(0);
+ 
 -      private AlphaState() {
 -         this.mode = new GlStateManager.BooleanState(3008);
 -         this.func = 519;
 -         this.reference = -1.0F;
 -      }
 -   }
--
-    static class TextureState {
--      public final GlStateManager.BooleanState enable;
-+      public boolean enable;
-       public int binding;
++      public final int value;
  
-       private TextureState() {
+-   static class TextureState {
+-      public final GlStateManager.BooleanState enable;
+-      public int binding;
+-
+-      private TextureState() {
 -         this.enable = new GlStateManager.BooleanState(3553);
++      private DestFactor(int var3) {
++         this.value = var3;
        }
     }
  
@@ -1232,52 +1470,58 @@
 -      BASE,
 -      EXT,
 -      NONE;
--
++   @DontObfuscate
++   public static enum SourceFactor {
++      CONSTANT_ALPHA(32771),
++      CONSTANT_COLOR(32769),
++      DST_ALPHA(772),
++      DST_COLOR(774),
++      ONE(1),
++      ONE_MINUS_CONSTANT_ALPHA(32772),
++      ONE_MINUS_CONSTANT_COLOR(32770),
++      ONE_MINUS_DST_ALPHA(773),
++      ONE_MINUS_DST_COLOR(775),
++      ONE_MINUS_SRC_ALPHA(771),
++      ONE_MINUS_SRC_COLOR(769),
++      SRC_ALPHA(770),
++      SRC_ALPHA_SATURATE(776),
++      SRC_COLOR(768),
++      ZERO(0);
+ 
 -      private FboBlitMode() {
 -      }
 -   }
--
++      public final int value;
+ 
 -   public static enum FboMode {
 -      BASE,
 -      ARB,
 -      EXT;
 -
 -      private FboMode() {
++      private SourceFactor(int var3) {
++         this.value = var3;
+       }
+    }
+ 
+-   public static enum Viewport {
+-      INSTANCE;
+-
+-      protected int x;
+-      protected int y;
+-      protected int width;
+-      protected int height;
+-
+-      private Viewport() {
 -      }
 -   }
 -
-    public static enum Viewport {
-       INSTANCE;
- 
-       protected int x;
-       protected int y;
-       protected int width;
-       protected int height;
- 
-       private Viewport() {
-       }
-+
-+      public static int x() {
-+         return INSTANCE.x;
-+      }
-+
-+      public static int y() {
-+         return INSTANCE.y;
-+      }
-+
-+      public static int width() {
-+         return INSTANCE.width;
-+      }
-+
-+      public static int height() {
-+         return INSTANCE.height;
-+      }
-    }
- 
     public static enum LogicOp {
        AND(5377),
        AND_INVERTED(5380),
-@@ -1655,19 +963,6 @@
+       AND_REVERSE(5378),
+       CLEAR(5376),
+@@ -1655,19 +982,6 @@
  
        private LogicOp(int var3) {
           this.value = var3;

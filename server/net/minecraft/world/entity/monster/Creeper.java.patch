@@ -1,6 +1,13 @@
 --- net/minecraft/world/entity/monster/Creeper.java
 +++ net/minecraft/world/entity/monster/Creeper.java
-@@ -7,18 +7,20 @@
+@@ -1,24 +1,28 @@
+ package net.minecraft.world.entity.monster;
+ 
+ import java.util.Collection;
+ import java.util.Iterator;
++import javax.annotation.Nullable;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.network.syncher.EntityDataAccessor;
  import net.minecraft.network.syncher.EntityDataSerializers;
  import net.minecraft.network.syncher.SynchedEntityData;
  import net.minecraft.server.level.ServerLevel;
@@ -15,13 +22,21 @@
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.LightningBolt;
++import net.minecraft.world.entity.LivingEntity;
 +import net.minecraft.world.entity.PowerableMob;
  import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
  import net.minecraft.world.entity.ai.attributes.Attributes;
  import net.minecraft.world.entity.ai.goal.AvoidEntityGoal;
  import net.minecraft.world.entity.ai.goal.FloatGoal;
  import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-@@ -34,12 +36,13 @@
+@@ -28,18 +32,20 @@
+ import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+ import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+ import net.minecraft.world.entity.animal.Cat;
+ import net.minecraft.world.entity.animal.Ocelot;
++import net.minecraft.world.entity.animal.goat.Goat;
+ import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.item.Items;
  import net.minecraft.world.level.Explosion;
@@ -36,7 +51,7 @@
     private static final EntityDataAccessor<Boolean> DATA_IS_IGNITED;
     private int oldSwell;
     private int swell;
-@@ -70,18 +73,18 @@
+@@ -70,18 +76,18 @@
  
     public int getMaxFallDistance() {
        return this.getTarget() == null ? 3 : 3 + (int)(this.getHealth() - 1.0F);
@@ -58,7 +73,7 @@
     protected void defineSynchedData() {
        super.defineSynchedData();
        this.entityData.define(DATA_SWELL_DIR, -1);
-@@ -125,10 +128,11 @@
+@@ -125,10 +131,11 @@
           }
  
           int var1 = this.getSwellDir();
@@ -70,7 +85,24 @@
           this.swell += var1;
           if (this.swell < 0) {
              this.swell = 0;
-@@ -170,10 +174,14 @@
+@@ -141,10 +148,16 @@
+       }
+ 
+       super.tick();
+    }
+ 
++   public void setTarget(@Nullable LivingEntity var1) {
++      if (!(var1 instanceof Goat)) {
++         super.setTarget(var1);
++      }
++   }
++
+    protected SoundEvent getHurtSound(DamageSource var1) {
+       return SoundEvents.CREEPER_HURT;
+    }
+ 
+    protected SoundEvent getDeathSound() {
+@@ -170,10 +183,14 @@
  
     public boolean isPowered() {
        return (Boolean)this.entityData.get(DATA_IS_POWERED);
@@ -85,7 +117,7 @@
     }
  
     public void setSwellDir(int var1) {
-@@ -185,11 +193,11 @@
+@@ -185,11 +202,11 @@
        this.entityData.set(DATA_IS_POWERED, true);
     }
  
@@ -98,7 +130,7 @@
              this.ignite();
              var3.hurtAndBreak(1, var1, (var1x) -> {
                 var1x.broadcastBreakEvent(var2);
-@@ -206,11 +214,11 @@
+@@ -206,11 +223,11 @@
        if (!this.level.isClientSide) {
           Explosion.BlockInteraction var1 = this.level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING) ? Explosion.BlockInteraction.DESTROY : Explosion.BlockInteraction.NONE;
           float var2 = this.isPowered() ? 2.0F : 1.0F;

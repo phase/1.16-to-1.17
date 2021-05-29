@@ -18,7 +18,170 @@
           VideoMode var8 = var7.getPreferredVidMode(this.fullscreen ? this.preferredFullscreenVideoMode : Optional.empty());
           this.windowedX = this.x = var7.getX() + var8.getWidth() / 2 - this.width / 2;
           this.windowedY = this.y = var7.getY() + var8.getHeight() / 2 - this.height / 2;
-@@ -449,10 +450,18 @@
+@@ -110,101 +111,95 @@
+    }
+ 
+    public static void checkGlfwError(BiConsumer<Integer, String> var0) {
+       RenderSystem.assertThread(RenderSystem::isInInitPhase);
+       MemoryStack var1 = MemoryStack.stackPush();
+-      Throwable var2 = null;
+ 
+       try {
+-         PointerBuffer var3 = var1.mallocPointer(1);
+-         int var4 = GLFW.glfwGetError(var3);
+-         if (var4 != 0) {
+-            long var5 = var3.get();
+-            String var7 = var5 == 0L ? "" : MemoryUtil.memUTF8(var5);
+-            var0.accept(var4, var7);
++         PointerBuffer var2 = var1.mallocPointer(1);
++         int var3 = GLFW.glfwGetError(var2);
++         if (var3 != 0) {
++            long var4 = var2.get();
++            String var6 = var4 == 0L ? "" : MemoryUtil.memUTF8(var4);
++            var0.accept(var3, var6);
+          }
+-      } catch (Throwable var15) {
+-         var2 = var15;
+-         throw var15;
+-      } finally {
++      } catch (Throwable var8) {
+          if (var1 != null) {
+-            if (var2 != null) {
+-               try {
+-                  var1.close();
+-               } catch (Throwable var14) {
+-                  var2.addSuppressed(var14);
+-               }
+-            } else {
++            try {
+                var1.close();
++            } catch (Throwable var7) {
++               var8.addSuppressed(var7);
+             }
+          }
+ 
++         throw var8;
+       }
+ 
++      if (var1 != null) {
++         var1.close();
++      }
++
+    }
+ 
+    public void setIcon(InputStream var1, InputStream var2) {
+       RenderSystem.assertThread(RenderSystem::isInInitPhase);
+ 
+       try {
+          MemoryStack var3 = MemoryStack.stackPush();
+-         Throwable var4 = null;
+ 
+          try {
+             if (var1 == null) {
+                throw new FileNotFoundException("icons/icon_16x16.png");
+             }
+ 
+             if (var2 == null) {
+                throw new FileNotFoundException("icons/icon_32x32.png");
+             }
+ 
++            IntBuffer var4 = var3.mallocInt(1);
+             IntBuffer var5 = var3.mallocInt(1);
+             IntBuffer var6 = var3.mallocInt(1);
+-            IntBuffer var7 = var3.mallocInt(1);
+-            Buffer var8 = GLFWImage.mallocStack(2, var3);
+-            ByteBuffer var9 = this.readIconPixels(var1, var5, var6, var7);
+-            if (var9 == null) {
++            Buffer var7 = GLFWImage.mallocStack(2, var3);
++            ByteBuffer var8 = this.readIconPixels(var1, var4, var5, var6);
++            if (var8 == null) {
+                throw new IllegalStateException("Could not load icon: " + STBImage.stbi_failure_reason());
+             }
+ 
+-            var8.position(0);
+-            var8.width(var5.get(0));
+-            var8.height(var6.get(0));
+-            var8.pixels(var9);
+-            ByteBuffer var10 = this.readIconPixels(var2, var5, var6, var7);
+-            if (var10 == null) {
++            var7.position(0);
++            var7.width(var4.get(0));
++            var7.height(var5.get(0));
++            var7.pixels(var8);
++            ByteBuffer var9 = this.readIconPixels(var2, var4, var5, var6);
++            if (var9 == null) {
+                throw new IllegalStateException("Could not load icon: " + STBImage.stbi_failure_reason());
+             }
+ 
+-            var8.position(1);
+-            var8.width(var5.get(0));
+-            var8.height(var6.get(0));
+-            var8.pixels(var10);
+-            var8.position(0);
+-            GLFW.glfwSetWindowIcon(this.window, var8);
++            var7.position(1);
++            var7.width(var4.get(0));
++            var7.height(var5.get(0));
++            var7.pixels(var9);
++            var7.position(0);
++            GLFW.glfwSetWindowIcon(this.window, var7);
++            STBImage.stbi_image_free(var8);
+             STBImage.stbi_image_free(var9);
+-            STBImage.stbi_image_free(var10);
+-         } catch (Throwable var19) {
+-            var4 = var19;
+-            throw var19;
+-         } finally {
++         } catch (Throwable var11) {
+             if (var3 != null) {
+-               if (var4 != null) {
+-                  try {
+-                     var3.close();
+-                  } catch (Throwable var18) {
+-                     var4.addSuppressed(var18);
+-                  }
+-               } else {
++               try {
+                   var3.close();
++               } catch (Throwable var10) {
++                  var11.addSuppressed(var10);
+                }
+             }
+ 
++            throw var11;
+          }
+-      } catch (IOException var21) {
+-         LOGGER.error("Couldn't set icon", var21);
++
++         if (var3 != null) {
++            var3.close();
++         }
++      } catch (IOException var12) {
++         LOGGER.error("Couldn't set icon", var12);
+       }
+ 
+    }
+ 
+    @Nullable
+@@ -395,10 +390,17 @@
+ 
+    public void toggleFullScreen() {
+       this.fullscreen = !this.fullscreen;
+    }
+ 
++   public void setWindowed(int var1, int var2) {
++      this.windowedWidth = var1;
++      this.windowedHeight = var2;
++      this.fullscreen = false;
++      this.setMode();
++   }
++
+    private void updateFullscreen(boolean var1) {
+       RenderSystem.assertThread(RenderSystem::isOnRenderThread);
+ 
+       try {
+          this.setMode();
+@@ -449,10 +451,18 @@
  
     public int getHeight() {
        return this.framebufferHeight;
@@ -37,3 +200,15 @@
     }
  
     public int getScreenHeight() {
+@@ -487,10 +497,10 @@
+    public void updateRawMouseInput(boolean var1) {
+       InputConstants.updateRawMouseInput(this.window, var1);
+    }
+ 
+    public static class WindowInitFailed extends SilentInitException {
+-      private WindowInitFailed(String var1) {
++      WindowInitFailed(String var1) {
+          super(var1);
+       }
+    }
+ }

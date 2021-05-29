@@ -24,43 +24,103 @@
     public PortalForcer(ServerLevel var1) {
        this.level = var1;
     }
-@@ -54,11 +67,11 @@
+@@ -54,59 +67,68 @@
        double var4 = -1.0D;
        BlockPos var6 = null;
        double var7 = -1.0D;
        BlockPos var9 = null;
        WorldBorder var10 = this.level.getWorldBorder();
 -      int var11 = this.level.getHeight() - 1;
-+      int var11 = this.level.getMinBuildHeight() + this.level.getLogicalHeight() - 1;
++      int var11 = Math.min(this.level.getMaxBuildHeight(), this.level.getMinBuildHeight() + this.level.getLogicalHeight()) - 1;
        BlockPos.MutableBlockPos var12 = var1.mutable();
        Iterator var13 = BlockPos.spiralAround(var1, 16, Direction.EAST, Direction.SOUTH).iterator();
  
        while(true) {
           BlockPos.MutableBlockPos var14;
-@@ -71,11 +84,11 @@
+          int var15;
++         int var17;
++         int var18;
+          do {
+             do {
+                if (!var13.hasNext()) {
+                   if (var4 == -1.0D && var7 != -1.0D) {
+                      var6 = var9;
                       var4 = var7;
                    }
  
-                   int var24;
+-                  int var24;
++                  int var22;
++                  int var23;
                    if (var4 == -1.0D) {
 -                     var6 = (new BlockPos(var1.getX(), Mth.clamp(var1.getY(), 70, this.level.getHeight() - 10), var1.getZ())).immutable();
-+                     var6 = (new BlockPos(var1.getX(), Mth.clamp((int)var1.getY(), (int)70, (int)(this.level.getMinBuildHeight() + this.level.getLogicalHeight() - 10)), var1.getZ())).immutable();
-                      Direction var22 = var3.getClockWise();
+-                     Direction var22 = var3.getClockWise();
++                     var22 = Math.max(this.level.getMinBuildHeight() - -1, 70);
++                     var23 = var11 - 9;
++                     if (var23 < var22) {
++                        return Optional.empty();
++                     }
++
++                     var6 = (new BlockPos(var1.getX(), Mth.clamp(var1.getY(), var22, var23), var1.getZ())).immutable();
++                     Direction var25 = var3.getClockWise();
                       if (!var10.isWithinBounds(var6)) {
                          return Optional.empty();
                       }
  
-@@ -117,15 +130,15 @@
+-                     for(var24 = -1; var24 < 2; ++var24) {
+-                        for(var15 = 0; var15 < 2; ++var15) {
+-                           for(int var26 = -1; var26 < 3; ++var26) {
+-                              BlockState var27 = var26 < 0 ? Blocks.OBSIDIAN.defaultBlockState() : Blocks.AIR.defaultBlockState();
+-                              var12.setWithOffset(var6, var15 * var3.getStepX() + var24 * var22.getStepX(), var26, var15 * var3.getStepZ() + var24 * var22.getStepZ());
++                     for(int var26 = -1; var26 < 2; ++var26) {
++                        for(var17 = 0; var17 < 2; ++var17) {
++                           for(var18 = -1; var18 < 3; ++var18) {
++                              BlockState var27 = var18 < 0 ? Blocks.OBSIDIAN.defaultBlockState() : Blocks.AIR.defaultBlockState();
++                              var12.setWithOffset(var6, var17 * var3.getStepX() + var26 * var25.getStepX(), var18, var17 * var3.getStepZ() + var26 * var25.getStepZ());
+                               this.level.setBlockAndUpdate(var12, var27);
+                            }
+                         }
+                      }
+                   }
+ 
+-                  for(int var23 = -1; var23 < 3; ++var23) {
+-                     for(var24 = -1; var24 < 4; ++var24) {
+-                        if (var23 == -1 || var23 == 2 || var24 == -1 || var24 == 3) {
+-                           var12.setWithOffset(var6, var23 * var3.getStepX(), var24, var23 * var3.getStepZ());
++                  for(var22 = -1; var22 < 3; ++var22) {
++                     for(var23 = -1; var23 < 4; ++var23) {
++                        if (var22 == -1 || var22 == 2 || var23 == -1 || var23 == 3) {
++                           var12.setWithOffset(var6, var22 * var3.getStepX(), var23, var22 * var3.getStepZ());
+                            this.level.setBlock(var12, Blocks.OBSIDIAN.defaultBlockState(), 3);
+                         }
+                      }
+                   }
+ 
+-                  BlockState var25 = (BlockState)Blocks.NETHER_PORTAL.defaultBlockState().setValue(NetherPortalBlock.AXIS, var2);
++                  BlockState var24 = (BlockState)Blocks.NETHER_PORTAL.defaultBlockState().setValue(NetherPortalBlock.AXIS, var2);
+ 
+-                  for(var24 = 0; var24 < 2; ++var24) {
++                  for(var23 = 0; var23 < 2; ++var23) {
+                      for(var15 = 0; var15 < 3; ++var15) {
+-                        var12.setWithOffset(var6, var24 * var3.getStepX(), var15, var24 * var3.getStepZ());
+-                        this.level.setBlock(var12, var25, 18);
++                        var12.setWithOffset(var6, var23 * var3.getStepX(), var15, var23 * var3.getStepZ());
++                        this.level.setBlock(var12, var24, 18);
+                      }
+                   }
+ 
+                   return Optional.of(new BlockUtil.FoundRectangle(var6.immutable(), 2, 3));
+                }
+@@ -117,15 +139,14 @@
              } while(!var10.isWithinBounds((BlockPos)var14));
           } while(!var10.isWithinBounds((BlockPos)var14.move(var3, 1)));
  
           var14.move(var3.getOpposite(), 1);
  
 -         for(int var17 = var15; var17 >= 0; --var17) {
-+         for(int var17 = var15; var17 >= this.level.getMinBuildHeight(); --var17) {
++         for(var17 = var15; var17 >= this.level.getMinBuildHeight(); --var17) {
              var14.setY(var17);
              if (this.level.isEmptyBlock(var14)) {
-                int var18;
+-               int var18;
 -               for(var18 = var17; var17 > 0 && this.level.isEmptyBlock(var14.move(Direction.DOWN)); --var17) {
 +               for(var18 = var17; var17 > this.level.getMinBuildHeight() && this.level.isEmptyBlock(var14.move(Direction.DOWN)); --var17) {
                 }
